@@ -1,0 +1,84 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+
+.react-tel-input .selected-flag,
+.react-tel-input .selected-flag:focus,
+.react-tel-input .selected-flag:active,
+.react-tel-input .selected-flag:focus-visible,
+.react-tel-input .flag-dropdown:focus,
+.react-tel-input .flag-dropdown:active,
+.react-tel-input .flag-dropdown:focus-within {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border: none !important;
+}
+
+.react-tel-input .flag-dropdown{
+  background-color: transparent !important;
+  border: none !important;
+  padding:0 8px; 
+}
+
+.react-tel-input .arrow {
+  border-top: 6px solid white !important;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  transition: transform 0.2s ease;
+}
+
+.react-mobile-picker-container .picker-toolbar {
+  background-color: #ffffff;
+}
+
+.react-mobile-picker-container .picker-btn {
+  font-weight: bold;
+  color: #3b82f6; /* blue */
+}
+
+.react-mobile-picker-container .picker-btn.picker-btn-confirm {
+  background-color: #3b82f6;
+  color: white;
+  padding: 8px 40px;
+  border-radius: 8px;
+  margin: 10px auto;
+}
+
