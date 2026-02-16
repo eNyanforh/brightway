@@ -3,21 +3,21 @@ import { X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Steps
-import Step1Contact from "./steps/Step1Contact";
-import Step2VerifyContact from "./steps/Step2VerifyContact";
-import Step3Names from "./steps/Step3Names";
-import Step4Birthdate from "./steps/Step4Birthdate";
-import Step5Gender from "./steps/Step5Gender";
-import Step6Password from "./steps/Step6Password";
-import Step7Agreement from "./steps/Step7Agreement";
-import Step9ProfilePic from "./steps/Step9ProfilePic";
-import Signup24UserRole from "./steps/Signup24Purose";
-import Step10Interest from "./steps/Step10Interest";
-import Step20Bio from "./steps/Step20Bio";
+import Step1Contact from "../components/signup/steps/Step1Contact";
+import Step2VerifyContact from "../components/signup/steps/Step2VerifyContact";
+import Step3Names from "../components/signup/steps/Step3Names";
+import Step4Birthdate from "../components/signup/steps/Step4Birthdate";
+import Step5Gender from "../components/signup/steps/Step5Gender";
+import Step6Password from "../components/signup/steps/Step6Password";
+import Step7Agreement from "../components/signup/steps/Step7Agreement";
+import Step9ProfilePic from "../components/signup/steps/Step9ProfilePic";
+import Signup24UserRole from "../components/signup/steps/Signup24Purose";
+import Step10Interest from "../components/signup/steps/Step10Interest";
+import Step20Bio from "../components/signup/steps/Step20Bio";
 
 // Layout
-import { Backdrop, Modal, CloseButton, FormContainer } from "../shared/FormLayout";
-import { useUser } from "./UserContext";
+import { Backdrop, Modal, CloseButton, FormContainer } from "../components/shared/FormLayout";
+import { useUser } from "../components/signup/UserContext";
 
 export default function SignupModal({ onClose }) {
   const { setSignupUser } = useUser();

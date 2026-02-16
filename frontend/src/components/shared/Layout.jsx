@@ -4,7 +4,7 @@ import { Link,useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import LoginModal from "../../pages/LoginModal";
-import SignupModal from "../signup/SignupModal";
+import SignupModal from "../../pages/SignupModal";
 
 
 export const Container = styled.div`
