@@ -1,0 +1,27 @@
+
+/**
+ * BrightWay database schema.
+ *
+ * We are using the JavaScript-compatible generator
+ * because the backend currently runs plain JavaScript.
+ */
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/**
+ * Temporary foundation model.
+ *
+ * This verifies migrations and database queries.
+ * We will introduce the actual Person, Account,
+ * and other BrightWay domain models later.
+ */
+model SystemRecord {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
