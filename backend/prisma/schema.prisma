@@ -1,9 +1,6 @@
-
 /**
  * BrightWay database schema.
- *
- * We are using the JavaScript-compatible generator
- * because the backend currently runs plain JavaScript.
+ * JavaScript-compatible Prisma Client for the current backend.
  */
 generator client {
   provider = "prisma-client-js"
@@ -14,14 +11,55 @@ datasource db {
 }
 
 /**
- * Temporary foundation model.
- *
- * This verifies migrations and database queries.
- * We will introduce the actual Person, Account,
- * and other BrightWay domain models later.
+ * Foundation model used by the existing health checks.
  */
 model SystemRecord {
   id        String   @id @default(uuid())
   name      String   @unique
   createdAt DateTime @default(now())
+}
+
+/**
+ * Personal information, separate from login credentials.
+ */
+model Person {
+  id          String    @id @default(uuid())
+  firstName   String
+  middleName  String?
+  lastName    String
+  birthDate   DateTime? @db.Date
+  phoneNumber String?
+
+  account Account?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/**
+ * One primary BrightWay account per person.
+ * School and organization roles will be defined through
+ * memberships when the organization module is introduced.
+ */
+model Account {
+  id           String        @id @default(uuid())
+  username     String        @unique
+  email        String        @unique
+  passwordHash String
+  status       AccountStatus @default(ACTIVE)
+
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+
+  personId String @unique
+  person   Person @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
 }
