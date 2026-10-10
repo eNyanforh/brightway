@@ -1,7 +1,3 @@
-/**
- * BrightWay database schema.
- * JavaScript-compatible Prisma Client for the current backend.
- */
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,18 +6,12 @@ datasource db {
   provider = "postgresql"
 }
 
-/**
- * Foundation model used by the existing health checks.
- */
 model SystemRecord {
   id        String   @id @default(uuid())
   name      String   @unique
   createdAt DateTime @default(now())
 }
 
-/**
- * Personal information, separate from login credentials.
- */
 model Person {
   id          String    @id @default(uuid())
   firstName   String
@@ -36,11 +26,6 @@ model Person {
   updatedAt DateTime @updatedAt
 }
 
-/**
- * One primary BrightWay account per person.
- * School and organization roles will be defined through
- * memberships when the organization module is introduced.
- */
 model Account {
   id           String        @id @default(uuid())
   username     String        @unique
@@ -54,6 +39,8 @@ model Account {
   personId String @unique
   person   Person @relation(fields: [personId], references: [id], onDelete: Restrict)
 
+  sessions Session[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -62,4 +49,17 @@ enum AccountStatus {
   ACTIVE
   SUSPENDED
   DEACTIVATED
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, expiresAt])
+  @@index([expiresAt])
 }
