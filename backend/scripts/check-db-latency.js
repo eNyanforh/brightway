@@ -2,7 +2,9 @@ import "dotenv/config";
 import { performance } from "node:perf_hooks";
 
 if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL is missing.");
+  console.error(
+    "DATABASE_URL is missing. Run this from the backend directory."
+  );
   process.exit(1);
 }
 

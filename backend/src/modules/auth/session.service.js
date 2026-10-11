@@ -147,7 +147,7 @@ export function createSessionService({
 
       try {
         // Load the session, account, and person in one query.
-        // Prisma binds the token hash as a parameter.
+        // The token hash is bound as a parameter.
         rows = await prisma.$queryRaw`
           SELECT
             s."id" AS "sessionId",

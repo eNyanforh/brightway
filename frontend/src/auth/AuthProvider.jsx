@@ -22,7 +22,6 @@ export default function AuthProvider({ children }) {
   const checkSession = useCallback((signal, background = false) => {
     if (mutation.current) return;
 
-    // Reuse an active check instead of sending another request.
     if (pendingCheck.current) {
       return pendingCheck.current;
     }
@@ -58,7 +57,7 @@ export default function AuthProvider({ children }) {
         }
 
         setSession((previous) => {
-          // Preserve the current page during temporary network failures.
+          // Keep the page visible during temporary background failures.
           if (
             background &&
             ["authenticated", "anonymous"].includes(previous.status)
