@@ -2,6 +2,7 @@ import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { loginSchema } from "./login.schema.js";
 import { createSessionCookieConfig, createRequireAuth, readSessionToken, requireTrustedOrigin } from "./session.http.js";
+import { performance } from "node:perf_hooks";
 
 export function createSessionRoutes({ sessions, clientUrl, nodeEnv, loginLimiter }) {
   const router = Router();
@@ -30,12 +31,38 @@ export function createSessionRoutes({ sessions, clientUrl, nodeEnv, loginLimiter
     } catch (error) { next(error); }
   });
 
-  router.get("/me", (req, res, next) => {
-    res.set("Cache-Control", "no-store");
-    next();
-  }, requireAuth, (req, res) => {
-    res.json({ success: true, data: { account: req.auth.account } });
-  });
+  router.get(
+    "/me",
+    (req, res, next) => {
+      res.set("Cache-Control", "no-store");
+
+      if (
+        process.env.AUTH_TIMING === "true" &&
+        nodeEnv !== "production"
+      ) {
+        const started = performance.now();
+
+        res.once("finish", () => {
+          console.info(
+            `[auth timing] GET /me (${res.statusCode}): ${
+              (performance.now() - started).toFixed(1)
+            } ms`
+          );
+        });
+      }
+
+      next();
+    },
+    requireAuth,
+    (req, res) => {
+      res.json({
+        success: true,
+        data: {
+          account: req.auth.account,
+        },
+      });
+    }
+  );
 
   router.post("/logout", trustedOrigin, async (req, res, next) => {
     try {

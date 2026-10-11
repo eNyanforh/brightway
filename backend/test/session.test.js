@@ -16,6 +16,28 @@ function fixture() {
   const verificationCalls = [];
   let failCreation = false;
   const prisma = {
+        $queryRaw: async (strings, hash) => {
+      assert.equal(strings.length, 2);
+      assert.match(hash, /^[a-f0-9]{64}$/);
+
+      const record = records.get(hash);
+      if (!record) return [];
+
+      return [{
+        sessionId: record.id,
+        expiresAt: record.expiresAt,
+        accountId: account.id,
+        username: account.username,
+        email: account.email,
+        status: account.status,
+        emailVerifiedAt: account.emailVerifiedAt,
+        createdAt: account.createdAt,
+        personId: account.person.id,
+        firstName: account.person.firstName,
+        middleName: account.person.middleName,
+        lastName: account.person.lastName,
+      }];
+    },
     account: {
       findUnique: async ({ where, select }) => {
         if (where.username) assert.equal(where.username, "tester");

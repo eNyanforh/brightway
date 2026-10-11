@@ -1,22 +1,30 @@
-
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-/**
- * Create a PostgreSQL driver adapter.
- *
- * DATABASE_URL points to Neon's pooled endpoint,
- * while Prisma CLI migrations use DIRECT_URL.
- */
+const timingEnabled =
+  process.env.AUTH_TIMING === "true" &&
+  process.env.NODE_ENV !== "production";
+
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
   connectionTimeoutMillis: 10000,
 });
 
-/**
- * Export a single Prisma client instance.
- * All BrightWay modules should reuse this instance.
- */
 export const prisma = new PrismaClient({
   adapter,
+  log: timingEnabled
+    ? [{ emit: "event", level: "query" }]
+    : [],
 });
+
+if (timingEnabled) {
+  let queryNumber = 0;
+
+  prisma.$on("query", (event) => {
+    queryNumber += 1;
+
+    console.info(
+      `[database timing] query ${queryNumber}: ${event.duration} ms`
+    );
+  });
+}
