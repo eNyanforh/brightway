@@ -1,54 +1,24 @@
 import { useState } from "react";
-import styled from "styled-components";
-
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
+import ProfilePicture from "../profile/ProfilePicture";
 
-const Bar = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid
-    ${({ theme }) => theme.colors.border};
-
-  button {
-    padding: 8px 14px;
-    border: 1px solid
-      ${({ theme }) => theme.colors.border};
-    border-radius: 8px;
-    background: ${({ theme }) => theme.colors.surface};
-    color: ${({ theme }) => theme.colors.text};
-  }
-
-  p {
-    margin: 0;
-  }
-
-  small {
-    color: ${({ theme }) => theme.colors.textMuted};
-  }
-
-  [role="alert"] {
-    width: 100%;
-    color: #b42318;
-  }
-`;
-
-export default function AccountMenu() {
+export default function AccountMenu({ photoId, unsaved, profileBusy }) {
   const { account, logout } = useAuth();
-
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
+  const name = [account.person.firstName, account.person.lastName]
+    .filter(Boolean)
+    .join(" ");
   async function signOut() {
-    if (busy) return;
-
+    if (busy || profileBusy) return;
+    if (
+      unsaved &&
+      !window.confirm("Sign out and discard your unsaved profile edits?")
+    )
+      return;
     setError("");
     setBusy(true);
-
     try {
       await logout();
     } catch (failure) {
@@ -57,27 +27,29 @@ export default function AccountMenu() {
       setBusy(false);
     }
   }
-
   return (
-    <Bar>
-      <div>
-        <p>
-          {account.person.firstName}{" "}
-          {account.person.lastName}
-        </p>
-
-        <small>@{account.username}</small>
-      </div>
-
+    <div className="bw-account-controls">
+      <span className="bw-account-username">@{account.username}</span>
+      <NavLink
+        className="bw-account-picture"
+        to="/profile"
+        aria-label="Open your profile"
+      >
+        <ProfilePicture key={photoId} id={photoId} name={name} decorative />
+      </NavLink>
       <button
+        className="bw-app-logout"
         type="button"
-        disabled={busy}
+        disabled={busy || profileBusy}
         onClick={signOut}
       >
         {busy ? "Logging out…" : "Log out"}
       </button>
-
-      {error && <p role="alert">{error}</p>}
-    </Bar>
+      {error && (
+        <p className="bw-account-error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

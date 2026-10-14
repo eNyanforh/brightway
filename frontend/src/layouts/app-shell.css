@@ -1,0 +1,202 @@
+.bw-app-shell {
+  min-height: 100vh;
+  background: #f3f6fb;
+  color: #152b49;
+}
+.bw-app-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 32px;
+  background: #fff;
+  border-bottom: 1px solid #e3eaf3;
+}
+.bw-app-navigation {
+  display: contents;
+}
+.bw-app-brand {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: #175cd3;
+}
+.bw-app-navigation nav {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+.bw-app-navigation nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  color: #61718a;
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 42px;
+}
+.bw-app-navigation nav a:hover {
+  background: #f3f6fb;
+}
+.bw-app-navigation nav a[aria-current="page"] {
+  background: #edf4ff;
+  color: #175cd3;
+}
+.bw-icon {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.bw-account-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+.bw-account-username {
+  font-size: 11px;
+  color: #61718a;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bw-account-picture {
+  display: block;
+  border-radius: 50%;
+  padding: 2px;
+}
+.bw-account-picture[aria-current="page"] {
+  outline: 2px solid #175cd3;
+  outline-offset: 1px;
+}
+.bw-picture {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf4ff;
+  color: #175cd3;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.bw-picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bw-app-logout {
+  border: 1px solid #e3eaf3;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  color: #61718a;
+  font-size: 11px;
+  min-height: 38px;
+}
+.bw-app-logout:hover {
+  color: #175cd3;
+  background: #f3f6fb;
+}
+.bw-app-logout:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.bw-account-error {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 5;
+  padding: 12px;
+  background: #fff2ef;
+  border: 1px solid #ffd9d2;
+  color: #9b362c;
+  border-radius: 9px;
+  width: min(280px, 80vw);
+  font-size: 12px;
+  box-shadow: 0 5px 20px #122d4912;
+}
+.bw-app-content {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 28px 32px 48px;
+  min-width: 0;
+}
+.bw-app-shell button:focus-visible,
+.bw-app-shell a:focus-visible {
+  outline: 3px solid #175cd3;
+  outline-offset: 3px;
+}
+@media (max-width: 1000px) {
+  .bw-app-header {
+    gap: 12px;
+    padding: 14px 22px;
+  }
+  .bw-account-username {
+    display: none;
+  }
+  .bw-app-navigation nav a {
+    padding: 9px 10px;
+  }
+  .bw-app-content {
+    padding: 24px;
+  }
+}
+@media (max-width: 780px) {
+  .bw-app-header {
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    padding: 13px 18px;
+  }
+  .bw-app-navigation nav {
+    grid-row: 2;
+    grid-column: 1/-1;
+    justify-content: space-between;
+    border-top: 1px solid #edf1f6;
+    padding-top: 8px;
+  }
+  .bw-app-navigation nav a {
+    flex: 1;
+  }
+  .bw-account-controls {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .bw-app-content {
+    padding: 18px 16px 36px;
+  }
+  .bw-app-logout {
+    min-height: 40px;
+  }
+  .bw-account-picture .bw-picture {
+    width: 38px;
+    height: 38px;
+  }
+}
+@media (max-width: 440px) {
+  .bw-app-navigation nav a {
+    flex-direction: column;
+    gap: 3px;
+    padding: 5px 3px;
+    font-size: 10px;
+    min-height: 48px;
+  }
+  .bw-app-brand {
+    font-size: 23px;
+  }
+  .bw-account-controls {
+    gap: 8px;
+  }
+  .bw-app-header {
+    gap: 9px;
+  }
+  .bw-app-content {
+    padding: 16px 12px 32px;
+  }
+}

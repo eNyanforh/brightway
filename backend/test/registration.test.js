@@ -6,7 +6,12 @@ import { createAuthRoutes } from "../src/modules/auth/auth.routes.js";
 import { createRegistrationService } from "../src/modules/auth/registration.service.js";
 import { registrationSchema } from "../src/modules/auth/registration.schema.js";
 
+function registrationService(options) {
+  return createRegistrationService({ ...options, photos: { registerAsset: async (id, token, create) => create(options.prisma) } });
+}
+
 const input = {
+  photoAssetId: "11111111-1111-4111-8111-111111111111",
   firstName: " Emmanuel ", lastName: " Nyanforh ",
   username: " ENyanforh ", email: " Emmanuel@Example.com ",
   password: "A long personal passphrase!",
@@ -15,7 +20,7 @@ const input = {
 async function withApi(register, run, limiter) {
   const app = express();
   app.use(express.json());
-  app.use("/api/v1/auth", createAuthRoutes({ register, limiter }));
+  app.use("/api/v1/auth", createAuthRoutes({ register, limiter, clientUrl: "http://localhost:5173", nodeEnv: "test" }));
   app.use((error, req, res, next) => {
     void next;
     res.status(error.status ?? 500).json({ success: false, message: error.message });
@@ -24,7 +29,7 @@ async function withApi(register, run, limiter) {
   await new Promise((resolve) => server.once("listening", resolve));
   const url = `http://127.0.0.1:${server.address().port}/api/v1/auth/register`;
   const post = (body) => fetch(url, {
-    method: "POST", headers: { "Content-Type": "application/json" },
+    method: "POST", headers: { "Content-Type": "application/json", Origin: "http://localhost:5173" },
     body: JSON.stringify(body),
   });
   try { await run(post); }
@@ -43,6 +48,8 @@ test("invalid and privileged inputs are rejected before persistence", async () =
   let calls = 0;
   await withApi(async () => { calls++; }, async (post) => {
     const invalid = [
+      { ...input, photoAssetId: undefined },
+      { ...input, photoAssetId: "not-an-asset" },
       { ...input, password: "short" },
       { ...input, email: "invalid" },
       { ...input, firstName: " " },
@@ -77,7 +84,7 @@ test("HTTP registration returns 201 with normalized input and a public account",
 });
 
 test("service uses one nested write and excludes credentials from its select", async () => {
-  const register = createRegistrationService({
+  const register = registrationService({
     hash: async (password) => { assert.equal(password, input.password); return "hashed-password"; },
     prisma: { account: { create: async ({ data, select }) => {
       assert.equal(data.passwordHash, "hashed-password");
@@ -92,7 +99,7 @@ test("service uses one nested write and excludes credentials from its select", a
 });
 
 test("unique constraint failures become a 409 without database details", async () => {
-  const register = createRegistrationService({
+  const register = registrationService({
     hash: async () => "hash",
     prisma: { account: { create: async () => { throw Object.assign(new Error("private database details"), { code: "P2002" }); } } },
   });
@@ -105,7 +112,7 @@ test("unique constraint failures become a 409 without database details", async (
 
 test("unexpected database failures are propagated", async () => {
   const failure = new Error("database unavailable");
-  const register = createRegistrationService({ hash: async () => "hash", prisma: {
+  const register = registrationService({ hash: async () => "hash", prisma: {
     account: { create: async () => { throw failure; } },
   } });
   await assert.rejects(register(registrationSchema.parse(input)), (error) => error === failure);

@@ -12,6 +12,7 @@ import NotFoundPage from "../pages/NotFoundPage";
 import ExplorePage from "../pages/ExplorePage";
 import NetworkPage from "../pages/NetworkPage";
 import OpportunitiesPage from "../pages/OpportunitiesPage";
+import ProfilePage from "../pages/ProfilePage";
 import LearningPage from "../pages/LearningPage";
 
 export default function AppRoutes() {
@@ -21,39 +22,22 @@ export default function AppRoutes() {
         <Route path="/" element={<HomePage />} />
 
         <Route element={<AuthGate guest />}>
-          <Route
-            path="/login"
-            element={<LoginPage />}
-          />
+          <Route path="/login" element={<LoginPage />} />
 
-          <Route
-            path="/register"
-            element={<RegisterPage />}
-          />
+          <Route path="/register" element={<RegisterPage />} />
         </Route>
       </Route>
 
       <Route element={<AuthGate />}>
         <Route element={<AppLayout />}>
-          <Route
-            path="/explore"
-            element={<ExplorePage />}
-          />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/explore" element={<ExplorePage />} />
 
-          <Route
-            path="/network"
-            element={<NetworkPage />}
-          />
+          <Route path="/network" element={<NetworkPage />} />
 
-          <Route
-            path="/opportunities"
-            element={<OpportunitiesPage />}
-          />
+          <Route path="/opportunities" element={<OpportunitiesPage />} />
 
-          <Route
-            path="/learning"
-            element={<LearningPage />}
-          />
+          <Route path="/learning" element={<LearningPage />} />
         </Route>
       </Route>
 

@@ -21,12 +21,14 @@ export const publicAccountSelect = {
 export function createRegistrationService({
   prisma,
   hash = hashPassword,
+  photos,
 }) {
-  return async function register(input) {
+  if (!photos) throw new Error("Registration requires the photo service.");
+  return async function register(input, draftToken) {
     const passwordHash = await hash(input.password);
 
     try {
-      return await prisma.account.create({
+      return await photos.registerAsset(input.photoAssetId, draftToken, (tx) => tx.account.create({
         data: {
           username: input.username,
           email: input.email,
@@ -42,7 +44,7 @@ export function createRegistrationService({
         },
 
         select: publicAccountSelect,
-      });
+      }));
     } catch (error) {
       if (error.code === "P2002") {
         const conflict = new Error(

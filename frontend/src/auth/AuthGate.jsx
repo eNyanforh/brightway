@@ -1,8 +1,4 @@
-import {
-  Navigate,
-  Outlet,
-  useLocation,
-} from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "./useAuth";
 
@@ -39,6 +35,7 @@ export default function AuthGate({ guest = false }) {
     const requested = location.state?.from?.pathname;
 
     const destination = [
+      "/profile",
       "/explore",
       "/network",
       "/opportunities",
@@ -57,10 +54,6 @@ export default function AuthGate({ guest = false }) {
   return status === "authenticated" ? (
     <Outlet />
   ) : (
-    <Navigate
-      to="/login"
-      state={{ from: location }}
-      replace
-    />
+    <Navigate to="/login" state={{ from: location }} replace />
   );
 }

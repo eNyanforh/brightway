@@ -2,9 +2,12 @@ import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 
 import { registrationSchema } from "./registration.schema.js";
+import { requireTrustedOrigin } from "./session.http.js";
+import { draftCookie, readDraftToken } from "../photos/photo.routes.js";
 
-export function createAuthRoutes({ register, limiter }) {
+export function createAuthRoutes({ register, limiter, clientUrl, nodeEnv }) {
   const router = Router();
+  const cookie = draftCookie(nodeEnv);
 
   const registrationLimiter =
     limiter ??
@@ -23,6 +26,7 @@ export function createAuthRoutes({ register, limiter }) {
 
   router.post(
     "/register",
+    requireTrustedOrigin(clientUrl),
     registrationLimiter,
     async (req, res, next) => {
       const result = registrationSchema.safeParse(req.body);
@@ -40,7 +44,9 @@ export function createAuthRoutes({ register, limiter }) {
       }
 
       try {
-        const account = await register(result.data);
+        const account = await register(result.data, readDraftToken(req, cookie.name));
+        res.clearCookie(cookie.name, cookie.options);
+        res.set("Cache-Control", "no-store");
 
         return res.status(201).json({
           success: true,

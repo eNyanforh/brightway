@@ -21,6 +21,8 @@ model Person {
   phoneNumber String?
 
   account Account?
+  profile Profile?
+  photos  PhotoAsset[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -62,4 +64,71 @@ model Session {
 
   @@index([accountId, expiresAt])
   @@index([expiresAt])
+}
+
+// Owner-only draft data. No verification or publishing state is client editable.
+model Profile {
+  id              String           @id @default(uuid())
+  personId        String           @unique
+  person          Person           @relation(fields: [personId], references: [id], onDelete: Restrict)
+  version         Int              @default(0)
+  countryCode     String?          @db.VarChar(2)
+  region          String?          @db.VarChar(100)
+  locality        String?          @db.VarChar(100)
+  headline        String?          @db.VarChar(120)
+  bio             String?          @db.VarChar(2000)
+  careerFieldMode CareerFieldMode?
+  careerField     String?          @db.VarChar(100)
+  careerGoals     String?          @db.VarChar(1000)
+  skills          String[]         @default([])
+  interests       String[]         @default([])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  photoId         String?          @unique
+  photo           PhotoAsset?      @relation(fields: [photoId], references: [id], onDelete: Restrict)
+}
+
+enum CareerFieldMode {
+  EXPLORING
+  SPECIFIED
+}
+
+model SignupDraft {
+  id          String       @id @default(uuid())
+  tokenHash   String       @unique
+  expiresAt   DateTime
+  createdAt   DateTime     @default(now())
+  uploadCount Int          @default(0)
+  photos      PhotoAsset[]
+
+  @@index([expiresAt])
+}
+
+model PhotoAsset {
+  id         String       @id @default(uuid())
+  storageKey String       @unique
+  state      PhotoState   @default(UPLOADING)
+  expiresAt  DateTime
+  byteSize   Int?
+  width      Int?
+  height     Int?
+  draftId    String?
+  draft      SignupDraft? @relation(fields: [draftId], references: [id], onDelete: Restrict)
+  personId   String?
+  person     Person?      @relation(fields: [personId], references: [id], onDelete: Restrict)
+  currentFor Profile?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([state, expiresAt])
+  @@index([personId])
+  @@index([draftId])
+}
+
+enum PhotoState {
+  UPLOADING
+  READY
+  CLAIMED
+  DELETE_PENDING
+  DELETED
 }

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 
@@ -126,7 +126,7 @@ it("registers without sending confirmation or blank middle name, then asks for l
       ? anonymous()
       : reply(201, {
           success: true,
-          data: { account },
+          data: { account, photoAssetId: "11111111-1111-4111-8111-111111111111" },
         })
   );
 
@@ -154,11 +154,11 @@ it("registers without sending confirmation or blank middle name, then asks for l
     );
   }
 
-  await user.click(
-    screen.getByRole("button", {
-      name: "Create account",
-    })
-  );
+  await user.upload(screen.getByLabelText("Professional profile photo"), new File(["test-photo"], "photo.png", { type: "image/png" }));
+
+  // jsdom does not update native file validity for user-event simulated files.
+  // Submit the form event to test the React handler; native browser validation remains enabled.
+  fireEvent.submit(screen.getByLabelText("Professional profile photo").closest("form"));
 
   await screen.findByRole("heading", {
     name: "Log in to BrightWay",
@@ -173,6 +173,11 @@ it("registers without sending confirmation or blank middle name, then asks for l
     )[1].body
   );
 
+  expect(body.photoAssetId).toBe("11111111-1111-4111-8111-111111111111");
+  const photoRequest = fetchMock.mock.calls.find(([url]) => url.endsWith("/signup-drafts/photo"))[1];
+  expect(photoRequest.credentials).toBe("include");
+  expect(photoRequest.body).toBeInstanceOf(File);
+  expect(photoRequest.headers["Content-Type"]).toBe("image/png");
   expect(body.username).toBe("tester");
   expect(body.email).toBe("tester@example.com");
   expect(body).not.toHaveProperty("confirmPassword");
@@ -218,4 +223,22 @@ it("shows a failed login without granting access", async () => {
   expect(
     screen.queryByRole("heading", { name: "Explore" })
   ).toBeNull();
+});
+
+it("keeps signup details and stops account creation when photo storage fails", async () => {
+  const fetchMock = vi.fn(async (url) => url.endsWith("/me") ? anonymous()
+    : reply(503, { success: false, message: "Photo storage is temporarily unavailable." }));
+  mount("/register", fetchMock);
+  await screen.findByRole("heading", { name: "Create your BrightWay account" });
+  const user = userEvent.setup();
+  for (const [label, value] of [["First name", "Test"], ["Last name", "User"], ["Username", "tester"],
+    ["Email", "tester@example.com"], ["Password", "A long personal passphrase!"], ["Confirm password", "A long personal passphrase!"]]) {
+    await user.type(screen.getByLabelText(label, { exact: true }), value);
+  }
+  await user.upload(screen.getByLabelText("Professional profile photo"), new File(["test"], "photo.png", { type: "image/png" }));
+  fireEvent.submit(screen.getByLabelText("Professional profile photo").closest("form"));
+  expect((await screen.findByRole("alert")).textContent).toContain("Photo storage is temporarily unavailable");
+  expect(screen.getByLabelText("First name").value).toBe("Test");
+  expect(screen.getByLabelText("Email").value).toBe("tester@example.com");
+  expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/register"))).toBe(false);
 });

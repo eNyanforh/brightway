@@ -16,10 +16,15 @@ test("the real application mounts registration and preserves the health route", 
     assert.equal(health.status, 200);
     assert.equal((await health.json()).success, true);
     const response = await fetch(`${base}/api/v1/auth/register`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+      method: "POST", headers: { "Content-Type": "application/json", Origin: "http://localhost:5173" }, body: "{}",
     });
     assert.equal(response.status, 400);
     assert.equal((await response.json()).success, false);
+    for (const path of ["/api/v1/profile/me", "/api/v1/profile/me/completion"]) {
+      const unauthenticated = await fetch(`${base}${path}`);
+      assert.equal(unauthenticated.status, 401);
+      assert.equal(unauthenticated.headers.get("cache-control"), "no-store");
+    }
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     await prisma.$disconnect();

@@ -3,6 +3,7 @@ import { z } from "zod";
 const name = z.string().trim().min(1).max(100);
 
 export const registrationSchema = z.strictObject({
+  photoAssetId: z.uuid(),
   firstName: name,
 
   middleName: name.optional(),

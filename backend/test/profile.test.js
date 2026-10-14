@@ -1,0 +1,190 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import express from "express";
+import { profilePatchSchema } from "../src/modules/profile/profile.schema.js";
+import { createProfileService, profileView } from "../src/modules/profile/profile.service.js";
+import { evaluateProfileCompletion } from "../src/modules/profile/profile.completion.js";
+import { createProfileRoutes } from "../src/modules/profile/profile.routes.js";
+
+function database() {
+  const rows = new Map();
+  const calls = [];
+  const profile = {
+    async findUnique(args) {
+      calls.push(["find", args]);
+      return structuredClone(rows.get(args.where.personId) ?? null);
+    },
+    async create(args) {
+      calls.push(["create", args]);
+      if (rows.has(args.data.personId)) throw Object.assign(new Error("unique"), { code: "P2002" });
+      const row = { id: `profile-${args.data.personId}`, skills: [], interests: [], ...args.data };
+      rows.set(row.personId, row);
+      return structuredClone(row);
+    },
+    async updateMany(args) {
+      calls.push(["update", args]);
+      const row = rows.get(args.where.personId);
+      if (!row || row.version !== args.where.version) return { count: 0 };
+      const { version, ...changes } = args.data;
+      Object.assign(row, changes, { version: row.version + version.increment });
+      return { count: 1 };
+    },
+  };
+  return { rows, calls, profile, async $transaction(fn) { return fn({ profile }); } };
+}
+
+test("profile drafts normalize text, validate countries, and allow partial fields to clear", () => {
+  const parsed = profilePatchSchema.parse({ expectedVersion: 0, changes: {
+    headline: "  Student  ", bio: "  ", location: { countryCode: " lr " },
+    careerField: { mode: "EXPLORING" }, skills: [" Communication "],
+  } });
+  assert.equal(parsed.changes.headline, "Student");
+  assert.equal(parsed.changes.bio, null);
+  assert.equal(parsed.changes.location.countryCode, "LR");
+  assert.deepEqual(parsed.changes.skills, ["Communication"]);
+  assert.equal(profilePatchSchema.safeParse({ expectedVersion: 0, changes: { location: { countryCode: "XX" } } }).success, false);
+  assert.equal(profilePatchSchema.safeParse({ expectedVersion: 0, changes: { headline: null } }).success, true);
+});
+
+test("profile validation rejects privilege injection, empty patches, duplicate entries and oversized values", () => {
+  for (const changes of [
+    { username: "new" }, { status: "ACTIVE" }, { verifiedAt: "now" },
+    { personId: "other" }, { complete: true }, {}, { location: {} },
+    { skills: ["Python", "python"] }, { interests: Array(21).fill("x") },
+    { headline: "x".repeat(121) }, { careerField: { mode: "EXPLORING", label: "forged" } },
+    { careerField: { mode: "SPECIFIED", label: " " } },
+  ]) assert.equal(profilePatchSchema.safeParse({ expectedVersion: 0, changes }).success, false);
+  for (const version of [-1, 1.5, "0", 2147483647]) {
+    assert.equal(profilePatchSchema.safeParse({ expectedVersion: version, changes: { bio: null } }).success, false);
+  }
+});
+
+test("read is side-effect free and returns a virtual empty draft for existing accounts", async () => {
+  const db = database();
+  const service = createProfileService({ prisma: db });
+  assert.deepEqual(await service.read("owner"), profileView(null));
+  assert.equal(db.rows.size, 0);
+  assert.equal(db.calls[0][1].where.personId, "owner");
+  assert.equal(db.calls[0][1].select.person, undefined);
+  assert.equal(db.calls[0][1].select.account, undefined);
+});
+
+test("first save and later saves preserve omitted fields and scope writes to the owner", async () => {
+  const db = database();
+  const service = createProfileService({ prisma: db });
+  const first = await service.patch("owner", profilePatchSchema.parse({ expectedVersion: 0, changes: {
+    headline: "Student", location: { countryCode: "LR", locality: "Monrovia" },
+    careerField: { mode: "SPECIFIED", label: "Technology" }, skills: ["Communication"],
+  } }));
+  assert.equal(first.version, 1);
+  const second = await service.patch("owner", { expectedVersion: 1, changes: { bio: "My story" } });
+  assert.equal(second.version, 2);
+  assert.equal(second.headline, "Student");
+  assert.equal(second.location.locality, "Monrovia");
+  assert.deepEqual(second.careerField, { mode: "SPECIFIED", label: "Technology" });
+  assert.equal((await service.read("other")).id, null);
+  const update = db.calls.find(([type]) => type === "update")[1];
+  assert.deepEqual(update.where, { personId: "owner", version: 1 });
+});
+
+test("stale saves cannot overwrite data and creation conflicts have a safe 409", async () => {
+  const db = database();
+  const service = createProfileService({ prisma: db });
+  await service.patch("owner", { expectedVersion: 0, changes: { headline: "Original" } });
+  await assert.rejects(service.patch("owner", { expectedVersion: 0, changes: { headline: "Stale" } }), { status: 409 });
+  assert.equal((await service.read("owner")).headline, "Original");
+  await assert.rejects(service.patch("other", { expectedVersion: 9, changes: { headline: "Invalid version" } }), { status: 409 });
+  db.profile.create = async () => { throw Object.assign(new Error("private database details"), { code: "P2002" }); };
+  await assert.rejects(service.patch("other", { expectedVersion: 0, changes: { bio: null } }), (error) => error.status === 409 && !error.message.includes("database"));
+});
+
+test("switching career field mode or clearing it removes the previous label", async () => {
+  const db = database();
+  const service = createProfileService({ prisma: db });
+  await service.patch("owner", { expectedVersion: 0, changes: { careerField: { mode: "SPECIFIED", label: "Technology" } } });
+  const exploring = await service.patch("owner", { expectedVersion: 1, changes: { careerField: { mode: "EXPLORING" } } });
+  assert.deepEqual(exploring.careerField, { mode: "EXPLORING" });
+  assert.equal(db.rows.get("owner").careerField, null);
+  assert.equal((await service.patch("owner", { expectedVersion: 2, changes: { careerField: null } })).careerField, null);
+});
+
+test("completion checks known minimums but never converts unresolved policy into Verified eligibility", async () => {
+  const empty = evaluateProfileCompletion(profileView(null));
+  assert.equal(empty.missing.length, 7);
+  const all = evaluateProfileCompletion(profileView({
+    countryCode: "LR", locality: "Monrovia", headline: "Student",
+    careerFieldMode: "EXPLORING", skills: ["Communication"], interests: ["Technology"],
+    photo: { id: "photo-id" },
+  }));
+  assert.deepEqual(all.missing, []);
+  assert.equal(all.complete, null);
+  assert.equal(all.eligibleToRequestVerification, false);
+  assert.equal(all.evaluationStatus, "POLICY_PENDING");
+  assert(!all.unresolved.some((item) => item.code.includes("PHOTO_REVIEW")));
+});
+
+test("unexpected database errors propagate rather than pretending a save succeeded", async () => {
+  const db = database();
+  const failure = new Error("unavailable");
+  db.profile.create = async () => { throw failure; };
+  await assert.rejects(createProfileService({ prisma: db }).patch("owner", { expectedVersion: 0, changes: { bio: null } }), (error) => error === failure);
+});
+
+test("profile exposes a current photo without approval state or storage credentials", () => {
+  const view = profileView({ photo: { id: "current-photo" } });
+  assert.deepEqual(view.photo, { id: "current-photo" });
+  assert.equal(view.photo.pending, undefined);
+  assert.equal(view.photo.approved, undefined);
+  assert.equal(view.photo.reviewStatus, undefined);
+  assert.equal(view.photo.storageKey, undefined);
+  const completion = evaluateProfileCompletion(view);
+  assert(!completion.missing.some((entry) => entry.code === "PHOTO_REQUIRED"));
+  assert.equal(completion.eligibleToRequestVerification, false);
+  assert.equal(completion.complete, null);
+});
+
+test("HTTP routes require a session and trusted Origin, reject injected ownership, and return private drafts", async () => {
+  const db = database();
+  const app = express();
+  app.use(express.json());
+  const sessions = { async authenticate(token) {
+    if (!["owner-session", "other-session"].includes(token)) throw Object.assign(new Error("Please log in to continue."), { status: 401 });
+    return { account: { person: { id: token === "owner-session" ? "owner" : "other" } } };
+  } };
+  app.use("/api/v1/profile", createProfileRoutes({ profiles: createProfileService({ prisma: db }), sessions, clientUrl: "http://localhost:5173", nodeEnv: "test" }));
+  app.use((error, req, res, next) => { void next; res.status(error.status ?? 500).json({ success: false, message: error.message }); });
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  const base = `http://127.0.0.1:${server.address().port}/api/v1/profile`;
+  const headers = { Cookie: "brightway_session=owner-session", Origin: "http://localhost:5173", "Content-Type": "application/json" };
+  const patch = (body, h = headers) => fetch(`${base}/me`, { method: "PATCH", headers: h, body: JSON.stringify(body) });
+  try {
+    assert.equal((await fetch(`${base}/me`)).status, 401);
+    for (const origin of [undefined, "https://foreign.example"]) {
+      const h = { ...headers }; if (origin) h.Origin = origin; else delete h.Origin;
+      assert.equal((await patch({ expectedVersion: 0, changes: { headline: "Student" } }, h)).status, 403);
+    }
+    const unauth = { ...headers }; delete unauth.Cookie;
+    assert.equal((await patch({ expectedVersion: 0, changes: { bio: null } }, unauth)).status, 401);
+    assert.equal((await patch({ expectedVersion: 0, changes: { personId: "other" } })).status, 400);
+    assert.equal((await patch({ expectedVersion: 0, changes: { headline: "Student" }, accountId: "other" })).status, 400);
+    assert.equal(db.rows.size, 0);
+    const saved = await patch({ expectedVersion: 0, changes: { headline: "Student" } });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.headers.get("cache-control"), "no-store");
+    assert.equal((await saved.json()).data.profile.version, 1);
+    assert.equal((await patch({ expectedVersion: 0, changes: { headline: "Overwrite" } })).status, 409);
+    const read = await fetch(`${base}/me`, { headers });
+    const profile = (await read.json()).data.profile;
+    assert.equal(profile.headline, "Student");
+    assert.equal(profile.personId, undefined);
+    assert.equal(profile.email, undefined);
+    const otherHeaders = { ...headers, Cookie: "brightway_session=other-session" };
+    assert.equal((await (await fetch(`${base}/me`, { headers: otherHeaders })).json()).data.profile.id, null);
+    assert.equal((await patch({ expectedVersion: 0, changes: { headline: "Other person's draft" } }, otherHeaders)).status, 200);
+    assert.equal((await (await fetch(`${base}/me`, { headers })).json()).data.profile.headline, "Student");
+    const completion = await fetch(`${base}/me/completion`, { headers });
+    assert.equal((await completion.json()).data.complete, null);
+    assert.equal((await fetch(`${base}/other`, { headers })).status, 404);
+  } finally { await new Promise((resolve) => server.close(resolve)); }
+});

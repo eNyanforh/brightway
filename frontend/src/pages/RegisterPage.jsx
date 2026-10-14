@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   Link,
@@ -23,6 +23,8 @@ export default function RegisterPage() {
   const [fields, setFields] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [photo, setPhoto] = useState(null);
+  const uploadedPhoto = useRef(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,11 +49,22 @@ export default function RegisterPage() {
       setError("Your passwords do not match.");
       return;
     }
+    if (!photo) {
+      setError("Choose a professional profile photo before creating your account.");
+      return;
+    }
 
     setBusy(true);
 
     try {
+      const draft = await authApi.beginSignup();
+      if (!uploadedPhoto.current || uploadedPhoto.current.file !== photo ||
+        uploadedPhoto.current.expiresAt !== draft.expiresAt) {
+        const uploaded = await authApi.uploadSignupPhoto(photo);
+        uploadedPhoto.current = { file: photo, id: uploaded.photoAssetId, expiresAt: draft.expiresAt };
+      }
       const body = {
+        photoAssetId: uploadedPhoto.current.id,
         firstName: fields.firstName.trim(),
         lastName: fields.lastName.trim(),
         username: fields.username.trim().toLowerCase(),
@@ -75,6 +88,7 @@ export default function RegisterPage() {
         },
       });
     } catch (failure) {
+      if ([400, 401].includes(failure.status)) uploadedPhoto.current = null;
       const details = failure.errors
         ?.map((issue) => issue.message)
         .join(" ");
@@ -190,6 +204,23 @@ export default function RegisterPage() {
           )}
         </div>
       ))}
+
+      <div className="auth-field">
+        <label htmlFor="register-photo">Professional profile photo</label>
+        <input id="register-photo" type="file" required disabled={busy}
+          accept="image/jpeg,image/png,image/webp" aria-describedby="photo-hint"
+          onChange={(event) => {
+            const chosen = event.target.files?.[0];
+            if (!chosen) { setPhoto(null); return; }
+            if (!["image/jpeg", "image/png", "image/webp"].includes(chosen.type) || chosen.size > 5 * 1024 * 1024) {
+              setPhoto(null); event.target.value = "";
+              setError("Choose a JPEG, PNG or WebP photo up to 5 MiB.");
+              return;
+            }
+            setPhoto(chosen); setError("");
+          }} />
+        <small id="photo-hint">Required: a clear photo of you, at least 128 × 128 pixels, up to 5 MiB. Your uploaded photo becomes your profile picture when your account is created.</small>
+      </div>
 
       <button
         className="auth-submit"

@@ -9,15 +9,33 @@ import { createRegistrationService } from "../modules/auth/registration.service.
 import { env } from "../config/env.js";
 import { createSessionRoutes } from "../modules/auth/session.routes.js";
 import { createSessionService } from "../modules/auth/session.service.js";
+import { createProfileRoutes } from "../modules/profile/profile.routes.js";
+import { createProfileService } from "../modules/profile/profile.service.js";
+import { createPhotoService } from "../modules/photos/photo.service.js";
+import { createR2Storage } from "../modules/photos/photo.storage.js";
+import { createPhotoRoutes } from "../modules/photos/photo.routes.js";
 
 const router = Router();
+const sessions = createSessionService({ prisma });
+const photos = createPhotoService({ prisma, storage: createR2Storage() });
+
+router.use(createPhotoRoutes({ photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 
 router.use("/auth", createAuthRoutes({
-  register: createRegistrationService({ prisma }),
+  register: createRegistrationService({ prisma, photos }),
+  clientUrl: env.CLIENT_URL,
+  nodeEnv: env.NODE_ENV,
 }));
 
 router.use("/auth", createSessionRoutes({
-  sessions: createSessionService({ prisma }),
+  sessions,
+  clientUrl: env.CLIENT_URL,
+  nodeEnv: env.NODE_ENV,
+}));
+
+router.use("/profile", createProfileRoutes({
+  profiles: createProfileService({ prisma }),
+  sessions,
   clientUrl: env.CLIENT_URL,
   nodeEnv: env.NODE_ENV,
 }));

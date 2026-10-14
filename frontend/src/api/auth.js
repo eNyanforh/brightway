@@ -12,23 +12,23 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path, { body, signal } = {}) {
+async function request(path, { body, signal, image } = {}) {
   let response;
 
   try {
     response = await fetch(baseUrl + path, {
-      method: body === undefined ? "GET" : "POST",
+      method: body === undefined && image === undefined ? "GET" : "POST",
       credentials: "include",
       cache: "no-store",
       signal,
 
       headers:
-        body === undefined
+        image !== undefined ? { "Content-Type": image.type } : body === undefined
           ? undefined
           : { "Content-Type": "application/json" },
 
       body:
-        body === undefined
+        image !== undefined ? image : body === undefined
           ? undefined
           : JSON.stringify(body),
     });
@@ -63,6 +63,8 @@ async function request(path, { body, signal } = {}) {
 }
 
 export const authApi = {
+  beginSignup: () => request("/auth/signup-drafts", { body: {} }),
+  uploadSignupPhoto: (image) => request("/auth/signup-drafts/photo", { image }),
   register: (body) =>
     request("/auth/register", { body }),
 
