@@ -146,13 +146,13 @@ it("keeps the account visible during background checks but rejects a revoked ses
 
   expect(screen.getByRole("heading", { name: "Explore" })).toBeTruthy();
 
-  expect(screen.getByText("@tester")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Open account menu" })).toBeTruthy();
 
   await act(async () => {
     resolveFocus(authenticated());
   });
 
-  expect(screen.getByText("@tester")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Open account menu" })).toBeTruthy();
 
   fireEvent.focus(window);
 

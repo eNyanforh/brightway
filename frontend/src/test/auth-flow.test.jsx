@@ -109,6 +109,10 @@ it("restores an existing session and leaves protected pages after logout", async
     name: "Explore",
   });
 
+  await userEvent.setup().click(
+    screen.getByRole("button", { name: "Open account menu" })
+  );
+
   expect(screen.getByText("@tester")).toBeTruthy();
 
   await userEvent.setup().click(

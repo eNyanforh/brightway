@@ -1,11 +1,5 @@
-
 import { createGlobalStyle } from "styled-components";
 
-/**
- * Shared styling applied to the entire application.
- *
- * Theme values are supplied through ThemeProvider.
- */
 export const GlobalStyles = createGlobalStyle`
   *,
   *::before,
@@ -14,8 +8,8 @@ export const GlobalStyles = createGlobalStyle`
   }
 
   html {
-    font-family: Inter, system-ui, -apple-system,
-      BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Inter Variable", Inter, ui-sans-serif, system-ui,
+      -apple-system, "Segoe UI", sans-serif;
   }
 
   body {
@@ -24,6 +18,18 @@ export const GlobalStyles = createGlobalStyle`
     background: ${({ theme }) => theme.colors.background};
     color: ${({ theme }) => theme.colors.text};
     line-height: 1.5;
+  }
+
+  .bw-app-shell {
+    font-family: "Inter Variable", Inter, ui-sans-serif, system-ui,
+      -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .bw-app-shell .bw-design-header,
+  .bw-app-shell .bw-design-sidebar {
+    font-family: inherit;
   }
 
   button,
@@ -48,7 +54,10 @@ export const GlobalStyles = createGlobalStyle`
     outline-offset: 3px;
   }
 
-  h1, h2, h3, p {
+  h1,
+  h2,
+  h3,
+  p {
     margin-top: 0;
   }
 `;

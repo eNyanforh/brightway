@@ -1,26 +1,97 @@
 import { NavLink } from "react-router-dom";
-import Icon from "./Icon";
+import NavigationIcon from "./NavigationIcon";
+import "./app-sidebar.css";
 
-const items = [
-  { label: "Explore", path: "/explore", icon: "compass" },
-  { label: "Network", path: "/network", icon: "users" },
-  { label: "Opportunities", path: "/opportunities", icon: "briefcase" },
-  { label: "Learning", path: "/learning", icon: "book" },
+const navigation = [
+  { label: "Explore", to: "/explore", icon: "explore" },
+  {
+    label: "Opportunities",
+    to: "/opportunities",
+    icon: "opportunities",
+  },
+  { label: "Network", to: "/network", icon: "network" },
+  { label: "Learning", to: "/learning", icon: "learning" },
+  { label: "Messages", icon: "messages" },
+  { label: "Notifications", icon: "notifications" },
 ];
-export default function AppSidebar() {
+
+export default function AppSidebar({ id, open, onNavigate }) {
   return (
-    <div className="bw-app-navigation">
-      <NavLink className="bw-app-brand" to="/explore">
-        BrightWay
-      </NavLink>
-      <nav aria-label="Application navigation">
-        {items.map((item) => (
-          <NavLink key={item.path} to={item.path} aria-label={item.label}>
-            <Icon name={item.icon} />
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+    <aside
+      id={id}
+      className={`bw-design-sidebar${
+        open ? " bw-design-sidebar-open" : ""
+      }`}
+      aria-label="Navigation and organization"
+    >
+      <nav
+        className="bw-design-sidebar-nav"
+        aria-label="Main navigation"
+      >
+        {navigation.map((item) =>
+          item.to ? (
+            <NavLink
+              key={item.label}
+              to={item.to}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                isActive ? "bw-design-sidebar-active" : ""
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <NavigationIcon
+                    name={item.icon}
+                    active={isActive}
+                  />
+                  <span>{item.label}</span>
+                  <span className="bw-design-sidebar-dot" />
+                </>
+              )}
+            </NavLink>
+          ) : (
+            <button
+              key={item.label}
+              type="button"
+              disabled
+              title={`${item.label} is coming soon`}
+            >
+              <NavigationIcon name={item.icon} />
+              <span>{item.label}</span>
+            </button>
+          ),
+        )}
       </nav>
-    </div>
+
+      <div className="bw-design-sidebar-divider" />
+
+      <section className="bw-design-sidebar-organization">
+        <span className="bw-design-sidebar-eyebrow">
+          GROW TOGETHER
+        </span>
+
+        <h3>Make room for your organization.</h3>
+
+        <p>
+          Bring your school, company, or community to BrightWay.
+        </p>
+
+        <button
+          className="bw-design-create-org"
+          type="button"
+          disabled
+          title="Organization registration is coming soon"
+        >
+          <span className="bw-design-create-org-icon">
+            <NavigationIcon name="plus" />
+          </span>
+          <span>Create an organization</span>
+        </button>
+      </section>
+
+      <p className="bw-design-sidebar-footer">
+        Empower. Learn. Network. Earn.
+      </p>
+    </aside>
   );
 }

@@ -252,13 +252,13 @@ export default function ProfilePage() {
   const exploring = profile.careerField?.mode === "EXPLORING";
   return (
     <div className="bw-profile-page">
-      <div className="bw-profile-breadcrumb">
+      {/* <div className="bw-profile-breadcrumb">
         <span>My profile</span>
         <span>
           <Icon name="lock" />
           Private draft
         </span>
-      </div>
+      </div> */}
       {draft.notice && (
         <p className="bw-profile-success" role="status">
           {draft.notice}

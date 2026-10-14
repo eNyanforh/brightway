@@ -1,20 +1,53 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { Outlet } from "react-router-dom";
+
+import AppHeader from "../components/layout/AppHeader";
 import AppSidebar from "../components/layout/AppSidebar";
-import AccountMenu from "../components/layout/AccountMenu";
+import MobileNavigation from "../components/layout/MobileNavigation";
+
 import { profileApi } from "../api/profile";
-import { createProfileDraft, formFromProfile } from "../pages/profile-form";
+import {
+  createProfileDraft,
+  formFromProfile,
+} from "../pages/profile-form";
+
 import "./app-shell.css";
 
 export default function AppLayout() {
-  // One shared profile load powers the header picture and the profile page.
-  // Drafts stay in memory within this signed-in layout and clear on sign-out.
   const [profileDraft, setProfileDraft] = useState(null);
   const [profileError, setProfileError] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+
+  const navigationId = useId();
+  const navigationToggleRef = useRef(null);
+
+  useEffect(() => {
+    if (!navigationOpen) return;
+
+    const close = (event) => {
+      if (event.key === "Escape") {
+        setNavigationOpen(false);
+        navigationToggleRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", close);
+
+    return () => {
+      document.removeEventListener("keydown", close);
+    };
+  }, [navigationOpen]);
+
   useEffect(() => {
     const controller = new AbortController();
-    // Defer one microtask so StrictMode cleanup can cancel before a request starts.
+
     Promise.resolve()
       .then(() =>
         controller.signal.aborted
@@ -22,18 +55,23 @@ export default function AppLayout() {
           : profileApi.read(controller.signal),
       )
       .then((profile) => {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted) {
           setProfileDraft(createProfileDraft(profile));
+        }
       })
       .catch((error) => {
-        if (!controller.signal.aborted) setProfileError(error);
+        if (!controller.signal.aborted) {
+          setProfileError(error);
+        }
       });
+
     return () => controller.abort();
   }, []);
 
   const reloadProfile = useCallback(async () => {
     setProfileLoading(true);
     setProfileError(null);
+
     try {
       const profile = await profileApi.read();
       setProfileDraft(createProfileDraft(profile));
@@ -49,37 +87,59 @@ export default function AppLayout() {
     profileDraft &&
     JSON.stringify(profileDraft.form) !==
       JSON.stringify(formFromProfile(profileDraft.profile));
+
   useEffect(() => {
     if (!dirty && !profileDraft?.busy) return;
+
     const guard = (event) => {
       event.preventDefault();
       event.returnValue = "";
     };
+
     window.addEventListener("beforeunload", guard);
-    return () => window.removeEventListener("beforeunload", guard);
+
+    return () => {
+      window.removeEventListener("beforeunload", guard);
+    };
   }, [dirty, profileDraft?.busy]);
 
   return (
     <div className="bw-app-shell">
-      <header className="bw-app-header">
-        <AppSidebar />
-        <AccountMenu
-          photoId={profileDraft?.profile.photo?.id}
-          unsaved={dirty}
-          profileBusy={profileDraft?.busy}
+      <AppHeader
+        photoId={profileDraft?.profile.photo?.id}
+        unsaved={dirty}
+        profileBusy={profileDraft?.busy}
+        navigationOpen={navigationOpen}
+        navigationId={navigationId}
+        navigationToggleRef={navigationToggleRef}
+        onToggleNavigation={() =>
+          setNavigationOpen((value) => !value)
+        }
+      />
+
+      <div className="bw-design-layout">
+        <AppSidebar
+          id={navigationId}
+          open={navigationOpen}
+          onNavigate={() => setNavigationOpen(false)}
         />
-      </header>
-      <main className="bw-app-content">
-        <Outlet
-          context={{
-            profileDraft,
-            setProfileDraft,
-            profileError,
-            profileLoading,
-            reloadProfile,
-          }}
-        />
-      </main>
+
+        <main className="bw-app-content">
+          <Outlet
+            context={{
+              profileDraft,
+              setProfileDraft,
+              profileError,
+              profileLoading,
+              reloadProfile,
+            }}
+          />
+        </main>
+      </div>
+
+      <MobileNavigation
+        onNavigate={() => setNavigationOpen(false)}
+      />
     </div>
   );
 }
