@@ -12,6 +12,7 @@ import {
 } from "./profile-form";
 import Icon from "../components/layout/Icon";
 import ProfilePicture from "../components/profile/ProfilePicture";
+import ProfileHistory from "../components/profile/ProfileHistory";
 import ProfileEditor from "../components/profile/ProfileEditor";
 import "./profile.css";
 
@@ -418,6 +419,10 @@ export default function ProfilePage() {
               neutral
             />
           </Section>
+          {["education", "experience"].map((kind) => (
+            <ProfileHistory key={kind} kind={kind} draft={draft} setDraft={setDraft}
+              onEdit={open} onReload={reload} busy={busy} />
+          ))}
         </div>
         <aside className="bw-profile-side">
           <section className="bw-profile-card bw-profile-side-block">
@@ -469,7 +474,7 @@ export default function ProfilePage() {
           </button>
         </aside>
       </div>
-      {draft.editor && (
+      {draft.editor && !["education", "experience"].includes(draft.editor) && (
         <ProfileEditor
           key={draft.editor}
           draft={draft}

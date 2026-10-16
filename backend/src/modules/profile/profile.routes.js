@@ -1,3 +1,4 @@
+import { historySchema } from "./profile-history.schema.js";
 import { Router } from "express";
 import { profilePatchSchema } from "./profile.schema.js";
 import {
@@ -41,6 +42,18 @@ export function createProfileRoutes({ profiles, sessions, clientUrl, nodeEnv }) 
       res.json({ success: true, data: await profiles.completion(req.auth.account.person.id) });
     } catch (error) { next(error); }
   });
+  for (const kind of ["education", "experience"]) {
+    router.put(`/me/${kind}`, origin, auth, async (req, res, next) => {
+      const parsed = historySchema(kind).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({
+        success: false, message: "Please check your profile records.",
+        errors: parsed.error.issues.map((issue) => ({ field: issue.path.join("."), message: issue.message })),
+      });
+      try {
+        const profile = await profiles.saveHistory(req.auth.account.person.id, kind, parsed.data);
+        res.json({ success: true, data: { profile } });
+      } catch (error) { next(error); }
+    });
+  }
   return router;
 }
-

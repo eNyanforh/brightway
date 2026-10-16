@@ -1,0 +1,70 @@
+.bw-history-list {
+  display: grid;
+  gap: 18px;
+}
+.bw-history-record {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bw-history-record + .bw-history-record {
+  border-top: 1px solid #e5eaf1;
+  padding-top: 18px;
+}
+.bw-history-record h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.bw-history-record > p {
+  margin: 0 0 5px;
+  color: #647087;
+  font-size: 12px;
+}
+.bw-history-record small {
+  display: block;
+  color: #647087;
+  font-size: 11px;
+}
+.bw-history-status {
+  display: inline-block;
+  padding: 4px 8px;
+  margin: 8px 0;
+  border-radius: 6px;
+  background: #edf3fc;
+  color: #3464a8;
+  font-size: 10px;
+}
+.bw-profile-dialog .bw-history-record-editor {
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #e5eaf1;
+  border-radius: 10px;
+  min-width: 0;
+}
+.bw-history-record-editor legend {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.bw-history-record-editor .bw-profile-field-row {
+  margin-bottom: 18px;
+}
+.bw-history-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.bw-history-checkbox input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: #175cd3;
+}
+@media (pointer: coarse) {
+  .bw-history-checkbox {
+    min-height: 44px;
+  }
+}

@@ -110,8 +110,9 @@ test("switching career field mode or clearing it removes the previous label", as
 
 test("completion checks known minimums but never converts unresolved policy into Verified eligibility", async () => {
   const empty = evaluateProfileCompletion(profileView(null));
-  assert.equal(empty.missing.length, 7);
+  assert.equal(empty.missing.length, 9);
   const all = evaluateProfileCompletion(profileView({
+    educationMode: "NONE", experienceMode: "NONE",
     countryCode: "LR", locality: "Monrovia", headline: "Student",
     careerFieldMode: "EXPLORING", skills: ["Communication"], interests: ["Technology"],
     photo: { id: "photo-id" },

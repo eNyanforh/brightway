@@ -1,5 +1,8 @@
+import { historyFields } from "./profile-history-form";
 export function formFromProfile(profile) {
   return {
+    ...historyFields(profile, "education"),
+    ...historyFields(profile, "experience"),
     headline: profile.headline || "",
     bio: profile.bio || "",
     countryCode: profile.location?.countryCode || "",
@@ -70,6 +73,8 @@ export function validateForm(form) {
 }
 
 export const editorFields = {
+  education: ["educationMode", "educationRecords"],
+  experience: ["experienceMode", "experienceRecords"],
   intro: ["headline", "countryCode", "region", "locality"],
   about: ["bio"],
   career: ["careerMode", "careerLabel", "careerGoals"],

@@ -58,6 +58,10 @@ export const profileApi = {
         body: { expectedVersion, changes },
       })
     ).data.profile,
+  saveHistory: async (kind, expectedVersion, input) =>
+    (await request(`/profile/me/${kind}`, {
+      method: "PUT", body: { expectedVersion, ...input },
+    })).data.profile,
   uploadPhoto: async (image, version) =>
     (
       await request("/profile/me/photo", {

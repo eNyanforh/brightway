@@ -68,24 +68,28 @@ model Session {
 
 // Owner-only draft data. No verification or publishing state is client editable.
 model Profile {
-  id              String           @id @default(uuid())
-  personId        String           @unique
-  person          Person           @relation(fields: [personId], references: [id], onDelete: Restrict)
-  version         Int              @default(0)
-  countryCode     String?          @db.VarChar(2)
-  region          String?          @db.VarChar(100)
-  locality        String?          @db.VarChar(100)
-  headline        String?          @db.VarChar(120)
-  bio             String?          @db.VarChar(2000)
-  careerFieldMode CareerFieldMode?
-  careerField     String?          @db.VarChar(100)
-  careerGoals     String?          @db.VarChar(1000)
-  skills          String[]         @default([])
-  interests       String[]         @default([])
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  photoId         String?          @unique
-  photo           PhotoAsset?      @relation(fields: [photoId], references: [id], onDelete: Restrict)
+  id                String             @id @default(uuid())
+  personId          String             @unique
+  person            Person             @relation(fields: [personId], references: [id], onDelete: Restrict)
+  version           Int                @default(0)
+  educationMode     ProfileHistoryMode @default(UNSET)
+  experienceMode    ProfileHistoryMode @default(UNSET)
+  educationRecords  EducationRecord[]
+  experienceRecords ExperienceRecord[]
+  countryCode       String?            @db.VarChar(2)
+  region            String?            @db.VarChar(100)
+  locality          String?            @db.VarChar(100)
+  headline          String?            @db.VarChar(120)
+  bio               String?            @db.VarChar(2000)
+  careerFieldMode   CareerFieldMode?
+  careerField       String?            @db.VarChar(100)
+  careerGoals       String?            @db.VarChar(1000)
+  skills            String[]           @default([])
+  interests         String[]           @default([])
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  photoId           String?            @unique
+  photo             PhotoAsset?        @relation(fields: [photoId], references: [id], onDelete: Restrict)
 }
 
 enum CareerFieldMode {
@@ -131,4 +135,64 @@ enum PhotoState {
   CLAIMED
   DELETE_PENDING
   DELETED
+}
+
+enum ProfileHistoryMode {
+  UNSET
+  NONE
+  RECORDS
+}
+
+enum CredentialStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  VERIFIED
+  ACTION_REQUIRED
+  UNABLE_TO_VERIFY
+  FALSE_CREDENTIAL
+}
+
+enum ExperienceType {
+  EMPLOYMENT
+  INTERNSHIP
+  VOLUNTEERING
+  SELF_EMPLOYMENT
+}
+
+model EducationRecord {
+  id            String           @id @default(uuid())
+  profileId     String
+  profile       Profile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  revision      Int              @default(1)
+  status        CredentialStatus @default(DRAFT)
+  institution   String           @db.VarChar(160)
+  qualification String           @db.VarChar(160)
+  startMonth    String           @db.VarChar(7)
+  endMonth      String?          @db.VarChar(7)
+  current       Boolean
+  description   String           @db.VarChar(1000)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([profileId, createdAt])
+}
+
+model ExperienceRecord {
+  id           String           @id @default(uuid())
+  profileId    String
+  profile      Profile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  revision     Int              @default(1)
+  status       CredentialStatus @default(DRAFT)
+  organization String           @db.VarChar(160)
+  role         String           @db.VarChar(160)
+  type         ExperienceType
+  startMonth   String           @db.VarChar(7)
+  endMonth     String?          @db.VarChar(7)
+  current      Boolean
+  description  String           @db.VarChar(1000)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([profileId, createdAt])
 }
