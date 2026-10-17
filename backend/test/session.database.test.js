@@ -35,7 +35,7 @@ test(
       password: "A long test-only passphrase!",
     };
 
-    const register = createRegistrationService({ prisma, photos: { registerAsset: (id, token, create) => create(prisma) } });
+    const register = createRegistrationService({ verification: { requireVerified: async () => {}, consume: async () => new Date("2026-01-01T00:00:00Z") }, prisma, photos: { registerAsset: (id, token, create) => create(prisma) } });
     const sessions = createSessionService({ prisma });
 
     try {

@@ -2,7 +2,7 @@ import { historySchema } from "./profile-history.schema.js";
 import { Router } from "express";
 import { profilePatchSchema } from "./profile.schema.js";
 import {
-  createRequireAuth, createSessionCookieConfig, requireTrustedOrigin,
+  createRequireAuth, createSessionCookieConfig, requireTrustedOrigin, readSessionToken,
 } from "../auth/session.http.js";
 
 export function createProfileRoutes({ profiles, sessions, clientUrl, nodeEnv }) {
@@ -55,5 +55,15 @@ export function createProfileRoutes({ profiles, sessions, clientUrl, nodeEnv }) 
       } catch (error) { next(error); }
     });
   }
+  router.get("/:username/contact", async (req, res, next) => {
+    try {
+      const username = req.params.username.toLowerCase();
+      if (!/^[a-z0-9_]{3,30}$/.test(username)) return res.status(404).json({ success: false, message: "Profile not found." });
+      const token = readSessionToken(req, cookie.name);
+      const viewer = token ? await sessions.authenticate(token) : null;
+      const contact = await profiles.visibleContact(username, viewer?.account.person.id ?? null);
+      res.json({ success: true, data: { contact } });
+    } catch (error) { next(error); }
+  });
   return router;
 }

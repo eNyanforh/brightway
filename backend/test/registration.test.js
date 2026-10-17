@@ -7,7 +7,7 @@ import { createRegistrationService } from "../src/modules/auth/registration.serv
 import { registrationSchema } from "../src/modules/auth/registration.schema.js";
 
 function registrationService(options) {
-  return createRegistrationService({ ...options, photos: { registerAsset: async (id, token, create) => create(options.prisma) } });
+  return createRegistrationService({ verification: { requireVerified: async () => {}, consume: async () => new Date("2026-01-01T00:00:00Z") }, ...options, photos: { registerAsset: async (id, token, create) => create(options.prisma) } });
 }
 
 const input = {
@@ -20,7 +20,7 @@ const input = {
 async function withApi(register, run, limiter) {
   const app = express();
   app.use(express.json());
-  app.use("/api/v1/auth", createAuthRoutes({ register, limiter, clientUrl: "http://localhost:5173", nodeEnv: "test" }));
+  app.use("/api/v1/auth", createAuthRoutes({ register, limiter: limiter ?? rateLimit({ windowMs: 60000, limit: 100 }), clientUrl: "http://localhost:5173", nodeEnv: "test" }));
   app.use((error, req, res, next) => {
     void next;
     res.status(error.status ?? 500).json({ success: false, message: error.message });
@@ -57,6 +57,8 @@ test("invalid and privileged inputs are rejected before persistence", async () =
       { ...input, password: "a".repeat(129) },
       { ...input, status: "ACTIVE" },
       { ...input, role: "ADMIN" },
+      { ...input, emailVerifiedAt: "2026-10-17T02:00:00Z" },
+      { ...input, emailVerified: true },
       null,
     ];
     for (const body of invalid) {

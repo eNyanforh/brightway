@@ -758,3 +758,106 @@ it("does not close or resubmit a history editor while its save is pending", asyn
   complete(ok({ profile: { ...original, version: 2, experience: { mode: "NONE", records: [] } } }));
   await screen.findByText("No work experience declared."); expect(screen.queryByRole("dialog")).toBeNull();
 });
+
+it("saves predefined interest selections without changing another profile section", async () => {
+  const writes = [];
+  mount((url, options) => {
+    if (options?.method === "PATCH") {
+      const body = JSON.parse(options.body); writes.push(body);
+      return ok({ profile: { ...original, version: 2, interests: body.changes.interests } });
+    }
+    return ok({ profile: original });
+  });
+  await ready(); await edit("Edit interests");
+  expect(screen.queryByRole("textbox", { name: "Interests", exact: true })).toBeNull();
+  await userEvent.setup().click(screen.getByRole("checkbox", { name: "Education", exact: true }));
+  await save(); await screen.findByText("Profile saved.");
+  expect(writes).toEqual([{ expectedVersion: 1, changes: { interests: ["Technology", "Education"] } }]);
+  expect(screen.getByText("Education", { exact: true, selector: ".bw-profile-tag" })).toBeTruthy();
+});
+
+it("preserves interest choices through editor close and navigation, and cancel discards only interest changes", async () => {
+  const fetchMock = mount(); await ready(); const user = userEvent.setup();
+  await edit(); set("Headline", "Another unsaved section");
+  await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
+  await edit("Edit interests"); await user.click(screen.getByRole("checkbox", { name: "Education", exact: true }));
+  await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
+  await user.click(screen.getByRole("link", { name: "BrightWay, go to Explore" })); await openProfile(); await ready();
+  await edit("Edit interests"); expect(screen.getByRole("checkbox", { name: "Education", exact: true }).checked).toBe(true);
+  await user.click(screen.getByRole("button", { name: "Cancel", exact: true }));
+  await edit("Edit interests"); expect(screen.getByRole("checkbox", { name: "Education", exact: true }).checked).toBe(false);
+  await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
+  await edit(); expect(screen.getByLabelText("Headline").value).toBe("Another unsaved section");
+  expect(fetchMock.mock.calls.some(([, options]) => options?.method === "PATCH")).toBe(false);
+});
+
+const savedContact = { email: "tester@example.com", phoneNumber: "+231770000000", whatsappNumber: null, visibility: { email: "ONLY_ME", phone: "ONLY_ME", whatsapp: "ONLY_ME" } };
+function contactServer() {
+  let profile = { ...original, contact: savedContact }; const writes = [];
+  mount((url, options) => {
+    if (options?.method === "PATCH") {
+      const body = JSON.parse(options.body); writes.push(body);
+      const { contact, ...other } = body.changes;
+      profile = { ...profile, ...other, version: profile.version + 1, contact: contact ? { ...profile.contact, ...contact, visibility: { ...profile.contact.visibility, ...contact.visibility } } : profile.contact };
+    }
+    return ok({ profile });
+  });
+  return writes;
+}
+
+it("edits separate contact fields and visibility, keeps account email readonly, and saves only contact changes", async () => {
+  const writes = contactServer(); await ready(); const user = userEvent.setup();
+  const section = screen.getByRole("heading", { name: "Contact", exact: true }).closest("section");
+  expect(within(section).getAllByText("Only me")).toHaveLength(3);
+  await edit("Edit contact");
+  expect(screen.getByLabelText("Email", { exact: true }).readOnly).toBe(true);
+  expect(screen.getByLabelText("Email", { exact: true }).value).toBe("tester@example.com");
+  expect(screen.getByLabelText("WhatsApp number (optional)").value).toBe("");
+  set("Phone number", "+231 77 111 1111");
+  expect(screen.getByLabelText("WhatsApp number (optional)").value).toBe("");
+  set("WhatsApp number (optional)", "+231 88 222 2222");
+  await user.selectOptions(screen.getByLabelText("Who can see your email?"), "PUBLIC");
+  await user.selectOptions(screen.getByLabelText("Who can see your phone number?"), "CONNECTIONS");
+  await save(); await screen.findByText("Profile saved.");
+  expect(writes).toEqual([{ expectedVersion: 1, changes: { contact: { phoneNumber: "+231771111111", whatsappNumber: "+231882222222", visibility: { email: "PUBLIC", phone: "CONNECTIONS" } } } }]);
+  expect(within(section).getByText("+231771111111")).toBeTruthy();
+  expect(within(section).getByText("Connections", { exact: true })).toBeTruthy();
+});
+
+it("validates contact format while permitting incomplete draft saves and optional WhatsApp clears", async () => {
+  const writes = contactServer(); await ready(); await edit("Edit contact");
+  set("Phone number", "0771111111"); await save();
+  expect((await screen.findByRole("alert")).textContent).toContain("international number");
+  expect(writes).toHaveLength(0);
+  set("Phone number", ""); await save(); await screen.findByText("Profile saved.");
+  expect(writes[0].changes).toEqual({ contact: { phoneNumber: null } });
+  expect(screen.getByText("Add a phone number to complete your profile.")).toBeTruthy();
+});
+
+it("preserves unsaved contact edits through navigation and another section save, rebasing the next version", async () => {
+  const writes = contactServer(); await ready(); const user = userEvent.setup();
+  await edit("Edit contact"); set("Phone number", "+231771111111"); set("Who can see your phone number?", "CONNECTIONS");
+  await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
+  await user.click(screen.getByRole("link", { name: "BrightWay, go to Explore" })); await openProfile(); await ready();
+  await edit("Edit about"); set("About you", "A saved story"); await save(); await screen.findByText("Profile saved.");
+  await edit("Edit contact"); expect(screen.getByLabelText("Phone number").value).toBe("+231771111111");
+  expect(screen.getByLabelText("Who can see your phone number?").value).toBe("CONNECTIONS");
+  await save(); await screen.findByText("Profile saved.");
+  expect(writes[1]).toEqual({ expectedVersion: 2, changes: { contact: { phoneNumber: "+231771111111", visibility: { phone: "CONNECTIONS" } } } });
+});
+
+it("cancel restores saved contact values and visibility without sending changes", async () => {
+  const writes = contactServer(); await ready(); const user = userEvent.setup();
+  await edit("Edit contact"); set("Phone number", "+231771111111"); set("Who can see your email?", "PUBLIC");
+  await user.click(screen.getByRole("button", { name: "Cancel", exact: true }));
+  await edit("Edit contact"); expect(screen.getByLabelText("Phone number").value).toBe(savedContact.phoneNumber);
+  expect(screen.getByLabelText("Who can see your email?").value).toBe("ONLY_ME"); expect(writes).toHaveLength(0);
+});
+
+it("a stale contact save retains the number and privacy choices without a retry overwrite", async () => {
+  const fetchMock = mount((url, options) => options?.method === "PATCH" ? reply(409, { success: false, message: "Your profile changed." }) : ok({ profile: { ...original, contact: savedContact } }));
+  await ready(); await edit("Edit contact"); set("Phone number", "+231771111111"); set("Who can see your email?", "PUBLIC"); await save();
+  await screen.findByText("Your profile changed."); expect(screen.getByLabelText("Phone number").value).toBe("+231771111111");
+  expect(screen.getByLabelText("Who can see your email?").value).toBe("PUBLIC"); expect(screen.getByRole("button", { name: "Save changes" }).disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter(([, options]) => options?.method === "PATCH")).toHaveLength(1);
+});

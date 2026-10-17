@@ -12,6 +12,7 @@ import {
 } from "./profile-form";
 import Icon from "../components/layout/Icon";
 import ProfilePicture from "../components/profile/ProfilePicture";
+import ProfileContact from "../components/profile/ProfileContact";
 import ProfileHistory from "../components/profile/ProfileHistory";
 import ProfileEditor from "../components/profile/ProfileEditor";
 import "./profile.css";
@@ -169,7 +170,7 @@ export default function ProfilePage() {
     const sectionForm =
       section === "photo" ? null : formForSection(draft, section);
     const problem = sectionForm
-      ? validateForm(sectionForm)
+      ? validateForm(sectionForm, section)
       : !file
         ? "Choose a picture first."
         : "";
@@ -253,13 +254,6 @@ export default function ProfilePage() {
   const exploring = profile.careerField?.mode === "EXPLORING";
   return (
     <div className="bw-profile-page">
-      {/* <div className="bw-profile-breadcrumb">
-        <span>My profile</span>
-        <span>
-          <Icon name="lock" />
-          Private draft
-        </span>
-      </div> */}
       {draft.notice && (
         <p className="bw-profile-success" role="status">
           {draft.notice}
@@ -419,6 +413,7 @@ export default function ProfilePage() {
               neutral
             />
           </Section>
+          <ProfileContact contact={profile.contact} email={account.email} busy={busy} onEdit={open} />
           {["education", "experience"].map((kind) => (
             <ProfileHistory key={kind} kind={kind} draft={draft} setDraft={setDraft}
               onEdit={open} onReload={reload} busy={busy} />

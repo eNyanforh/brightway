@@ -9,10 +9,20 @@ import { createProfileRoutes } from "../src/modules/profile/profile.routes.js";
 function database() {
   const rows = new Map();
   const calls = [];
+  const people = new Map();
+  const person = {
+    async findUnique({ where }) { return structuredClone(people.get(where.id) ?? null); },
+    async update({ where, data }) {
+      const row = people.get(where.id);
+      if (!row) throw new Error("Person not found");
+      Object.assign(row, data); return structuredClone(row);
+    },
+  };
   const profile = {
     async findUnique(args) {
       calls.push(["find", args]);
-      return structuredClone(rows.get(args.where.personId) ?? null);
+      const row = rows.get(args.where.personId);
+      return row ? structuredClone({ ...row, person: people.get(args.where.personId) ?? null }) : null;
     },
     async create(args) {
       calls.push(["create", args]);
@@ -30,7 +40,15 @@ function database() {
       return { count: 1 };
     },
   };
-  return { rows, calls, profile, async $transaction(fn) { return fn({ profile }); } };
+  return { rows, people, calls, profile, person, async $transaction(fn) {
+    const beforeRows = structuredClone(rows), beforePeople = structuredClone(people);
+    try { return await fn({ profile, person }); } catch (error) {
+      rows.clear(); people.clear();
+      for (const [key, value] of beforeRows) rows.set(key, value);
+      for (const [key, value] of beforePeople) people.set(key, value);
+      throw error;
+    }
+  } };
 }
 
 test("profile drafts normalize text, validate countries, and allow partial fields to clear", () => {
@@ -65,7 +83,7 @@ test("read is side-effect free and returns a virtual empty draft for existing ac
   assert.deepEqual(await service.read("owner"), profileView(null));
   assert.equal(db.rows.size, 0);
   assert.equal(db.calls[0][1].where.personId, "owner");
-  assert.equal(db.calls[0][1].select.person, undefined);
+  assert.deepEqual(db.calls[0][1].select.person, { select: { phoneNumber: true, account: { select: { email: true } } } });
   assert.equal(db.calls[0][1].select.account, undefined);
 });
 
@@ -110,8 +128,9 @@ test("switching career field mode or clearing it removes the previous label", as
 
 test("completion checks known minimums but never converts unresolved policy into Verified eligibility", async () => {
   const empty = evaluateProfileCompletion(profileView(null));
-  assert.equal(empty.missing.length, 9);
+  assert.equal(empty.missing.length, 10);
   const all = evaluateProfileCompletion(profileView({
+    person: { phoneNumber: "+231770000000" },
     educationMode: "NONE", experienceMode: "NONE",
     countryCode: "LR", locality: "Monrovia", headline: "Student",
     careerFieldMode: "EXPLORING", skills: ["Communication"], interests: ["Technology"],
@@ -188,4 +207,56 @@ test("HTTP routes require a session and trusted Origin, reject injected ownershi
     assert.equal((await completion.json()).data.complete, null);
     assert.equal((await fetch(`${base}/other`, { headers })).status, 404);
   } finally { await new Promise((resolve) => server.close(resolve)); }
+});
+test("predefined interests are normalized server-side and new arbitrary values cannot be injected", async () => {
+  const db = database(), service = createProfileService({ prisma: db });
+  await assert.rejects(service.patch("owner", { expectedVersion: 0, changes: { interests: ["Unlisted arbitrary value"] } }), { status: 400 });
+  assert.equal(db.rows.size, 0);
+  const saved = await service.patch("owner", { expectedVersion: 0, changes: { interests: ["technology", "Education"] } });
+  assert.deepEqual(saved.interests, ["Technology", "Education"]);
+  await assert.rejects(service.patch("owner", { expectedVersion: 1, changes: { interests: ["Education", "New arbitrary value"] } }), { status: 400 });
+  assert.equal((await service.read("owner")).version, 1);
+  assert.deepEqual((await service.read("owner")).interests, ["Technology", "Education"]);
+});
+
+test("legacy interests may be retained or removed only by their existing owner", async () => {
+  const db = database(), service = createProfileService({ prisma: db });
+  db.rows.set("owner", { id: "legacy", personId: "owner", version: 1, skills: [], interests: ["Church Media"] });
+  const retained = await service.patch("owner", { expectedVersion: 1, changes: { interests: ["Church Media", "Technology"] } });
+  assert.deepEqual(retained.interests, ["Church Media", "Technology"]);
+  await assert.rejects(service.patch("other", { expectedVersion: 0, changes: { interests: ["Church Media"] } }), { status: 400 });
+  const cleared = await service.patch("owner", { expectedVersion: 2, changes: { interests: [] } });
+  assert.deepEqual(cleared.interests, []);
+  await assert.rejects(service.patch("owner", { expectedVersion: 3, changes: { interests: ["Church Media"] } }), { status: 400 });
+  await assert.rejects(service.patch("owner", { expectedVersion: 1, changes: { interests: ["Technology"] } }), { status: 409 });
+});
+
+test("contact updates reuse Person phone and atomically preserve partial fields and stale-write protection", async () => {
+  const db = database(), service = createProfileService({ prisma: db });
+  db.people.set("owner", { phoneNumber: "+231770000000", account: { email: "owner@example.com" } });
+  const virtual = await service.read("owner");
+  assert.equal(virtual.contact.email, "owner@example.com"); assert.equal(virtual.contact.phoneNumber, "+231770000000"); assert.equal(db.rows.size, 0);
+  assert.deepEqual(virtual.contact.visibility, { email: "ONLY_ME", phone: "ONLY_ME", whatsapp: "ONLY_ME" });
+  const saved = await service.patch("owner", profilePatchSchema.parse({ expectedVersion: 0, changes: { contact: { phoneNumber: "+231 77 111 1111", whatsappNumber: "+231 88 222 2222", visibility: { phone: "CONNECTIONS" } } } }));
+  assert.equal(db.people.get("owner").phoneNumber, "+231771111111");
+  assert.equal(db.rows.get("owner").phoneNumber, undefined);
+  assert.equal(saved.contact.whatsappNumber, "+231882222222");
+  assert.equal(saved.contact.visibility.phone, "CONNECTIONS");
+  const next = await service.patch("owner", { expectedVersion: 1, changes: { contact: { visibility: { email: "PUBLIC" } } } });
+  assert.equal(next.contact.phoneNumber, saved.contact.phoneNumber); assert.equal(next.contact.visibility.phone, "CONNECTIONS");
+  await assert.rejects(service.patch("owner", { expectedVersion: 1, changes: { contact: { phoneNumber: null } } }), { status: 409 });
+  assert.equal(db.people.get("owner").phoneNumber, saved.contact.phoneNumber);
+  const cleared = await service.patch("owner", { expectedVersion: 2, changes: { contact: { phoneNumber: null, whatsappNumber: null } } });
+  assert.equal(cleared.contact.phoneNumber, null); assert.equal(cleared.contact.whatsappNumber, null);
+  assert((await service.completion("owner")).missing.some((r) => r.code === "PHONE_REQUIRED"));
+});
+
+test("failure updating Person phone rolls back profile settings and version", async () => {
+  const db = database(), service = createProfileService({ prisma: db });
+  db.people.set("owner", { phoneNumber: "+231770000000", account: { email: "owner@example.com" } });
+  await service.patch("owner", { expectedVersion: 0, changes: { headline: "Student" } });
+  const failure = new Error("write unavailable"); db.person.update = async () => { throw failure; };
+  await assert.rejects(service.patch("owner", { expectedVersion: 1, changes: { contact: { phoneNumber: "+231771111111", visibility: { email: "PUBLIC" } } } }), (error) => error === failure);
+  const current = await service.read("owner");
+  assert.equal(current.version, 1); assert.equal(current.contact.visibility.email, "ONLY_ME"); assert.equal(current.contact.phoneNumber, "+231770000000");
 });

@@ -22,29 +22,38 @@ export function createRegistrationService({
   prisma,
   hash = hashPassword,
   photos,
+  verification,
 }) {
   if (!photos) throw new Error("Registration requires the photo service.");
+  if (!verification) throw new Error("Registration requires email verification.");
   return async function register(input, draftToken) {
+    await verification.requireVerified(draftToken, input.email);
     const passwordHash = await hash(input.password);
 
     try {
-      return await photos.registerAsset(input.photoAssetId, draftToken, (tx) => tx.account.create({
-        data: {
-          username: input.username,
-          email: input.email,
-          passwordHash,
-
-          person: {
-            create: {
-              firstName: input.firstName,
-              middleName: input.middleName,
-              lastName: input.lastName,
+      return await photos.registerAsset(
+        input.photoAssetId,
+        draftToken,
+        async (tx) => {
+          const emailVerifiedAt = await verification.consume(tx, draftToken, input.email);
+          return tx.account.create({
+            data: {
+              username: input.username,
+              email: input.email,
+              emailVerifiedAt,
+              passwordHash,
+              person: {
+                create: {
+                  firstName: input.firstName,
+                  middleName: input.middleName,
+                  lastName: input.lastName,
+                },
+              },
             },
-          },
-        },
-
-        select: publicAccountSelect,
-      }));
+            select: publicAccountSelect,
+          });
+        }
+      );
     } catch (error) {
       if (error.code === "P2002") {
         const conflict = new Error(

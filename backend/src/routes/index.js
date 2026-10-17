@@ -15,14 +15,19 @@ import { createPhotoService } from "../modules/photos/photo.service.js";
 import { createR2Storage } from "../modules/photos/photo.storage.js";
 import { createPhotoRoutes } from "../modules/photos/photo.routes.js";
 
+import { createSignupEmailService } from "../modules/auth/signup-email.service.js";
+import { createSignupEmailRoutes } from "../modules/auth/signup-email.routes.js";
+
 const router = Router();
+const verification = createSignupEmailService({ prisma });
+router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const sessions = createSessionService({ prisma });
 const photos = createPhotoService({ prisma, storage: createR2Storage() });
 
 router.use(createPhotoRoutes({ photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 
 router.use("/auth", createAuthRoutes({
-  register: createRegistrationService({ prisma, photos }),
+  register: createRegistrationService({ prisma, photos, verification }),
   clientUrl: env.CLIENT_URL,
   nodeEnv: env.NODE_ENV,
 }));

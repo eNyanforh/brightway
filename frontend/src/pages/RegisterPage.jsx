@@ -8,6 +8,7 @@ import {
 
 import { authApi } from "../api/auth";
 import AuthForm from "../components/auth/AuthForm";
+import SignupEmailVerification from "../components/auth/SignupEmailVerification";
 
 const initial = {
   firstName: "",
@@ -25,6 +26,12 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [photo, setPhoto] = useState(null);
   const uploadedPhoto = useRef(null);
+  const [step, setStep] = useState("details");
+  const [code, setCode] = useState("");
+  const [verified, setVerified] = useState(false);
+  const [expiresAt, setExpiresAt] = useState(null);
+  const [retryAt, setRetryAt] = useState(0);
+  const [pending, setPending] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -76,8 +83,50 @@ export default function RegisterPage() {
         body.middleName = fields.middleName.trim();
       }
 
-      await authApi.register(body);
+      setPending(body);
+      setVerified(false);
+      setCode("");
+      setStep("verification");
+      setRetryAt(Date.now() + 60000);
+      const result = await authApi.requestSignupEmail(body.email);
+      setExpiresAt(result.expiresAt);
+      setRetryAt(Date.now() + result.retryAfterSeconds * 1000);
+    } catch (failure) {
+      if ([400, 401].includes(failure.status)) uploadedPhoto.current = null;
+      if (failure.status === 401) setStep("details");
+      const details = failure.errors?.map((issue) => issue.message).join(" ");
+      setError(details || failure.message);
+    } finally { setBusy(false); }
+  }
 
+  async function resend() {
+    if (busy || Date.now() < retryAt) return;
+    setBusy(true); setError(""); setCode(""); setVerified(false); setExpiresAt(null);
+    setRetryAt(Date.now() + 60000);
+    try {
+      const result = await authApi.requestSignupEmail(pending.email);
+      setExpiresAt(result.expiresAt);
+      setRetryAt(Date.now() + result.retryAfterSeconds * 1000);
+    } catch (failure) {
+      if (failure.status === 401) { uploadedPhoto.current = null; setStep("details"); }
+      setError(failure.message);
+    } finally { setBusy(false); }
+  }
+
+  async function finish(event) {
+    event.preventDefault();
+    if (busy) return;
+    if (!verified && !/^\d{6}$/.test(code)) { setError("Enter the six-digit code from your email."); return; }
+    setBusy(true); setError("");
+    const body = pending;
+    let verificationCompleted = verified;
+    try {
+      if (!verified) {
+        await authApi.verifySignupEmail(body.email, code);
+        setVerified(true);
+        verificationCompleted = true;
+      }
+      await authApi.register(body);
       navigate("/login", {
         replace: true,
 
@@ -88,7 +137,9 @@ export default function RegisterPage() {
         },
       });
     } catch (failure) {
-      if ([400, 401].includes(failure.status)) uploadedPhoto.current = null;
+      if (failure.status === 401 || (failure.status === 400 && verificationCompleted)) uploadedPhoto.current = null;
+      if (failure.status === 401) setStep("details");
+      if (failure.status === 403) { setVerified(false); setCode(""); }
       const details = failure.errors
         ?.map((issue) => issue.message)
         .join(" ");
@@ -154,6 +205,14 @@ export default function RegisterPage() {
     },
   ];
 
+  if (step === "verification") return (
+    <SignupEmailVerification email={pending.email} code={code} setCode={setCode}
+      busy={busy} error={error} verified={verified} expiresAt={expiresAt} retryAt={retryAt}
+      onSubmit={finish} onResend={resend} onBack={() => {
+        setStep("details"); setError(""); setCode(""); setVerified(false); setExpiresAt(null);
+      }} />
+  );
+
   return (
     <AuthForm
       title="Create your BrightWay account"
@@ -183,6 +242,7 @@ export default function RegisterPage() {
             id={`register-${field.name}`}
             name={field.name}
             type={field.type || "text"}
+            disabled={busy}
             required={!field.optional}
             autoComplete={field.autoComplete}
             minLength={field.minLength}
@@ -207,7 +267,7 @@ export default function RegisterPage() {
 
       <div className="auth-field">
         <label htmlFor="register-photo">Professional profile photo</label>
-        <input id="register-photo" type="file" required disabled={busy}
+        <input id="register-photo" type="file" required={!photo} disabled={busy}
           accept="image/jpeg,image/png,image/webp" aria-describedby="photo-hint"
           onChange={(event) => {
             const chosen = event.target.files?.[0];
@@ -219,6 +279,7 @@ export default function RegisterPage() {
             }
             setPhoto(chosen); setError("");
           }} />
+        {photo && <small>Selected photo: {photo.name}</small>}
         <small id="photo-hint">Required: a clear photo of you, at least 128 × 128 pixels, up to 5 MiB. Your uploaded photo becomes your profile picture when your account is created.</small>
       </div>
 
@@ -227,7 +288,7 @@ export default function RegisterPage() {
         type="submit"
         disabled={busy}
       >
-        {busy ? "Creating account…" : "Create account"}
+        {busy ? "Preparing verification…" : "Continue to email verification"}
       </button>
     </AuthForm>
   );

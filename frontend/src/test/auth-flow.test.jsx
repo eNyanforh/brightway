@@ -124,7 +124,7 @@ it("restores an existing session and leaves protected pages after logout", async
   });
 });
 
-it("registers without sending confirmation or blank middle name, then asks for login", async () => {
+it("verifies email before registering without sending password confirmation or blank middle name, then asks for login", async () => {
   const fetchMock = vi.fn(async (url) =>
     url.endsWith("/me")
       ? anonymous()
@@ -164,9 +164,15 @@ it("registers without sending confirmation or blank middle name, then asks for l
   // Submit the form event to test the React handler; native browser validation remains enabled.
   fireEvent.submit(screen.getByLabelText("Professional profile photo").closest("form"));
 
-  await screen.findByRole("heading", {
-    name: "Log in to BrightWay",
-  });
+  await screen.findByRole("heading", { name: "Verify your email" });
+  expect(fetchMock.mock.calls.some(([url]) => url.endsWith("/register"))).toBe(false);
+  await user.type(screen.getByLabelText("Verification code"), "123456");
+  await user.click(screen.getByRole("button", { name: "Verify email and create account" }));
+  await screen.findByRole("heading", { name: "Log in to BrightWay" });
+  const verifyIndex = fetchMock.mock.calls.findIndex(([url]) => url.endsWith("/signup-email/verify"));
+  const registerIndex = fetchMock.mock.calls.findIndex(([url]) => url.endsWith("/register"));
+  expect(verifyIndex).toBeLessThan(registerIndex);
+  expect(JSON.parse(fetchMock.mock.calls[verifyIndex][1].body)).toEqual({ email: "tester@example.com", code: "123456" });
 
   expect(screen.getByRole("status").textContent)
     .toContain("Your account is ready");

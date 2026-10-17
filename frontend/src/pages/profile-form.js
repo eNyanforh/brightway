@@ -1,6 +1,8 @@
+import { contactFields, contactChanges, validateContact } from "./profile-contact-form";
 import { historyFields } from "./profile-history-form";
 export function formFromProfile(profile) {
   return {
+    ...contactFields(profile),
     ...historyFields(profile, "education"),
     ...historyFields(profile, "experience"),
     headline: profile.headline || "",
@@ -53,10 +55,16 @@ export function changesFromForm(form, profile) {
     } else if (JSON.stringify(value) !== JSON.stringify(profile[key] ?? null))
       changes[key] = value;
   }
+  const contact = contactChanges(form, profile);
+  if (Object.keys(contact).length) changes.contact = contact;
   return changes;
 }
 
-export function validateForm(form) {
+export function validateForm(form, section) {
+  if (section === "contact") {
+    const issue = validateContact(form);
+    if (issue) return issue;
+  }
   if (form.careerMode === "SPECIFIED" && !form.careerLabel.trim())
     return "Enter your career field or choose Exploring.";
   for (const name of ["skills", "interests"]) {
@@ -73,6 +81,7 @@ export function validateForm(form) {
 }
 
 export const editorFields = {
+  contact: ["phoneNumber", "whatsappNumber", "emailVisibility", "phoneVisibility", "whatsappVisibility"],
   education: ["educationMode", "educationRecords"],
   experience: ["experienceMode", "experienceRecords"],
   intro: ["headline", "countryCode", "region", "locality"],

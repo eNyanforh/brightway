@@ -68,28 +68,32 @@ model Session {
 
 // Owner-only draft data. No verification or publishing state is client editable.
 model Profile {
-  id                String             @id @default(uuid())
-  personId          String             @unique
-  person            Person             @relation(fields: [personId], references: [id], onDelete: Restrict)
-  version           Int                @default(0)
-  educationMode     ProfileHistoryMode @default(UNSET)
-  experienceMode    ProfileHistoryMode @default(UNSET)
-  educationRecords  EducationRecord[]
-  experienceRecords ExperienceRecord[]
-  countryCode       String?            @db.VarChar(2)
-  region            String?            @db.VarChar(100)
-  locality          String?            @db.VarChar(100)
-  headline          String?            @db.VarChar(120)
-  bio               String?            @db.VarChar(2000)
-  careerFieldMode   CareerFieldMode?
-  careerField       String?            @db.VarChar(100)
-  careerGoals       String?            @db.VarChar(1000)
-  skills            String[]           @default([])
-  interests         String[]           @default([])
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  photoId           String?            @unique
-  photo             PhotoAsset?        @relation(fields: [photoId], references: [id], onDelete: Restrict)
+  id                 String             @id @default(uuid())
+  personId           String             @unique
+  person             Person             @relation(fields: [personId], references: [id], onDelete: Restrict)
+  version            Int                @default(0)
+  educationMode      ProfileHistoryMode @default(UNSET)
+  experienceMode     ProfileHistoryMode @default(UNSET)
+  educationRecords   EducationRecord[]
+  experienceRecords  ExperienceRecord[]
+  countryCode        String?            @db.VarChar(2)
+  region             String?            @db.VarChar(100)
+  locality           String?            @db.VarChar(100)
+  headline           String?            @db.VarChar(120)
+  bio                String?            @db.VarChar(2000)
+  careerFieldMode    CareerFieldMode?
+  careerField        String?            @db.VarChar(100)
+  careerGoals        String?            @db.VarChar(1000)
+  skills             String[]           @default([])
+  interests          String[]           @default([])
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  photoId            String?            @unique
+  photo              PhotoAsset?        @relation(fields: [photoId], references: [id], onDelete: Restrict)
+  whatsappNumber     String?            @db.VarChar(16)
+  emailVisibility    ContactVisibility  @default(ONLY_ME)
+  phoneVisibility    ContactVisibility  @default(ONLY_ME)
+  whatsappVisibility ContactVisibility  @default(ONLY_ME)
 }
 
 enum CareerFieldMode {
@@ -98,12 +102,20 @@ enum CareerFieldMode {
 }
 
 model SignupDraft {
-  id          String       @id @default(uuid())
-  tokenHash   String       @unique
-  expiresAt   DateTime
-  createdAt   DateTime     @default(now())
-  uploadCount Int          @default(0)
-  photos      PhotoAsset[]
+  id                 String       @id @default(uuid())
+  tokenHash          String       @unique
+  expiresAt          DateTime
+  createdAt          DateTime     @default(now())
+  uploadCount        Int          @default(0)
+  email              String?      @db.VarChar(254)
+  emailCodeHash      String?      @db.VarChar(64)
+  emailCodeExpiresAt DateTime?
+  emailCodeAttempts  Int          @default(0)
+  emailSendCount     Int          @default(0)
+  emailSentAt        DateTime?
+  emailVerifiedAt    DateTime?
+  emailVerifiedUntil DateTime?
+  photos             PhotoAsset[]
 
   @@index([expiresAt])
 }
@@ -195,4 +207,19 @@ model ExperienceRecord {
   updatedAt    DateTime         @updatedAt
 
   @@index([profileId, createdAt])
+}
+
+enum ContactVisibility {
+  ONLY_ME
+  CONNECTIONS
+  PUBLIC
+}
+
+// Hashed recipient/hour buckets limit deliveries across browsers and server restarts.
+model SignupEmailDeliveryLimit {
+  id        String   @id
+  count     Int      @default(1)
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }

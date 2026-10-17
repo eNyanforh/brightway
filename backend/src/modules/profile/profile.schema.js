@@ -1,3 +1,4 @@
+import { contactPatchSchema } from "./profile-contact.js";
 import { z } from "zod";
 
 // ISO 3166-1 country/territory codes; no country-specific region policy yet.
@@ -17,6 +18,7 @@ const entries = z.array(z.string().trim().min(1).max(80)).max(20)
 export const profilePatchSchema = z.strictObject({
   expectedVersion: z.number().int().min(0).max(2147483646),
   changes: z.strictObject({
+    contact: contactPatchSchema.optional(),
     location: z.strictObject({
       countryCode: country.optional(),
       region: text(100).optional(),
@@ -35,7 +37,11 @@ export const profilePatchSchema = z.strictObject({
 });
 
 export function profileUpdateData(changes) {
-  const { location, careerField, ...data } = changes;
+  const { location, careerField, contact, ...data } = changes;
+  if (contact) {
+    if (Object.hasOwn(contact, "whatsappNumber")) data.whatsappNumber = contact.whatsappNumber;
+    for (const [key, value] of Object.entries(contact.visibility || {})) data[`${key}Visibility`] = value;
+  }
   if (location) Object.assign(data, location);
   if (Object.hasOwn(changes, "careerField")) {
     data.careerFieldMode = careerField?.mode ?? null;

@@ -1,0 +1,41 @@
+.bw-contact-list {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+}
+.bw-contact-list > div {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 12px;
+}
+.bw-contact-list dt {
+  color: #647087;
+  font-size: 12px;
+}
+.bw-contact-list dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.bw-contact-list dd > span {
+  min-width: 0;
+}
+.bw-contact-list small {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f1f4f9;
+  color: #647087;
+  font-size: 10px;
+  white-space: nowrap;
+}
+@media (max-width: 460px) {
+  .bw-contact-list > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}

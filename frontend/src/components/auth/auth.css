@@ -101,3 +101,9 @@
     padding: 24px 18px;
   }
 }
+.signup-email-secondary {
+  width: 100%; padding: 12px; margin-top: 10px; border: 1px solid #d6dce5;
+  border-radius: 10px; background: white; color: #2563eb; font: inherit; cursor: pointer;
+}
+.signup-email-secondary:disabled { opacity: .55; cursor: default; }
+.signup-email-secondary:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
