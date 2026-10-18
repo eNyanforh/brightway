@@ -41,7 +41,8 @@ model Account {
   personId String @unique
   person   Person @relation(fields: [personId], references: [id], onDelete: Restrict)
 
-  sessions Session[]
+  sessions       Session[]
+  emailChallenge AccountEmailChallenge?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -222,4 +223,16 @@ model SignupEmailDeliveryLimit {
   expiresAt DateTime
 
   @@index([expiresAt])
+}
+
+// Existing accounts prove ownership without changing their address or login access.
+model AccountEmailChallenge {
+  accountId String   @id
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  email     String   @db.VarChar(254)
+  nonce     String
+  codeHash  String?  @db.VarChar(64)
+  expiresAt DateTime
+  sentAt    DateTime
+  attempts  Int      @default(0)
 }
