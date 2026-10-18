@@ -333,7 +333,7 @@ it("keeps the old picture and selected file when photo storage fails", async () 
   ).toBe("/api/v1/photos/photo-1");
 });
 
-it("validates duplicates and sends explicit clears without updating other sections", async () => {
+it("sends explicit skill clears without updating other sections", async () => {
   const fetchMock = mount((url, options) =>
     options.method === "PATCH"
       ? ok({ profile: { ...original, version: 2, skills: [] } })
@@ -341,15 +341,7 @@ it("validates duplicates and sends explicit clears without updating other sectio
   );
   await ready();
   await edit("Edit skills");
-  set("Skills", "Writing\nwriting");
-  await save();
-  expect((await screen.findByRole("alert")).textContent).toContain(
-    "Remove duplicate entries",
-  );
-  expect(
-    fetchMock.mock.calls.some(([, options]) => options.method === "PATCH"),
-  ).toBe(false);
-  set("Skills", "");
+  await userEvent.setup().click(screen.getByRole("button", { name: "Remove Communication" }));
   await save();
   await screen.findByText("Profile saved.");
   expect(
@@ -786,6 +778,38 @@ it("preserves interest choices through editor close and navigation, and cancel d
   await edit("Edit interests"); expect(screen.getByRole("checkbox", { name: "Education", exact: true }).checked).toBe(true);
   await user.click(screen.getByRole("button", { name: "Cancel", exact: true }));
   await edit("Edit interests"); expect(screen.getByRole("checkbox", { name: "Education", exact: true }).checked).toBe(false);
+  await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
+  await edit(); expect(screen.getByLabelText("Headline").value).toBe("Another unsaved section");
+  expect(fetchMock.mock.calls.some(([, options]) => options?.method === "PATCH")).toBe(false);
+});
+
+it("saves predefined skill selections without changing another profile section", async () => {
+  const writes = [];
+  mount((url, options) => {
+    if (options?.method === "PATCH") {
+      const body = JSON.parse(options.body); writes.push(body);
+      return ok({ profile: { ...original, version: 2, skills: body.changes.skills } });
+    }
+    return ok({ profile: original });
+  });
+  await ready(); await edit("Edit skills");
+  expect(screen.queryByRole("textbox", { name: "Skills", exact: true })).toBeNull();
+  await userEvent.setup().click(screen.getByRole("checkbox", { name: "Python", exact: true }));
+  await save(); await screen.findByText("Profile saved.");
+  expect(writes).toEqual([{ expectedVersion: 1, changes: { skills: ["Communication", "Python"] } }]);
+  expect(screen.getByText("Python", { exact: true, selector: ".bw-profile-tag" })).toBeTruthy();
+});
+
+it("preserves skill choices through editor close and navigation, and cancel discards only skill changes", async () => {
+  const fetchMock = mount(); await ready(); const user = userEvent.setup();
+  await edit(); set("Headline", "Another unsaved section");
+  await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
+  await edit("Edit skills"); await user.click(screen.getByRole("checkbox", { name: "Python", exact: true }));
+  await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
+  await user.click(screen.getByRole("link", { name: "BrightWay, go to Explore" })); await openProfile(); await ready();
+  await edit("Edit skills"); expect(screen.getByRole("checkbox", { name: "Python", exact: true }).checked).toBe(true);
+  await user.click(screen.getByRole("button", { name: "Cancel", exact: true }));
+  await edit("Edit skills"); expect(screen.getByRole("checkbox", { name: "Python", exact: true }).checked).toBe(false);
   await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
   await edit(); expect(screen.getByLabelText("Headline").value).toBe("Another unsaved section");
   expect(fetchMock.mock.calls.some(([, options]) => options?.method === "PATCH")).toBe(false);

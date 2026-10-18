@@ -1,5 +1,5 @@
 import { isPhoneNumber } from "./profile-contact.js";
-export const PROFILE_POLICY_VERSION = "sprint1-contact-privacy-v6";
+export const PROFILE_POLICY_VERSION = "sprint1-skills-catalog-v7";
 
 // Known draft minimums are checked, but unresolved trust rules cannot pass.
 export function evaluateProfileCompletion(profile) {
@@ -29,7 +29,6 @@ export function evaluateProfileCompletion(profile) {
     unresolved: [
       { code: "REGION_APPLICABILITY_PENDING" },
       { code: "CREDENTIAL_REVIEW_NOT_IMPLEMENTED" },
-      { code: "SKILL_TAXONOMY_PENDING" },
       { code: "CONTACT_VERIFICATION_POLICY_PENDING" },
       { code: "INDIVIDUAL_REVIEW_NOT_IMPLEMENTED" },
     ],

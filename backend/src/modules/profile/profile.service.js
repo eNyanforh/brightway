@@ -1,5 +1,6 @@
 import { contactSettingsSelect, createContactReader, ownerContactView, personContactSelect } from "./profile-contact.js";
 import { normalizeInterests } from "./profile-interests.js";
+import { normalizeSkills } from "./profile-skills.js";
 import { educationSelect, experienceSelect, saveProfileHistory } from "./profile-history.service.js";
 import { profileUpdateData } from "./profile.schema.js";
 import { evaluateProfileCompletion } from "./profile.completion.js";
@@ -60,14 +61,16 @@ export function createProfileService({ prisma, relationshipFor }) {
       const data = profileUpdateData(input.changes);
       try {
         return await prisma.$transaction(async (tx) => {
-          const existing = await tx.profile.findUnique({ where: { personId }, select: { id: true, version: true, interests: true } });
+          const existing = await tx.profile.findUnique({ where: { personId }, select: { id: true, version: true, interests: true, skills: true } });
           if (!existing) {
             if (input.expectedVersion !== 0) throw conflict();
             if (data.interests !== undefined) data.interests = normalizeInterests(data.interests);
+            if (data.skills !== undefined) data.skills = normalizeSkills(data.skills);
             await tx.profile.create({ data: { personId, ...data, version: 1 }, select: { id: true } });
           } else {
             if (existing.version !== input.expectedVersion) throw conflict();
             if (data.interests !== undefined) data.interests = normalizeInterests(data.interests, existing.interests);
+            if (data.skills !== undefined) data.skills = normalizeSkills(data.skills, existing.skills);
             const result = await tx.profile.updateMany({
               where: { personId, version: input.expectedVersion },
               data: { ...data, version: { increment: 1 } },

@@ -1,6 +1,7 @@
 import { ContactFields } from "./ProfileContact";
 import { useEffect, useRef } from "react";
 import InterestPicker from "./InterestPicker";
+import SkillPicker from "./SkillPicker";
 import Icon from "../layout/Icon";
 import ProfilePicture from "./ProfilePicture";
 import { countryCodes } from "../../pages/profile-countries";
@@ -233,14 +234,8 @@ export default function ProfileEditor({
               </>
             )}
             {editor === "skills" && (
-              <Field
-                label="Skills"
-                name="skills"
-                value={form.skills}
-                onChange={eventChange}
-                multiline
-                hint="One skill per line. Up to 20 entries, 80 characters each."
-              />
+              <SkillPicker value={form.skills} disabled={busy}
+                onChange={(value) => change("skills", value)} />
             )}
             {editor === "interests" && (
               <InterestPicker value={form.interests} disabled={busy}

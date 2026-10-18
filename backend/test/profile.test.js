@@ -260,3 +260,26 @@ test("failure updating Person phone rolls back profile settings and version", as
   const current = await service.read("owner");
   assert.equal(current.version, 1); assert.equal(current.contact.visibility.email, "ONLY_ME"); assert.equal(current.contact.phoneNumber, "+231770000000");
 });
+
+test("predefined skills normalize case and reject arbitrary additions without saving a partial update", async () => {
+  const db = database(), service = createProfileService({ prisma: db });
+  await assert.rejects(service.patch("owner", { expectedVersion: 0, changes: { skills: ["Unlisted arbitrary skill"], headline: "Must not persist" } }), { status: 400 });
+  assert.equal(db.rows.has("owner"), false);
+  const saved = await service.patch("owner", { expectedVersion: 0, changes: { skills: ["communication", "python"] } });
+  assert.deepEqual(saved.skills, ["Communication", "Python"]);
+  await assert.rejects(service.patch("owner", { expectedVersion: 1, changes: { skills: ["Python", "Unlisted skill"] } }), { status: 400 });
+  assert.equal((await service.read("owner")).version, 1);
+  assert.deepEqual((await service.read("owner")).skills, ["Communication", "Python"]);
+});
+
+test("legacy skills remain on their existing owner, may be removed, and cannot bypass stale versions or be added again", async () => {
+  const db = database(), service = createProfileService({ prisma: db });
+  db.rows.set("owner", { id: "legacy-skills", personId: "owner", version: 1, skills: ["Traditional Craft X"], interests: [] });
+  const retained = await service.patch("owner", { expectedVersion: 1, changes: { skills: ["Traditional Craft X", "Communication"] } });
+  assert.deepEqual(retained.skills, ["Traditional Craft X", "Communication"]);
+  await assert.rejects(service.patch("other", { expectedVersion: 0, changes: { skills: ["Traditional Craft X"] } }), { status: 400 });
+  const cleared = await service.patch("owner", { expectedVersion: 2, changes: { skills: [] } });
+  assert.deepEqual(cleared.skills, []);
+  await assert.rejects(service.patch("owner", { expectedVersion: 3, changes: { skills: ["Traditional Craft X"] } }), { status: 400 });
+  await assert.rejects(service.patch("owner", { expectedVersion: 1, changes: { skills: ["Python"] } }), { status: 409 });
+});
