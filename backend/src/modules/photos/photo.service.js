@@ -57,7 +57,7 @@ export function createPhotoService({ prisma, storage, process = processPhoto, no
       const asset = await upload({ draftId: row.id }, bytes, type, prepared);
       return { photoAssetId: asset.id };
     },
-    async registerAsset(assetId, token, createAccount) {
+    async registerAsset(assetId, token, createAccount, { countryCode } = {}) {
       const owner = await draft(token);
       return prisma.$transaction(async (tx) => {
         const consumed = await tx.signupDraft.updateMany({ where: { id: owner.id, expiresAt: { gt: now() } },
@@ -70,7 +70,7 @@ export function createPhotoService({ prisma, storage, process = processPhoto, no
         if (claimed.count !== 1) throw error(400, "Select and upload a new photo for this signup.");
         const account = await createAccount(tx);
         await tx.photoAsset.update({ where: { id: assetId }, data: { personId: account.person.id } });
-        await tx.profile.create({ data: { personId: account.person.id, photoId: assetId } });
+        await tx.profile.create({ data: { personId: account.person.id, photoId: assetId, countryCode } });
         // Invalidates this capability without leaking the token to responses.
         return account;
       });

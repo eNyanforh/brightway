@@ -13,6 +13,7 @@ function registrationService(options) {
 const input = {
   photoAssetId: "11111111-1111-4111-8111-111111111111",
   firstName: " Emmanuel ", lastName: " Nyanforh ",
+  gender: "MALE", birthDate: "2000-06-15", countryCode: " lr ",
   username: " ENyanforh ", email: " Emmanuel@Example.com ",
   password: "A long personal passphrase!",
 };
@@ -42,6 +43,8 @@ test("registration normalizes identifiers without changing the password", () => 
   assert.equal(result.email, "emmanuel@example.com");
   assert.equal(result.firstName, "Emmanuel");
   assert.equal(result.password, "  Keep all my spaces  ");
+  assert.equal(result.countryCode, "LR");
+  assert.equal(registrationSchema.parse({ ...input, birthDate: "2000-02-29", gender: "PREFER_NOT_TO_SAY", countryCode: "GH" }).gender, "PREFER_NOT_TO_SAY");
 });
 
 test("invalid and privileged inputs are rejected before persistence", async () => {
@@ -55,8 +58,19 @@ test("invalid and privileged inputs are rejected before persistence", async () =
       { ...input, firstName: " " },
       { ...input, username: "bad name" },
       { ...input, password: "a".repeat(129) },
+      { ...input, gender: undefined },
+      { ...input, gender: "ADMIN" },
+      { ...input, birthDate: "2000-02-30" },
+      { ...input, birthDate: "1900-02-29" },
+      { ...input, birthDate: "2999-01-01" },
+      { ...input, birthDate: "06/15/2000" },
+      { ...input, birthDate: undefined },
+      { ...input, countryCode: "ZZ" },
+      { ...input, countryCode: "" },
+      { ...input, countryCode: undefined },
       { ...input, status: "ACTIVE" },
       { ...input, role: "ADMIN" },
+      { ...input, platformRole: "CREDENTIAL_REVIEWER" },
       { ...input, emailVerifiedAt: "2026-10-17T02:00:00Z" },
       { ...input, emailVerified: true },
       null,
@@ -92,6 +106,10 @@ test("service uses one nested write and excludes credentials from its select", a
       assert.equal(data.passwordHash, "hashed-password");
       assert.equal("password" in data, false);
       assert.equal(data.person.create.firstName, "Emmanuel");
+      assert.equal(data.person.create.gender, "MALE");
+      assert.equal(data.person.create.birthDate.toISOString(), "2000-06-15T00:00:00.000Z");
+      assert.equal(select.person.select.gender, undefined);
+      assert.equal(select.person.select.birthDate, undefined);
       assert.equal(select.passwordHash, undefined);
       assert.equal(select.person.select.phoneNumber, undefined);
       return { id: "created" };
@@ -129,4 +147,15 @@ test("registration limits repeated attempts before running expensive work", asyn
     assert.equal((await post(input)).status, 429);
   }, limiter);
   assert.equal(calls, 2);
+});
+
+test("registration passes the saved country to the photo transaction without trusting other profile fields", async () => {
+  let received;
+  const register = createRegistrationService({
+    prisma: {}, hash: async () => "hash",
+    verification: { requireVerified: async () => {}, consume: async () => new Date() },
+    photos: { registerAsset: async (id, token, create, profile) => { received = profile; return { id: "created" }; } },
+  });
+  await register(registrationSchema.parse(input), "draft");
+  assert.deepEqual(received, { countryCode: "LR" });
 });

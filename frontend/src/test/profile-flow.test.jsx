@@ -885,3 +885,50 @@ it("a stale contact save retains the number and privacy choices without a retry 
   expect(screen.getByLabelText("Who can see your email?").value).toBe("PUBLIC"); expect(screen.getByRole("button", { name: "Save changes" }).disabled).toBe(true);
   expect(fetchMock.mock.calls.filter(([, options]) => options?.method === "PATCH")).toHaveLength(1);
 });
+
+it("offers Liberian counties and allows saving an incomplete draft after clearing the county", async () => {
+  const fetchMock = mount((url, options) => options.method === "PATCH"
+    ? ok({ profile: { ...original, version: 2, location: { ...original.location, region: null } } })
+    : ok({ profile: original }));
+  await ready(); await edit();
+  const county = screen.getByRole("combobox", { name: "County" });
+  expect(county.value).toBe("Montserrado");
+  expect(county.options.length).toBe(16);
+  expect(county.required).toBe(false);
+  expect(screen.getByText(/Required for profile completion in Liberia/)).toBeTruthy();
+  await userEvent.setup().selectOptions(county, "");
+  await save();
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  const body = JSON.parse(fetchMock.mock.calls.find(([, options]) => options.method === "PATCH")[1].body);
+  expect(body).toEqual({ expectedVersion: 1, changes: { location: { region: null } } });
+});
+
+it("makes region optional after a country change and sends explicit clears without deleting other location fields", async () => {
+  const fetchMock = mount((url, options) => options.method === "PATCH"
+    ? ok({ profile: { ...original, version: 2, location: { ...original.location, countryCode: "GH", region: null } } })
+    : ok({ profile: original }));
+  await ready(); await edit(); const user = userEvent.setup();
+  await user.selectOptions(screen.getByLabelText("Country or territory"), "GH");
+  expect(screen.queryByRole("combobox", { name: "County" })).toBeNull();
+  const region = screen.getByLabelText("Region or state (optional)");
+  expect(region.value).toBe("Montserrado");
+  await user.clear(region); await save();
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  const body = JSON.parse(fetchMock.mock.calls.find(([, options]) => options.method === "PATCH")[1].body);
+  expect(body.changes).toEqual({ location: { countryCode: "GH", region: null } });
+});
+
+it("keeps an unrecognized saved county until the user selects a replacement", async () => {
+  const legacy = { ...original, location: { ...original.location, region: "Legacy location" } };
+  const fetchMock = mount((url, options) => options.method === "PATCH"
+    ? ok({ profile: { ...legacy, version: 2, location: { ...legacy.location, region: "River Cess" } } })
+    : ok({ profile: legacy }));
+  await ready(); await edit();
+  const county = screen.getByRole("combobox", { name: "County" });
+  expect(county.value).toBe("Legacy location");
+  expect(screen.getByText(/Your previous value is kept until you change it/)).toBeTruthy();
+  await userEvent.setup().selectOptions(county, "River Cess"); await save();
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  const body = JSON.parse(fetchMock.mock.calls.find(([, options]) => options.method === "PATCH")[1].body);
+  expect(body.changes).toEqual({ location: { region: "River Cess" } });
+});

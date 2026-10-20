@@ -51,6 +51,9 @@ async function request(
 export const profileApi = {
   read: async (signal) =>
     (await request("/profile/me", { signal })).data.profile,
+  completion: async () => (await request("/profile/me/completion")).data,
+  requestEmail: async (signal) => (await request("/auth/email/request", { method: "POST", body: {}, signal })).data,
+  verifyEmail: async (code, signal) => (await request("/auth/email/verify", { method: "POST", body: { code }, signal })).data,
   save: async (expectedVersion, changes) =>
     (
       await request("/profile/me", {

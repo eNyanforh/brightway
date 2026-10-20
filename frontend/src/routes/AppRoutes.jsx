@@ -1,3 +1,7 @@
+import PasswordRecoveryPage from "../pages/PasswordRecoveryPage";
+import MyCredentialReviewsPage from "../pages/MyCredentialReviewsPage";
+import CredentialPage from "../pages/CredentialPage";
+import CredentialReviewsPage from "../pages/CredentialReviewsPage";
 import { Routes, Route } from "react-router-dom";
 
 import PublicLayout from "../layouts/PublicLayout";
@@ -5,6 +9,7 @@ import AppLayout from "../layouts/AppLayout";
 import AuthGate from "../auth/AuthGate";
 
 import HomePage from "../pages/HomePage";
+import PartnersPage from "../pages/PartnersPage";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import NotFoundPage from "../pages/NotFoundPage";
@@ -20,6 +25,9 @@ export default function AppRoutes() {
     <Routes>
       <Route element={<PublicLayout />}>
         <Route path="/" element={<HomePage />} />
+        <Route path="/partners" element={<PartnersPage />} />
+
+        <Route path="/forgot-password" element={<PasswordRecoveryPage />} />
 
         <Route element={<AuthGate guest />}>
           <Route path="/login" element={<LoginPage />} />
@@ -30,6 +38,9 @@ export default function AppRoutes() {
 
       <Route element={<AuthGate />}>
         <Route element={<AppLayout />}>
+          <Route path="/credentials" element={<MyCredentialReviewsPage />} />
+          <Route path="/credentials/:kind/:recordId" element={<CredentialPage />} />
+          <Route path="/admin/credentials" element={<CredentialReviewsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/explore" element={<ExplorePage />} />
 

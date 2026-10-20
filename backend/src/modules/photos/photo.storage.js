@@ -103,11 +103,11 @@ export function createR2Storage({
   return {
     check: ready,
 
-    put(key, bytes) {
+    put(key, bytes, contentType = "image/webp") {
       return send(PutObjectCommand, {
         Key: key,
         Body: bytes,
-        ContentType: "image/webp",
+        ContentType: contentType,
       });
     },
 
@@ -117,12 +117,12 @@ export function createR2Storage({
       });
     },
 
-    async get(key) {
+    async get(key, { maxBytes = 2 * 1024 * 1024 } = {}) {
       const result = await send(GetObjectCommand, {
         Key: key,
       });
 
-      const maxBytes = 2 * 1024 * 1024;
+      if (maxBytes > 5 * 1024 * 1024 || maxBytes <= 0) throw new Error("Invalid storage read limit.");
 
       if (
         !result.Body ||

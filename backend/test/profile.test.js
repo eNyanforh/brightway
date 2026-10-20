@@ -83,7 +83,7 @@ test("read is side-effect free and returns a virtual empty draft for existing ac
   assert.deepEqual(await service.read("owner"), profileView(null));
   assert.equal(db.rows.size, 0);
   assert.equal(db.calls[0][1].where.personId, "owner");
-  assert.deepEqual(db.calls[0][1].select.person, { select: { phoneNumber: true, account: { select: { email: true } } } });
+  assert.deepEqual(db.calls[0][1].select.person, { select: { phoneNumber: true, account: { select: { email: true, emailVerifiedAt: true } } } });
   assert.equal(db.calls[0][1].select.account, undefined);
 });
 
@@ -126,20 +126,20 @@ test("switching career field mode or clearing it removes the previous label", as
   assert.equal((await service.patch("owner", { expectedVersion: 2, changes: { careerField: null } })).careerField, null);
 });
 
-test("completion checks known minimums but never converts unresolved policy into Verified eligibility", async () => {
+test("completion checks the approved profile minimums without granting Verified eligibility", async () => {
   const empty = evaluateProfileCompletion(profileView(null));
-  assert.equal(empty.missing.length, 10);
+  assert.equal(empty.missing.length, 11);
   const all = evaluateProfileCompletion(profileView({
-    person: { phoneNumber: "+231770000000" },
+    person: { phoneNumber: "+231770000000", account: { email: "owner@example.com", emailVerifiedAt: new Date("2026-01-01") } },
     educationMode: "NONE", experienceMode: "NONE",
-    countryCode: "LR", locality: "Monrovia", headline: "Student",
+    countryCode: "LR", region: "Montserrado", locality: "Monrovia", headline: "Student",
     careerFieldMode: "EXPLORING", skills: ["Communication"], interests: ["Technology"],
     photo: { id: "photo-id" },
   }));
   assert.deepEqual(all.missing, []);
-  assert.equal(all.complete, null);
+  assert.equal(all.complete, true);
   assert.equal(all.eligibleToRequestVerification, false);
-  assert.equal(all.evaluationStatus, "POLICY_PENDING");
+  assert.equal(all.evaluationStatus, "COMPLETE");
   assert(!all.unresolved.some((item) => item.code.includes("PHOTO_REVIEW")));
 });
 
@@ -160,7 +160,7 @@ test("profile exposes a current photo without approval state or storage credenti
   const completion = evaluateProfileCompletion(view);
   assert(!completion.missing.some((entry) => entry.code === "PHOTO_REQUIRED"));
   assert.equal(completion.eligibleToRequestVerification, false);
-  assert.equal(completion.complete, null);
+  assert.equal(completion.complete, false);
 });
 
 test("HTTP routes require a session and trusted Origin, reject injected ownership, and return private drafts", async () => {
@@ -204,7 +204,7 @@ test("HTTP routes require a session and trusted Origin, reject injected ownershi
     assert.equal((await patch({ expectedVersion: 0, changes: { headline: "Other person's draft" } }, otherHeaders)).status, 200);
     assert.equal((await (await fetch(`${base}/me`, { headers })).json()).data.profile.headline, "Student");
     const completion = await fetch(`${base}/me/completion`, { headers });
-    assert.equal((await completion.json()).data.complete, null);
+    assert.equal((await completion.json()).data.complete, false);
     assert.equal((await fetch(`${base}/other`, { headers })).status, 404);
   } finally { await new Promise((resolve) => server.close(resolve)); }
 });
@@ -282,4 +282,38 @@ test("legacy skills remain on their existing owner, may be removed, and cannot b
   assert.deepEqual(cleared.skills, []);
   await assert.rejects(service.patch("owner", { expectedVersion: 3, changes: { skills: ["Traditional Craft X"] } }), { status: 400 });
   await assert.rejects(service.patch("owner", { expectedVersion: 1, changes: { skills: ["Python"] } }), { status: 409 });
+});
+
+test("partial location saves re-evaluate county applicability from the merged owner profile", async () => {
+  const db = database();
+  db.people.set("owner", { phoneNumber: "+231770000000", account: { email: "owner@example.com", emailVerifiedAt: new Date("2026-01-01") } });
+  db.rows.set("owner", {
+    id: "profile-owner", personId: "owner", version: 3, countryCode: "LR", region: "Montserrado", locality: "Monrovia",
+    headline: "Student", careerFieldMode: "EXPLORING", skills: ["Communication"], interests: ["Technology"],
+    photo: { id: "photo" }, educationMode: "NONE", experienceMode: "NONE",
+  });
+  const service = createProfileService({ prisma: db });
+  assert.equal((await service.read("owner")).completion.complete, true);
+  const cleared = await service.patch("owner", profilePatchSchema.parse({ expectedVersion: 3, changes: { location: { region: null } } }));
+  assert.equal(cleared.location.countryCode, "LR");
+  assert.equal(cleared.completion.complete, false);
+  assert(cleared.completion.missing.some((item) => item.code === "COUNTY_REQUIRED"));
+  const international = await service.patch("owner", { expectedVersion: 4, changes: { location: { countryCode: "GH" } } });
+  assert.equal(international.location.region, null);
+  assert.equal(international.completion.complete, true);
+  assert.equal(international.completion.profileVersion, 5);
+  await assert.rejects(service.patch("owner", { expectedVersion: 4, changes: { location: { countryCode: "LR" } } }), { status: 409 });
+  assert.equal((await service.read("owner")).location.countryCode, "GH");
+  const returned = await service.patch("owner", { expectedVersion: 5, changes: { location: { countryCode: "LR" } } });
+  assert.equal(returned.completion.complete, false);
+  const county = await service.patch("owner", { expectedVersion: 6, changes: { location: { region: "Bong" } } });
+  assert.equal(county.completion.complete, true);
+  assert.equal(county.completion.eligibleToRequestVerification, false);
+});
+
+test("false credentials are excluded from profile display while the underlying record remains available for review audit", () => {
+  const records = [{ id: "false", status: "FALSE_CREDENTIAL" }, { id: "draft", status: "DRAFT" }];
+  const view = profileView({ educationMode: "RECORDS", educationRecords: records });
+  assert.deepEqual(view.education.records, [{ id: "draft", status: "DRAFT" }]);
+  assert.equal(records.length, 2);
 });

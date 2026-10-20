@@ -8,6 +8,7 @@ import {
 
 import { useAuth } from "../auth/useAuth";
 import AuthForm from "../components/auth/AuthForm";
+import PasswordField from "../components/auth/PasswordField";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -98,24 +99,11 @@ export default function LoginPage() {
         />
       </div>
 
-      <div className="auth-field">
-        <label htmlFor="login-password">
-          Password
-        </label>
+      <PasswordField id="login-password" name="password" label="Password"
+        value={password} onChange={(event) => setPassword(event.target.value)}
+        autoComplete="current-password" disabled={busy} />
 
-        <input
-          id="login-password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          maxLength={128}
-          value={password}
-          onChange={(event) =>
-            setPassword(event.target.value)
-          }
-        />
-      </div>
+      <Link to="/forgot-password">Forgot password?</Link>
 
       <button
         className="auth-submit"

@@ -63,6 +63,8 @@ async function request(path, { body, signal, image } = {}) {
 }
 
 export const authApi = {
+  requestPasswordReset: (email) => request("/auth/password-reset/request", { body: { email } }),
+  confirmPasswordReset: (body) => request("/auth/password-reset/confirm", { body }),
   beginSignup: () => request("/auth/signup-drafts", { body: {} }),
   uploadSignupPhoto: (image) => request("/auth/signup-drafts/photo", { image }),
   requestSignupEmail: (email) => request("/auth/signup-email/request", { body: { email } }),

@@ -1,3 +1,4 @@
+import { canonicalLiberiaCounty, liberiaCounties, requiresCounty } from "../../../../shared/profile-location.mjs";
 import { ContactFields } from "./ProfileContact";
 import { useEffect, useRef } from "react";
 import InterestPicker from "./InterestPicker";
@@ -56,6 +57,9 @@ export default function ProfileEditor({
 }) {
   const dialog = useRef(null);
   const { editor, form, profile, busy, error } = draft;
+  const countyRequired = requiresCounty(form.countryCode);
+  const selectedCounty = canonicalLiberiaCounty(form.region);
+  const legacyCounty = countyRequired && Boolean(form.region) && !selectedCounty;
   useEffect(() => {
     const element = dialog.current;
     const previousFocus = document.activeElement;
@@ -170,13 +174,25 @@ export default function ProfileEditor({
                   </select>
                 </div>
                 <div className="bw-profile-field-row">
-                  <Field
-                    label="Region or county"
+                  {countyRequired ? <div className="bw-profile-field">
+                    <label htmlFor="profile-region">County</label>
+                    <select id="profile-region" name="region" value={selectedCounty || form.region}
+                      onChange={eventChange} aria-describedby="profile-county-hint">
+                      <option value="">Not added yet</option>
+                      {legacyCounty && <option value={form.region}>Previously saved: {form.region}</option>}
+                      {liberiaCounties.map((county) => <option key={county} value={county}>{county}</option>)}
+                    </select>
+                    <small id="profile-county-hint">{legacyCounty
+                      ? "Choose a county from the list to complete your profile. Your previous value is kept until you change it."
+                      : "Required for profile completion in Liberia. You can save a draft without it."}</small>
+                  </div> : <Field
+                    label="Region or state (optional)"
                     name="region"
                     value={form.region}
                     onChange={eventChange}
                     maxLength={100}
-                  />
+                    hint="Optional for countries outside Liberia in this MVP."
+                  />}
                   <Field
                     label="City or locality"
                     name="locality"

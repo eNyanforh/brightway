@@ -65,7 +65,9 @@ function main() {
     runNode([prisma, "generate", "--config", "prisma.config.ts"], env);
   }
   console.log(`Running ${files.length} database integration test files…`);
-  runNode(["--test", ...files], env);
+  // Avoid starting every integration suite against the remote test branch at once.
+  // Races within each suite still run concurrently and retain their assertions.
+  runNode(["--test", "--test-concurrency=1", ...files], env);
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {

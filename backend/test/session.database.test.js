@@ -28,6 +28,7 @@ test(
     const input = {
       firstName: marker,
       lastName: "SessionTest",
+      gender: "MALE", birthDate: "2000-06-15", countryCode: "LR",
       username: `test_${
         marker.replaceAll("-", "").slice(0, 20)
       }`,

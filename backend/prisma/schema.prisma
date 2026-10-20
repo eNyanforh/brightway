@@ -18,6 +18,7 @@ model Person {
   middleName  String?
   lastName    String
   birthDate   DateTime? @db.Date
+  gender      PersonGender?
   phoneNumber String?
 
   account Account?
@@ -28,12 +29,21 @@ model Person {
   updatedAt DateTime @updatedAt
 }
 
+enum PersonGender {
+  FEMALE
+  MALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
 model Account {
   id           String        @id @default(uuid())
   username     String        @unique
   email        String        @unique
   passwordHash String
   status       AccountStatus @default(ACTIVE)
+
+  platformRole PlatformRole @default(MEMBER)
 
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
@@ -75,6 +85,7 @@ model Profile {
   version            Int                @default(0)
   educationMode      ProfileHistoryMode @default(UNSET)
   experienceMode     ProfileHistoryMode @default(UNSET)
+  credentialReviews  CredentialReview[]
   educationRecords   EducationRecord[]
   experienceRecords  ExperienceRecord[]
   countryCode        String?            @db.VarChar(2)
@@ -235,4 +246,131 @@ model AccountEmailChallenge {
   expiresAt DateTime
   sentAt    DateTime
   attempts  Int      @default(0)
+}
+
+
+enum PlatformRole {
+  MEMBER
+  CREDENTIAL_REVIEWER
+}
+
+enum CredentialKind {
+  education
+  experience
+}
+
+enum EvidenceState {
+  UPLOADING
+  READY
+  ATTACHED
+  DELETE_PENDING
+  DELETED
+}
+
+model CredentialReview {
+  id                 String @id @default(uuid())
+  profileId          String
+  profile            Profile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  kind               CredentialKind
+  recordId           String
+  revision           Int
+  version            Int @default(1)
+  status             CredentialStatus @default(SUBMITTED)
+  initialSubmittedAt DateTime @default(now())
+  submittedAt        DateTime @default(now())
+  reviewerId         String?
+  note               String? @db.VarChar(2000)
+  attempts           CredentialAttempt[]
+  events             CredentialAuditEvent[]
+  @@unique([kind, recordId])
+  @@index([status, initialSubmittedAt, id])
+}
+
+model CredentialAttempt {
+  id         String @id @default(uuid())
+  reviewId   String
+  review     CredentialReview @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  revision   Int
+  snapshot   Json
+  status     CredentialStatus @default(SUBMITTED)
+  reviewerId String?
+  note       String? @db.VarChar(2000)
+  createdAt  DateTime @default(now())
+  decidedAt  DateTime?
+  evidence   CredentialEvidence[]
+  @@index([reviewId, createdAt, id])
+}
+
+model CredentialEvidence {
+  id          String @id @default(uuid())
+  personId    String
+  kind        CredentialKind
+  recordId    String
+  revision    Int
+  state       EvidenceState @default(UPLOADING)
+  storageKey  String @unique
+  contentType String
+  size        Int @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  attemptId   String?
+  attempt     CredentialAttempt? @relation(fields: [attemptId], references: [id], onDelete: Restrict)
+  @@index([personId, recordId, revision, state])
+  @@index([state, expiresAt])
+}
+
+model CredentialUploadBudget {
+  personId String
+  hour     DateTime
+  count    Int @default(0)
+  @@id([personId, hour])
+}
+
+model CredentialAuditEvent {
+  id         String @id @default(uuid())
+  reviewId   String
+  review     CredentialReview @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  actorId    String
+  action     String
+  revision   Int
+  fromStatus CredentialStatus
+  toStatus   CredentialStatus
+  note       String? @db.VarChar(2000)
+  createdAt  DateTime @default(now())
+  @@index([reviewId, createdAt, id])
+}
+
+model ReviewerRoleAudit {
+  id              String @id @default(uuid())
+  targetAccountId String
+  actor           String @default("SERVER_OPERATOR_CLI")
+  fromRole        PlatformRole
+  toRole          PlatformRole
+  createdAt       DateTime @default(now())
+}
+
+// Reset challenges are separate from signup/email-verification proofs.
+model PasswordResetChallenge {
+  emailKey            String   @id
+  nonce               String   @unique @default(uuid())
+  accountId           String?
+  passwordFingerprint String?
+  codeHash            String
+  expiresAt           DateTime
+  ready               Boolean  @default(false)
+  attempts            Int      @default(0)
+  consumedAt          DateTime?
+  requestWindowStart  DateTime
+  requestCount        Int      @default(1)
+  lastRequestedAt     DateTime
+  @@index([accountId])
+  @@index([lastRequestedAt])
+}
+
+model PasswordRecoveryAudit {
+  id        String   @id @default(uuid())
+  accountId String
+  action    String
+  createdAt DateTime @default(now())
+  @@index([accountId, createdAt])
 }

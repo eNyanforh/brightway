@@ -36,7 +36,7 @@ export const contactPatchSchema = z
 
 export const personContactSelect = {
   phoneNumber: true,
-  account: { select: { email: true } },
+  account: { select: { email: true, emailVerifiedAt: true } },
 };
 export const contactSettingsSelect = {
   whatsappNumber: true,
@@ -48,6 +48,7 @@ export const contactSettingsSelect = {
 export function ownerContactView(row, person = row?.person) {
   return {
     email: person?.account?.email ?? null,
+    emailVerifiedAt: person?.account?.emailVerifiedAt ?? null,
     phoneNumber: person?.phoneNumber ?? null,
     whatsappNumber: row?.whatsappNumber ?? null,
     visibility: {

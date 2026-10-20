@@ -1,35 +1,43 @@
+import { canonicalLiberiaCounty, requiresCounty } from "../../../../shared/profile-location.mjs";
 import { isPhoneNumber } from "./profile-contact.js";
-export const PROFILE_POLICY_VERSION = "sprint1-skills-catalog-v7";
+export const PROFILE_POLICY_VERSION = "sprint1-credential-review-v10";
 
-// Known draft minimums are checked, but unresolved trust rules cannot pass.
+// Profile information and trust/review eligibility remain separate concepts.
 export function evaluateProfileCompletion(profile) {
-  const missing = [];
-  const require = (condition, field, code) => {
-    if (!condition) missing.push({ field, code });
+  const checks = [];
+  const check = (condition, field, code, label, editor) => {
+    checks.push({ field, code, label, editor, satisfied: Boolean(condition) });
   };
-  require(profile.location.countryCode, "location.countryCode", "COUNTRY_REQUIRED");
-  require(profile.location.locality, "location.locality", "LOCALITY_REQUIRED");
-  require(profile.headline, "headline", "HEADLINE_REQUIRED");
-  require(profile.careerField, "careerField", "CAREER_FIELD_REQUIRED");
-  require(profile.skills.length, "skills", "SKILL_REQUIRED");
-  require(profile.interests.length, "interests", "INTEREST_REQUIRED");
-  require(profile.photo?.id, "photo", "PHOTO_REQUIRED");
-  require(isPhoneNumber(profile.contact?.phoneNumber), "contact.phoneNumber", "PHONE_REQUIRED");
-
+  check(profile.location?.countryCode, "location.countryCode", "COUNTRY_REQUIRED", "Country or territory", "intro");
+  if (requiresCounty(profile.location?.countryCode)) {
+    check(canonicalLiberiaCounty(profile.location?.region), "location.region", "COUNTY_REQUIRED", "County (Liberia)", "intro");
+  }
+  check(profile.location?.locality, "location.locality", "LOCALITY_REQUIRED", "City or locality", "intro");
+  check(profile.headline, "headline", "HEADLINE_REQUIRED", "Professional headline", "intro");
+  check(profile.careerField, "careerField", "CAREER_FIELD_REQUIRED", "Career direction", "career");
+  check(profile.skills?.length, "skills", "SKILL_REQUIRED", "At least one skill", "skills");
+  check(profile.interests?.length, "interests", "INTEREST_REQUIRED", "At least one interest", "interests");
+  check(profile.photo?.id, "photo", "PHOTO_REQUIRED", "Profile picture", "photo");
+  check(isPhoneNumber(profile.contact?.phoneNumber), "contact.phoneNumber", "PHONE_REQUIRED", "Phone number", "contact");
+  const verifiedAt = profile.contact?.emailVerifiedAt;
+  const verified = Boolean(profile.contact?.email && verifiedAt && Number.isFinite(new Date(verifiedAt).getTime()));
+  check(verified, "contact.emailVerifiedAt", "EMAIL_VERIFICATION_REQUIRED", "Verified email", "email");
   for (const kind of ["education", "experience"]) {
     const history = profile[kind];
-    require(history?.mode === "NONE" || (history?.mode === "RECORDS" && history.records.length > 0), kind, `${kind.toUpperCase()}_DECLARATION_REQUIRED`);
+    check(history?.mode === "NONE" || (history?.mode === "RECORDS" && history.records.length > 0),
+      kind, `${kind.toUpperCase()}_DECLARATION_REQUIRED`, kind === "education" ? "Education history or declaration" : "Experience history or declaration", kind);
   }
+  const missing = checks.filter((item) => !item.satisfied).map(({ field, code }) => ({ field, code }));
   return {
     policyVersion: PROFILE_POLICY_VERSION,
-    evaluationStatus: "POLICY_PENDING",
-    complete: null,
+    profileVersion: profile.version ?? 0,
+    evaluationStatus: missing.length ? "INCOMPLETE" : "COMPLETE",
+    complete: missing.length === 0,
+    knownRequirementsComplete: missing.length === 0,
     eligibleToRequestVerification: false,
+    checks,
     missing,
     unresolved: [
-      { code: "REGION_APPLICABILITY_PENDING" },
-      { code: "CREDENTIAL_REVIEW_NOT_IMPLEMENTED" },
-      { code: "CONTACT_VERIFICATION_POLICY_PENDING" },
       { code: "INDIVIDUAL_REVIEW_NOT_IMPLEMENTED" },
     ],
   };

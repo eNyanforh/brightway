@@ -1,0 +1,18 @@
+.bw-profile-completion h2 { font-size: 20px; }
+.bw-profile-completion > p { font-size: 13px; line-height: 1.6; }
+.bw-completion-summary { font-weight: 650; color: #172033; }
+.bw-completion-note { padding: 10px 12px; background: #f1f5fb; border-radius: 9px; color: #475569; }
+.bw-completion-list { list-style: none; padding: 0; margin: 16px 0; }
+.bw-completion-list li { display: flex; align-items: center; gap: 9px; padding: 10px 0; border-bottom: 1px solid #e8edf4; font-size: 12px; }
+.bw-completion-list li > span:nth-child(2) { flex: 1; min-width: 0; }
+.bw-completion-list small { display: block; margin-top: 3px; color: #64748b; }
+.bw-completion-done, .bw-completion-missing { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; flex-shrink: 0; }
+.bw-completion-done { color: #175cd3; background: #eaf2ff; }
+.bw-completion-missing { color: #64748b; background: #f1f5f9; }
+.bw-completion-list .bw-profile-text-button { min-height: 44px; }
+.bw-account-email { border-top: 1px solid #e8edf4; margin-top: 16px; padding-top: 16px; }
+.bw-account-email h3 { margin: 0 0 10px; }
+.bw-account-email p { font-size: 13px; overflow-wrap: anywhere; line-height: 1.6; }
+.bw-account-email .bw-profile-field { margin-top: 14px; }
+.bw-account-email .bw-profile-field input { width: 100%; min-width: 0; box-sizing: border-box; letter-spacing: 3px; }
+.bw-completion-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

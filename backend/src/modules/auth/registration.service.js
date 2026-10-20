@@ -3,6 +3,7 @@ import { hashPassword } from "./password.js";
 export const publicAccountSelect = {
   id: true,
   username: true,
+  platformRole: true,
   email: true,
   status: true,
   emailVerifiedAt: true,
@@ -47,12 +48,15 @@ export function createRegistrationService({
                   firstName: input.firstName,
                   middleName: input.middleName,
                   lastName: input.lastName,
+                  gender: input.gender,
+                  birthDate: new Date(`${input.birthDate}T00:00:00.000Z`),
                 },
               },
             },
             select: publicAccountSelect,
           });
-        }
+        },
+        { countryCode: input.countryCode }
       );
     } catch (error) {
       if (error.code === "P2002") {

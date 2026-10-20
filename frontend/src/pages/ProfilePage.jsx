@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { profileApi } from "../api/profile";
 import {
@@ -13,6 +13,7 @@ import {
 import Icon from "../components/layout/Icon";
 import ProfilePicture from "../components/profile/ProfilePicture";
 import ProfileContact from "../components/profile/ProfileContact";
+import ProfileCompletion from "../components/profile/ProfileCompletion";
 import ProfileHistory from "../components/profile/ProfileHistory";
 import ProfileEditor from "../components/profile/ProfileEditor";
 import "./profile.css";
@@ -81,6 +82,30 @@ export default function ProfilePage() {
   const dirty =
     profile &&
     JSON.stringify(draft.form) !== JSON.stringify(formFromProfile(profile));
+
+  async function refreshChecklist(expectedVersion = profile.version) {
+    const completion = await profileApi.completion();
+    if (completion.profileVersion !== expectedVersion) {
+      throw new Error("Your saved profile changed. Reload the saved profile after keeping any unsaved edits you need.");
+    }
+    setDraft((previous) => {
+      if (!previous || completion.profileVersion !== previous.profile.version) return previous;
+      return { ...previous, profile: { ...previous.profile, completion } };
+    });
+  }
+  async function emailVerified(result) {
+    setDraft((previous) => previous ? {
+      ...previous,
+      profile: { ...previous.profile, completion: null,
+        contact: { ...previous.profile.contact, emailVerifiedAt: result.emailVerifiedAt } },
+      notice: "Email verified. Your unsaved profile edits are still here.",
+    } : previous);
+    try { await refreshChecklist(); } catch { /* The checklist's Refresh button remains available. */ }
+    void refresh();
+  }
+  function emailBusy(value) {
+    setDraft((previous) => previous ? { ...previous, busy: value } : previous);
+  }
 
   async function reload() {
     if (
@@ -200,6 +225,7 @@ export default function ProfilePage() {
           profile: {
             ...previous.profile,
             photo: { id: result.photoAssetId },
+            completion: null,
             version: previous.profile.version + 1,
           },
           editor: null,
@@ -208,6 +234,7 @@ export default function ProfilePage() {
         }));
         setFile(null);
         setPictureAttempt((value) => value + 1);
+        void refreshChecklist(profile.version + 1).catch(() => {});
       } else {
         const next = await profileApi.save(profile.version, changes);
         setDraft((previous) => mergeSavedSection(previous, next, section));
@@ -254,6 +281,8 @@ export default function ProfilePage() {
   const exploring = profile.careerField?.mode === "EXPLORING";
   return (
     <div className="bw-profile-page">
+      <Link to="/credentials">My credential reviews</Link>
+      {account.platformRole === "CREDENTIAL_REVIEWER" && <Link to="/admin/credentials">Open credential review workspace</Link>}
       {draft.notice && (
         <p className="bw-profile-success" role="status">
           {draft.notice}
@@ -420,6 +449,8 @@ export default function ProfilePage() {
           ))}
         </div>
         <aside className="bw-profile-side">
+          <ProfileCompletion profile={profile} busy={busy} dirty={dirty} onEdit={open}
+            onRefresh={refreshChecklist} onBusy={emailBusy} onVerified={emailVerified} />
           <section className="bw-profile-card bw-profile-side-block">
             <p className="bw-profile-eyebrow">YOUR STORY. YOUR PACE.</p>
             <h2>

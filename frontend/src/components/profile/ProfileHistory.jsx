@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useEffect, useId, useRef } from "react";
 import { useAuth } from "../../auth/useAuth";
 import { profileApi } from "../../api/profile";
@@ -67,6 +68,10 @@ function HistoryDialog({ kind, draft, setDraft, onReload }) {
     }));
   }
   function chooseMode(next) {
+    if (next !== "RECORDS" && records.some((item) => item.id && item.status !== "DRAFT")) {
+      setDraft((previous) => ({ ...previous, error: new Error("Submitted or reviewed records must remain in your history. Open verification details to review their status.") }));
+      return;
+    }
     if (
       next !== "RECORDS" &&
       records.length &&
@@ -267,13 +272,13 @@ function HistoryDialog({ kind, draft, setDraft, onReload }) {
             {mode === "RECORDS" && (
               <>
                 <p className="bw-profile-muted">
-                  Enter month and year. Saved records remain drafts until
-                  verification is available.
+                  Enter month and year. Save your records, then open verification on each record to submit supporting documents.
                 </p>
                 {records.map((item, index) => (
                   <fieldset
                     key={item.id || item._key}
                     className="bw-history-record-editor"
+                    disabled={item.id && !["DRAFT", "ACTION_REQUIRED", "UNABLE_TO_VERIFY"].includes(item.status)}
                   >
                     <legend>
                       {title} record {index + 1}
@@ -352,6 +357,7 @@ function HistoryDialog({ kind, draft, setDraft, onReload }) {
                     <button
                       type="button"
                       className="bw-profile-text-button"
+                      disabled={item.id && item.status !== "DRAFT"}
                       onClick={() => {
                         if (
                           window.confirm(
@@ -454,6 +460,7 @@ export default function ProfileHistory({
                   {statusLabels[item.status] ||
                     "Not submitted for verification"}
                 </span>
+                <Link to={`/credentials/${kind}/${item.id}`}>Verification details</Link>
                 {item.description && (
                   <p className="bw-profile-description">{item.description}</p>
                 )}

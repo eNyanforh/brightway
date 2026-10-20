@@ -18,13 +18,13 @@ export const ownerProfileSelect = {
 };
 
 export function profileView(row, person = row?.person) {
-  return {
+  const view = {
     contact: ownerContactView(row, person),
     id: row?.id ?? null,
     version: row?.version ?? 0,
     photo: row?.photo ?? null,
-    education: { mode: row?.educationMode ?? "UNSET", records: row?.educationRecords ?? [] },
-    experience: { mode: row?.experienceMode ?? "UNSET", records: row?.experienceRecords ?? [] },
+    education: { mode: row?.educationMode ?? "UNSET", records: (row?.educationRecords ?? []).filter((r) => r.status !== "FALSE_CREDENTIAL") },
+    experience: { mode: row?.experienceMode ?? "UNSET", records: (row?.experienceRecords ?? []).filter((r) => r.status !== "FALSE_CREDENTIAL") },
     location: {
       countryCode: row?.countryCode ?? null,
       region: row?.region ?? null,
@@ -37,12 +37,13 @@ export function profileView(row, person = row?.person) {
       : row?.careerFieldMode === "SPECIFIED"
         ? { mode: "SPECIFIED", label: row.careerField } : null,
     careerGoals: row?.careerGoals ?? null,
-    // Skills remain draft labels. Interests use the predefined catalog, with legacy retention.
+    // Both catalogs preserve existing custom labels on their owner.
     skills: row?.skills ?? [],
     interests: row?.interests ?? [],
     createdAt: row?.createdAt ?? null,
     updatedAt: row?.updatedAt ?? null,
   };
+  return { ...view, completion: evaluateProfileCompletion(view) };
 }
 
 function conflict() {
@@ -93,7 +94,7 @@ export function createProfileService({ prisma, relationshipFor }) {
       return profileView(await saveProfileHistory({ prisma, personId, kind, input, select: ownerProfileSelect }));
     },
     async completion(personId) {
-      return evaluateProfileCompletion(await this.read(personId));
+      return (await this.read(personId)).completion;
     },
   };
 }

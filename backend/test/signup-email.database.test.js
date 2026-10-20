@@ -22,7 +22,7 @@ test("database email verification commits attempt limits and creates at most one
   try {
     draft = await photos.begin();
     const asset = await photos.uploadDraft(draft.token, Buffer.from("test-photo"), "image/png");
-    const input = { email, firstName: marker, lastName: "EmailTest", username: `email_${marker.replaceAll("-", "").slice(0, 20)}`, password: "long-test-password", photoAssetId: asset.photoAssetId };
+    const input = { gender: "MALE", birthDate: "2000-06-15", countryCode: "LR", email, firstName: marker, lastName: "EmailTest", username: `email_${marker.replaceAll("-", "").slice(0, 20)}`, password: "long-test-password", photoAssetId: asset.photoAssetId };
     await assert.rejects(register(input, draft.token), { status: 403 });
     assert.equal(await prisma.account.count({ where: { email } }), 0);
     await verification.request(draft.token, email);
@@ -38,6 +38,12 @@ test("database email verification commits attempt limits and creates at most one
     assert.equal(attempts.filter((r) => r.status === "fulfilled").length, 1);
     const account = attempts.find((r) => r.status === "fulfilled").value;
     assert(account.emailVerifiedAt instanceof Date);
+    const person = await prisma.person.findUnique({ where: { id: account.person.id } });
+    assert.equal(person.gender, "MALE");
+    assert.equal(person.birthDate.toISOString(), "2000-06-15T00:00:00.000Z");
+    const profile = await prisma.profile.findUnique({ where: { personId: account.person.id } });
+    assert.equal(profile.countryCode, "LR");
+    assert.equal(profile.photoId, asset.photoAssetId);
     assert.equal(await prisma.account.count({ where: { email } }), 1);
     await assert.rejects(verification.requireVerified(draft.token, email), { status: 403 });
     badDraft = await photos.begin(); await verification.request(badDraft.token, `bad_${email}`);

@@ -19,7 +19,7 @@ export function errorHandler(err, req, res, next) {
       ? err.status
       : 500;
 
-  console.error("API error:", err);
+  console.error("API error:", { status: statusCode, name: err.name, code: err.code });
 
   const message =
     statusCode === 500 && env.NODE_ENV === "production"

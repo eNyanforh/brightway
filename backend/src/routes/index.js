@@ -1,4 +1,8 @@
+import { createPasswordResetService } from "../modules/auth/password-reset.service.js";
+import { createPasswordResetRoutes } from "../modules/auth/password-reset.routes.js";
 
+import { createCredentialService } from "../modules/credentials/credential.service.js";
+import { createCredentialRoutes } from "../modules/credentials/credential.routes.js";
 import { Router } from "express";
 
 import { getHealth } from "../controllers/health.controller.js";
@@ -15,13 +19,18 @@ import { createPhotoService } from "../modules/photos/photo.service.js";
 import { createR2Storage } from "../modules/photos/photo.storage.js";
 import { createPhotoRoutes } from "../modules/photos/photo.routes.js";
 
+import { createAccountEmailService } from "../modules/auth/account-email.service.js";
+import { createAccountEmailRoutes } from "../modules/auth/account-email.routes.js";
 import { createSignupEmailService } from "../modules/auth/signup-email.service.js";
 import { createSignupEmailRoutes } from "../modules/auth/signup-email.routes.js";
 
 const router = Router();
+router.use("/auth", createPasswordResetRoutes({ recovery: createPasswordResetService({ prisma }), clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const verification = createSignupEmailService({ prisma });
 router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const sessions = createSessionService({ prisma });
+router.use("/auth", createAccountEmailRoutes({ verification: createAccountEmailService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createCredentialRoutes({ credentials: createCredentialService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const photos = createPhotoService({ prisma, storage: createR2Storage() });
 
 router.use(createPhotoRoutes({ photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));

@@ -76,18 +76,18 @@ export async function saveProfileHistory({
         if (row.revision !== revision) throw conflict();
         retained.add(id);
         if (same(row, data)) continue;
-        if (row.status !== "DRAFT")
+        if (!["DRAFT", "ACTION_REQUIRED", "UNABLE_TO_VERIFY"].includes(row.status))
           throw conflict(
             "This record requires the verification review workflow before it can be changed.",
           );
         const result = await tx[model].updateMany({
-          where: { id, profileId: profile.id, revision, status: "DRAFT" },
+          where: { id, profileId: profile.id, revision, status: row.status },
           data: { ...data, revision: { increment: 1 } },
         });
         if (result.count !== 1) throw conflict();
       }
       for (const row of rows) {
-        if (retained.has(row.id)) continue;
+        if (retained.has(row.id) || row.status === "FALSE_CREDENTIAL") continue;
         if (row.status !== "DRAFT")
           throw conflict(
             "Reviewed records require the verification workflow before removal.",

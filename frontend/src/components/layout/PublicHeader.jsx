@@ -1,71 +1,46 @@
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../../auth/useAuth";
 
-import { Link, NavLink } from "react-router-dom";
-import styled from "styled-components";
-
-const Header = styled.header`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 6%;
-  background: ${({ theme }) => theme.colors.surface};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-
-  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
-    flex-wrap: wrap;
-  }
-`;
-
-const Brand = styled(Link)`
-  color: ${({ theme }) => theme.colors.primary};
-  font-size: 24px;
-  font-weight: 800;
-`;
-
-const Navigation = styled.nav`
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
-
-  a {
-    font-weight: 500;
-  }
-
-  a[aria-current="page"] {
-    color: ${({ theme }) => theme.colors.primary};
-  }
-`;
-
-const RegisterLink = styled(NavLink)`
-  padding: 10px 16px;
-  border-radius: ${({ theme }) => theme.radius.md};
-  background: ${({ theme }) => theme.colors.primary};
-  color: white;
-
-  &:hover {
-    background: ${({ theme }) => theme.colors.primaryHover};
-  }
-`;
-
-function PublicHeader() {
+export default function PublicHeader() {
+  const { account } = useAuth();
+  const { pathname, search } = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const schools = pathname === "/" && new URLSearchParams(search).get("audience") === "schools";
+  const items = [
+    { label: "For Individuals", to: "/", active: pathname === "/" && !schools },
+    { label: "For Schools", to: "/?audience=schools", active: schools },
+    { label: "For Companies", to: "/partners", active: pathname === "/partners" },
+  ];
+  const closeMenu = () => setMenuOpen(false);
+  const authLinks = <>{account
+    ? <Link className="bw-reference-button bw-reference-primary" to="/explore" onClick={closeMenu}>Open BrightWay</Link>
+    : <><Link className="bw-reference-button" to="/login" onClick={closeMenu}>Login</Link><Link className="bw-reference-button bw-reference-primary" to="/register" onClick={closeMenu}>Join for free</Link></>}
+  </>;
   return (
-    <Header>
-      <Brand to="/">BrightWay</Brand>
-
-      <Navigation aria-label="Public navigation">
-        <NavLink to="/" end>
-          Home
-        </NavLink>
-
-        <NavLink to="/login">Login</NavLink>
-
-        <RegisterLink to="/register">
-          Join BrightWay
-        </RegisterLink>
-      </Navigation>
-    </Header>
+    <header className="bw-reference-header" onKeyDown={(event) => {
+      if (event.key === "Escape") { closeMenu(); event.currentTarget.querySelector("button")?.focus(); }
+    }}>
+      <div className="bw-reference-navbar">
+        <Link to="/" className="bw-reference-brand" aria-label="BrightWay home" onClick={closeMenu}>
+          <img src={`${import.meta.env.BASE_URL}images/reference/brightway-logo.png`} width="45" height="45" alt="" />
+          <span>BRIGHTWAY</span>
+        </Link>
+        <nav className="bw-reference-audiences" aria-label="Choose your audience">
+          {items.map((item) => <Link key={item.to} to={item.to} aria-current={item.active ? "page" : undefined}>{item.label}</Link>)}
+        </nav>
+        <nav className="bw-reference-auth" aria-label="Public navigation">{authLinks}</nav>
+        <button type="button" className="bw-reference-menu-button" aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={menuOpen} aria-controls="bw-reference-mobile-menu" onClick={() => setMenuOpen((value) => !value)}>
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            {menuOpen ? <path d="m6 6 12 12M6 18 18 6" /> : <path d="M3 6h18M3 12h18M3 18h18" />}
+          </svg>
+        </button>
+      </div>
+      <nav id="bw-reference-mobile-menu" className="bw-reference-mobile-menu" aria-label="Mobile public navigation" hidden={!menuOpen}>
+        {items.map((item) => <Link key={item.to} to={item.to} aria-current={item.active ? "page" : undefined} onClick={closeMenu}>{item.label}</Link>)}
+        <div className="bw-reference-mobile-auth">{authLinks}</div>
+      </nav>
+    </header>
   );
 }
-
-export default PublicHeader;
