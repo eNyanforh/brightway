@@ -1,3 +1,4 @@
+import { createMfaService } from "./mfa.service.js";
 import { createHash, randomBytes } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import {
@@ -34,6 +35,7 @@ export function createSessionService({
   prisma,
   verify = verifyPassword,
   now = () => new Date(),
+  mfa = createMfaService({ prisma, now }),
 }) {
   return {
     async login(input, previousToken) {
@@ -81,9 +83,7 @@ export function createSessionService({
               status: "ACTIVE",
               passwordHash: candidate.passwordHash,
             },
-            data: {
-              lastLoginAt: timestamp,
-            },
+            data: { status: "ACTIVE" },
           });
 
           if (updated.count !== 1) {
@@ -92,6 +92,12 @@ export function createSessionService({
             );
           }
 
+          const challenge = await mfa.challenge(tx, candidate, timestamp);
+          if (challenge) {
+            if (validToken(previousToken)) await tx.session.deleteMany({ where: { tokenHash: tokenHash(previousToken) } });
+            return challenge;
+          }
+          await tx.account.updateMany({ where: { id: candidate.id, passwordHash: candidate.passwordHash }, data: { lastLoginAt: timestamp } });
           await tx.session.deleteMany({
             where: {
               accountId: candidate.id,
@@ -126,6 +132,8 @@ export function createSessionService({
         }
       );
 
+      if (account.mfaRequired) return account;
+
       return {
         account,
         token,
@@ -152,8 +160,13 @@ export function createSessionService({
           SELECT
             s."id" AS "sessionId",
             s."expiresAt" AS "expiresAt",
+            s."mfaVersion" AS "sessionMfaVersion",
+            s."mfaVerifiedAt" AS "mfaVerifiedAt",
+            mf."enabled" AS "mfaEnabled",
+            mf."version" AS "factorVersion",
             a."id" AS "accountId",
             a."username" AS "username",
+            a."platformRole" AS "platformRole",
             a."email" AS "email",
             a."status"::text AS "status",
             a."emailVerifiedAt" AS "emailVerifiedAt",
@@ -167,6 +180,7 @@ export function createSessionService({
             ON a."id" = s."accountId"
           INNER JOIN "public"."Person" AS p
             ON p."id" = a."personId"
+          LEFT JOIN "public"."MfaFactor" AS mf ON mf."accountId" = a."id"
           WHERE s."tokenHash" = ${tokenHash(token)}
           LIMIT 1
         `;
@@ -185,16 +199,19 @@ export function createSessionService({
       if (
         !session ||
         session.expiresAt <= now() ||
-        session.status !== "ACTIVE"
+        session.status !== "ACTIVE" ||
+        session.mfaEnabled && (!session.mfaVerifiedAt || session.sessionMfaVersion !== session.factorVersion)
       ) {
         throw unauthorized();
       }
 
       return {
         sessionId: session.sessionId,
+        mfaVerified: Boolean(session.mfaEnabled && session.mfaVerifiedAt && session.sessionMfaVersion === session.factorVersion),
         account: {
           id: session.accountId,
           username: session.username,
+          ...(session.platformRole ? { platformRole: session.platformRole } : {}),
           email: session.email,
           status: session.status,
           emailVerifiedAt: session.emailVerifiedAt,
@@ -209,7 +226,8 @@ export function createSessionService({
       };
     },
 
-    async logout(token) {
+    async logout(token, pendingToken) {
+      await mfa.cancel(pendingToken);
       if (validToken(token)) {
         await prisma.session.deleteMany({
           where: {

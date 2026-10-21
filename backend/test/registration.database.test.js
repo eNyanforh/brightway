@@ -10,7 +10,7 @@ test("database registration rolls back the nested Person on duplicate Account", 
   const { PrismaPg } = await import("@prisma/adapter-pg");
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }) });
   const marker = randomUUID();
-  const input = { firstName: marker, lastName: "IntegrationTest", username: `test_${marker.replaceAll("-", "").slice(0, 20)}`, email: `${marker}@example.com`, password: "A test-only long passphrase" };
+  const input = { gender: "MALE", birthDate: "2000-06-15", countryCode: "LR", firstName: marker, lastName: "IntegrationTest", username: `test_${marker.replaceAll("-", "").slice(0, 20)}`, email: `${marker}@example.com`, password: "A test-only long passphrase" };
   const register = createRegistrationService({ verification: { requireVerified: async () => {}, consume: async () => new Date("2026-01-01T00:00:00Z") }, prisma, photos: { registerAsset: (id, token, create) => create(prisma) } });
   try {
     const account = await register(input);

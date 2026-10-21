@@ -1,3 +1,4 @@
+import AccountSecurityPage from "../pages/AccountSecurityPage";
 import PasswordRecoveryPage from "../pages/PasswordRecoveryPage";
 import MyCredentialReviewsPage from "../pages/MyCredentialReviewsPage";
 import CredentialPage from "../pages/CredentialPage";
@@ -41,6 +42,7 @@ export default function AppRoutes() {
           <Route path="/credentials" element={<MyCredentialReviewsPage />} />
           <Route path="/credentials/:kind/:recordId" element={<CredentialPage />} />
           <Route path="/admin/credentials" element={<CredentialReviewsPage />} />
+          <Route path="/security" element={<AccountSecurityPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/explore" element={<ExplorePage />} />
 

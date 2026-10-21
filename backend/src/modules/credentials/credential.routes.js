@@ -1,3 +1,4 @@
+import { requireMfa } from "../auth/mfa.service.js";
 import { Router, raw } from "express";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
@@ -9,6 +10,7 @@ export function createCredentialRoutes({ credentials, sessions, clientUrl, nodeE
   const origin = requireTrustedOrigin(clientUrl);
   const limits = limiter ?? rateLimit({ windowMs: 3600000, limit: 60, standardHeaders: "draft-8", legacyHeaders: false, message: { success: false, message: "Too many credential requests. Try again later." } });
   router.use(["/credentials", "/admin/credentials"], (req, res, next) => { res.set("Cache-Control", "no-store"); next(); }, auth);
+  router.use("/admin/credentials", requireMfa);
   const actor = (req) => req.auth.account.id;
   const person = (req) => req.auth.account.person.id;
   function subject(req, res, next) {
@@ -53,7 +55,8 @@ export function createCredentialRoutes({ credentials, sessions, clientUrl, nodeE
   router.post("/credentials/:kind/:recordId/submit", origin, limits, subject, body(submitSchema), handle(async (req, res) => json(res, await credentials.submit(person(req), actor(req), req.params.kind, req.params.recordId, req.reviewInput))));
   router.get("/credentials/evidence/:id/download", handle(async (req, res) => {
     if (!z.uuid().safeParse(req.params.id).success) return res.status(404).json({ success: false, message: "Evidence not found." });
-    const result = await credentials.readEvidence(actor(req), person(req), req.params.id);
+    if (!(await credentials.ownsEvidence(person(req), req.params.id)) && (req.auth.mfaVerified !== true || !req.auth.sessionId)) return res.status(403).json({ success: false, message: "Two-factor authentication is required for reviewer evidence downloads." });
+    const result = await credentials.readEvidence(actor(req), person(req), req.params.id, req.auth.sessionId);
     res.set({ "Content-Type": "application/octet-stream", "Content-Disposition": `attachment; filename="supporting-document.${result.contentType === "application/pdf" ? "pdf" : "webp"}"`, "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox; default-src 'none'" }).send(result.bytes);
   }));
   router.get("/admin/credentials/access", handle(async (req, res) => json(res, await credentials.access(actor(req)))));
@@ -63,7 +66,7 @@ export function createCredentialRoutes({ credentials, sessions, clientUrl, nodeE
     json(res, await credentials.queue(actor(req), cursor));
   }));
   router.get("/admin/credentials/:id", handle(async (req, res) => json(res, await credentials.detail(actor(req), req.params.id))));
-  router.post("/admin/credentials/:id/assign", origin, limits, body(assignSchema), handle(async (req, res) => json(res, await credentials.transition(actor(req), req.params.id, req.reviewInput, true))));
-  router.post("/admin/credentials/:id/decision", origin, limits, body(decisionSchema), handle(async (req, res) => json(res, await credentials.transition(actor(req), req.params.id, req.reviewInput))));
+  router.post("/admin/credentials/:id/assign", origin, limits, body(assignSchema), handle(async (req, res) => json(res, await credentials.transition(actor(req), req.params.id, req.reviewInput, true, req.auth.sessionId))));
+  router.post("/admin/credentials/:id/decision", origin, limits, body(decisionSchema), handle(async (req, res) => json(res, await credentials.transition(actor(req), req.params.id, req.reviewInput, false, req.auth.sessionId))));
   return router;
 }

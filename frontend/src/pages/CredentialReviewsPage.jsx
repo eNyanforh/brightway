@@ -27,6 +27,7 @@ export default function CredentialReviewsPage() {
     <h1>Credential review workspace</h1>
     <p>Review each saved claim and its supporting evidence. These decisions do not grant individual Verified status.</p>
     {error && <p role="alert">{error.message}</p>}
+    {error?.status === 403 && <Link to="/security">Open Account security</Link>}
     {!queue && !error && <p role="status">Checking reviewer access…</p>}
     {queue && <>
       <button type="button" disabled={busy} onClick={() => action(async () => { setQueue(await credentialsApi.queue()); if (review) setDetail(await credentialsApi.detail(review.id)); })}>Reload reviews</button>

@@ -59,3 +59,4 @@ ALTER TABLE "EducationRecord" ADD CONSTRAINT "EducationRecord_profileId_fkey" FO
 
 -- AddForeignKey
 ALTER TABLE "ExperienceRecord" ADD CONSTRAINT "ExperienceRecord_profileId_fkey" FOREIGN KEY ("profileId") REFERENCES "Profile"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

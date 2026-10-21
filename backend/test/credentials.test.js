@@ -220,3 +220,16 @@ test("disconnecting an evidence upload does not release its processing capacity 
     assert.equal(entered, 2);
   } finally { release(); first.destroy(); second.destroy(); await new Promise((r) => server.close(r)); }
 });
+
+test("review decisions recheck current MFA session state inside the credential transaction", async () => {
+  const f = fixture(); await submit(f);
+  const sessionId = randomUUID(), factorVersion = 2;
+  f.state.mfaFactor.push({ accountId: f.reviewerId, enabled: true, version: factorVersion });
+  f.state.session.push({ id: sessionId, accountId: f.reviewerId, expiresAt: new Date(+f.now() + 3600000), mfaVerifiedAt: f.now(), mfaVersion: factorVersion });
+  let review = f.state.credentialReview[0];
+  await f.service.transition(f.reviewerId, review.id, { expectedVersion: review.version }, true, sessionId);
+  f.state.session.length = 0; review = f.state.credentialReview[0];
+  await assert.rejects(f.service.transition(f.reviewerId, review.id, { expectedVersion: review.version, revision: review.revision, status: "VERIFIED", note: "Institution confirmed the certificate." }, false, sessionId), { status: 403 });
+  assert.equal(f.state.educationRecord[0].status, "IN_REVIEW");
+  assert.equal(f.state.credentialAuditEvent.some((row) => row.action === "DECIDED"), false);
+});

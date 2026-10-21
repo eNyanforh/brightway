@@ -67,3 +67,4 @@ export function createProfileRoutes({ profiles, sessions, clientUrl, nodeEnv }) 
   });
   return router;
 }
+

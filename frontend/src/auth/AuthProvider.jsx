@@ -117,6 +117,10 @@ export default function AuthProvider({ children }) {
 
     try {
       const data = await authApi.login(body);
+      if (data.mfaRequired) {
+        if (current === version.current) setSession({ status: "anonymous", account: null, error: "" });
+        return { mfaRequired: true };
+      }
 
       if (current === version.current) {
         setSession({
@@ -130,6 +134,16 @@ export default function AuthProvider({ children }) {
     } finally {
       mutation.current = false;
     }
+  }, []);
+
+  const verifyMfaLogin = useCallback(async (code) => {
+    mutation.current = true;
+    const current = ++version.current;
+    try {
+      const data = await authApi.verifyMfaLogin(code);
+      if (current === version.current) setSession({ status: "authenticated", account: data.account, error: "" });
+      return data.account;
+    } finally { mutation.current = false; }
   }, []);
 
   const logout = useCallback(async () => {
@@ -155,10 +169,11 @@ export default function AuthProvider({ children }) {
     () => ({
       ...session,
       login,
+      verifyMfaLogin,
       logout,
       refresh,
     }),
-    [session, login, logout, refresh]
+    [session, login, verifyMfaLogin, logout, refresh]
   );
 
   return (

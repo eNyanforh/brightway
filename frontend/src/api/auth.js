@@ -63,6 +63,13 @@ async function request(path, { body, signal, image } = {}) {
 }
 
 export const authApi = {
+  cancelMfaLogin: () => request("/auth/mfa/cancel-login", { body: {} }),
+  mfaStatus: (signal) => request("/auth/mfa", { signal }),
+  beginMfa: (password) => request("/auth/mfa/setup", { body: { password } }),
+  enableMfa: (code) => request("/auth/mfa/enable", { body: { code } }),
+  regenerateMfaCodes: (password, code) => request("/auth/mfa/backup-codes", { body: { password, ...(code ? { code } : {}) } }),
+  disableMfa: (password, code) => request("/auth/mfa/disable", { body: { password, code } }),
+  verifyMfaLogin: (code) => request("/auth/mfa/verify-login", { body: { code } }),
   requestPasswordReset: (email) => request("/auth/password-reset/request", { body: { email } }),
   confirmPasswordReset: (body) => request("/auth/password-reset/confirm", { body }),
   beginSignup: () => request("/auth/signup-drafts", { body: {} }),

@@ -36,6 +36,8 @@ export default function AuthGate({ guest = false }) {
 
     const destination = [
       "/profile",
+      "/security",
+      "/admin/credentials",
       "/explore",
       "/network",
       "/opportunities",

@@ -18,6 +18,7 @@ export function createSessionRoutes({
   const router = Router();
 
   const cookie = createSessionCookieConfig(nodeEnv);
+  const pendingCookie = { ...cookie, name: nodeEnv === "production" ? "__Host-brightway_mfa" : "brightway_mfa" };
   const trustedOrigin = requireTrustedOrigin(clientUrl);
 
   const requireAuth = createRequireAuth({
@@ -28,7 +29,7 @@ export function createSessionRoutes({
   const limiter = loginLimiter ?? rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 20,
-    skipSuccessfulRequests: true,
+    skipSuccessfulRequests: false,
     standardHeaders: "draft-8",
     legacyHeaders: false,
     message: {
@@ -57,6 +58,13 @@ export function createSessionRoutes({
           readSessionToken(req, cookie.name)
         );
 
+        if (session.mfaRequired) {
+          res.clearCookie(cookie.name, cookie.options);
+          res.cookie(pendingCookie.name, session.challengeToken, { ...cookie.options, expires: session.expiresAt });
+          res.set("Cache-Control", "no-store");
+          return res.json({ success: true, data: { mfaRequired: true } });
+        }
+        res.clearCookie(pendingCookie.name, cookie.options);
         res.cookie(cookie.name, session.token, {
           ...cookie.options,
           expires: session.expiresAt,
@@ -116,10 +124,11 @@ export function createSessionRoutes({
     async (req, res, next) => {
       try {
         await sessions.logout(
-          readSessionToken(req, cookie.name)
+          readSessionToken(req, cookie.name), readSessionToken(req, pendingCookie.name)
         );
 
         res.clearCookie(cookie.name, cookie.options);
+        res.clearCookie(pendingCookie.name, cookie.options);
         res.set("Cache-Control", "no-store");
 
         res.json({

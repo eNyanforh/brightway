@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 const copy = (v) => structuredClone(v);
 export function credentialFixture() {
-  const state = Object.fromEntries(["account", "profile", "educationRecord", "experienceRecord", "credentialReview", "credentialAttempt", "credentialEvidence", "credentialUploadBudget", "credentialAuditEvent"].map((name) => [name, []]));
+  const state = Object.fromEntries(["session", "mfaFactor", "account", "profile", "educationRecord", "experienceRecord", "credentialReview", "credentialAttempt", "credentialEvidence", "credentialUploadBudget", "credentialAuditEvent"].map((name) => [name, []]));
   let date = new Date("2026-10-18T12:00:00Z");
   const personId = randomUUID(), ownerId = randomUUID(), reviewerId = randomUUID(), otherId = randomUUID(), profileId = randomUUID(), recordId = randomUUID();
   state.account.push({ id: ownerId, personId, status: "ACTIVE", platformRole: "MEMBER", emailVerifiedAt: date }, { id: reviewerId, personId: randomUUID(), status: "ACTIVE", platformRole: "CREDENTIAL_REVIEWER", emailVerifiedAt: date }, { id: otherId, personId: randomUUID(), status: "ACTIVE", platformRole: "MEMBER", emailVerifiedAt: date });

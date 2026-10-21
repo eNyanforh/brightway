@@ -1,3 +1,5 @@
+import { createMfaService } from "../modules/auth/mfa.service.js";
+import { createMfaRoutes } from "../modules/auth/mfa.routes.js";
 import { createPasswordResetService } from "../modules/auth/password-reset.service.js";
 import { createPasswordResetRoutes } from "../modules/auth/password-reset.routes.js";
 
@@ -28,7 +30,9 @@ const router = Router();
 router.use("/auth", createPasswordResetRoutes({ recovery: createPasswordResetService({ prisma }), clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const verification = createSignupEmailService({ prisma });
 router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-const sessions = createSessionService({ prisma });
+const mfa = createMfaService({ prisma });
+const sessions = createSessionService({ prisma, mfa });
+router.use("/auth", createMfaRoutes({ mfa, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use("/auth", createAccountEmailRoutes({ verification: createAccountEmailService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createCredentialRoutes({ credentials: createCredentialService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const photos = createPhotoService({ prisma, storage: createR2Storage() });

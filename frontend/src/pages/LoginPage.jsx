@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Link,
@@ -6,12 +6,13 @@ import {
   useNavigate,
 } from "react-router-dom";
 
+import { authApi } from "../api/auth";
 import { useAuth } from "../auth/useAuth";
 import AuthForm from "../components/auth/AuthForm";
 import PasswordField from "../components/auth/PasswordField";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, verifyMfaLogin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -19,27 +20,42 @@ export default function LoginPage() {
     location.state?.identifier || ""
   );
 
+  const locked = useRef(false);
+  const mfaInput = useRef(null);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => { if (mfaRequired) mfaInput.current?.focus(); }, [mfaRequired]);
+
+  async function cancelMfa() {
+    if (locked.current) return; locked.current = true; setBusy(true); setError("");
+    try { await authApi.cancelMfaLogin(); setMfaRequired(false); setCode(""); }
+    catch (failure) { setError(failure.message); }
+    finally { locked.current = false; setBusy(false); }
+  }
+
   async function submit(event) {
     event.preventDefault();
 
-    if (busy) return;
+    if (locked.current) return;
+    locked.current = true;
 
     setError("");
     setBusy(true);
 
     try {
-      await login({
-        identifier: identifier.trim().toLowerCase(),
-        password,
-      });
+      const result = mfaRequired ? await verifyMfaLogin(code.trim()) : await login({ identifier: identifier.trim().toLowerCase(), password });
+      if (result?.mfaRequired) { setMfaRequired(true); setPassword(""); setCode(""); return; }
 
       const requested = location.state?.from?.pathname;
 
       const destination = [
+        "/profile",
+        "/security",
+        "/admin/credentials",
         "/explore",
         "/network",
         "/opportunities",
@@ -52,13 +68,14 @@ export default function LoginPage() {
     } catch (failure) {
       setError(failure.message);
     } finally {
+      locked.current = false;
       setBusy(false);
     }
   }
 
   return (
     <AuthForm
-      title="Log in to BrightWay"
+      title={mfaRequired ? "Verify your sign-in" : "Log in to BrightWay"}
       description="Continue learning, connecting, and finding opportunities."
       onSubmit={submit}
       busy={busy}
@@ -81,6 +98,7 @@ export default function LoginPage() {
         </p>
       )}
 
+      {!mfaRequired && <>
       <div className="auth-field">
         <label htmlFor="login-identifier">
           Username or email
@@ -104,13 +122,18 @@ export default function LoginPage() {
         autoComplete="current-password" disabled={busy} />
 
       <Link to="/forgot-password">Forgot password?</Link>
+      </>}
+      {mfaRequired && <>
+        <div className="auth-field"><label htmlFor="login-mfa-code">Authenticator or backup code</label><input ref={mfaInput} id="login-mfa-code" required autoComplete="one-time-code" autoCapitalize="off" spellCheck={false} minLength={6} maxLength={27} value={code} onChange={(event) => setCode(event.target.value)} /><small>Enter the current six-digit code from your authenticator app, or one unused backup code.</small></div>
+        <button type="button" disabled={busy} onClick={() => void cancelMfa()}>Use another account</button>
+      </>}
 
       <button
         className="auth-submit"
         type="submit"
         disabled={busy}
       >
-        {busy ? "Logging in…" : "Log in"}
+        {busy ? "Checking…" : mfaRequired ? "Verify and log in" : "Log in"}
       </button>
     </AuthForm>
   );

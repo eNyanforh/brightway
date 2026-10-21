@@ -41,6 +41,7 @@ function fixture() {
   let failCreation = false;
 
   const prisma = {
+    mfaFactor: { findUnique: async () => null },
     account: {
       findUnique: async ({ where, select }) => {
         if (where.username) {
@@ -510,7 +511,7 @@ test("HTTP login, me, and logout use an HttpOnly cookie without exposing tokens"
       "no-store"
     );
 
-    const cookie = response.headers.get("set-cookie");
+    const cookie = response.headers.getSetCookie().find((value) => value.startsWith("brightway_session="));
 
     assert.match(cookie, /HttpOnly/);
     assert.match(cookie, /SameSite=Lax/);

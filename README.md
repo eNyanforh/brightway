@@ -1,68 +1,9 @@
-# BrightWay
+# BrightWay — completed development so far
 
-BrightWay is a global digital platform connecting individuals, verified
-organizations, education, professional networking, and opportunities.
+Full frontend, backend, shared data, public assets, package manifests/lockfile, database migrations, tests and maintenance scripts. Start with START-HERE.md.
 
-The platform also provides Virtual Campus management for eligible
-organizations operating in Liberia.
+This recovery snapshot combines GitHub main 6f0ccf81a2848b4a0088e1bd9e4d5d73de75f58f (21 October 2026 22:35:35 UTC) with the retained working MFA implementation and known test/script corrections. It preserves the current GitHub UI, resolved ProfilePage.jsx and SignupEmailVerification.jsx. No private .env, Git history, dependencies, database contents, uploaded R2 objects or production build output is included.
 
-## Core Product Areas
+Implemented areas: six-step signup and email verification, password login/sessions/logout, registered-email recovery, private profile drafts, photos, education/experience and declarations, contacts/privacy, predefined skills/interests, completion checklist, credential evidence/review/corrections, authenticator MFA, backup codes and reviewer MFA enforcement. Homepage/header/sidebar/mobile navigation source is included.
 
-BrightWay includes:
-
-- Professional profiles
-- Individual verification
-- Verified organizations
-- Professional networking
-- Explore and discovery
-- Posts and interactions
-- Jobs
-- Scholarships
-- Challenges
-- Events
-- BrightWay-based applications
-- Learning and program discovery
-- Admissions
-- Messaging
-- Notifications
-- Virtual Campus
-- Grade School management
-- TVET management
-- Virtual Campus billing
-- BrightWay administration
-
-## Geographic Scope
-
-BrightWay is a global platform.
-
-Virtual Campus is currently available only to eligible organizations
-operating in Liberia.
-
-This geographic restriction applies to Virtual Campus, not to the
-BrightWay platform as a whole.
-
-## Technology Stack
-
-### Frontend
-
-- React
-- Vite
-- React Router
-- styled-components
-
-### Backend
-
-- Node.js
-- Express
-- Prisma ORM
-- PostgreSQL
-
-## Project Structure
-
-```text
-brightway/
-├── frontend/
-├── backend/
-├── package.json
-├── .gitignore
-└── README.md
+This is the current development implementation, not the completed 14-sprint production platform. Persona/individual Verified decisions, organization foundation and issuer-scoped review, networking/posts/feed/search, functional opportunities/learning, messaging/notifications, Campus, Grade School/TVET, billing and complete Admin operations remain planned. Explore/Network/Opportunities/Learning currently have placeholder pages. Production acceptance also requires real database/browser/provider evidence.

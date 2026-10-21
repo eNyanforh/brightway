@@ -1,3 +1,4 @@
+import { assertMfaSession } from "../auth/mfa.service.js";
 import { randomUUID } from "node:crypto";
 import { educationSelect, experienceSelect } from "../profile/profile-history.service.js";
 import { ownerProfileSelect, profileView } from "../profile/profile.service.js";
@@ -175,9 +176,10 @@ export function createCredentialService({ prisma, storage, process = processEvid
       const { profile, ...safe } = review;
       return { review: reviewView(safe, now(), true), username: profile.person.account.username };
     },
-    async transition(actorId, id, input, assign = false) {
+    async transition(actorId, id, input, assign = false, sessionId) {
       return transaction(prisma, async (tx) => {
         await reviewer(tx, actorId, true);
+        if (sessionId) await assertMfaSession(tx, actorId, sessionId, now());
         const review = await tx.credentialReview.findUnique({ where: { id }, include: { profile: { select: { id: true, version: true, personId: true } } } });
         if (!review) throw failure(404, "Review not found.");
         const owner = await activeOwner(tx, review.profile.personId, true);
@@ -197,11 +199,15 @@ export function createCredentialService({ prisma, storage, process = processEvid
         return { id, status: next };
       });
     },
-    async readEvidence(actorId, personId, id) {
+    async ownsEvidence(personId, id) {
+      return Boolean(await prisma.credentialEvidence.findFirst({ where: { id, personId }, select: { id: true } }));
+    },
+    async readEvidence(actorId, personId, id, sessionId) {
       const asset = await prisma.credentialEvidence.findUnique({ where: { id } });
       if (!asset || asset.state !== "ATTACHED") throw failure(404, "Evidence not found.");
       if (asset.personId !== personId) {
         try { await reviewer(prisma, actorId); } catch (error) { if (error.status === 403) throw failure(404, "Evidence not found."); throw error; }
+        if (sessionId) await assertMfaSession(prisma, actorId, sessionId, now());
         const attempt = await prisma.credentialAttempt.findUnique({ where: { id: asset.attemptId }, select: { review: { select: { reviewerId: true } } } });
         if (attempt?.review.reviewerId !== actorId) throw failure(403, "Assign this review to yourself before downloading its evidence.");
       }

@@ -1,0 +1,55 @@
+{
+  "github_branch": "main",
+  "github_sha": "6f0ccf81a2848b4a0088e1bd9e4d5d73de75f58f",
+  "github_commit_time_utc": "2026-10-21T22:35:35Z",
+  "restored_or_adjusted_paths": [
+    ".gitignore",
+    "AUTHENTICATOR-MFA.md",
+    "CREDENTIAL-REVIEWS.md",
+    "PASSWORD-RECOVERY.md",
+    "backend/.env.example",
+    "backend/prisma/migrations/20261020040000_add_authenticator_mfa/migration.sql",
+    "backend/prisma/schema.prisma",
+    "backend/scripts/cleanup-mfa.js",
+    "backend/scripts/cleanup-signup-emails.js",
+    "backend/src/modules/auth/mfa.crypto.js",
+    "backend/src/modules/auth/mfa.routes.js",
+    "backend/src/modules/auth/mfa.service.js",
+    "backend/src/modules/auth/session.routes.js",
+    "backend/src/modules/auth/session.service.js",
+    "backend/src/modules/credentials/credential.routes.js",
+    "backend/src/modules/credentials/credential.service.js",
+    "backend/src/routes/index.js",
+    "backend/test-support/credential-fixture.js",
+    "backend/test-support/mfa-fixture.js",
+    "backend/test/credentials.test.js",
+    "backend/test/mfa.database.test.js",
+    "backend/test/mfa.test.js",
+    "backend/test/registration.database.test.js",
+    "backend/test/session.test.js",
+    "frontend/src/api/auth.js",
+    "frontend/src/auth/AuthGate.jsx",
+    "frontend/src/auth/AuthProvider.jsx",
+    "frontend/src/pages/AccountSecurityPage.jsx",
+    "frontend/src/pages/CredentialReviewsPage.jsx",
+    "frontend/src/pages/LoginPage.jsx",
+    "frontend/src/routes/AppRoutes.jsx",
+    "frontend/src/test/setup.js",
+    "frontend/vite.config.js"
+  ],
+  "preserved_from_github": [
+    "frontend/src/pages/ProfilePage.jsx",
+    "frontend/src/components/auth/SignupEmailVerification.jsx",
+    "frontend/src/components/layout",
+    "frontend/src/styles",
+    "frontend/package.json",
+    "package-lock.json"
+  ],
+  "notes": [
+    "Environment variants are ignored; .env.example remains trackable.",
+    "Existing unrelated GitHub UI and branding were preserved."
+  ],
+  "removed_redundant_templates": [
+    "backend/.env.photos.example"
+  ]
+}
