@@ -6,4 +6,3 @@ ALTER TABLE "Profile" ADD COLUMN     "emailVisibility" "ContactVisibility" NOT N
 ADD COLUMN     "phoneVisibility" "ContactVisibility" NOT NULL DEFAULT 'ONLY_ME',
 ADD COLUMN     "whatsappNumber" VARCHAR(16),
 ADD COLUMN     "whatsappVisibility" "ContactVisibility" NOT NULL DEFAULT 'ONLY_ME';
-
