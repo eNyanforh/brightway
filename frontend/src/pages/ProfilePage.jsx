@@ -22,11 +22,20 @@ const regionNames =
   typeof Intl.DisplayNames === "function"
     ? new Intl.DisplayNames(["en"], { type: "region" })
     : null;
-function Section({ title, editor, action = "Edit", children, onEdit, busy }) {
+
+function Section({
+  title,
+  editor,
+  action = "Edit",
+  children,
+  onEdit,
+  busy,
+}) {
   return (
     <section className="bw-profile-card bw-profile-section">
       <div className="bw-profile-section-head">
         <h2>{title}</h2>
+
         <button
           className="bw-profile-edit"
           disabled={busy}
@@ -38,14 +47,18 @@ function Section({ title, editor, action = "Edit", children, onEdit, busy }) {
           <span>{action}</span>
         </button>
       </div>
+
       {children}
     </section>
   );
 }
+
 function Labels({ entries, empty, neutral = false }) {
   return entries.length ? (
     <div
-      className={`bw-profile-tags ${neutral ? "bw-profile-tags-neutral" : ""}`}
+      className={`bw-profile-tags ${
+        neutral ? "bw-profile-tags-neutral" : ""
+      }`}
     >
       {entries.map((entry) => (
         <span className="bw-profile-tag" key={entry}>
@@ -60,6 +73,7 @@ function Labels({ entries, empty, neutral = false }) {
 
 export default function ProfilePage() {
   const { account, refresh } = useAuth();
+
   const {
     profileDraft: draft,
     setProfileDraft: setDraft,
@@ -67,11 +81,14 @@ export default function ProfilePage() {
     profileLoading,
     reloadProfile,
   } = useOutletContext();
+
   const [file, setFile] = useState(null);
   const [pictureAttempt, setPictureAttempt] = useState(0);
   const mutation = useRef(false);
+
   const profile = draft?.profile;
   const busy = draft?.busy || profileLoading;
+
   const name = [
     account.person.firstName,
     account.person.middleName,
@@ -79,32 +96,71 @@ export default function ProfilePage() {
   ]
     .filter(Boolean)
     .join(" ");
+
   const dirty =
     profile &&
-    JSON.stringify(draft.form) !== JSON.stringify(formFromProfile(profile));
+    JSON.stringify(draft.form) !==
+      JSON.stringify(formFromProfile(profile));
 
   async function refreshChecklist(expectedVersion = profile.version) {
     const completion = await profileApi.completion();
+
     if (completion.profileVersion !== expectedVersion) {
-      throw new Error("Your saved profile changed. Reload the saved profile after keeping any unsaved edits you need.");
+      throw new Error(
+        "Your saved profile changed. Reload the saved profile after keeping any unsaved edits you need.",
+      );
     }
+
     setDraft((previous) => {
-      if (!previous || completion.profileVersion !== previous.profile.version) return previous;
-      return { ...previous, profile: { ...previous.profile, completion } };
+      if (
+        !previous ||
+        completion.profileVersion !== previous.profile.version
+      ) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        profile: {
+          ...previous.profile,
+          completion,
+        },
+      };
     });
   }
+
   async function emailVerified(result) {
-    setDraft((previous) => previous ? {
-      ...previous,
-      profile: { ...previous.profile, completion: null,
-        contact: { ...previous.profile.contact, emailVerifiedAt: result.emailVerifiedAt } },
-      notice: "Email verified. Your unsaved profile edits are still here.",
-    } : previous);
-    try { await refreshChecklist(); } catch { /* The checklist's Refresh button remains available. */ }
+    setDraft((previous) =>
+      previous
+        ? {
+            ...previous,
+            profile: {
+              ...previous.profile,
+              completion: null,
+              contact: {
+                ...previous.profile.contact,
+                emailVerifiedAt: result.emailVerifiedAt,
+              },
+            },
+            notice:
+              "Email verified. Your unsaved profile edits are still here.",
+          }
+        : previous,
+    );
+
+    try {
+      await refreshChecklist();
+    } catch {
+      /* The checklist's Refresh button remains available. */
+    }
+
     void refresh();
   }
+
   function emailBusy(value) {
-    setDraft((previous) => previous ? { ...previous, busy: value } : previous);
+    setDraft((previous) =>
+      previous ? { ...previous, busy: value } : previous,
+    );
   }
 
   async function reload() {
@@ -114,17 +170,26 @@ export default function ProfilePage() {
         !window.confirm(
           "Discard all unsaved profile edits and load the latest saved profile?",
         ))
-    )
+    ) {
       return;
+    }
+
     try {
       await reloadProfile();
       setFile(null);
     } catch (error) {
-      if (profile) setDraft((previous) => ({ ...previous, error }));
+      if (profile) {
+        setDraft((previous) => ({
+          ...previous,
+          error,
+        }));
+      }
     }
   }
+
   function open(editor) {
     if (busy) return;
+
     setDraft((previous) => ({
       ...previous,
       editor,
@@ -135,17 +200,31 @@ export default function ProfilePage() {
         : null,
     }));
   }
+
   function close() {
-    if (!busy) setDraft((previous) => ({ ...previous, editor: null }));
+    if (!busy) {
+      setDraft((previous) => ({
+        ...previous,
+        editor: null,
+      }));
+    }
   }
+
   function cancel() {
     if (busy) return;
-    if (draft.editor === "photo") setFile(null);
+
+    if (draft.editor === "photo") {
+      setFile(null);
+    }
+
     setDraft((previous) => {
-      const form = { ...previous.form },
-        saved = formFromProfile(previous.profile);
-      for (const field of editorFields[previous.editor] || [])
+      const form = { ...previous.form };
+      const saved = formFromProfile(previous.profile);
+
+      for (const field of editorFields[previous.editor] || []) {
         form[field] = saved[field];
+      }
+
       return {
         ...previous,
         form,
@@ -156,30 +235,44 @@ export default function ProfilePage() {
       };
     });
   }
+
   function change(field, value) {
     setDraft((previous) => ({
       ...previous,
-      form: { ...previous.form, [field]: value },
+      form: {
+        ...previous.form,
+        [field]: value,
+      },
       notice: "",
     }));
   }
+
   function choosePhoto(event) {
     const image = event.target.files?.[0];
+
     setFile(null);
+
     if (!image) return;
+
     if (
       !["image/jpeg", "image/png", "image/webp"].includes(image.type) ||
       !image.size ||
       image.size > 5 * 1024 * 1024
     ) {
       event.target.value = "";
+
       setDraft((previous) => ({
         ...previous,
-        error: new Error("Choose a JPEG, PNG or WebP picture, up to 5 MiB."),
+        error: new Error(
+          "Choose a JPEG, PNG or WebP picture, up to 5 MiB.",
+        ),
       }));
+
       return;
     }
+
     setFile(image);
+
     setDraft((previous) => ({
       ...previous,
       error: [409, 401].includes(previous.error?.status)
@@ -187,44 +280,73 @@ export default function ProfilePage() {
         : null,
     }));
   }
+
   async function save(event) {
     event.preventDefault();
-    if (busy || mutation.current || [409, 401].includes(draft.error?.status))
+
+    if (
+      busy ||
+      mutation.current ||
+      [409, 401].includes(draft.error?.status)
+    ) {
       return;
+    }
+
     const section = draft.editor;
+
     const sectionForm =
       section === "photo" ? null : formForSection(draft, section);
+
     const problem = sectionForm
       ? validateForm(sectionForm, section)
       : !file
         ? "Choose a picture first."
         : "";
+
     if (problem) {
-      setDraft((previous) => ({ ...previous, error: new Error(problem) }));
+      setDraft((previous) => ({
+        ...previous,
+        error: new Error(problem),
+      }));
+
       return;
     }
-    const changes = sectionForm ? changesFromForm(sectionForm, profile) : null;
+
+    const changes = sectionForm
+      ? changesFromForm(sectionForm, profile)
+      : null;
+
     if (changes && !Object.keys(changes).length) {
       setDraft((previous) =>
         mergeSavedSection(previous, previous.profile, section),
       );
+
       return;
     }
+
     mutation.current = true;
+
     setDraft((previous) => ({
       ...previous,
       busy: true,
       error: null,
       notice: "",
     }));
+
     try {
       if (section === "photo") {
-        const result = await profileApi.uploadPhoto(file, profile.version);
+        const result = await profileApi.uploadPhoto(
+          file,
+          profile.version,
+        );
+
         setDraft((previous) => ({
           ...previous,
           profile: {
             ...previous.profile,
-            photo: { id: result.photoAssetId },
+            photo: {
+              id: result.photoAssetId,
+            },
             completion: null,
             version: previous.profile.version + 1,
           },
@@ -232,34 +354,55 @@ export default function ProfilePage() {
           error: null,
           notice: "Profile picture updated.",
         }));
+
         setFile(null);
         setPictureAttempt((value) => value + 1);
+
         void refreshChecklist(profile.version + 1).catch(() => {});
       } else {
-        const next = await profileApi.save(profile.version, changes);
-        setDraft((previous) => mergeSavedSection(previous, next, section));
+        const next = await profileApi.save(
+          profile.version,
+          changes,
+        );
+
+        setDraft((previous) =>
+          mergeSavedSection(previous, next, section),
+        );
       }
     } catch (error) {
-      setDraft((previous) => ({ ...previous, error }));
+      setDraft((previous) => ({
+        ...previous,
+        error,
+      }));
     } finally {
       mutation.current = false;
-      setDraft((previous) => ({ ...previous, busy: false }));
+
+      setDraft((previous) => ({
+        ...previous,
+        busy: false,
+      }));
     }
   }
 
-  if (!profile)
+  if (!profile) {
     return (
       <section className="bw-profile-loading">
         <h1>My profile</h1>
+
         {profileError ? (
           <>
             <p role="alert">{profileError.message}</p>
+
             <button
               className="bw-profile-button"
               disabled={profileLoading}
-              onClick={profileError.status === 401 ? refresh : reload}
+              onClick={
+                profileError.status === 401 ? refresh : reload
+              }
             >
-              {profileError.status === 401 ? "Sign in again" : "Try again"}
+              {profileError.status === 401
+                ? "Sign in again"
+                : "Try again"}
             </button>
           </>
         ) : (
@@ -267,6 +410,7 @@ export default function ProfilePage() {
         )}
       </section>
     );
+  }
 
   const location = [
     profile.location?.locality,
@@ -278,25 +422,37 @@ export default function ProfilePage() {
   ]
     .filter(Boolean)
     .join(", ");
+
   const exploring = profile.careerField?.mode === "EXPLORING";
+
   return (
     <div className="bw-profile-page">
+      <Link to="/security">Account security</Link>{" "}
       <Link to="/credentials">My credential reviews</Link>
-      {account.platformRole === "CREDENTIAL_REVIEWER" && <Link to="/admin/credentials">Open credential review workspace</Link>}
+
+      {account.platformRole === "CREDENTIAL_REVIEWER" && (
+        <Link to="/admin/credentials">
+          Open credential review workspace
+        </Link>
+      )}
+
       {draft.notice && (
         <p className="bw-profile-success" role="status">
           {draft.notice}
         </p>
       )}
+
       {dirty && !draft.editor && (
         <div className="bw-profile-draft-banner">
           <span>You have unsaved profile edits.</span>
+
           <button
             className="bw-profile-button bw-profile-button-secondary"
             onClick={() => open(draft.lastEditor)}
           >
             Resume editing
           </button>
+
           <button
             className="bw-profile-text-button"
             onClick={() => {
@@ -312,15 +468,18 @@ export default function ProfilePage() {
           </button>
         </div>
       )}
+
       {draft.error && !draft.editor && (
         <div className="bw-profile-error" role="alert">
           <p>{draft.error.message}</p>
+
           {draft.error.status === 409 && (
             <p>
-              Copy any unsaved text you want to keep before loading the latest
-              profile.
+              Copy any unsaved text you want to keep before loading
+              the latest profile.
             </p>
           )}
+
           <button
             className="bw-profile-button bw-profile-button-secondary"
             disabled={busy}
@@ -332,6 +491,7 @@ export default function ProfilePage() {
           </button>
         </div>
       )}
+
       <div className="bw-profile-grid">
         <div className="bw-profile-main">
           <section className="bw-profile-card">
@@ -342,6 +502,7 @@ export default function ProfilePage() {
                 Purposeful.
               </span>
             </div>
+
             <div className="bw-profile-identity">
               <div className="bw-profile-person-top">
                 <button
@@ -356,10 +517,12 @@ export default function ProfilePage() {
                     id={profile.photo?.id}
                     name={name}
                   />
+
                   <span className="bw-profile-camera">
                     <Icon name="camera" />
                   </span>
                 </button>
+
                 <button
                   className="bw-profile-button"
                   disabled={busy}
@@ -370,29 +533,46 @@ export default function ProfilePage() {
                   Edit introduction
                 </button>
               </div>
+
               <h1>{name}</h1>
-              <p className="bw-profile-handle">@{account.username}</p>
-              <p className="bw-profile-headline">
-                {profile.headline || "Add a headline that sounds like you."}
+
+              <p className="bw-profile-handle">
+                @{account.username}
               </p>
+
+              <p className="bw-profile-headline">
+                {profile.headline ||
+                  "Add a headline that sounds like you."}
+              </p>
+
               <p className="bw-profile-location">
                 <Icon name="location" />
                 {location || "Location not added yet"}
               </p>
+
               {profile.careerField && (
                 <span className="bw-profile-direction-tag">
                   <Icon name="sprout" />
-                  {exploring ? "Exploring my path" : profile.careerField.label}
+                  {exploring
+                    ? "Exploring my path"
+                    : profile.careerField.label}
                 </span>
               )}
             </div>
           </section>
-          <Section title="About" editor="about" onEdit={open} busy={busy}>
+
+          <Section
+            title="About"
+            editor="about"
+            onEdit={open}
+            busy={busy}
+          >
             <p className="bw-profile-description">
               {profile.bio ||
                 "Your story starts here. Share what matters to you and what you enjoy doing."}
             </p>
           </Section>
+
           <Section
             title="My direction"
             editor="career"
@@ -403,6 +583,7 @@ export default function ProfilePage() {
               <span className="bw-profile-career-icon">
                 <Icon name="sprout" />
               </span>
+
               <div>
                 <h3>
                   {exploring
@@ -410,6 +591,7 @@ export default function ProfilePage() {
                     : profile.careerField?.label ||
                       "You don’t need to have it all figured out."}
                 </h3>
+
                 <p className="bw-profile-description">
                   {profile.careerGoals ||
                     "Add something you would like to learn, achieve, or contribute."}
@@ -417,6 +599,7 @@ export default function ProfilePage() {
               </div>
             </div>
           </Section>
+
           <Section
             title="Skills"
             editor="skills"
@@ -429,6 +612,7 @@ export default function ProfilePage() {
               empty="What are you good at? Add the skills you are learning or already use."
             />
           </Section>
+
           <Section
             title="Interests"
             editor="interests"
@@ -442,26 +626,54 @@ export default function ProfilePage() {
               neutral
             />
           </Section>
-          <ProfileContact contact={profile.contact} email={account.email} busy={busy} onEdit={open} />
+
+          <ProfileContact
+            contact={profile.contact}
+            email={account.email}
+            busy={busy}
+            onEdit={open}
+          />
+
           {["education", "experience"].map((kind) => (
-            <ProfileHistory key={kind} kind={kind} draft={draft} setDraft={setDraft}
-              onEdit={open} onReload={reload} busy={busy} />
+            <ProfileHistory
+              key={kind}
+              kind={kind}
+              draft={draft}
+              setDraft={setDraft}
+              onEdit={open}
+              onReload={reload}
+              busy={busy}
+            />
           ))}
         </div>
+
         <aside className="bw-profile-side">
-          <ProfileCompletion profile={profile} busy={busy} dirty={dirty} onEdit={open}
-            onRefresh={refreshChecklist} onBusy={emailBusy} onVerified={emailVerified} />
+          <ProfileCompletion
+            profile={profile}
+            busy={busy}
+            dirty={dirty}
+            onEdit={open}
+            onRefresh={refreshChecklist}
+            onBusy={emailBusy}
+            onVerified={emailVerified}
+          />
+
           <section className="bw-profile-card bw-profile-side-block">
-            <p className="bw-profile-eyebrow">YOUR STORY. YOUR PACE.</p>
+            <p className="bw-profile-eyebrow">
+              YOUR STORY. YOUR PACE.
+            </p>
+
             <h2>
               Small steps.
               <br />
               More possibilities.
             </h2>
+
             <p>
-              You don’t need to have it all figured out. Start with who you are
-              today.
+              You don’t need to have it all figured out. Start with
+              who you are today.
             </p>
+
             <button
               className="bw-profile-next"
               disabled={busy}
@@ -471,10 +683,19 @@ export default function ProfilePage() {
               <Icon name="arrow" />
             </button>
           </section>
+
           <section className="bw-profile-card bw-profile-side-block">
-            <p className="bw-profile-eyebrow">MAKE IT PERSONAL</p>
+            <p className="bw-profile-eyebrow">
+              MAKE IT PERSONAL
+            </p>
+
             <h2>Let your headline speak.</h2>
-            <p>A clear sentence about you helps tell your story at a glance.</p>
+
+            <p>
+              A clear sentence about you helps tell your story at
+              a glance.
+            </p>
+
             <button
               className="bw-profile-next"
               disabled={busy}
@@ -485,12 +706,16 @@ export default function ProfilePage() {
               <Icon name="arrow" />
             </button>
           </section>
+
           <p className="bw-profile-private-note">
             <Icon name="lock" />
+
             <span>
-              Your draft is private. Editing it doesn’t verify your identity.
+              Your draft is private. Editing it doesn’t verify your
+              identity.
             </span>
           </p>
+
           <button
             className="bw-profile-text-button"
             disabled={busy}
@@ -500,21 +725,23 @@ export default function ProfilePage() {
           </button>
         </aside>
       </div>
-      {draft.editor && !["education", "experience"].includes(draft.editor) && (
-        <ProfileEditor
-          key={draft.editor}
-          draft={draft}
-          name={name}
-          file={file}
-          onChange={change}
-          onPhoto={choosePhoto}
-          onSave={save}
-          onClose={close}
-          onCancel={cancel}
-          onReload={reload}
-          onSignIn={refresh}
-        />
-      )}
+
+      {draft.editor &&
+        !["education", "experience"].includes(draft.editor) && (
+          <ProfileEditor
+            key={draft.editor}
+            draft={draft}
+            name={name}
+            file={file}
+            onChange={change}
+            onPhoto={choosePhoto}
+            onSave={save}
+            onClose={close}
+            onCancel={cancel}
+            onReload={reload}
+            onSignIn={refresh}
+          />
+        )}
     </div>
   );
 }
