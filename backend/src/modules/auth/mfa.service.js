@@ -136,6 +136,9 @@ export function requireMfa(req, res, next) {
 }
 // Call after locking the account when making a privileged transactional decision.
 export async function assertMfaSession(db, accountId, sessionId, timestamp = new Date()) {
+  if (typeof accountId !== "string" || !accountId || typeof sessionId !== "string" || !sessionId.trim()) {
+    throw error(403, "A current two-factor session is required for reviewer actions.");
+  }
   const factor = await db.mfaFactor.findUnique({ where: { accountId } });
   const session = await db.session.findFirst({ where: { id: sessionId, accountId, expiresAt: { gt: timestamp } } });
   if (!factor?.enabled || !session?.mfaVerifiedAt || session.mfaVersion !== factor.version) throw error(403, "A current two-factor session is required for reviewer actions.");

@@ -59,13 +59,13 @@ export function createCredentialRoutes({ credentials, sessions, clientUrl, nodeE
     const result = await credentials.readEvidence(actor(req), person(req), req.params.id, req.auth.sessionId);
     res.set({ "Content-Type": "application/octet-stream", "Content-Disposition": `attachment; filename="supporting-document.${result.contentType === "application/pdf" ? "pdf" : "webp"}"`, "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox; default-src 'none'" }).send(result.bytes);
   }));
-  router.get("/admin/credentials/access", handle(async (req, res) => json(res, await credentials.access(actor(req)))));
+  router.get("/admin/credentials/access", handle(async (req, res) => json(res, await credentials.access(actor(req), req.auth.sessionId))));
   router.get("/admin/credentials", handle(async (req, res) => {
     const cursor = req.query.cursor;
     if (cursor !== undefined && !z.uuid().safeParse(cursor).success) return res.status(400).json({ success: false, message: "Invalid queue cursor." });
-    json(res, await credentials.queue(actor(req), cursor));
+    json(res, await credentials.queue(actor(req), cursor, req.auth.sessionId));
   }));
-  router.get("/admin/credentials/:id", handle(async (req, res) => json(res, await credentials.detail(actor(req), req.params.id))));
+  router.get("/admin/credentials/:id", handle(async (req, res) => json(res, await credentials.detail(actor(req), req.params.id, req.auth.sessionId))));
   router.post("/admin/credentials/:id/assign", origin, limits, body(assignSchema), handle(async (req, res) => json(res, await credentials.transition(actor(req), req.params.id, req.reviewInput, true, req.auth.sessionId))));
   router.post("/admin/credentials/:id/decision", origin, limits, body(decisionSchema), handle(async (req, res) => json(res, await credentials.transition(actor(req), req.params.id, req.reviewInput, false, req.auth.sessionId))));
   return router;

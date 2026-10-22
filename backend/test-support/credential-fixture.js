@@ -70,6 +70,14 @@ export function credentialFixture() {
     const run = chain.then(async () => { const saved = copy(state); try { return await fn(db); } catch (error) { Object.assign(state, saved); throw error; } });
     chain = run.catch(() => {}); return run;
   };
+  function authorizeReviewer(accountId = reviewerId) {
+    let factor = state.mfaFactor.find((row) => row.accountId === accountId);
+    if (!factor) { factor = { accountId, enabled: true, version: 1 }; state.mfaFactor.push(factor); }
+    const sessionId = randomUUID();
+    state.session.push({ id: sessionId, accountId, expiresAt: new Date(+date + 3600000), mfaVerifiedAt: date, mfaVersion: factor.version });
+    return sessionId;
+  }
+  const reviewerSessionId = authorizeReviewer();
   const storage = { check() {}, async put() {}, async get() { return Buffer.from("private"); }, async delete() {} };
-  return { db, state, storage, personId, ownerId, reviewerId, otherId, profileId, recordId, now: () => date, setNow: (next) => { date = new Date(next); } };
+  return { db, state, storage, personId, ownerId, reviewerId, otherId, profileId, recordId, reviewerSessionId, authorizeReviewer, now: () => date, setNow: (next) => { date = new Date(next); } };
 }

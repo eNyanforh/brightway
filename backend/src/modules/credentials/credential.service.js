@@ -80,7 +80,7 @@ async function transaction(prisma, work) {
 export function createCredentialService({ prisma, storage, process = processEvidence, now = () => new Date() }) {
   let uploads = 0;
   return {
-    async access(actorId) { await reviewer(prisma, actorId); return { allowed: true }; },
+    async access(actorId, sessionId) { await reviewer(prisma, actorId); await assertMfaSession(prisma, actorId, sessionId, now()); return { allowed: true }; },
     async ownerReviews(personId, cursor) {
       const reviews = await prisma.credentialReview.findMany({ where: { profile: { personId } },
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 31,
@@ -158,8 +158,9 @@ export function createCredentialService({ prisma, storage, process = processEvid
         return { profile: profileView(await tx.profile.findUnique({ where: { personId }, select: ownerProfileSelect })) };
       });
     },
-    async queue(actorId, cursor) {
+    async queue(actorId, cursor, sessionId) {
       await reviewer(prisma, actorId);
+      await assertMfaSession(prisma, actorId, sessionId, now());
       const reviews = await prisma.credentialReview.findMany({
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 31,
         orderBy: [{ initialSubmittedAt: "asc" }, { id: "asc" }],
@@ -168,8 +169,9 @@ export function createCredentialService({ prisma, storage, process = processEvid
       });
       return { reviews: reviews.slice(0, 30).map((r) => reviewView(r, now(), true)), nextCursor: reviews.length > 30 ? reviews[29].id : null };
     },
-    async detail(actorId, id) {
+    async detail(actorId, id, sessionId) {
       await reviewer(prisma, actorId);
+      await assertMfaSession(prisma, actorId, sessionId, now());
       const review = await prisma.credentialReview.findUnique({ where: { id }, select: { ...reviewSelect, profile: { select: { personId: true, person: { select: { account: { select: { id: true, username: true } } } } } } } });
       if (!review) throw failure(404, "Review not found.");
       if (review.profile.person.account.id === actorId) throw failure(403, "You cannot review your own credentials.");
@@ -179,7 +181,7 @@ export function createCredentialService({ prisma, storage, process = processEvid
     async transition(actorId, id, input, assign = false, sessionId) {
       return transaction(prisma, async (tx) => {
         await reviewer(tx, actorId, true);
-        if (sessionId) await assertMfaSession(tx, actorId, sessionId, now());
+        await assertMfaSession(tx, actorId, sessionId, now());
         const review = await tx.credentialReview.findUnique({ where: { id }, include: { profile: { select: { id: true, version: true, personId: true } } } });
         if (!review) throw failure(404, "Review not found.");
         const owner = await activeOwner(tx, review.profile.personId, true);
@@ -207,7 +209,7 @@ export function createCredentialService({ prisma, storage, process = processEvid
       if (!asset || asset.state !== "ATTACHED") throw failure(404, "Evidence not found.");
       if (asset.personId !== personId) {
         try { await reviewer(prisma, actorId); } catch (error) { if (error.status === 403) throw failure(404, "Evidence not found."); throw error; }
-        if (sessionId) await assertMfaSession(prisma, actorId, sessionId, now());
+        await assertMfaSession(prisma, actorId, sessionId, now());
         const attempt = await prisma.credentialAttempt.findUnique({ where: { id: asset.attemptId }, select: { review: { select: { reviewerId: true } } } });
         if (attempt?.review.reviewerId !== actorId) throw failure(403, "Assign this review to yourself before downloading its evidence.");
       }

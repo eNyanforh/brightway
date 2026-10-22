@@ -21,11 +21,11 @@ async function submit(f) {
 }
 async function assign(f) {
   const review = f.state.credentialReview[0];
-  await f.service.transition(f.reviewerId, review.id, { expectedVersion: review.version }, true);
+  await f.service.transition(f.reviewerId, review.id, { expectedVersion: review.version }, true, f.reviewerSessionId);
 }
 async function decide(f, status = "VERIFIED") {
   const review = f.state.credentialReview[0];
-  await f.service.transition(f.reviewerId, review.id, { expectedVersion: review.version, revision: review.revision, status, note: "Checked the supporting institution document." });
+  await f.service.transition(f.reviewerId, review.id, { expectedVersion: review.version, revision: review.revision, status, note: "Checked the supporting institution document." }, false, f.reviewerSessionId);
 }
 
 test("credential input is strict and requires unique supporting evidence and attributable decisions", () => {
@@ -80,18 +80,18 @@ test("reviewer permissions, self-review, assignment and stale decisions are enfo
   await assert.rejects(f.service.access(f.ownerId), { status: 403 });
   await assert.rejects(f.service.queue(f.otherId), { status: 403 });
   f.state.account[0].platformRole = "CREDENTIAL_REVIEWER";
-  await assert.rejects(f.service.transition(f.ownerId, f.state.credentialReview[0].id, { expectedVersion: 1 }, true), { status: 403 });
+  await assert.rejects(f.service.transition(f.ownerId, f.state.credentialReview[0].id, { expectedVersion: 1 }, true, f.authorizeReviewer(f.ownerId)), { status: 403 });
   const otherAdmin = { id: randomUUID(), personId: randomUUID(), status: "ACTIVE", platformRole: "CREDENTIAL_REVIEWER", emailVerifiedAt: f.now() };
   f.state.account.push(otherAdmin);
   await assign(f);
   const review = f.state.credentialReview[0];
   const input = { expectedVersion: review.version, revision: 1, status: "VERIFIED", note: "Evidence has been checked." };
-  await assert.rejects(f.service.transition(otherAdmin.id, review.id, input), { status: 409 });
-  await assert.rejects(f.service.transition(f.reviewerId, review.id, { ...input, revision: 2 }), { status: 409 });
+  await assert.rejects(f.service.transition(otherAdmin.id, review.id, input, false, f.authorizeReviewer(otherAdmin.id)), { status: 409 });
+  await assert.rejects(f.service.transition(f.reviewerId, review.id, { ...input, revision: 2 }, false, f.reviewerSessionId), { status: 409 });
   await decide(f);
   assert.equal(f.state.educationRecord[0].status, "VERIFIED");
   assert.equal(f.state.credentialAuditEvent.length, 3);
-  await assert.rejects(f.service.transition(f.reviewerId, review.id, input), { status: 409 });
+  await assert.rejects(f.service.transition(f.reviewerId, review.id, input, false, f.reviewerSessionId), { status: 409 });
 });
 
 test("role revocation and a failed audit write cannot produce a successful decision", async () => {
@@ -114,6 +114,7 @@ test("correction edits create a new revision, preserve old snapshots and never r
   await saveProfileHistory({ prisma: f.db, personId: f.personId, kind: "education", input: { expectedVersion: f.state.profile[0].version, mode: "RECORDS", records: [{ id: record.id, revision: record.revision, institution: "Corrected School", qualification: record.qualification, startMonth: record.startMonth, endMonth: record.endMonth, current: record.current, description: "" }] }, select: {} });
   assert.equal(f.state.educationRecord[0].revision, 2);
   f.setNow("2026-11-02T12:00:00Z");
+  f.reviewerSessionId = f.authorizeReviewer();
   await submit(f);
   assert.equal(f.state.credentialAttempt.length, 2);
   assert.equal(f.state.credentialAttempt[0].snapshot.institution, "School");
@@ -224,7 +225,7 @@ test("disconnecting an evidence upload does not release its processing capacity 
 test("review decisions recheck current MFA session state inside the credential transaction", async () => {
   const f = fixture(); await submit(f);
   const sessionId = randomUUID(), factorVersion = 2;
-  f.state.mfaFactor.push({ accountId: f.reviewerId, enabled: true, version: factorVersion });
+  f.state.mfaFactor.find(row => row.accountId === f.reviewerId).version = factorVersion;
   f.state.session.push({ id: sessionId, accountId: f.reviewerId, expiresAt: new Date(+f.now() + 3600000), mfaVerifiedAt: f.now(), mfaVersion: factorVersion });
   let review = f.state.credentialReview[0];
   await f.service.transition(f.reviewerId, review.id, { expectedVersion: review.version }, true, sessionId);

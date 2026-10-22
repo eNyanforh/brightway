@@ -19,7 +19,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.js"],
-    pool: "forks",
+    pool: "threads",
     maxWorkers: 1,
     testTimeout: 30000,
     hookTimeout: 30000,
