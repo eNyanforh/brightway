@@ -33,7 +33,12 @@ app.use(
  * Parse JSON requests.
  * Limit payload sizes to reduce abuse.
  */
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({
+  limit: "1mb",
+  verify(req, res, buffer) {
+    if (req.originalUrl.split("?")[0] === "/api/v1/identity/persona/webhook") req.rawBody = Buffer.from(buffer);
+  },
+}));
 
 /**
  * Register versioned BrightWay API endpoints.

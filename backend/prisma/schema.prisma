@@ -51,6 +51,8 @@ model Account {
   personId String @unique
   person   Person @relation(fields: [personId], references: [id], onDelete: Restrict)
 
+  identityVerification IdentityVerification?
+
   sessions       Session[]
   emailChallenge AccountEmailChallenge?
 
@@ -406,4 +408,38 @@ model MfaAudit {
   method String?
   createdAt DateTime @default(now())
   @@index([accountId, createdAt])
+}
+
+// Sandbox-only Persona integration. Never use these results as a production trust flag.
+model IdentityVerification {
+  accountId String @id
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  currentAttemptId String?
+  windowStart DateTime
+  startCount Int @default(0)
+  inquiries IdentityInquiry[]
+}
+model IdentityInquiry {
+  id String @id @default(uuid())
+  accountId String
+  verification IdentityVerification @relation(fields: [accountId], references: [accountId], onDelete: Cascade)
+  environment String @default("sandbox")
+  templateId String
+  referenceId String @unique
+  idempotencyKey String @unique
+  identityHash String @db.VarChar(64)
+  inquiryId String? @unique
+  providerStatus String @default("creating")
+  providerUpdatedAt DateTime?
+  checkedAt DateTime?
+  createRetryUntil DateTime
+  createdAt DateTime @default(now())
+  @@index([accountId, createdAt])
+}
+model IdentityWebhookReceipt {
+  id String @id
+  inquiryId String
+  outcome String
+  createdAt DateTime @default(now())
+  @@index([createdAt])
 }
