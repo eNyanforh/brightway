@@ -1,3 +1,6 @@
+import { createManualIdentityEvidenceService } from "../modules/manual-identity/manual-identity-evidence.service.js";
+import { createManualIdentityEvidenceRoutes } from "../modules/manual-identity/manual-identity-evidence.routes.js";
+import { createManualIdentityStorage } from "../modules/manual-identity/manual-identity.storage.js";
 import { createIdentityService } from "../modules/identity/identity.service.js";
 import { createIdentityRoutes } from "../modules/identity/identity.routes.js";
 import { createMfaService } from "../modules/auth/mfa.service.js";
@@ -38,6 +41,7 @@ router.use(createIdentityRoutes({ identity: createIdentityService({ prisma }), s
 router.use("/auth", createMfaRoutes({ mfa, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use("/auth", createAccountEmailRoutes({ verification: createAccountEmailService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createCredentialRoutes({ credentials: createCredentialService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createManualIdentityEvidenceRoutes({ evidence: createManualIdentityEvidenceService({ prisma, storage: createManualIdentityStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const photos = createPhotoService({ prisma, storage: createR2Storage() });
 
 router.use(createPhotoRoutes({ photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));

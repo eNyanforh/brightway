@@ -1,3 +1,4 @@
+import { createIdentityQueue } from "./identity.queue.js";
 import { createHash, randomUUID } from "node:crypto";
 import { createPersonaClient, inquiryResult } from "./persona.client.js";
 const fail = (status, message) => Object.assign(new Error(message), { status });
@@ -56,6 +57,10 @@ export function createIdentityService({ prisma, persona = createPersonaClient(),
     });
   }
   return {
+    async enqueueWebhook(event) {
+      persona.check();
+      return createIdentityQueue({ prisma, now }).enqueue(event);
+    },
     async read(accountId) {
       const account = await owner(prisma, accountId), { attempt } = await current(prisma, accountId);
       return view(attempt, fingerprint(account));

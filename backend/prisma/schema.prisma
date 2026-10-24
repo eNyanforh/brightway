@@ -51,6 +51,9 @@ model Account {
   personId String @unique
   person   Person @relation(fields: [personId], references: [id], onDelete: Restrict)
 
+  manualIdentityEvidence ManualIdentityEvidence[]
+  manualIdentityUploadBudget ManualIdentityUploadBudget?
+
   identityVerification IdentityVerification?
 
   sessions       Session[]
@@ -442,4 +445,51 @@ model IdentityWebhookReceipt {
   outcome String
   createdAt DateTime @default(now())
   @@index([createdAt])
+}
+
+// Durable minimal events. DONE/FAILED job payloads contain no raw Persona PII or access URLs.
+model IdentityWebhookJob {
+  id String @id
+  eventName String
+  payload Json
+  state String @default("PENDING")
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  leaseToken String?
+  leaseUntil DateTime?
+  lastFailure String?
+  createdAt DateTime @default(now())
+  processedAt DateTime?
+  @@index([state, availableAt])
+  @@index([state, leaseUntil])
+}
+
+// Private, unsubmitted identity evidence. Never a public profile photo or credential attachment.
+enum ManualIdentityEvidenceKind {
+  GOVERNMENT_ID
+  SELFIE
+}
+model ManualIdentityEvidence {
+  id String @id @default(uuid())
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  kind ManualIdentityEvidenceKind
+  state EvidenceState @default(UPLOADING)
+  storageKey String @unique
+  size Int @default(0)
+  width Int?
+  height Int?
+  consentVersion String
+  consentedAt DateTime
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([accountId, state, expiresAt])
+  @@index([state, expiresAt])
+}
+model ManualIdentityUploadBudget {
+  accountId String @id
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  windowStart DateTime
+  count Int @default(0)
 }

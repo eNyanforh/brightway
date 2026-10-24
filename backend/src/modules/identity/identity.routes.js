@@ -12,8 +12,8 @@ export function createIdentityRoutes({ identity, sessions, clientUrl, nodeEnv, l
   router.post("/identity/persona/webhook", async (req, res, next) => {
     try {
       verifyPersonaSignature(req.rawBody, req.get("Persona-Signature"), webhookSecret, now());
-      await identity.webhook(req.body);
-      res.json({ success: true });
+      await identity.enqueueWebhook(req.body);
+      res.status(202).json({ success: true });
     } catch (error) { next(error); }
   });
   router.use("/identity", createRequireAuth({ sessions, cookieName: cookie.name }));

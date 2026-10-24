@@ -1,3 +1,4 @@
+import { createIdentityQueue } from "../src/modules/identity/identity.queue.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
@@ -34,9 +35,13 @@ test("identity HTTP authenticates the actual session account, requires Origin, r
     assert.equal((await fetch(`${base}/persona/webhook`, { method: "POST", headers: { "Content-Type": "application/json" }, body: raw })).status, 401);
     const webhookHeaders = { "Content-Type": "application/json", "Persona-Signature": signature };
     const posted = await fetch(`${base}/persona/webhook`, { method: "POST", headers: webhookHeaders, body: raw });
-    assert.equal(posted.status, 200); assert.equal(posted.headers.get("cache-control"), "no-store");
+    assert.equal(posted.status, 202); assert.equal(posted.headers.get("cache-control"), "no-store");
+    assert.equal((await f.service.read("owner")).sandboxApproved, false);
+    assert.equal(f.state.identityWebhookJob.length, 1);
+    const queue = createIdentityQueue({ prisma: f.db, identity: f.service, now: f.now });
+    await queue.processBatch();
     assert.equal((await f.service.read("owner")).sandboxApproved, true);
-    assert.equal((await fetch(`${base}/persona/webhook`, { method: "POST", headers: webhookHeaders, body: raw })).status, 200);
+    assert.equal((await fetch(`${base}/persona/webhook`, { method: "POST", headers: webhookHeaders, body: raw })).status, 202);
     assert.equal(f.state.identityWebhookReceipt.length, 1);
     const after = await fetch(base, { headers }); const serialized = JSON.stringify(await after.json());
     for (const value of [secret, "referenceId", "identityHash", "Private provider name", "idempotencyKey"]) assert(!serialized.includes(value));

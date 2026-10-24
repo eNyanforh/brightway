@@ -1,0 +1,36 @@
+Add INSIDE the existing Account model:
+
+  manualIdentityEvidence ManualIdentityEvidence[]
+  manualIdentityUploadBudget ManualIdentityUploadBudget?
+
+Add these declarations OUTSIDE all existing models (EvidenceState already exists):
+
+// Private, unsubmitted identity evidence. Never a public profile photo or credential attachment.
+enum ManualIdentityEvidenceKind {
+  GOVERNMENT_ID
+  SELFIE
+}
+model ManualIdentityEvidence {
+  id String @id @default(uuid())
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  kind ManualIdentityEvidenceKind
+  state EvidenceState @default(UPLOADING)
+  storageKey String @unique
+  size Int @default(0)
+  width Int?
+  height Int?
+  consentVersion String
+  consentedAt DateTime
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([accountId, state, expiresAt])
+  @@index([state, expiresAt])
+}
+model ManualIdentityUploadBudget {
+  accountId String @id
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  windowStart DateTime
+  count Int @default(0)
+}

@@ -10,7 +10,8 @@ import {
 test(
   "database login persists, rotates, and revokes sessions",
   {
-    skip: !process.env.TEST_DATABASE_URL &&
+    skip:
+      !process.env.TEST_DATABASE_URL &&
       "Set TEST_DATABASE_URL to a separate migrated test database",
   },
   async () => {
@@ -21,6 +22,10 @@ test(
       adapter: new PrismaPg({
         connectionString: process.env.TEST_DATABASE_URL,
       }),
+      transactionOptions: {
+        maxWait: 10000,
+        timeout: 15000,
+      },
     });
 
     const marker = randomUUID();
@@ -28,15 +33,25 @@ test(
     const input = {
       firstName: marker,
       lastName: "SessionTest",
-      gender: "MALE", birthDate: "2000-06-15", countryCode: "LR",
-      username: `test_${
-        marker.replaceAll("-", "").slice(0, 20)
-      }`,
+      gender: "MALE",
+      birthDate: "2000-06-15",
+      countryCode: "LR",
+      username: `test_${marker.replaceAll("-", "").slice(0, 20)}`,
       email: `${marker}@example.com`,
       password: "A long test-only passphrase!",
     };
 
-    const register = createRegistrationService({ verification: { requireVerified: async () => {}, consume: async () => new Date("2026-01-01T00:00:00Z") }, prisma, photos: { registerAsset: (id, token, create) => create(prisma) } });
+    const register = createRegistrationService({
+      prisma,
+      verification: {
+        requireVerified: async () => {},
+        consume: async () => new Date("2026-01-01T00:00:00Z"),
+      },
+      photos: {
+        registerAsset: (id, token, create) => create(prisma),
+      },
+    });
+
     const sessions = createSessionService({ prisma });
 
     try {
@@ -58,7 +73,7 @@ test(
 
       assert.deepEqual(
         (await sessions.authenticate(first.token)).account,
-        account
+        account,
       );
 
       const second = await sessions.login(
@@ -66,65 +81,53 @@ test(
           identifier: input.email,
           password: input.password,
         },
-        first.token
+        first.token,
       );
 
       await assert.rejects(
         sessions.authenticate(first.token),
-        { status: 401 }
+        { status: 401 },
       );
 
       assert.equal(
         await prisma.session.count({
-          where: {
-            accountId: account.id,
-          },
+          where: { accountId: account.id },
         }),
-        1
+        1,
       );
 
       await prisma.account.update({
-        where: {
-          id: account.id,
-        },
-        data: {
-          status: "SUSPENDED",
-        },
+        where: { id: account.id },
+        data: { status: "SUSPENDED" },
       });
 
       await assert.rejects(
         sessions.authenticate(second.token),
-        { status: 401 }
+        { status: 401 },
       );
 
       await sessions.logout(second.token);
 
       assert.equal(
         await prisma.session.count({
-          where: {
-            accountId: account.id,
-          },
+          where: { accountId: account.id },
         }),
-        0
+        0,
       );
     } finally {
       try {
         await prisma.account.deleteMany({
           where: {
-            person: {
-              firstName: marker,
-            },
+            person: { firstName: marker },
           },
         });
 
         await prisma.person.deleteMany({
-          where: {
-            firstName: marker,
-          },
+          where: { firstName: marker },
         });
       } finally {
         await prisma.$disconnect();
       }
     }
-  }
+  },
 );
