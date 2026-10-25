@@ -1,0 +1,27 @@
+@import "./profile.css";
+.bw-identity { max-width: 880px; margin: 0 auto; padding: clamp(18px, 4vw, 32px); overflow-wrap: anywhere; }
+.bw-identity h1 { font-size: clamp(24px, 4vw, 30px); margin: 20px 0 12px; }
+.bw-identity h2 { font-size: 20px; margin: 26px 0 12px; }
+.bw-identity h3 { font-size: 17px; }
+.bw-identity p, .bw-identity li { line-height: 1.65; }
+.bw-identity button { min-height: 44px; padding: 8px 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #17345c; font: inherit; cursor: pointer; }
+.bw-identity button.bw-profile-button { background: #175cd3; color: #fff; border-color: #175cd3; }
+.bw-identity button:disabled { opacity: .55; cursor: default; }
+.bw-identity :focus-visible { outline: 3px solid #175cd3; outline-offset: 3px; }
+.bw-identity input:not([type="checkbox"]), .bw-identity select, .bw-identity textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 11px; border: 1px solid #b8c3d2; border-radius: 8px; font: inherit; }
+.bw-identity textarea { min-height: 120px; }
+.bw-identity fieldset { display: grid; gap: 12px; min-width: 0; margin: 20px 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; }
+.bw-identity legend { padding: 0 6px; font-weight: 600; }
+.bw-identity-consent { display: flex; align-items: flex-start; gap: 12px; line-height: 1.6; padding: 16px; background: #eff8ff; border-radius: 12px; }
+.bw-identity-consent input { flex: 0 0 auto; width: 20px; height: 20px; margin-top: 3px; }
+.bw-identity-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 12px 0; }
+.bw-identity-status { padding: 14px 16px; border-left: 4px solid #175cd3; background: #eff8ff; border-radius: 6px; }
+.bw-identity [role="alert"] { color: #b42318; border-left: 3px solid #b42318; padding: 12px; background: #fff4f2; }
+.bw-identity-muted { color: #475467; font-size: 14px; }
+.bw-identity-history article { margin: 18px 0; padding-top: 14px; border-top: 1px solid #e2e8f0; }
+.bw-identity-history button { margin: 6px 8px 6px 0; }
+.bw-identity dl > div { display: grid; grid-template-columns: minmax(100px, .4fr) minmax(0, 1fr); gap: 12px; padding: 8px 0; }
+.bw-identity dt { font-weight: 600; text-transform: capitalize; }
+.bw-identity dd { margin: 0; }
+.bw-identity-queue { list-style: none; padding: 0; }
+.bw-identity-queue button { width: 100%; margin: 5px 0; text-align: left; }

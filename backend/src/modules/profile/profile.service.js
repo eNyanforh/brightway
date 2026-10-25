@@ -6,6 +6,7 @@ import { profileUpdateData } from "./profile.schema.js";
 import { evaluateProfileCompletion } from "./profile.completion.js";
 
 export const ownerProfileSelect = {
+  identityRevision: true,
   ...contactSettingsSelect,
   person: { select: personContactSelect },
   educationMode: true, experienceMode: true,

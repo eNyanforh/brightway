@@ -13,6 +13,7 @@ model SystemRecord {
 }
 
 model Person {
+  identityRevision Int @default(0)
   id          String    @id @default(uuid())
   firstName   String
   middleName  String?
@@ -37,6 +38,7 @@ enum PersonGender {
 }
 
 model Account {
+  identityRevision Int @default(0)
   id           String        @id @default(uuid())
   username     String        @unique
   email        String        @unique
@@ -51,6 +53,8 @@ model Account {
   personId String @unique
   person   Person @relation(fields: [personId], references: [id], onDelete: Restrict)
 
+  manualIdentityRequest ManualIdentityRequest?
+  manualIdentityReviewer ManualIdentityReviewer?
   manualIdentityEvidence ManualIdentityEvidence[]
   manualIdentityUploadBudget ManualIdentityUploadBudget?
 
@@ -86,6 +90,7 @@ model Session {
 
 // Owner-only draft data. No verification or publishing state is client editable.
 model Profile {
+  identityRevision Int @default(0)
   id                 String             @id @default(uuid())
   personId           String             @unique
   person             Person             @relation(fields: [personId], references: [id], onDelete: Restrict)
@@ -470,6 +475,8 @@ enum ManualIdentityEvidenceKind {
   SELFIE
 }
 model ManualIdentityEvidence {
+  attemptId String?
+  attempt ManualIdentityAttempt? @relation(fields: [attemptId], references: [id], onDelete: Restrict)
   id String @id @default(uuid())
   accountId String
   account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
@@ -484,6 +491,7 @@ model ManualIdentityEvidence {
   expiresAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@index([attemptId, state])
   @@index([accountId, state, expiresAt])
   @@index([state, expiresAt])
 }
@@ -492,4 +500,87 @@ model ManualIdentityUploadBudget {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   windowStart DateTime
   count Int @default(0)
+}
+
+// Independent of school/employer credential review and paused Persona sandbox state.
+enum ManualIdentityStatus {
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  DECLINED
+  ACTION_REQUIRED
+  INVALIDATED
+  EXPIRED
+}
+model ManualIdentityRequest {
+  id String @id @default(uuid())
+  accountId String @unique
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  version Int @default(1)
+  revision Int @default(1)
+  state ManualIdentityStatus @default(SUBMITTED)
+  currentAttemptId String
+  initialSubmittedAt DateTime
+  targetAt DateTime
+  calendarVersion String
+  windowStart DateTime
+  submissionCount Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  attempts ManualIdentityAttempt[]
+  events ManualIdentityAudit[]
+  @@index([state, initialSubmittedAt, id])
+}
+model ManualIdentityAttempt {
+  id String @id @default(uuid())
+  requestId String
+  request ManualIdentityRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  revision Int
+  state ManualIdentityStatus @default(SUBMITTED)
+  idempotencyKey String
+  inputHash String
+  identityHash String
+  profileVersion Int
+  snapshot Json?
+  educationRecordId String
+  educationRevision Int
+  experienceRecordId String
+  experienceRevision Int
+  reviewerId String?
+  note String? @db.VarChar(2000)
+  consentVersion String
+  consentedAt DateTime
+  submittedAt DateTime
+  expiresAt DateTime
+  purgeAt DateTime
+  retentionDays Int
+  targetAt DateTime
+  calendarVersion String
+  decidedAt DateTime?
+  purgedAt DateTime?
+  evidence ManualIdentityEvidence[]
+  @@unique([requestId, idempotencyKey])
+  @@unique([requestId, revision])
+  @@index([purgeAt, purgedAt])
+}
+model ManualIdentityReviewer {
+  accountId String @id
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  enabled Boolean @default(false)
+  updatedAt DateTime @updatedAt
+}
+model ManualIdentityAudit {
+  id String @id @default(uuid())
+  requestId String?
+  request ManualIdentityRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  targetAccountId String
+  actorId String
+  action String
+  attemptId String?
+  fromState ManualIdentityStatus?
+  toState ManualIdentityStatus?
+  note String? @db.VarChar(2000)
+  createdAt DateTime @default(now())
+  @@index([requestId, createdAt, id])
+  @@index([targetAccountId, createdAt])
 }

@@ -1,7 +1,7 @@
 import { evaluateManualVerificationEligibility } from "./manual-verification.eligibility.js";
 import { canonicalLiberiaCounty, requiresCounty } from "../../../../shared/profile-location.mjs";
 import { isPhoneNumber } from "./profile-contact.js";
-export const PROFILE_POLICY_VERSION = "sprint1-manual-verification-eligibility-v11";
+export const PROFILE_POLICY_VERSION = "sprint1-manual-identity-review-v12";
 
 // Profile information and trust/review eligibility remain separate concepts.
 export function evaluateProfileCompletion(profile) {
@@ -35,13 +35,11 @@ export function evaluateProfileCompletion(profile) {
     evaluationStatus: missing.length ? "INCOMPLETE" : "COMPLETE",
     complete: missing.length === 0,
     knownRequirementsComplete: missing.length === 0,
-    // Submission remains disabled until the private manual-review workflow is installed.
-    eligibleToRequestVerification: false,
+    // Base prerequisites only; /manual-identity also evaluates current request state.
+    eligibleToRequestVerification: evaluateManualVerificationEligibility(profile, missing.length === 0).requirementsMet,
     manualVerificationEligibility: evaluateManualVerificationEligibility(profile, missing.length === 0),
     checks,
     missing,
-    unresolved: [
-      { code: "INDIVIDUAL_REVIEW_NOT_IMPLEMENTED" },
-    ],
+    unresolved: [],
   };
 }
