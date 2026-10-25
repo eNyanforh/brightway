@@ -428,8 +428,7 @@ export default function ProfilePage() {
   return (
     <div className="bw-profile-page">
       <Link to="/security">Account security</Link>{" "}
-      <Link to="/credentials">My credential reviews</Link>{" "}
-      <Link to="/manual-identity">Identity verification</Link>
+      <Link to="/credentials">My credential reviews</Link>
 
       {account.platformRole === "CREDENTIAL_REVIEWER" && (
         <Link to="/admin/credentials">

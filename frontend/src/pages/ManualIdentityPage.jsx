@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { manualIdentityApi as api } from "../api/manual-identity";
 import { profileApi } from "../api/profile";
 import ManualIdentityHistory from "../components/profile/ManualIdentityHistory";
-import { identityDate, identityLabels, imageLabels } from "./manual-identity-format";
+import { identityDate, identityLabels, imageLabels, identityRequirementsMet } from "./manual-identity-format";
 import "./manual-identity.css";
 
 async function loadOwner(signal) {
@@ -40,7 +40,7 @@ export default function ManualIdentityPage() {
   }
   async function upload(kind) {
     const file = files[kind];
-    if (!consent || !file || !view?.data.canSubmit || retryBody.current || reloadRequired) return;
+    if (!consent || !file || !(view?.data.canSubmit === true && identityRequirementsMet(view.data.eligibility)) || retryBody.current || reloadRequired) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024 || !file.size) {
       setError(new Error("Choose a JPEG, PNG or WebP image no larger than 5 MiB.")); return;
     }
@@ -52,7 +52,7 @@ export default function ManualIdentityPage() {
   }
   async function submit(event) {
     event.preventDefault();
-    if (!view?.data.canSubmit || !consent || reloadRequired || !chosen.GOVERNMENT_ID || !chosen.SELFIE) return;
+    if (!(view?.data.canSubmit === true && identityRequirementsMet(view.data.eligibility)) || !consent || reloadRequired || !chosen.GOVERNMENT_ID || !chosen.SELFIE) return;
     await action(async () => {
       retryBody.current ??= { expectedVersion: view.data.request?.version ?? 0, expectedProfileVersion: view.profileVersion,
         idempotencyKey: crypto.randomUUID(), governmentId: chosen.GOVERNMENT_ID, selfie: chosen.SELFIE, consentVersion: view.data.consentVersion };
@@ -64,7 +64,7 @@ export default function ManualIdentityPage() {
       setView(await loadOwner()); setReloadRequired(false);
     });
   }
-  const data = view?.data, frozen = busy || reloadRequired || pendingRetry;
+  const data = view?.data, canSubmit = data?.canSubmit === true && identityRequirementsMet(data.eligibility), frozen = busy || reloadRequired || pendingRetry;
   return <section className="bw-profile-card bw-identity">
     <Link to="/profile">Back to profile</Link><h1>Identity verification</h1>
     <p>BrightWay reviews your government-issued ID and selfie within five working days. Identity verification is separate from education and experience review.</p>
@@ -82,7 +82,7 @@ export default function ManualIdentityPage() {
       {!data.identityDetailsComplete && <p>Your saved account needs your name and date of birth before review. Contact BrightWay support if those details are missing.</p>}
       {!data.submissionConfigured && <p>New requests are temporarily unavailable. Please try again later.</p>}
       {!data.eligibility.requirementsMet && <p><Link to="/profile">Complete your profile</Link> and verify at least one education and one experience record before uploading identity images.</p>}
-      {data.canSubmit && <form onSubmit={submit}>
+      {canSubmit && <form onSubmit={submit}>
         <h2>{data.status === "NOT_STARTED" ? "Request identity verification" : "Submit a new identity revision"}</h2>
         <p>Use clear images with readable details and your face visible. Images must be JPEG, PNG or WebP, up to 5 MiB each. Unsubmitted uploads expire after 24 hours. Selected files are kept only while this page stays open.</p>
         <p>BrightWay reviewers can access these private images for identity review. Submitted images and the identity snapshot are retained for {data.retentionDays} days after a decision. Basic decision and security audit records are retained separately. Pending requests expire after 30 calendar days. Working days: {data.workingDays}.</p>

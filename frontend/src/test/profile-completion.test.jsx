@@ -152,3 +152,44 @@ it("labels complete profile information separately from identity verification", 
   expect(screen.getByText(/Completing your information does not verify your identity/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Complete county (liberia)" })).toBeNull();
 });
+
+function identityReadyProfile() {
+  return { ...original, completion: { profileVersion: 4, complete: true, eligibleToRequestVerification: true,
+    checks: [{ code: "PHONE_REQUIRED", label: "Phone number", editor: "contact", satisfied: true }],
+    manualVerificationEligibility: { requirementsMet: true, checks: [
+      { code: "PROFILE_COMPLETE_REQUIRED", satisfied: true },
+      { code: "VERIFIED_EDUCATION_REQUIRED", satisfied: true },
+      { code: "VERIFIED_EXPERIENCE_REQUIRED", satisfied: true },
+    ] },
+  } };
+}
+function renderIdentityChecklist(profile, props = {}) {
+  return render(<MemoryRouter><ProfileCompletion profile={profile} busy={false} dirty={false} {...props} /></MemoryRouter>);
+}
+it("shows the identity verification action only when all three saved server requirements are met", () => {
+  renderIdentityChecklist(identityReadyProfile());
+  expect(screen.getByRole("link", { name: "Verify my identity" }).getAttribute("href")).toBe("/manual-identity");
+});
+it.each(["PROFILE_COMPLETE_REQUIRED", "VERIFIED_EDUCATION_REQUIRED", "VERIFIED_EXPERIENCE_REQUIRED"])("hides the identity verification action when %s is not met, even if a summary flag is inconsistent", (code) => {
+  const profile = identityReadyProfile(); profile.completion.manualVerificationEligibility.checks.find((check) => check.code === code).satisfied = false;
+  renderIdentityChecklist(profile);
+  expect(screen.queryByRole("link", { name: "Verify my identity" })).toBeNull();
+  expect(screen.getByText("Still needed")).toBeTruthy();
+});
+it("hides the identity action when eligibility data is missing or belongs to a stale profile revision", () => {
+  const profile = identityReadyProfile(); delete profile.completion.manualVerificationEligibility;
+  const { unmount } = renderIdentityChecklist(profile);
+  expect(screen.queryByRole("link", { name: "Verify my identity" })).toBeNull(); unmount();
+  const stale = identityReadyProfile(); stale.completion.profileVersion = 3;
+  renderIdentityChecklist(stale); expect(screen.queryByRole("link", { name: "Verify my identity" })).toBeNull();
+});
+it.each([{ dirty: true }, { busy: true }])("hides the identity action while unsaved edits or an in-flight change exist: %j", (props) => {
+  renderIdentityChecklist(identityReadyProfile(), props);
+  expect(screen.queryByRole("link", { name: "Verify my identity" })).toBeNull();
+});
+it("does not expose an unconditional identity action at the top of an incomplete profile", async () => {
+  mount(); await ready();
+  expect(screen.queryByRole("link", { name: "Identity verification" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Verify my identity" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Verify your email" })).toBeTruthy();
+});

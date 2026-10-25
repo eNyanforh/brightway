@@ -154,3 +154,11 @@ it("uses the authenticated attached-document route and releases its temporary do
     vi.runAllTimers(); expect(revokeObjectURL).toHaveBeenCalledWith("blob:private");
   } finally { vi.useRealTimers(); }
 });
+
+it("hides uploads and the submit action on a direct identity URL when a prerequisite is missing despite canSubmit being true", async () => {
+  const data = owner(); data.eligibility.checks[2].satisfied = false;
+  mount(ManualIdentityPage, async (url) => response(url.endsWith("/evidence") ? assets : data));
+  await screen.findByText("Still needed — At least one verified experience record");
+  expect(screen.queryByLabelText("Choose Selfie")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Submit identity request" })).toBeNull();
+});
