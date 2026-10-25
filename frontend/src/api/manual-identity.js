@@ -16,6 +16,8 @@ async function request(path, { method = "GET", body, file, signal } = {}) {
   return payload.data;
 }
 export const manualIdentityApi = {
+  completeDetails: (body) => request("/manual-identity/details", { method: "POST", body }),
+  status: (signal) => request("/manual-identity/status", { signal }),
   owner: (signal) => request("/manual-identity", { signal }),
   evidence: (signal) => request("/manual-identity/evidence", { signal }),
   upload: (kind, file) => request(`/manual-identity/evidence/${kind}`, { method: "POST", file }),

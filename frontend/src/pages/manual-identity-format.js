@@ -15,3 +15,7 @@ export function identityRequirementsMet(eligibility) {
   return eligibility?.requirementsMet === true && Array.isArray(eligibility.checks) &&
     identityRequirements.every(({ code }) => eligibility.checks.find((check) => check.code === code)?.satisfied === true);
 }
+
+export function hasVerifiedIdentity(status) {
+  return status?.status === "APPROVED" && status.identityVerified === true;
+}

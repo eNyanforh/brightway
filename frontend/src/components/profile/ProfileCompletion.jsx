@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
-import { identityRequirements, identityRequirementsMet } from "../../pages/manual-identity-format";
+import { identityRequirements, identityRequirementsMet, hasVerifiedIdentity } from "../../pages/manual-identity-format";
 import { useState } from "react";
 import AccountEmailVerification from "./AccountEmailVerification";
 import "./profile-completion.css";
 
-export default function ProfileCompletion({ profile, busy, dirty, onEdit, onRefresh, onBusy, onVerified }) {
+export default function ProfileCompletion({ profile, busy, dirty, onEdit, onRefresh, onBusy, onVerified, identityStatus = null, identityError = "", onIdentityRefresh, onIdentityReload }) {
   const [showEmail, setShowEmail] = useState(false);
   const [error, setError] = useState("");
   const completion = profile.completion;
@@ -12,6 +12,9 @@ export default function ProfileCompletion({ profile, busy, dirty, onEdit, onRefr
   const eligibility = current ? completion.manualVerificationEligibility : null;
   const eligible = current && completion.complete === true && completion.eligibleToRequestVerification === true &&
     identityRequirementsMet(eligibility);
+  const identity = identityStatus?.profileVersion === profile.version ? identityStatus : null;
+  const identityVerified = hasVerifiedIdentity(identity);
+  const canRequestIdentity = identity?.canSubmit === true && identity.identityVerified === false && ["NOT_STARTED", "ACTION_REQUIRED", "DECLINED", "INVALIDATED", "EXPIRED"].includes(identity.status);
   const missing = current ? completion.checks.filter((item) => !item.satisfied).length : 0;
   const verifiedEmail = current
     ? completion.checks.some((item) => item.code === "EMAIL_VERIFICATION_REQUIRED" && item.satisfied)
@@ -41,14 +44,21 @@ export default function ProfileCompletion({ profile, busy, dirty, onEdit, onRefr
         </ul>
       </>}
     <p>Completing your information does not verify your identity. Before requesting identity verification, you need a 100% complete profile, at least one verified education record and at least one verified experience record.</p>
-    {current && <>
+    {current && !identityVerified && <>
       <h3>Identity verification requirements</h3>
       <ul className="bw-completion-list">{identityRequirements.map(({ code, label }) => {
         const satisfied = eligibility?.checks?.find((check) => check.code === code)?.satisfied === true;
         return <li key={code}><span className={satisfied ? "bw-completion-done" : "bw-completion-missing"} aria-hidden="true">{satisfied ? "✓" : "○"}</span><span>{label}<small>{satisfied ? "Met" : "Still needed"}</small></span></li>;
       })}</ul>
     </>}
-    {eligible && !dirty && !busy && <p><Link className="bw-profile-button" to="/manual-identity">Verify my identity</Link></p>}
+    {eligible && canRequestIdentity && !dirty && !busy && <p><Link className="bw-profile-button" to="/manual-identity">Verify my identity</Link></p>}
+    {eligible && !dirty && !busy && identity?.identityDetailsComplete === false && ["NOT_STARTED", "ACTION_REQUIRED", "DECLINED", "INVALIDATED", "EXPIRED"].includes(identity.status) && <p><Link to="/manual-identity">Complete identity details</Link></p>}
+    {identityVerified && <p>Your identity is verified by BrightWay.</p>}
+    {identity && identity.status !== "NOT_STARTED" && <p><Link to="/manual-identity">View identity review status</Link></p>}
+    {!identity && !identityError && onIdentityRefresh && <p>Checking identity verification status…</p>}
+    {identityError && <p className="bw-completion-note">{identityError}</p>}
+    {identityError && onIdentityReload && <button type="button" className="bw-profile-text-button" disabled={busy} onClick={onIdentityReload}>Load latest profile for verification</button>}
+    {onIdentityRefresh && <button type="button" className="bw-profile-text-button" disabled={busy} onClick={onIdentityRefresh}>Refresh verification status</button>}
     <p>Submit saved education and experience records through their verification details. BrightWay reviews eligible identity requests within five working days.</p>
     {error && <p className="bw-completion-note">{error}</p>}
     <button type="button" className="bw-profile-text-button" disabled={busy} onClick={refresh}>Refresh checklist</button>

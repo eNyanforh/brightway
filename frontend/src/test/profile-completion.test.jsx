@@ -164,7 +164,7 @@ function identityReadyProfile() {
   } };
 }
 function renderIdentityChecklist(profile, props = {}) {
-  return render(<MemoryRouter><ProfileCompletion profile={profile} busy={false} dirty={false} {...props} /></MemoryRouter>);
+  return render(<MemoryRouter><ProfileCompletion profile={profile} busy={false} dirty={false} identityStatus={{ profileVersion: profile.version, status: "NOT_STARTED", identityVerified: false, canSubmit: true }} {...props} /></MemoryRouter>);
 }
 it("shows the identity verification action only when all three saved server requirements are met", () => {
   renderIdentityChecklist(identityReadyProfile());

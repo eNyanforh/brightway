@@ -56,6 +56,10 @@ function mount(
       signedIn = false;
       return ok({});
     }
+    if (url.endsWith("/manual-identity/status"))
+      return ok({ accountId: account.id, profileVersion: original.version, status: "NOT_STARTED", identityVerified: false, canSubmit: false });
+    if (url.endsWith("/admin/manual-identity/access"))
+      return reply(403, { success: false, message: "Identity reviewer access is required." });
     return handler(url, options);
   });
   vi.stubGlobal("fetch", fetchMock);

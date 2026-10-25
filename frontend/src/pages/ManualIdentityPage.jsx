@@ -1,3 +1,4 @@
+import MissingIdentityDetails from "../components/profile/MissingIdentityDetails";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { manualIdentityApi as api } from "../api/manual-identity";
@@ -14,6 +15,7 @@ async function loadOwner(signal) {
 export default function ManualIdentityPage() {
   const [view, setView] = useState(null), [files, setFiles] = useState({}), [chosen, setChosen] = useState({});
   const [consent, setConsent] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(null), [notice, setNotice] = useState("");
+  const [detailsBusy, setDetailsBusy] = useState(false);
   const [reloadRequired, setReloadRequired] = useState(false), [pendingRetry, setPendingRetry] = useState(false);
   const lock = useRef(false), retryBody = useRef(null), fileInputs = useRef({});
   useEffect(() => {
@@ -23,13 +25,13 @@ export default function ManualIdentityPage() {
   }, []);
   const hasFiles = Object.values(files).some(Boolean);
   useEffect(() => {
-    if (!hasFiles && !busy && !retryBody.current) return;
+    if (!hasFiles && !busy && !detailsBusy && !retryBody.current) return;
     const warn = (e) => { e.preventDefault(); e.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [hasFiles, busy, error]);
+  }, [hasFiles, busy, detailsBusy, error]);
   async function action(fn) {
-    if (lock.current) return;
+    if (lock.current || detailsBusy) return;
     lock.current = true; setBusy(true); setError(null); setNotice("");
     try { await fn(); } catch (e) { setError(e); if ([401, 403, 409].includes(e.status)) setReloadRequired(true); }
     finally { lock.current = false; setBusy(false); }
@@ -64,13 +66,13 @@ export default function ManualIdentityPage() {
       setView(await loadOwner()); setReloadRequired(false);
     });
   }
-  const data = view?.data, canSubmit = data?.canSubmit === true && identityRequirementsMet(data.eligibility), frozen = busy || reloadRequired || pendingRetry;
+  const data = view?.data, canSubmit = data?.canSubmit === true && identityRequirementsMet(data.eligibility), frozen = busy || detailsBusy || reloadRequired || pendingRetry;
   return <section className="bw-profile-card bw-identity">
     <Link to="/profile">Back to profile</Link><h1>Identity verification</h1>
     <p>BrightWay reviews your government-issued ID and selfie within five working days. Identity verification is separate from education and experience review.</p>
     <div className="bw-identity-tools"><Link to="/credentials">My credential reviews</Link><Link to="/admin/manual-identity">BrightWay reviewer workspace</Link></div>
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
-    <button type="button" disabled={busy} onClick={reload}>Reload review status</button>
+    <button type="button" disabled={busy || detailsBusy} onClick={reload}>Reload review status</button>
     {reloadRequired && <p>Reload the review status before making another change. Your selected local files will stay here.</p>}
     {!view && !error && <p role="status">Loading identity requirements…</p>}
     {data && <>
@@ -79,7 +81,10 @@ export default function ManualIdentityPage() {
       {data.request && <p>Review target: <strong>{identityDate(data.request.targetAt)}</strong>{data.request.overdue && " · The review target has passed. This does not automatically approve your request."}</p>}
       <h2>Before you request verification</h2>
       <ul className="bw-identity-checks">{data.eligibility.checks.map((check) => <li key={check.code}>{check.satisfied ? "✓ Met" : "Still needed"} — {check.label}</li>)}</ul>
-      {!data.identityDetailsComplete && <p>Your saved account needs your name and date of birth before review. Contact BrightWay support if those details are missing.</p>}
+      {!data.identityDetailsComplete && (Array.isArray(data.missingIdentityFields) && data.missingIdentityFields.length > 0 && Number.isInteger(data.identityDetailsRevision)
+        ? <MissingIdentityDetails key={data.identityDetailsRevision} missing={data.missingIdentityFields} revision={data.identityDetailsRevision} disabled={busy || reloadRequired}
+            onBusy={setDetailsBusy} onSaved={async () => { setView(await loadOwner()); setReloadRequired(false); }} />
+        : <p>Your saved account needs your name and date of birth before review. Refresh this page or contact BrightWay support if the personal-details form is unavailable.</p>)}
       {!data.submissionConfigured && <p>New requests are temporarily unavailable. Please try again later.</p>}
       {!data.eligibility.requirementsMet && <p><Link to="/profile">Complete your profile</Link> and verify at least one education and one experience record before uploading identity images.</p>}
       {canSubmit && <form onSubmit={submit}>

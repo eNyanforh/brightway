@@ -8,7 +8,7 @@ export function manualReviewFixture() {
   const modelNames = ["account", "profile", "session", "mfaFactor", "manualIdentityEvidence", "manualIdentityUploadBudget", "manualIdentityRequest", "manualIdentityAttempt", "manualIdentityAudit", "manualIdentityReviewer"];
   const state = Object.fromEntries(modelNames.map((name) => [name, []]));
   state.account.push({ id: ownerId, identityRevision: 0, personId, status: "ACTIVE", username: "owner", email: "owner@example.invalid", emailVerifiedAt: date,
-    person: { firstName: "Sample", lastName: "Owner", middleName: null, birthDate: new Date("2000-01-01"), gender: "MALE", identityRevision: 0 } },
+    person: { id: personId, firstName: "Sample", lastName: "Owner", middleName: null, birthDate: new Date("2000-01-01"), gender: "MALE", identityRevision: 0 } },
     { id: reviewerId, personId: randomUUID(), status: "ACTIVE", username: "reviewer", emailVerifiedAt: date },
     { id: otherId, personId: randomUUID(), status: "ACTIVE", username: "other", emailVerifiedAt: date });
   state.profile.push({ id: randomUUID(), identityRevision: 0, personId, version: 1, countryCode: "US", locality: "City", headline: "Developer", careerFieldMode: "EXPLORING",
@@ -26,6 +26,7 @@ export function manualReviewFixture() {
       if (value && typeof value === "object") {
         if ("in" in value) return value.in.includes(row[key]);
         if ("not" in value) return row[key] !== value.not;
+        if ("gte" in value) return row[key] >= value.gte;
         if ("gt" in value) return row[key] > value.gt;
         if ("lt" in value) return row[key] < value.lt;
         if ("lte" in value) return row[key] <= value.lte;
@@ -65,7 +66,18 @@ export function manualReviewFixture() {
       async upsert({ where, create, update }) { if (await this.findUnique({ where })) return this.update({ where, data: update }); return this.create({ data: create }); },
     };
   }
-  db.person = { async updateMany({ where }) { return { count: where.id === personId ? 1 : 0 }; } };
+  db.person = {
+    async findUnique({ where }) { const row = state.account.find((a) => a.personId === where.id)?.person; return row ? clone(row) : null; },
+    async updateMany({ where, data }) {
+      const row = state.account.find((a) => a.personId === where.id)?.person;
+      if (!row || !matches(row, where)) return { count: 0 };
+      const previous = JSON.stringify([row.firstName, row.lastName, row.birthDate, row.gender]);
+      const revision = row.identityRevision;
+      change(row, data);
+      row.identityRevision = revision + (JSON.stringify([row.firstName, row.lastName, row.birthDate, row.gender]) === previous ? 0 : 1);
+      return { count: 1 };
+    },
+  };
   let chain = Promise.resolve();
   db.$transaction = (fn) => { const run = chain.then(async () => { const before = clone(state); try { return await fn(db); } catch (error) { Object.assign(state, before); throw error; } }); chain = run.catch(() => {}); return run; };
   const storage = { check() {}, async get() { return Buffer.from("private WebP bytes"); }, async delete() {} };

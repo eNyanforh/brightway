@@ -1,3 +1,4 @@
+import { createManualIdentityDetailsService, missingIdentityFields } from "./manual-identity-details.service.js";
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -54,7 +55,7 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
     const profile = profileView(row);
     const eligibility = evaluateManualVerificationEligibility(profile, profile.completion.complete);
     const snapshot = identitySnapshot(account, profile, row?.identityRevision ?? 0);
-    const identityDetailsComplete = Boolean(snapshot.firstName && snapshot.lastName && snapshot.birthDate);
+    const identityDetailsComplete = missingIdentityFields(account.person).length === 0;
     return { account, profile, snapshot, identityHash: digest(snapshot), eligibility, identityDetailsComplete };
   }
   async function current(db, request) {
@@ -73,6 +74,12 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
         education?.status !== "VERIFIED" || education.revision !== attempt.educationRevision ||
         experience?.status !== "VERIFIED" || experience.revision !== attempt.experienceRevision) return "INVALIDATED";
     return attempt.state;
+  }
+  function readiness(ctx, status) {
+    let submissionConfigured = true;
+    try { policy.check(); } catch { submissionConfigured = false; }
+    return { submissionConfigured,
+      canSubmit: submissionConfigured && ctx.eligibility.requirementsMet && ctx.identityDetailsComplete && !["SUBMITTED", "IN_REVIEW", "APPROVED"].includes(status) };
   }
   async function audit(db, request, actorId, action, attempt, fromState, toState, note = null) {
     await db.manualIdentityAudit.create({ data: { requestId: request.id, targetAccountId: request.accountId, actorId,
@@ -95,15 +102,14 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
         evidence: allowed && retained ? await db.manualIdentityEvidence.findMany({ where: { attemptId: attempt.id, state: "ATTACHED" }, select: evidenceSelect }) : [],
       });
     }
-    let submissionConfigured = true;
-    try { policy.check(); } catch { submissionConfigured = false; }
-    return { request: request ? { id: request.id, version: request.version, revision: request.revision,
+    const ready = readiness(ctx, status);
+    return { profileVersion: ctx.profile.version, request: request ? { id: request.id, version: request.version, revision: request.revision,
       currentAttemptId: request.currentAttemptId, initialSubmittedAt: request.initialSubmittedAt,
       targetAt: request.targetAt, overdue: active.has(status) && request.targetAt <= now(), calendarVersion: request.calendarVersion } : null,
       status, identityVerified: status === "APPROVED", eligibility: ctx.eligibility,
       identityDetailsComplete: ctx.identityDetailsComplete,
-      submissionConfigured,
-      canSubmit: submissionConfigured && ctx.eligibility.requirementsMet && ctx.identityDetailsComplete && !["SUBMITTED", "IN_REVIEW", "APPROVED"].includes(status),
+      ...(!privileged ? { missingIdentityFields: missingIdentityFields(ctx.account.person), identityDetailsRevision: ctx.account.person.identityRevision } : {}),
+      ...ready,
       consentVersion: MANUAL_REVIEW_CONSENT,
       retentionDays: Number.isInteger(policy.retentionDays) ? policy.retentionDays : null,
       workingDays: "Monday–Friday, excluding configured holidays; Africa/Monrovia (UTC)",
@@ -126,7 +132,16 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
     }
     return asset;
   }
+  const details = createManualIdentityDetailsService({ prisma, now });
   const service = {
+    completeDetails: details.complete,
+    async status(id) {
+      const ctx = await context(prisma, id);
+      const request = await prisma.manualIdentityRequest.findUnique({ where: { accountId: id } });
+      const status = effective(await current(prisma, request), ctx);
+      return { accountId: ctx.account.id, profileVersion: ctx.profile.version, status,
+        identityVerified: status === "APPROVED", identityDetailsComplete: ctx.identityDetailsComplete, canSubmit: readiness(ctx, status).canSubmit };
+    },
     async owner(id) {
       const ctx = await context(prisma, id);
       const request = await prisma.manualIdentityRequest.findUnique({ where: { accountId: id } });

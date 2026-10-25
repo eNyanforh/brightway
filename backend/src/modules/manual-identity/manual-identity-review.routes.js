@@ -6,6 +6,7 @@ export function createManualIdentityReviewRoutes({ reviews, sessions, clientUrl,
   const router = Router(), auth = createRequireAuth({ sessions, cookieName: createSessionCookieConfig(nodeEnv).name });
   const origin = requireTrustedOrigin(clientUrl);
   const limits = limiter ?? rateLimit({ windowMs: 3600000, limit: 60, standardHeaders: "draft-8", legacyHeaders: false });
+  const detailLimits = limiter ?? rateLimit({ windowMs: 900000, limit: 20, standardHeaders: "draft-8", legacyHeaders: false, message: { success: false, message: "Too many personal detail requests. Please try again later." } });
   const handle = (fn) => async (req, res, next) => {
     try { res.json({ success: true, data: await fn(req) }); }
     catch (error) { next(error.status >= 400 && error.status <= 599 ? error : Object.assign(Error("Identity review is temporarily unavailable."), { status: 503 })); }
@@ -13,7 +14,9 @@ export function createManualIdentityReviewRoutes({ reviews, sessions, clientUrl,
   // Exact owner routes avoid intercepting the already-installed evidence upload routes.
   const ownerPath = "/manual-identity", adminPath = "/admin/manual-identity";
   const privateResponse = (req, res, next) => { res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); next(); };
+  router.get(`${ownerPath}/status`, privateResponse, auth, handle((req) => reviews.status(req.auth.account.id)));
   router.get(ownerPath, privateResponse, auth, handle((req) => reviews.owner(req.auth.account.id)));
+  router.post(`${ownerPath}/details`, privateResponse, auth, origin, detailLimits, handle((req) => reviews.completeDetails(req.auth.account.id, req.auth.sessionId, req.body)));
   router.post(`${ownerPath}/submit`, privateResponse, auth, origin, limits, handle((req) => reviews.submit(req.auth.account.id, req.body)));
   router.get(`${ownerPath}/documents/:id/download`, privateResponse, auth, limits, async (req, res, next) => {
     try {

@@ -25,3 +25,12 @@
 .bw-identity dd { margin: 0; }
 .bw-identity-queue { list-style: none; padding: 0; }
 .bw-identity-queue button { width: 100%; margin: 5px 0; text-align: left; }
+
+.bw-identity-details { margin: 20px 0; padding: 16px; border: 1px solid #d0e2fa; background: #f8fbff; border-radius: 12px; }
+.bw-identity-details h2 { margin-top: 0; }
+.bw-identity-details fieldset { padding: 0; border: 0; }
+.bw-identity-details label { display: block; margin-bottom: 6px; }
+.bw-identity-details .auth-password-control { display: flex; align-items: stretch; gap: 8px; }
+.bw-identity-details .auth-password-control input { flex: 1; width: 0; }
+.bw-identity-details .auth-password-control button { flex: 0 0 44px; padding: 10px; }
+.bw-identity-details .auth-password-control svg { display: block; }

@@ -162,3 +162,57 @@ it("hides uploads and the submit action on a direct identity URL when a prerequi
   expect(screen.queryByLabelText("Choose Selfie")).toBeNull();
   expect(screen.queryByRole("button", { name: "Submit identity request" })).toBeNull();
 });
+
+function legacyOwner() { return owner({ identityDetailsComplete: false, canSubmit: false, missingIdentityFields: ["birthDate"], identityDetailsRevision: 0 }); }
+it("lets an eligible legacy account complete its missing DOB and unlock uploads without changing saved names or sending ownership", async () => {
+  let completed = false;
+  const { user, fetchMock } = mount(ManualIdentityPage, async (url) => {
+    if (url.endsWith("/details")) { completed = true; return response({ saved: true }); }
+    return response(url.endsWith("/evidence") ? [] : completed ? owner({ identityDetailsRevision: 1, missingIdentityFields: [] }) : legacyOwner());
+  });
+  const dob = await screen.findByLabelText("Date of birth");
+  expect(screen.queryByLabelText("First name")).toBeNull(); expect(screen.queryByLabelText("Choose Selfie")).toBeNull();
+  fireEvent.change(dob, { target: { value: "2001-04-17" } }); await user.type(screen.getByLabelText("Current password"), " unchanged password ");
+  await user.click(screen.getByRole("button", { name: "Save missing personal details" }));
+  await screen.findByLabelText("Choose Selfie");
+  const calls = fetchMock.mock.calls.filter(([url]) => url.endsWith("/details")); expect(calls).toHaveLength(1);
+  expect(JSON.parse(calls[0][1].body)).toEqual({ expectedIdentityRevision: 0, password: " unchanged password ", changes: { birthDate: "2001-04-17" } });
+  expect(calls[0][1].credentials).toBe("include");
+  expect(screen.queryByLabelText("Current password")).toBeNull(); expect(screen.queryByText("BrightWay has verified your identity.")).toBeNull();
+});
+it("retains the missing DOB after a wrong password and clears only the password", async () => {
+  const { user } = mount(ManualIdentityPage, async (url) => response(url.endsWith("/details") ? "Your current password is incorrect." : url.endsWith("/evidence") ? [] : legacyOwner(), url.endsWith("/details") ? 400 : 200));
+  fireEvent.change(await screen.findByLabelText("Date of birth"), { target: { value: "2001-04-17" } });
+  await user.type(screen.getByLabelText("Current password"), "wrong password"); await user.click(screen.getByRole("button", { name: "Save missing personal details" }));
+  await screen.findByRole("alert"); expect(screen.getByLabelText("Date of birth").value).toBe("2001-04-17"); expect(screen.getByLabelText("Current password").value).toBe("");
+  expect(screen.queryByLabelText("Choose Selfie")).toBeNull();
+});
+it("blocks duplicate missing-details writes and disables status reload while password confirmation is pending", async () => {
+  let release; const pending = new Promise((resolve) => { release = resolve; });
+  const { user, fetchMock } = mount(ManualIdentityPage, async (url) => url.endsWith("/details") ? pending : response(url.endsWith("/evidence") ? [] : legacyOwner()));
+  fireEvent.change(await screen.findByLabelText("Date of birth"), { target: { value: "2001-04-17" } }); await user.type(screen.getByLabelText("Current password"), "password");
+  const form = screen.getByLabelText("Current password").closest("form"); fireEvent.submit(form); fireEvent.submit(form);
+  await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/details"))).toHaveLength(1));
+  expect(screen.getByRole("button", { name: "Reload review status" }).disabled).toBe(true);
+  release(response("Your current password is incorrect.", 400)); await screen.findByRole("alert");
+});
+it("requires a reload after a stale missing-details revision and does not retry automatically", async () => {
+  const { user, fetchMock } = mount(ManualIdentityPage, async (url) => response(url.endsWith("/details") ? "Details changed. Reload." : url.endsWith("/evidence") ? [] : legacyOwner(), url.endsWith("/details") ? 409 : 200));
+  fireEvent.change(await screen.findByLabelText("Date of birth"), { target: { value: "2001-04-17" } }); await user.type(screen.getByLabelText("Current password"), "password");
+  await user.click(screen.getByRole("button", { name: "Save missing personal details" })); await screen.findByRole("alert");
+  expect(screen.getByRole("button", { name: "Save missing personal details" }).disabled).toBe(true);
+  expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/details"))).toHaveLength(1);
+});
+it("does not offer another details write after a confirmed save whose status refresh failed", async () => {
+  let completed = false;
+  const { user, fetchMock } = mount(ManualIdentityPage, async (url) => {
+    if (url.endsWith("/details")) { completed = true; return response({ saved: true }); }
+    if (completed && !url.endsWith("/evidence")) return response("Status refresh unavailable.", 503);
+    return response(url.endsWith("/evidence") ? [] : legacyOwner());
+  });
+  fireEvent.change(await screen.findByLabelText("Date of birth"), { target: { value: "2001-04-17" } }); await user.type(screen.getByLabelText("Current password"), "password");
+  await user.click(screen.getByRole("button", { name: "Save missing personal details" })); await screen.findByRole("alert");
+  expect(screen.getByText("Personal details saved. Reload review status if the upload form has not appeared.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Save missing personal details" })).toBeNull();
+  expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/details"))).toHaveLength(1);
+});

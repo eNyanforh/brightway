@@ -194,6 +194,10 @@ test("HTTP owner/reviewer routes require actual session, trusted Origin and MFA;
   const base = `http://127.0.0.1:${server.address().port}/api/v1`, headers = { "Content-Type": "application/json", Cookie: "brightway_session=owner", Origin: "http://localhost:5173" };
   try {
     assert.equal((await fetch(`${base}/manual-identity`)).status, 401);
+    assert.equal((await fetch(`${base}/manual-identity/status`)).status, 401);
+    const statusResponse = await fetch(`${base}/manual-identity/status`, { headers });
+    assert.equal(statusResponse.status, 200); assert.equal(statusResponse.headers.get("cache-control"), "no-store");
+    assert.deepEqual((await statusResponse.json()).data, { accountId: f.ownerId, profileVersion: 1, status: "NOT_STARTED", identityVerified: false, identityDetailsComplete: true, canSubmit: true });
     const data = f.submission();
     assert.equal((await fetch(`${base}/manual-identity/submit`, { method: "POST", headers: { ...headers, Origin: "https://foreign.invalid" }, body: JSON.stringify(data) })).status, 403);
     assert.equal((await fetch(`${base}/manual-identity/submit`, { method: "POST", headers, body: JSON.stringify({ ...data, identityVerified: true }) })).status, 400);
@@ -225,4 +229,66 @@ test("MFA expiry during the decision transaction prevents the decision and audit
   await assert.rejects(f.decide(), { status: 403 });
   assert.equal(f.state.manualIdentityRequest[0].state, "IN_REVIEW");
   assert.equal(f.state.manualIdentityAudit.filter((r) => r.action === "DECIDED").length, 0);
+});
+
+test("lightweight identity status binds the owner/profile version and never reads private evidence or attempt history", async () => {
+  const f = manualReviewFixture();
+  assert.deepEqual(await f.service.status(f.ownerId), { accountId: f.ownerId, profileVersion: 1, status: "NOT_STARTED", identityVerified: false, identityDetailsComplete: true, canSubmit: true });
+  await f.service.submit(f.ownerId, f.submission()); await f.assign(); await f.decide();
+  f.db.manualIdentityEvidence.findMany = async () => { throw Error("Private evidence must not be loaded by the status endpoint"); };
+  f.db.manualIdentityAttempt.findMany = async () => { throw Error("History must not be loaded by the status endpoint"); };
+  assert.deepEqual(await f.service.status(f.ownerId), { accountId: f.ownerId, profileVersion: 1, status: "APPROVED", identityVerified: true, identityDetailsComplete: true, canSubmit: false });
+});
+test("only an effective approval grants the profile badge; submitted, pending, declined and corrections remain unverified", async () => {
+  const f = manualReviewFixture(); await f.service.submit(f.ownerId, f.submission());
+  assert.deepEqual((await f.service.status(f.ownerId)), { accountId: f.ownerId, profileVersion: 1, status: "SUBMITTED", identityVerified: false, identityDetailsComplete: true, canSubmit: false });
+  await f.assign(); assert.equal((await f.service.status(f.ownerId)).identityVerified, false);
+  await f.decide("ACTION_REQUIRED"); assert.equal((await f.service.status(f.ownerId)).identityVerified, false);
+  assert.equal((await f.service.status(f.ownerId)).canSubmit, true);
+  await f.service.submit(f.ownerId, f.submission()); await f.assign(); await f.decide("DECLINED");
+  assert.equal((await f.service.status(f.ownerId)).identityVerified, false);
+});
+test("status removes trust after protected-field or bound credential changes even if raw saved request state is APPROVED", async () => {
+  for (const field of ["name", "education", "experience", "photo", "country"]) {
+    const f = manualReviewFixture(); await f.service.submit(f.ownerId, f.submission()); await f.assign(); await f.decide();
+    if (field === "name") { f.state.account[0].person.identityRevision++; }
+    else if (field === "photo") { f.state.profile[0].photo.id = randomUUID(); f.state.profile[0].identityRevision++; }
+    else if (field === "country") { f.state.profile[0].countryCode = "CA"; f.state.profile[0].identityRevision++; }
+    else f.state.profile[0][`${field}Records`][0].revision++;
+    const result = await f.service.status(f.ownerId); assert.equal(result.status, "INVALIDATED"); assert.equal(result.identityVerified, false);
+    assert.equal(f.state.manualIdentityRequest[0].state, "APPROVED");
+  }
+});
+test("unrelated saved edits update the status profile version without erasing valid approval; purging evidence does not manufacture revocation", async () => {
+  const f = manualReviewFixture(); await f.service.submit(f.ownerId, f.submission()); await f.assign(); await f.decide();
+  f.state.profile[0].version++; f.state.profile[0].headline = "Updated headline";
+  assert.equal((await f.service.status(f.ownerId)).profileVersion, 2); assert.equal((await f.service.status(f.ownerId)).identityVerified, true);
+  f.advance(31 * DAY); await f.service.cleanup();
+  assert.equal((await f.service.status(f.ownerId)).identityVerified, true);
+  f.state.account[0].status = "SUSPENDED";
+  await assert.rejects(f.service.status(f.ownerId), { status: 403 });
+});
+
+test("review retention and object cleanup compose safely through grace periods, storage failure and retry", async () => {
+  const { createManualIdentityEvidenceService } = await import("../src/modules/manual-identity/manual-identity-evidence.service.js");
+  const f = manualReviewFixture(), data = f.submission(), objects = new Map(f.state.manualIdentityEvidence.map((a) => [a.storageKey, Buffer.from("synthetic private image")]));
+  let unavailable = false;
+  f.storage.delete = async (key) => { if (unavailable) throw Error("Synthetic storage outage"); objects.delete(key); };
+  const files = createManualIdentityEvidenceService({ prisma: f.db, storage: f.storage, now: f.now });
+  await f.service.submit(f.ownerId, data); await f.assign(); await f.decide();
+  f.advance(31 * DAY);
+  assert.deepEqual(await files.cleanup(), { deleted: 0, failed: 0 }); assert.equal(objects.size, 2);
+  await assert.rejects(f.service.download(f.ownerId, undefined, f.state.manualIdentityEvidence[0].id), { status: 404 });
+  assert.deepEqual(await f.service.cleanup(), { purged: 1 }); assert.equal(f.state.manualIdentityAttempt[0].snapshot, null);
+  assert.deepEqual(await files.cleanup(), { deleted: 0, failed: 0 }); assert.equal(objects.size, 2);
+  f.advance(11 * 60000); unavailable = true;
+  assert.deepEqual(await files.cleanup(), { deleted: 0, failed: 2 }); assert.equal(objects.size, 2);
+  assert(f.state.manualIdentityEvidence.every((a) => a.state === "DELETE_PENDING"));
+  f.advance(11 * 60000); unavailable = false;
+  assert.deepEqual(await files.cleanup(), { deleted: 2, failed: 0 }); assert.equal(objects.size, 0);
+  assert(f.state.manualIdentityEvidence.every((a) => a.state === "DELETED"));
+  assert.deepEqual(await files.cleanup(), { deleted: 0, failed: 0 }); assert.deepEqual(await f.service.cleanup(), { purged: 0 });
+  assert.equal((await f.service.status(f.ownerId)).identityVerified, true);
+  assert.equal(f.state.manualIdentityAudit.filter((a) => a.action === "DECIDED").length, 1);
+  assert.equal(f.state.manualIdentityAudit.filter((a) => a.action === "EVIDENCE_RETENTION_ENDED").length, 1);
 });

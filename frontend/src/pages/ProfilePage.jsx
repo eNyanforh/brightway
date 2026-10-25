@@ -1,3 +1,7 @@
+import { useIdentityStatus } from "../auth/useIdentityStatus";
+import VerifiedIdentityBadge from "../components/profile/VerifiedIdentityBadge";
+import { hasVerifiedIdentity } from "./manual-identity-format";
+import IdentityReviewerLink from "../components/profile/IdentityReviewerLink";
 import { useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -88,6 +92,8 @@ export default function ProfilePage() {
 
   const profile = draft?.profile;
   const busy = draft?.busy || profileLoading;
+  const { identityStatus, identityError, refreshIdentityStatus } = useIdentityStatus(profile?.version);
+  const identityVerified = hasVerifiedIdentity(identityStatus);
 
   const name = [
     account.person.firstName,
@@ -428,7 +434,8 @@ export default function ProfilePage() {
   return (
     <div className="bw-profile-page">
       <Link to="/security">Account security</Link>{" "}
-      <Link to="/credentials">My credential reviews</Link>
+      <Link to="/credentials">My credential reviews</Link>{" "}
+      <IdentityReviewerLink />{" "}
 
       {account.platformRole === "CREDENTIAL_REVIEWER" && (
         <Link to="/admin/credentials">
@@ -534,7 +541,7 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-              <h1>{name}</h1>
+              <h1 className="bw-profile-verified-name"><span>{name}</span>{identityVerified && <VerifiedIdentityBadge />}</h1>
 
               <p className="bw-profile-handle">
                 @{account.username}
@@ -649,6 +656,10 @@ export default function ProfilePage() {
 
         <aside className="bw-profile-side">
           <ProfileCompletion
+            identityStatus={identityStatus}
+            identityError={identityError}
+            onIdentityRefresh={refreshIdentityStatus}
+            onIdentityReload={reload}
             profile={profile}
             busy={busy}
             dirty={dirty}
