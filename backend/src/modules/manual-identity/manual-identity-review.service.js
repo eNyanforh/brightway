@@ -89,9 +89,9 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
     return { submissionConfigured,
       canSubmit: submissionConfigured && ctx.eligibility.requirementsMet && ctx.identityDetailsComplete && !["SUBMITTED", "IN_REVIEW", "APPROVED"].includes(status) };
   }
-  async function audit(db, request, actorId, action, attempt, fromState, toState, note = null) {
+  async function audit(db, request, actorId, action, attempt, fromState, toState) {
     await db.manualIdentityAudit.create({ data: { requestId: request.id, targetAccountId: request.accountId, actorId,
-      action, attemptId: attempt?.id ?? null, fromState, toState, note } });
+      action, attemptId: attempt?.id ?? null, fromState, toState } });
   }
   async function projection(db, request, ctx, privileged = false, actorId = null) {
     const latest = await current(db, request);
@@ -103,7 +103,7 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
     for (const attempt of history) {
       const retained = !attempt.purgedAt && attempt.purgeAt > now();
       attempts.push({ id: attempt.id, revision: attempt.revision, state: attempt.state,
-        submittedAt: attempt.submittedAt, targetAt: attempt.targetAt, calendarVersion: attempt.calendarVersion, decidedAt: attempt.decidedAt, note: attempt.note,
+        submittedAt: attempt.submittedAt, targetAt: attempt.targetAt, calendarVersion: attempt.calendarVersion, decidedAt: attempt.decidedAt, note: allowed && retained ? attempt.note : null,
         expiresAt: attempt.expiresAt, purgeAt: attempt.purgeAt, purgedAt: attempt.purgedAt,
         ...(privileged ? { reviewerId: attempt.reviewerId } : {}),
         snapshot: allowed && retained ? attempt.snapshot : null,
@@ -284,7 +284,7 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
         if (!assign && next === "APPROVED") {
           await tx.account.updateMany({ where: { id: request.accountId, status: "ACTIVE" }, data: { photoReviewRequired: true } });
         }
-        await audit(tx, request, actorId, assign ? "ASSIGNED" : "DECIDED", attempt, attempt.state, next, assign ? null : data.note);
+        await audit(tx, request, actorId, assign ? "ASSIGNED" : "DECIDED", attempt, attempt.state, next);
         // Recheck at the end as well as after locking the actor; no revoked/stale MFA commit.
         await reviewer(tx, actorId, sessionId);
         return { id, status: next };
@@ -298,7 +298,7 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
       return { bytes, kind: asset.kind };
     },
     async cleanup() {
-      const rows = await prisma.manualIdentityAttempt.findMany({ where: { purgedAt: null, purgeAt: { lte: now() } }, orderBy: { purgeAt: "asc" }, take: 50 });
+      const rows = await prisma.manualIdentityAttempt.findMany({ where: { purgeAt: { lte: now() }, OR: [{ purgedAt: null }, { note: { not: null } }] }, orderBy: { purgeAt: "asc" }, take: 50 });
       let purged = 0;
       for (const row of rows) {
         await transaction(async (tx) => {
@@ -308,10 +308,17 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
           const locked = await tx.manualIdentityRequest.updateMany({ where: { id: request.id, version: request.version }, data: { version: request.version } });
           if (locked.count !== 1) return;
           const attempt = await tx.manualIdentityAttempt.findUnique({ where: { id: row.id } });
-          if (!attempt || attempt.purgedAt || attempt.purgeAt > now()) return;
+          if (!attempt || attempt.purgeAt > now()) return;
+          // Repair feedback left by earlier cleanup versions without duplicating purge events.
+          if (attempt.purgedAt) {
+            await tx.manualIdentityAttempt.updateMany({ where: { id: row.id, purgeAt: { lte: now() } }, data: { note: null } });
+            await tx.manualIdentityAudit.updateMany({ where: { attemptId: row.id }, data: { note: null } });
+            return;
+          }
           const expired = active.has(attempt.state), next = expired ? "EXPIRED" : attempt.state;
           await tx.manualIdentityEvidence.updateMany({ where: { attemptId: row.id, state: "ATTACHED" }, data: { state: "DELETE_PENDING" } });
-          await tx.manualIdentityAttempt.updateMany({ where: { id: row.id, purgedAt: null }, data: { snapshot: Prisma.DbNull, purgedAt: now(), state: next, ...(expired ? { decidedAt: now() } : {}) } });
+          await tx.manualIdentityAttempt.updateMany({ where: { id: row.id, purgedAt: null }, data: { snapshot: Prisma.DbNull, note: null, purgedAt: now(), state: next, ...(expired ? { decidedAt: now() } : {}) } });
+          await tx.manualIdentityAudit.updateMany({ where: { attemptId: row.id }, data: { note: null } });
           if (expired && request.currentAttemptId === row.id) await tx.manualIdentityRequest.updateMany({ where: { id: request.id, version: request.version }, data: { state: "EXPIRED", version: { increment: 1 } } });
           await audit(tx, request, "SERVER_CLEANUP", "EVIDENCE_RETENTION_ENDED", attempt, attempt.state, next);
           purged++;

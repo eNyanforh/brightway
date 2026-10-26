@@ -83,12 +83,14 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(await db.manualIdentityAttempt.count({ where: { requestId } }), 2);
     await db.manualIdentityReviewer.update({ where: { accountId: reviewer.id }, data: { enabled: false } });
     await assert.rejects(reviews.detail(reviewer.id, session.id, requestId), { status: 403 });
+    await db.manualIdentityAudit.updateMany({ where: { requestId, action: "DECIDED" }, data: { note: "Legacy private decision feedback" } });
     date = new Date(+date + 31 * 86400000);
     await reviews.cleanup();
     assert.equal((await reviews.owner(owner.id)).status, "EXPIRED");
     assert.equal(await db.manualIdentityEvidence.count({ where: { accountId: owner.id, state: "ATTACHED" } }), 0);
     const attempts = await db.manualIdentityAttempt.findMany({ where: { requestId } });
-    assert(attempts.every((row) => row.snapshot === null && row.purgedAt));
+    assert(attempts.every((row) => row.snapshot === null && row.note === null && row.purgedAt));
+    assert.equal(await db.manualIdentityAudit.count({ where: { requestId, note: { not: null } } }), 0);
     assert.equal(await db.manualIdentityAudit.count({ where: { requestId, action: "DECIDED" } }), 1);
     // Prisma's @updatedAt uses wall-clock time. Align only these synthetic rows
     // with the injected test clock before exercising the deletion grace period.

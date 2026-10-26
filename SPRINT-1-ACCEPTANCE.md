@@ -1,45 +1,50 @@
 # Sprint 1 acceptance record — 26 October 2026
 
-This is an evidence record, not a production-readiness certificate. G1 is due 1 November 2026. The full 14-sprint production target remains 26 January 2027. Deployment is paused; private staging follows Sprint 1 acceptance. Persona is paused; manual BrightWay identity review remains the active path, with government-issued ID and selfie, all three prerequisites, five working days and 30-day decision-evidence retention.
+G1 is due **1 November 2026**. The full 14-sprint production target remains **26 January 2027**. This record separates implementation, automated checks and user-reported acceptance; it does not approve deployment. Deployment remains paused until Sprint 1 acceptance. Persona is paused; manual BrightWay identity review is the active path.
 
-## Subsequent GitHub implementation checkpoint
+## Confirmed evidence
 
-The scope below headed **Exact evidence scope** records the earlier pre-publication snapshot. It is superseded where explicitly updated here. GitHub commit `cf3baed5b75680f036c3192dee7636b275c41117` published the photo-review update; run https://github.com/eNyanforh/brightway/actions/runs/40317887766 passed both supported Node versions, including all 15 database cases without skips, clean PostgreSQL migrations and replay. Dependency patch `cda7fd0efc0ea1fb15a3cc6f5e50f55dc3f55b4a` and its security audit also passed: https://github.com/eNyanforh/brightway/actions/runs/40364720737 . No application database migration or deployment followed from those CI runs.
+- Source checkpoint: `main` at `db5161a19887d764cd4cb885a271950fbfcba1db`. This document accompanies a subsequent privacy fix, whose own CI must be checked separately.
+- Name-correction CI: https://github.com/eNyanforh/brightway/actions/runs/40368076805 . Both Node 22.23.3 and 24.22.1 jobs passed. The Node 24 logs showed 241 backend cases passed, 16 database cases intentionally skipped in the ordinary suite, and all 16 cases passed without skips in the dedicated PostgreSQL 16 suite. Clean migrations and migration replay passed. Frontend, lint, build and security-audit steps passed. The prepared local source passed 165 frontend cases across 16 files.
+- Earlier photo-review CI: https://github.com/eNyanforh/brightway/actions/runs/40317887766 . Both Node jobs passed, including the then-existing 15 database cases.
+- Dependency-security checkpoint: https://github.com/eNyanforh/brightway/actions/runs/40364720737 . Both Node jobs passed; the patched dependency audit found zero known vulnerabilities at that check. This does not establish absence of all security defects.
+- **Owner-reported acceptance on 26 October:** Emmanuel explicitly confirmed **all three** requested checks passed in his environment: the database tests, profile-photo review, and name-correction review. The exact terminal output, per-step HTTP results and local SHA were not supplied with that confirmation. Do not convert this report into independent tool execution or a pass for every negative/security case below.
+- Earlier owner-reported evidence: real email recovery/MFA/backup-code journeys; identity approval, hidden Verify action and blue badge; separate applicant/reviewer accounts; private identity upload/download/anonymous denial; synthetic R2 write/exact read/deletion; cleanup of two objects with no retry backlog. These carry forward without restarting working features.
 
-The authorized name-correction workflow is now implemented; see `NAME-CORRECTIONS.md` for the new migration, private owner/reviewer flow, exact trust binding, retention and acceptance instructions. Local checks passed 241 backend cases and 165 frontend cases, lint/build/schema validation; the 16 database cases were skipped locally. Its own new CI run and real owner/reviewer/R2 acceptance remain required. Earlier rows calling the workflow unimplemented are historical, not the current code state.
+The GitHub PostgreSQL integration cases use disposable data and synthetic/Map storage, not the owner's Neon database or real R2. Local service tests also use fixtures. No application database was migrated or deployed by the assistant.
 
-## Exact evidence scope
+## Active rules
 
-- GitHub default branch `main`: `634b931a8b525f561caddb591a4a4180da71f051`, committed 25 October 2026 at 18:52:18 UTC, rechecked 26 October. The photo-review changes and CI workflow in this package are not included in that commit. No GitHub writes or deployments were performed here.
-- Prepared working copy: 228 backend tests passed, zero failed, 15 database cases skipped; 157 frontend tests passed across 15 files. Frontend lint, combined build, Prisma 7.10 schema validation/client generation, database-test JavaScript syntax and lockfile dry-run checks passed. Node 24.22.1 was used here. Node 22 execution is configured in CI, not claimed as executed here.
-- Chromium with simulated APIs and generated synthetic images: pending portrait retention, approval refresh, decline preserving the current portrait, reviewer revocation clearing private images, desktop/mobile overflow and no page runtime exceptions passed. This does not establish real HTTP authorization, PostgreSQL or R2 acceptance.
-- The CI workflow parses as YAML and has read-only repository permissions. It has not been pushed or executed on GitHub. It provides disposable PostgreSQL 16 service databases for both Node versions, fresh migration deployment, integration tests, migration replay and logs tied to the tested commit. No application database or cloud credentials are used by it.
-- No application/test database URL or R2 credentials are configured in this workspace. No real database migrations, PostgreSQL integration run, live R2 run or real-account browser acceptance were performed during this implementation.
-- Earlier user evidence carries forward separately: 14 database integration cases passed before the new photo case; identity bucket synthetic write/exact read/deletion passed; cleanup deleted two objects with no retry backlog; identity approval/badge behavior was reported working. These are not evidence for the new migration or photo flow.
+- Before identity submission/upload: a complete profile, at least one verified education record and at least one verified experience record; saved name and date of birth must also be present.
+- Government-issued ID and selfie use the separate private identity bucket. Review target: five working days, with the configured holiday calendar. A missed target never auto-approves.
+- Decision evidence/private review payloads: 30 days after decision; pending identity/name requests have a 30-calendar-day cap. Document purge alone must not revoke an otherwise valid identity.
+- Identity, education and experience trust remain separate. Exact protected revisions prevent change-and-revert from restoring trust. Approved photo/name changes preserve trust only through their exact approved attestations.
+- Individuals may choose MFA; privileged reviewer actions require live server-verified MFA and current permission. No self-review. Credential-only permission does not grant identity review.
 
-## Implemented protection and remaining acceptance
+## Remaining acceptance and next gate
 
-| Area | Implementation/check evidence | Remaining acceptance |
+| Area | Existing evidence | Still to record |
 | --- | --- | --- |
-| Identity eligibility and decisions | Server checks complete profile plus verified education/experience, exact revisions, assignment, owner isolation and live reviewer MFA. Service/HTTP tests cover these. | Record actual correction/resubmission, decline and reviewer revocation on separate test accounts. |
-| Verified photo replacement | Pending image remains private; current portrait retained; approval/decline/cancel are versioned and audited. A valid identity can follow an approved photo through an exact-bound attestation without editing its original ID/selfie snapshot. | Apply migration 19 to isolated DB, pass the new integration case, then application migration and real owner/reviewer/R2 journey. |
-| Concurrent first identity approval/upload | Account review gate is read after locking. New fixture regression passes. Real SQL case pauses the uploader before locking, commits identity approval, then verifies the pending-review path. | Execute that SQL case in the guarded database suite or CI. |
-| Atomic photo decision | Service tests cover rollback on audit/MFA failure. Real SQL test now also injects an audit failure after photo changes and asserts portrait/version/revision/review/audit rollback. | Execute PostgreSQL case; confirm no failures or skips in database command. |
-| Verified names | Profile patch schema does not accept name/DOB fields. Legacy details route only fills missing fields after password/session checks and cannot replace existing names/DOB. Tests cover rejecting attempts to replace saved details. | The authorized name-correction request, decision and audit workflow is not implemented yet. Do not treat instructions to contact support as a completed workflow or edit Person rows directly as a substitute. |
-| Recovery/MFA | Existing recovery, MFA and privileged-action tests passed within the backend/frontend regressions. Earlier real-email/backup-code results carry forward. | Record current-commit registered/unregistered reset checks, old-password/session revocation and MFA after reset. Reset must not disable/bypass the factor. |
-| Privacy/retention | Existing owner/reviewer isolation, snapshot purge, deletion retry and trust-retention service tests pass. Prior real R2 probe and cleanup output carry forward. | Record due attached-snapshot/object cleanup in a controlled test with synthetic evidence; real storage failures/retries remain distinct from Map-storage fixtures. |
-| Operations | CI prepared. Windows local scheduler remains intentionally deferred. | Hosted durable cleanup, failure/overdue alerts and release/restore operations remain production deployment requirements. |
+| Database/photo/name journeys | CI and explicit owner report of all three passing | Preserve current local SHA and migration status with subsequent results. Do not reimplement these features. |
+| Revoked reviewer and stale MFA | Backend/HTTP tests and SQL cases cover rejection; UI tests cover clearing private data | Separate real sessions: after revocation, evidence and decisions are denied, including a workspace already open. Restore the test reviewer's permission afterward. |
+| Stale and duplicate submissions/decisions | Service and PostgreSQL race/rollback coverage | Two open tabs: one decision succeeds; stale retry conflicts without a second audit or overwrite. |
+| Private documents and feedback | Owner/assigned-reviewer service guards, no-store responses and reauthorization after slow reads | Anonymous, unrelated owner and unassigned reviewer cannot retrieve private images or feedback. Never include real ID images, cookies or passwords in acceptance notes. |
+| Retention and deletion retry | Existing grace-period/retry tests; new feedback privacy regressions described below | Dedicated synthetic test evidence for due attached-payload cleanup, object deletion failure/retry and no trust loss. A zero-due cleanup run alone does not prove this case. |
+| Recovery/MFA | Earlier real-email owner report plus automated regressions | Tie the carried-forward results to the accepted revision, or rerun if affected code changes. Unregistered addresses get no code; password reset does not bypass MFA. |
+| Operations | CI is operational; Windows task was intentionally deferred | Hosted durable cleanup, failure/overdue monitoring, restore and release operations remain production requirements. Configure them when hosting is selected; do not reinstall a Windows task as a deployment prerequisite. |
 
-## Browser checklist for the new update
+Use consenting test accounts. Record date, SHA, actor labels, expected/observed result, pass/fail and defect reference for each remaining case. Do not edit application trust flags or move the application clock to manufacture acceptance. Controlled retention tests belong in the isolated database with synthetic files.
 
-Use separate consenting test accounts and browser sessions. No real government documents are needed for repeated destructive acceptance tests. Do not manufacture approval by editing trust fields in SQL.
+## Privacy fix accompanying this record
 
-1. A verified owner submits a replacement. Header/profile retain the approved portrait and valid badge. The pending preview is separate and private.
-2. An authorized reviewer with MFA opens `/admin/profile-photos`. Images are unavailable before assignment. Another ordinary account, credential-only reviewer or password-only session cannot use this workspace.
-3. Reviewer approves with a reason. Owner chooses **Refresh photo review**: both portraits change, the original identity evidence snapshot is unchanged, and unrelated drafts survive.
-4. A second request is declined. Owner sees the reason, while current portrait and valid identity remain. Cancel another pending request and verify the same preservation.
-5. Revoke reviewer permission or MFA and confirm protected images and decisions are denied. Self-review and stale/double decisions must be rejected.
-6. Test private image URLs as anonymous and another account. Confirm candidates are never published by changing frontend flags or directly calling upload.
-7. In a controlled test, change a bound verified credential revision or protected identity field. Approval/badge must invalidate; reverting values cannot restore it. Photo approval cannot repair that invalidation.
+The original manual-identity projection exposed reviewer feedback without the same assignment/retention guards used for its snapshot. Cleanup removed the snapshot but left both attempt feedback and its duplicate audit text. The fix:
 
-For each row, record the exact commit, database migration status, date, test-account identifiers without passwords, observed HTTP/status/UI result, pass/fail and any defect reference. Empty or unreported rows remain pending. A failed critical journey blocks G1; update the forecast rather than declaring the gate complete.
+1. Returns feedback only to the owner or currently assigned reviewer and only before the exact retention deadline.
+2. Keeps new free-text feedback on the retention-controlled attempt, not duplicated in the permanent action audit.
+3. Clears due feedback and legacy audit copies in the same transaction as snapshot purge and evidence deletion queuing.
+4. Repairs feedback left on already-purged attempts by earlier cleanup versions without duplicating purge audit events.
+5. Preserves actor/action/time/state records and exact verification hashes; failures roll back and remain retriable.
+
+No schema migration, new bucket or API key is required for this fix. Its tests include exact-deadline withholding before cleanup, assignment privacy, legacy repair, audit-failure rollback and unchanged valid identity. The existing PostgreSQL case now also asserts feedback removal and preservation of decision audit records. Check this commit's CI before calling its SQL assertions passed.
+
+See `SPRINT-1-SECURITY-CHECKS.md` for the next manual checks. G1 remains open; do not start deployment or declare full production readiness from passing code checks alone.

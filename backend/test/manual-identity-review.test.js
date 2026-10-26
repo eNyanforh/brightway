@@ -170,11 +170,21 @@ test("role/MFA revocation during a slow evidence download prevents disclosure an
 
 test("retention purges private snapshots and queues attached images for deletion without losing decision audit", async () => {
   const f = manualReviewFixture(); await f.service.submit(f.ownerId, f.submission()); await f.assign(); await f.decide();
-  f.advance(31 * DAY);
+  const decision = f.state.manualIdentityAudit.find(r => r.action === "DECIDED");
+  assert.equal(decision.note ?? null, null, "Free-text feedback must not be duplicated into the permanent audit.");
+  decision.note = "Legacy sensitive feedback";
+  const auditIdentity = { id: decision.id, actorId: decision.actorId, action: decision.action, toState: decision.toState };
+  assert((await f.service.owner(f.ownerId)).attempts[0].note);
+  f.advance(30 * DAY);
+  assert.equal((await f.service.owner(f.ownerId)).attempts[0].note, null, "Retention ends at the exact deadline, before cleanup runs.");
   await assert.rejects(f.service.download(f.ownerId, undefined, f.state.manualIdentityEvidence[0].id), { status: 404 });
   assert.equal((await f.service.owner(f.ownerId)).attempts[0].snapshot, null);
   assert.deepEqual(await f.service.cleanup(), { purged: 1 });
   assert.equal(f.state.manualIdentityAttempt[0].snapshot, null);
+  assert.equal(f.state.manualIdentityAttempt[0].note, null);
+  const keptAudit = f.state.manualIdentityAudit.find(r => r.id === decision.id);
+  assert.equal(keptAudit.note, null);
+  assert.deepEqual({ id: keptAudit.id, actorId: keptAudit.actorId, action: keptAudit.action, toState: keptAudit.toState }, auditIdentity);
   assert(f.state.manualIdentityEvidence.every((r) => r.state === "DELETE_PENDING"));
   assert.equal((await f.service.owner(f.ownerId)).identityVerified, true);
   assert(f.state.manualIdentityAudit.some((r) => r.action === "DECIDED"));
@@ -291,4 +301,36 @@ test("review retention and object cleanup compose safely through grace periods, 
   assert.equal((await f.service.status(f.ownerId)).identityVerified, true);
   assert.equal(f.state.manualIdentityAudit.filter((a) => a.action === "DECIDED").length, 1);
   assert.equal(f.state.manualIdentityAudit.filter((a) => a.action === "EVIDENCE_RETENTION_ENDED").length, 1);
+});
+
+
+test("unassigned reviewers cannot read feedback, and cleanup repairs previously purged feedback idempotently", async () => {
+  const f = manualReviewFixture(); await f.service.submit(f.ownerId, f.submission()); await f.assign(); await f.decide();
+  const request = f.state.manualIdentityRequest[0];
+  f.state.manualIdentityAttempt[0].reviewerId = f.otherId;
+  assert.equal((await f.service.detail(f.reviewerId, f.sessionId, request.id)).attempts[0].note, null);
+  assert((await f.service.owner(f.ownerId)).attempts[0].note);
+  f.advance(31 * DAY); await f.service.cleanup();
+  const attempt = f.state.manualIdentityAttempt[0], audit = f.state.manualIdentityAudit.find(r => r.action === "DECIDED");
+  attempt.note = "Previously retained feedback"; audit.note = "Legacy duplicate feedback";
+  const count = f.state.manualIdentityAudit.length;
+  assert.deepEqual(await f.service.cleanup(), { purged: 0 });
+  assert.equal(attempt.note, null); assert.equal(audit.note, null);
+  assert.equal(f.state.manualIdentityAudit.length, count);
+  assert.deepEqual(await f.service.cleanup(), { purged: 0 });
+  assert.equal((await f.service.owner(f.ownerId)).identityVerified, true);
+});
+
+test("failed retention audit rolls feedback and evidence cleanup back together for a safe retry", async () => {
+  const f = manualReviewFixture(); await f.service.submit(f.ownerId, f.submission()); await f.assign(); await f.decide();
+  f.state.manualIdentityAudit.find(r => r.action === "DECIDED").note = "Legacy private feedback";
+  f.advance(30 * DAY); f.failAudit();
+  await assert.rejects(f.service.cleanup(), /Audit storage failed/);
+  assert(f.state.manualIdentityAttempt[0].note); assert(f.state.manualIdentityAttempt[0].snapshot);
+  assert.equal(f.state.manualIdentityAttempt[0].purgedAt, null);
+  assert(f.state.manualIdentityEvidence.every(r => r.state === "ATTACHED"));
+  assert(f.state.manualIdentityAudit.find(r => r.action === "DECIDED").note);
+  assert.equal((await f.service.owner(f.ownerId)).attempts[0].note, null);
+  f.failAudit(false); assert.deepEqual(await f.service.cleanup(), { purged: 1 });
+  assert.equal((await f.service.owner(f.ownerId)).identityVerified, true);
 });
