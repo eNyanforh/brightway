@@ -68,7 +68,7 @@ jobs:
         run: |
           # --insecure is ONLY for this ephemeral CI certificate, never an operator deployment recommendation.
           curl --retry 5 --retry-connrefused --retry-delay 1 --insecure --fail --show-error --silent https://127.0.0.1:8443/api/v1/health | python3 -c 'import json,sys; assert json.load(sys.stdin)["success"] is True'
-          curl --retry 5 --retry-connrefused --retry-delay 1 --insecure --fail --show-error --silent https://127.0.0.1:8443/manual-identity/name-change | rg '<div id="root">'
+          curl --retry 5 --retry-connrefused --retry-delay 1 --insecure --fail --show-error --silent https://127.0.0.1:8443/manual-identity/name-change | python3 -c 'import sys; assert "<div id=\"root\">" in sys.stdin.read()'
           docker compose -f deploy/staging/compose.yaml exec -T api node -e "const fs=require('fs'); if(fs.existsSync('/app/backend/.env')||fs.existsSync('/app/deploy/staging/.env.staging'))process.exit(1)"
           # No cleanup service, migration, email, upload or authenticated DB journey is run here.
       - name: Container diagnostics on failure
