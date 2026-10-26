@@ -1,6 +1,19 @@
 # Remaining Sprint 1 security checks
 
-The database, photo-review and name-correction journeys have been reported passing. The checks below complete the remaining acceptance evidence without rebuilding those features. Use consenting test accounts and synthetic document images.
+The database, photo-review and name-correction journeys, reviewer revocation/restoration, stale-decision rejection and private-document access have now been reported passing. Emmanuel also reported 48 targeted regression cases passed. Sections 1–3 below are retained as reproducible instructions, not a request to repeat confirmed checks. Use consenting test accounts and synthetic document images.
+
+## Next: original identity corrections and resubmission
+
+This is separate from changing a verified account’s saved name. Use a dedicated eligible **unverified** test applicant, with a complete profile and verified education/experience, plus a separate authorized identity reviewer with MFA. If the existing applicant is already verified, use another consenting test account; do not reset trust fields in the database.
+
+1. Applicant opens `/manual-identity`, uploads a synthetic government-ID image and a separate synthetic selfie, and submits. Record the review target shown. Do not use actual identity documents in destructive tests.
+2. Reviewer opens `/admin/manual-identity`, assigns the request, selects **Changes requested**, writes clear non-sensitive feedback and saves.
+3. Applicant reloads review status. Expect **Changes requested**, visible feedback, retained submission history and no verified badge from this request.
+4. Applicant uploads fresh test ID/selfie images and submits again. Expect a new attempt in history; the original attempt remains and the original review target does not restart. Previously attached images cannot be reused as fresh uploads.
+5. Reviewer reloads, assigns the new attempt, checks the fresh evidence and approves with feedback. Applicant reloads. Expect **Approved**, the verified badge and the Verify action hidden; the earlier correction attempt remains in private history.
+
+Record observed statuses and pass/fail for the whole sequence. This browser acceptance is still pending; automated coverage already passes. Do not repeat approval of an already verified account as a substitute.
+
 
 ## 1. Reviewer permission revocation
 

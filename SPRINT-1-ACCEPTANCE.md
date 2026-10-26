@@ -4,11 +4,13 @@ G1 is due **1 November 2026**. The full 14-sprint production target remains **26
 
 ## Confirmed evidence
 
-- Source checkpoint: `main` at `db5161a19887d764cd4cb885a271950fbfcba1db`. This document accompanies a subsequent privacy fix, whose own CI must be checked separately.
+- Reviewed source checkpoint: `main` at `ed376dc98025f9a6d896b8eff54b9517d843a96d`, committed 26 October 2026 at 19:27:58 UTC. This follow-up changes documentation only.
+- Privacy-fix CI: https://github.com/eNyanforh/brightway/actions/runs/40386996948 . Rechecked completed/success for that exact SHA. Both Node 22 and Node 24 jobs passed. Its Node 24 logs recorded 243 backend cases passed, 165 frontend cases passed, all 16 PostgreSQL integration cases passed without skips, clean migrations/replay and zero known dependency findings at that check. The ordinary backend run intentionally skips the 16 database cases; the dedicated job executes them.
 - Name-correction CI: https://github.com/eNyanforh/brightway/actions/runs/40368076805 . Both Node 22.23.3 and 24.22.1 jobs passed. The Node 24 logs showed 241 backend cases passed, 16 database cases intentionally skipped in the ordinary suite, and all 16 cases passed without skips in the dedicated PostgreSQL 16 suite. Clean migrations and migration replay passed. Frontend, lint, build and security-audit steps passed. The prepared local source passed 165 frontend cases across 16 files.
 - Earlier photo-review CI: https://github.com/eNyanforh/brightway/actions/runs/40317887766 . Both Node jobs passed, including the then-existing 15 database cases.
 - Dependency-security checkpoint: https://github.com/eNyanforh/brightway/actions/runs/40364720737 . Both Node jobs passed; the patched dependency audit found zero known vulnerabilities at that check. This does not establish absence of all security defects.
 - **Owner-reported acceptance on 26 October:** Emmanuel explicitly confirmed **all three** requested checks passed in his environment: the database tests, profile-photo review, and name-correction review. The exact terminal output, per-step HTTP results and local SHA were not supplied with that confirmation. Do not convert this report into independent tool execution or a pass for every negative/security case below.
+- **Subsequent owner-reported acceptance on 26 October:** reviewer permission revocation/restoration passed; the second stale decision was rejected as expected; private-document access protection passed; the requested targeted privacy/retention regression command returned **48 passed**. These are explicit conversation reports, not independently observed browser/network logs. They do not establish live storage deletion failure/retry or the original identity correction/resubmission journey.
 - Earlier owner-reported evidence: real email recovery/MFA/backup-code journeys; identity approval, hidden Verify action and blue badge; separate applicant/reviewer accounts; private identity upload/download/anonymous denial; synthetic R2 write/exact read/deletion; cleanup of two objects with no retry backlog. These carry forward without restarting working features.
 
 The GitHub PostgreSQL integration cases use disposable data and synthetic/Map storage, not the owner's Neon database or real R2. Local service tests also use fixtures. No application database was migrated or deployed by the assistant.
@@ -26,10 +28,11 @@ The GitHub PostgreSQL integration cases use disposable data and synthetic/Map st
 | Area | Existing evidence | Still to record |
 | --- | --- | --- |
 | Database/photo/name journeys | CI and explicit owner report of all three passing | Preserve current local SHA and migration status with subsequent results. Do not reimplement these features. |
-| Revoked reviewer and stale MFA | Backend/HTTP tests and SQL cases cover rejection; UI tests cover clearing private data | Separate real sessions: after revocation, evidence and decisions are denied, including a workspace already open. Restore the test reviewer's permission afterward. |
-| Stale and duplicate submissions/decisions | Service and PostgreSQL race/rollback coverage | Two open tabs: one decision succeeds; stale retry conflicts without a second audit or overwrite. |
-| Private documents and feedback | Owner/assigned-reviewer service guards, no-store responses and reauthorization after slow reads | Anonymous, unrelated owner and unassigned reviewer cannot retrieve private images or feedback. Never include real ID images, cookies or passwords in acceptance notes. |
-| Retention and deletion retry | Existing grace-period/retry tests; new feedback privacy regressions described below | Dedicated synthetic test evidence for due attached-payload cleanup, object deletion failure/retry and no trust loss. A zero-due cleanup run alone does not prove this case. |
+| Revoked reviewer and stale MFA | Owner reports revocation/restoration passed; backend/HTTP/SQL tests cover live MFA rejection, UI tests private-data clearing | Revocation browser acceptance complete by owner report. No separate report of an MFA-expiry browser case; automated coverage remains distinct. |
+| Stale and duplicate submissions/decisions | Owner reports the two-tab stale-decision check passed; service/PostgreSQL race and replay coverage passed | Manual stale-decision acceptance complete by owner report. No new blanket claim for every duplicate-request scenario. |
+| Private documents and feedback | Owner reports private-document access protection passed; the 48-case regression includes assignment/feedback privacy | Document access browser acceptance complete by owner report. No request-by-request HTTP transcript was supplied. |
+| Retention and deletion retry | Owner reports 48 targeted cases passed; current CI passed SQL feedback purge, grace-period and synthetic-storage deletion coverage | Real-bucket attached-document expiry/deletion cycle remains unrecorded. Earlier real R2 probe and two-object cleanup do not establish this entire case. Storage-failure/retry is tested with injected storage, not claimed as a live R2 outage test. |
+| Original identity correction/resubmission | Service/UI tests cover changes requested, fresh evidence, preserved review target and trust separation | Real browser sequence Changes requested → fresh ID/selfie → resubmit → approve remains unreported. See the next scenario in SPRINT-1-SECURITY-CHECKS.md. |
 | Recovery/MFA | Earlier real-email owner report plus automated regressions | Tie the carried-forward results to the accepted revision, or rerun if affected code changes. Unregistered addresses get no code; password reset does not bypass MFA. |
 | Operations | CI is operational; Windows task was intentionally deferred | Hosted durable cleanup, failure/overdue monitoring, restore and release operations remain production requirements. Configure them when hosting is selected; do not reinstall a Windows task as a deployment prerequisite. |
 
@@ -45,6 +48,14 @@ The original manual-identity projection exposed reviewer feedback without the sa
 4. Repairs feedback left on already-purged attempts by earlier cleanup versions without duplicating purge audit events.
 5. Preserves actor/action/time/state records and exact verification hashes; failures roll back and remain retriable.
 
-No schema migration, new bucket or API key is required for this fix. Its tests include exact-deadline withholding before cleanup, assignment privacy, legacy repair, audit-failure rollback and unchanged valid identity. The existing PostgreSQL case now also asserts feedback removal and preservation of decision audit records. Check this commit's CI before calling its SQL assertions passed.
+No schema migration, new bucket or API key is required for this fix. Its tests include exact-deadline withholding before cleanup, assignment privacy, legacy repair, audit-failure rollback and unchanged valid identity. The existing PostgreSQL case now also asserts feedback removal and preservation of decision audit records. The privacy-fix CI referenced above executed those SQL assertions successfully.
 
 See `SPRINT-1-SECURITY-CHECKS.md` for the next manual checks. G1 remains open; do not start deployment or declare full production readiness from passing code checks alone.
+
+## G1 assessment after this review
+
+**Open; not yet accepted.** Implementation and regression checks passed at the reviewed SHA. The owner has confirmed the main database/photo/name journeys and the three requested security browser checks. Carry these passes forward.
+
+The next browser scenario is the original identity changes-requested/resubmission path, which is distinct from an approved account's name-correction feature. Record it with an eligible unverified test applicant and the separate authorized reviewer; never reset a verified account by editing trust rows. Then close the controlled real-storage retention evidence gap using synthetic documents. No unrecorded failure is asserted; these are evidence gaps.
+
+Hosted cleanup scheduling/alerts, private staging configuration and restore operations remain tracked deployment/production work. They have not been installed or proven by local tests. The deployment pause remains in effect, and the next gate date stays 1 November. If a required case fails, fix it and update the forecast rather than silently accepting the gate or shrinking the agreed release.
