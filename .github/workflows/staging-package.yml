@@ -62,7 +62,7 @@ jobs:
       - name: Validate configuration and start only web/API
         run: |
           docker compose -f deploy/staging/compose.yaml run --rm --no-deps api node backend/scripts/check-staging-env.js
-          docker compose -f deploy/staging/compose.yaml up -d --wait api web
+          docker compose -f deploy/staging/compose.yaml up -d --wait --wait-timeout 90 api web
       - name: Exercise local HTTPS routing without cloud credentials
         shell: bash
         run: |
