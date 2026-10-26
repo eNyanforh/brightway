@@ -1,3 +1,4 @@
+import { photoReviewSelect, photoReviewView } from "../photos/profile-photo.policy.js";
 import { contactSettingsSelect, createContactReader, ownerContactView, personContactSelect } from "./profile-contact.js";
 import { normalizeInterests } from "./profile-interests.js";
 import { normalizeSkills } from "./profile-skills.js";
@@ -6,6 +7,7 @@ import { profileUpdateData } from "./profile.schema.js";
 import { evaluateProfileCompletion } from "./profile.completion.js";
 
 export const ownerProfileSelect = {
+  latestPhotoReview: { select: photoReviewSelect },
   identityRevision: true,
   ...contactSettingsSelect,
   person: { select: personContactSelect },
@@ -24,6 +26,7 @@ export function profileView(row, person = row?.person) {
     id: row?.id ?? null,
     version: row?.version ?? 0,
     photo: row?.photo ?? null,
+    photoReview: photoReviewView(row?.latestPhotoReview ? [row.latestPhotoReview] : [], person?.account?.photoReviewRequired === true),
     education: { mode: row?.educationMode ?? "UNSET", records: (row?.educationRecords ?? []).filter((r) => r.status !== "FALSE_CREDENTIAL") },
     experience: { mode: row?.experienceMode ?? "UNSET", records: (row?.experienceRecords ?? []).filter((r) => r.status !== "FALSE_CREDENTIAL") },
     location: {

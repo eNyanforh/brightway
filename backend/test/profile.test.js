@@ -83,7 +83,7 @@ test("read is side-effect free and returns a virtual empty draft for existing ac
   assert.deepEqual(await service.read("owner"), profileView(null));
   assert.equal(db.rows.size, 0);
   assert.equal(db.calls[0][1].where.personId, "owner");
-  assert.deepEqual(db.calls[0][1].select.person, { select: { phoneNumber: true, account: { select: { email: true, emailVerifiedAt: true } } } });
+  assert.deepEqual(db.calls[0][1].select.person, { select: { phoneNumber: true, account: { select: { email: true, emailVerifiedAt: true, photoReviewRequired: true } } } });
   assert.equal(db.calls[0][1].select.account, undefined);
 });
 

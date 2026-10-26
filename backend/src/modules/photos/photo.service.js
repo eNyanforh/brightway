@@ -1,3 +1,4 @@
+import { createProfilePhotoReviewService } from "./profile-photo-review.service.js";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { processPhoto } from "./photo.image.js";
 
@@ -7,6 +8,7 @@ export const DRAFT_LIFETIME_MS = 30 * 60 * 1000;
 const error = (status, message) => Object.assign(new Error(message), { status });
 
 export function createPhotoService({ prisma, storage, process = processPhoto, now = () => new Date() }) {
+  const replacements = createProfilePhotoReviewService({ prisma, storage, now });
   async function draft(token) {
     if (!validDraftToken(token)) throw error(401, "Start signup again to upload a photo.");
     const row = await prisma.signupDraft.findUnique({ where: { tokenHash: draftHash(token) } });
@@ -78,24 +80,7 @@ export function createPhotoService({ prisma, storage, process = processPhoto, no
     async uploadOwner(personId, expectedVersion, bytes, type) {
       const asset = await upload({ personId }, bytes, type);
       try {
-        await prisma.$transaction(async (tx) => {
-          const claimed = await tx.photoAsset.updateMany({ where: { id: asset.id, state: "READY", personId, expiresAt: { gt: now() } },
-            data: { state: "CLAIMED" } });
-          if (claimed.count !== 1) throw error(409, "Photo upload expired.");
-          const profile = await tx.profile.findUnique({ where: { personId } });
-          if (!profile) {
-            if (expectedVersion !== 0) throw error(409, "Reload your profile before uploading again.");
-            await tx.profile.create({ data: { personId, photoId: asset.id, version: 1 } });
-          } else {
-            const changed = await tx.profile.updateMany({ where: { personId, version: expectedVersion },
-              data: { photoId: asset.id, version: { increment: 1 } } });
-            if (changed.count !== 1) throw error(409, "Reload your profile before uploading again.");
-            if (profile.photoId) {
-              await tx.photoAsset.updateMany({ where: { id: profile.photoId, personId }, data: { state: "DELETE_PENDING" } });
-            }
-          }
-        });
-        return { photoAssetId: asset.id };
+        return await prisma.$transaction((tx) => replacements.applyReplacement(tx, personId, expectedVersion, asset));
       } catch (failure) {
         await prisma.photoAsset.updateMany({ where: { id: asset.id, state: "READY" }, data: { state: "DELETE_PENDING" } }).catch(() => {});
         if (failure.code === "P2002") throw error(409, "Reload your profile before uploading again.");

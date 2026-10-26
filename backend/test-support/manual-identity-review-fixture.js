@@ -5,7 +5,7 @@ import { reviewPolicy, MANUAL_REVIEW_CONSENT } from "../src/modules/manual-ident
 export function manualReviewFixture() {
   let date = new Date("2026-10-23T12:00:00Z"), auditFails = false;
   const ownerId = randomUUID(), reviewerId = randomUUID(), otherId = randomUUID(), personId = randomUUID(), sessionId = randomUUID();
-  const modelNames = ["account", "profile", "session", "mfaFactor", "manualIdentityEvidence", "manualIdentityUploadBudget", "manualIdentityRequest", "manualIdentityAttempt", "manualIdentityAudit", "manualIdentityReviewer"];
+  const modelNames = ["account", "profile", "session", "mfaFactor", "manualIdentityEvidence", "manualIdentityUploadBudget", "manualIdentityRequest", "manualIdentityAttempt", "manualIdentityAudit", "manualIdentityReviewer", "photoAsset", "profilePhotoReview", "profilePhotoReviewAudit"];
   const state = Object.fromEntries(modelNames.map((name) => [name, []]));
   state.account.push({ id: ownerId, identityRevision: 0, personId, status: "ACTIVE", username: "owner", email: "owner@example.invalid", emailVerifiedAt: date,
     person: { id: personId, firstName: "Sample", lastName: "Owner", middleName: null, birthDate: new Date("2000-01-01"), gender: "MALE", identityRevision: 0 } },
@@ -17,6 +17,8 @@ export function manualReviewFixture() {
   state.manualIdentityReviewer.push({ accountId: reviewerId, enabled: true });
   state.mfaFactor.push({ accountId: reviewerId, enabled: true, version: 1 });
   state.session.push({ id: sessionId, accountId: reviewerId, expiresAt: new Date(+date + 7 * 86400000), mfaVerifiedAt: date, mfaVersion: 1 });
+  state.profile[0].photoId = state.profile[0].photo.id;
+  state.photoAsset.push({ id: state.profile[0].photo.id, personId, state: "CLAIMED", storageKey: "old/profile.webp", updatedAt: date });
   const clone = (value) => structuredClone(value);
   function matches(row, where = {}) {
     return Object.entries(where).every(([key, value]) => {
@@ -44,7 +46,14 @@ export function manualReviewFixture() {
   for (const model of modelNames) {
     const project = (row, select) => Array.isArray(row) ? row.map((item) => project(item, select)) : !row ? null : select ? Object.fromEntries(Object.entries(select).map(([key, value]) => [key, typeof value === "object" && value.select ? project(row[key], value.select) : clone(row[key])])) : clone(row);
     db[model] = {
-      async findUnique({ where, select }) { return project(state[model].find((r) => matches(r, where)), select); },
+      async findUnique({ where, select }) {
+        const row = state[model].find((r) => matches(r, where));
+        if (row && model === "profile") {
+          row.latestPhotoReview = state.profilePhotoReview.find((r) => r.id === row.latestPhotoReviewId) ?? null;
+          row.person.account.photoReviewRequired = state.account.find((a) => a.personId === row.personId)?.photoReviewRequired === true;
+        }
+        return project(row, select);
+      },
       async findFirst(args = {}) { return (await this.findMany({ ...args, take: 1 }))[0] ?? null; },
       async findMany({ where, orderBy, take, select, cursor, skip = 0 } = {}) {
         let rows = state[model].filter((r) => matches(r, where));
@@ -55,13 +64,26 @@ export function manualReviewFixture() {
       },
       async count({ where }) { return state[model].filter((r) => matches(r, where)).length; },
       async create({ data }) {
-        if (model === "manualIdentityAudit" && auditFails) throw Error("Audit storage failed");
+        if (["manualIdentityAudit", "profilePhotoReviewAudit"].includes(model) && auditFails) throw Error("Audit storage failed");
         const row = { id: randomUUID(), createdAt: date, updatedAt: date,
           ...(model === "manualIdentityAttempt" ? { reviewerId: null, note: null, decidedAt: null, purgedAt: null } : {}),
+          ...(model === "photoAsset" ? { state: "UPLOADING", personId: null } : {}),
+          ...(model === "profilePhotoReview" ? { state: "PENDING", version: 1, reviewerId: null, note: null, decidedAt: null, approvedIdentityHash: null } : {}),
           ...clone(data) };
         state[model].push(row); return clone(row);
       },
-      async updateMany({ where, data }) { const rows = state[model].filter((r) => matches(r, where)); rows.forEach((r) => change(r, data)); return { count: rows.length }; },
+      async updateMany({ where, data }) {
+        const rows = state[model].filter((r) => matches(r, where));
+        for (const row of rows) {
+          const identity = JSON.stringify([row.photoId, row.countryCode]);
+          change(row, data);
+          if (model === "profile" && JSON.stringify([row.photoId, row.countryCode]) !== identity) {
+            row.identityRevision++;
+            row.photo = state.photoAsset.find((a) => a.id === row.photoId) ? { id: row.photoId } : null;
+          }
+        }
+        return { count: rows.length };
+      },
       async update({ where, data }) { await this.updateMany({ where, data }); return this.findUnique({ where }); },
       async upsert({ where, create, update }) { if (await this.findUnique({ where })) return this.update({ where, data: update }); return this.create({ data: create }); },
     };

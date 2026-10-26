@@ -1,0 +1,94 @@
+name: BrightWay checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: brightway-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: Regression / Node ${{ matrix.node }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.23.3', '24.22.1']
+    env:
+      # Placeholder application destinations are never contacted by these jobs.
+      # Keeping them distinct lets the existing test-destination guard run.
+      DATABASE_URL: postgresql://brightway:ci-only-password@127.0.0.1:5432/brightway_ci_application
+      DIRECT_URL: postgresql://brightway:ci-only-password@127.0.0.1:5432/brightway_ci_application
+      NODE_ENV: test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: brightway
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: brightway_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U brightway -d brightway_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Validate schema and generate client
+        working-directory: backend
+        run: |
+          npx --no-install prisma validate
+          npx --no-install prisma generate
+      - name: Prepare check logs
+        run: mkdir -p check-results
+      - name: Backend regression
+        run: npm run test --workspace backend 2>&1 | tee check-results/backend.log
+      - name: Frontend regression
+        run: npm run test --workspace frontend 2>&1 | tee check-results/frontend.log
+      - name: Frontend lint
+        run: npm run lint --workspace frontend 2>&1 | tee check-results/lint.log
+      - name: Production build
+        run: npm run build 2>&1 | tee check-results/build.log
+      - name: Clean isolated PostgreSQL migrations and integration tests
+        env:
+          TEST_DATABASE_URL: postgresql://brightway:ci-only-password@127.0.0.1:5432/brightway_ci_test
+        run: npm run test:database --workspace backend -- --migrate 2>&1 | tee check-results/database.log
+      - name: Confirm migration replay has no pending changes
+        working-directory: backend
+        env:
+          DIRECT_URL: postgresql://brightway:ci-only-password@127.0.0.1:5432/brightway_ci_test
+        run: npx --no-install prisma migrate deploy
+      - name: Record the exact source revision
+        if: always()
+        run: |
+          mkdir -p check-results
+          git rev-parse HEAD > check-results/commit.txt
+          node --version > check-results/node.txt
+      - name: Upload check logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: brightway-checks-node-${{ matrix.node }}-${{ github.sha }}
+          path: check-results/
+          retention-days: 14
+          if-no-files-found: warn
+    defaults:
+      run:
+        shell: bash

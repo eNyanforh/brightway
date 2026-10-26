@@ -27,5 +27,5 @@ export default function IdentityReviewerLink() {
   // Dedicated server permission and live MFA decide access, independent of the
   // reviewer's own profile-completion or credential-verification status.
   if (!accountId || access?.accountId !== accountId || access.allowed !== true) return null;
-  return <Link to="/admin/manual-identity">Identity review workspace</Link>;
+  return <><Link to="/admin/manual-identity">Identity review workspace</Link>{" "}<Link to="/admin/profile-photos">Profile photo reviews</Link></>;
 }

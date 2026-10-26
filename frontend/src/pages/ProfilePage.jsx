@@ -1,3 +1,5 @@
+import ProfilePhotoReviewStatus from "../components/profile/ProfilePhotoReviewStatus";
+import { profilePhotoReviewsApi } from "../api/profile-photo-reviews";
 import { useIdentityStatus } from "../auth/useIdentityStatus";
 import VerifiedIdentityBadge from "../components/profile/VerifiedIdentityBadge";
 import { hasVerifiedIdentity } from "./manual-identity-format";
@@ -94,6 +96,7 @@ export default function ProfilePage() {
   const busy = draft?.busy || profileLoading;
   const { identityStatus, identityError, refreshIdentityStatus } = useIdentityStatus(profile?.version);
   const identityVerified = hasVerifiedIdentity(identityStatus);
+  const photoReviewRequired = profile?.photoReview?.required === true || identityVerified;
 
   const name = [
     account.person.firstName,
@@ -191,6 +194,39 @@ export default function ProfilePage() {
         }));
       }
     }
+  }
+
+  function savedText(value) {
+    return JSON.stringify({ form: formFromProfile(value), education: value.education, experience: value.experience, contact: value.contact });
+  }
+
+  async function refreshPhotoReview() {
+    if (busy || mutation.current) return;
+    mutation.current = true;
+    setDraft((previous) => ({ ...previous, busy: true, error: null, notice: "" }));
+    try {
+      const next = await profileApi.read();
+      if (next.id !== profile.id || savedText(next) !== savedText(profile)) {
+        throw Object.assign(new Error("Other saved profile information changed. Keep your drafts and explicitly reload the profile before continuing."), { status: 409 });
+      }
+      setDraft((previous) => previous.profile.version === profile.version
+        ? { ...previous, profile: next, notice: "Photo review status refreshed. Your unsaved edits are still here." }
+        : { ...previous, error: Object.assign(new Error("Your profile changed during refresh. Reload before continuing."), { status: 409 }) });
+    } catch (error) { setDraft((previous) => ({ ...previous, error })); }
+    finally { mutation.current = false; setDraft((previous) => ({ ...previous, busy: false })); }
+  }
+
+  async function cancelPhotoReview() {
+    const pending = profile.photoReview?.pending;
+    if (!pending || busy || mutation.current) return;
+    mutation.current = true;
+    setDraft((previous) => ({ ...previous, busy: true, error: null, notice: "" }));
+    try {
+      const result = await profilePhotoReviewsApi.cancel(pending.id, { expectedVersion: pending.version, expectedProfileVersion: profile.version });
+      setDraft((previous) => ({ ...previous, profile: { ...previous.profile, version: result.profileVersion, photoReview: result.photoReview, completion: null }, notice: "Photo request cancelled. Your approved photo is unchanged." }));
+      void refreshChecklist(result.profileVersion).catch(() => {});
+    } catch (error) { setDraft((previous) => ({ ...previous, error })); }
+    finally { mutation.current = false; setDraft((previous) => ({ ...previous, busy: false })); }
   }
 
   function open(editor) {
@@ -354,17 +390,20 @@ export default function ProfilePage() {
               id: result.photoAssetId,
             },
             completion: null,
-            version: previous.profile.version + 1,
+            version: result.profileVersion ?? previous.profile.version + 1,
+            photoReview: result.photoReview ?? previous.profile.photoReview,
           },
           editor: null,
           error: null,
-          notice: "Profile picture updated.",
+          notice: result.reviewRequired === true
+            ? "Replacement photo submitted for review. Your approved photo stays visible."
+            : "Profile picture updated.",
         }));
 
         setFile(null);
         setPictureAttempt((value) => value + 1);
 
-        void refreshChecklist(profile.version + 1).catch(() => {});
+        void refreshChecklist(result.profileVersion ?? profile.version + 1).catch(() => {});
       } else {
         const next = await profileApi.save(
           profile.version,
@@ -568,6 +607,8 @@ export default function ProfilePage() {
             </div>
           </section>
 
+          <ProfilePhotoReviewStatus review={{ ...profile.photoReview, required: photoReviewRequired }} name={name} busy={busy} onRefresh={refreshPhotoReview} onCancel={cancelPhotoReview} />
+
           <Section
             title="About"
             editor="about"
@@ -751,6 +792,7 @@ export default function ProfilePage() {
             onCancel={cancel}
             onReload={reload}
             onSignIn={refresh}
+            photoReviewRequired={photoReviewRequired}
           />
         )}
     </div>

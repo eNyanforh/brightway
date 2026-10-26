@@ -38,6 +38,9 @@ enum PersonGender {
 }
 
 model Account {
+  photoReviewRequired Boolean @default(false)
+  photoReviews ProfilePhotoReview[] @relation("PhotoReviewOwner")
+  assignedPhotoReviews ProfilePhotoReview[] @relation("PhotoReviewAssignee")
   identityRevision Int @default(0)
   id           String        @id @default(uuid())
   username     String        @unique
@@ -90,6 +93,9 @@ model Session {
 
 // Owner-only draft data. No verification or publishing state is client editable.
 model Profile {
+  latestPhotoReviewId String? @unique
+  latestPhotoReview ProfilePhotoReview? @relation("LatestPhotoReview", fields: [latestPhotoReviewId], references: [id], onDelete: Restrict)
+  photoReviews ProfilePhotoReview[] @relation("ProfilePhotoReviewHistory")
   identityRevision Int @default(0)
   id                 String             @id @default(uuid())
   personId           String             @unique
@@ -145,6 +151,8 @@ model SignupDraft {
 }
 
 model PhotoAsset {
+  proposedReview ProfilePhotoReview? @relation("ProposedPhoto")
+  previousReviews ProfilePhotoReview[] @relation("PreviousPhoto")
   id         String       @id @default(uuid())
   storageKey String       @unique
   state      PhotoState   @default(UPLOADING)
@@ -532,6 +540,7 @@ model ManualIdentityRequest {
   @@index([state, initialSubmittedAt, id])
 }
 model ManualIdentityAttempt {
+  photoReviews ProfilePhotoReview[]
   id String @id @default(uuid())
   requestId String
   request ManualIdentityRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
@@ -583,4 +592,53 @@ model ManualIdentityAudit {
   createdAt DateTime @default(now())
   @@index([requestId, createdAt, id])
   @@index([targetAccountId, createdAt])
+}
+
+// Replacements after identity approval are private until a separately audited decision.
+enum ProfilePhotoReviewState {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  DECLINED
+  SUPERSEDED
+  CANCELLED
+}
+model ProfilePhotoReview {
+  id String @id @default(uuid())
+  accountId String
+  account Account @relation("PhotoReviewOwner", fields: [accountId], references: [id], onDelete: Restrict)
+  profileId String
+  profile Profile @relation("ProfilePhotoReviewHistory", fields: [profileId], references: [id], onDelete: Restrict)
+  latestFor Profile? @relation("LatestPhotoReview")
+  candidatePhotoId String @unique
+  candidatePhoto PhotoAsset @relation("ProposedPhoto", fields: [candidatePhotoId], references: [id], onDelete: Restrict)
+  previousPhotoId String?
+  previousPhoto PhotoAsset? @relation("PreviousPhoto", fields: [previousPhotoId], references: [id], onDelete: Restrict)
+  identityAttemptId String?
+  identityAttempt ManualIdentityAttempt? @relation(fields: [identityAttemptId], references: [id], onDelete: Restrict)
+  baseIdentityHash String
+  approvedIdentityHash String?
+  state ProfilePhotoReviewState @default(PENDING)
+  version Int @default(1)
+  reviewerId String?
+  reviewer Account? @relation("PhotoReviewAssignee", fields: [reviewerId], references: [id], onDelete: Restrict)
+  note String? @db.VarChar(2000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  decidedAt DateTime?
+  events ProfilePhotoReviewAudit[]
+  @@index([accountId, createdAt, id])
+  @@index([state, createdAt, id])
+}
+model ProfilePhotoReviewAudit {
+  id String @id @default(uuid())
+  reviewId String
+  review ProfilePhotoReview @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  actorId String
+  action String
+  fromState ProfilePhotoReviewState?
+  toState ProfilePhotoReviewState
+  note String? @db.VarChar(2000)
+  createdAt DateTime @default(now())
+  @@index([reviewId, createdAt, id])
 }

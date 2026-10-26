@@ -36,7 +36,7 @@ export const contactPatchSchema = z
 
 export const personContactSelect = {
   phoneNumber: true,
-  account: { select: { email: true, emailVerifiedAt: true } },
+  account: { select: { email: true, emailVerifiedAt: true, photoReviewRequired: true } },
 };
 export const contactSettingsSelect = {
   whatsappNumber: true,

@@ -1,3 +1,5 @@
+import { createProfilePhotoReviewService } from "../modules/photos/profile-photo-review.service.js";
+import { createProfilePhotoReviewRoutes } from "../modules/photos/profile-photo-review.routes.js";
 import { createManualIdentityReviewService } from "../modules/manual-identity/manual-identity-review.service.js";
 import { createManualIdentityReviewRoutes } from "../modules/manual-identity/manual-identity-review.routes.js";
 import { createManualIdentityEvidenceService } from "../modules/manual-identity/manual-identity-evidence.service.js";
@@ -45,7 +47,9 @@ router.use("/auth", createAccountEmailRoutes({ verification: createAccountEmailS
 router.use(createCredentialRoutes({ credentials: createCredentialService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManualIdentityEvidenceRoutes({ evidence: createManualIdentityEvidenceService({ prisma, storage: createManualIdentityStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManualIdentityReviewRoutes({ reviews: createManualIdentityReviewService({ prisma, storage: createManualIdentityStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-const photos = createPhotoService({ prisma, storage: createR2Storage() });
+const photoStorage = createR2Storage();
+const photos = createPhotoService({ prisma, storage: photoStorage });
+router.use(createProfilePhotoReviewRoutes({ reviews: createProfilePhotoReviewService({ prisma, storage: photoStorage }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 
 router.use(createPhotoRoutes({ photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 

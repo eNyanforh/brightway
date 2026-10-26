@@ -14,7 +14,7 @@ import {
 const DAY = 86400000;
 const active = new Set(["SUBMITTED", "IN_REVIEW"]);
 const evidenceSelect = { id: true, kind: true, state: true };
-const ownerAccountSelect = { identityRevision: true, id: true, personId: true, username: true, email: true, status: true, emailVerifiedAt: true,
+const ownerAccountSelect = { photoReviewRequired: true, identityRevision: true, id: true, personId: true, username: true, email: true, status: true, emailVerifiedAt: true,
   person: { select: { identityRevision: true, firstName: true, middleName: true, lastName: true, birthDate: true, gender: true } } };
 function accountId(value) {
   if (typeof value !== "string" || !value.trim()) throw fail(401, "Please log in to continue.");
@@ -56,7 +56,10 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
     const eligibility = evaluateManualVerificationEligibility(profile, profile.completion.complete);
     const snapshot = identitySnapshot(account, profile, row?.identityRevision ?? 0);
     const identityDetailsComplete = missingIdentityFields(account.person).length === 0;
-    return { account, profile, snapshot, identityHash: digest(snapshot), eligibility, identityDetailsComplete };
+    const identityHash = digest(snapshot);
+    const approvedPhotoProof = account.photoReviewRequired === true && profile.photo?.id
+      ? await db.profilePhotoReview.findUnique({ where: { candidatePhotoId: profile.photo.id }, select: { accountId: true, identityAttemptId: true, approvedIdentityHash: true, state: true } }) : null;
+    return { account, profile, snapshot, identityHash, eligibility, identityDetailsComplete, approvedPhotoProof };
   }
   async function current(db, request) {
     if (!request) return null;
@@ -70,7 +73,10 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
     if (active.has(attempt.state) && attempt.expiresAt <= now()) return "EXPIRED";
     const education = ctx.profile.education.records.find((r) => r.id === attempt.educationRecordId);
     const experience = ctx.profile.experience.records.find((r) => r.id === attempt.experienceRecordId);
-    if (!ctx.eligibility.requirementsMet || !ctx.identityDetailsComplete || attempt.identityHash !== ctx.identityHash ||
+    const proof = ctx.approvedPhotoProof;
+    const identityMatches = attempt.identityHash === ctx.identityHash || (attempt.state === "APPROVED" && proof?.state === "APPROVED" &&
+      proof.accountId === ctx.account.id && proof.identityAttemptId === attempt.id && proof.approvedIdentityHash === ctx.identityHash);
+    if (!ctx.eligibility.requirementsMet || !ctx.identityDetailsComplete || !identityMatches ||
         education?.status !== "VERIFIED" || education.revision !== attempt.educationRevision ||
         experience?.status !== "VERIFIED" || experience.revision !== attempt.experienceRevision) return "INVALIDATED";
     return attempt.state;
@@ -134,6 +140,13 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
   }
   const details = createManualIdentityDetailsService({ prisma, now });
   const service = {
+    // Internal transaction-bound inspection; never exposed as an HTTP response.
+    async inspectAccount(db, id) {
+      const ctx = await context(db, id);
+      const request = await db.manualIdentityRequest.findUnique({ where: { accountId: id } });
+      const attempt = await current(db, request);
+      return { ctx, request, attempt, status: effective(attempt, ctx) };
+    },
     completeDetails: details.complete,
     async status(id) {
       const ctx = await context(prisma, id);
@@ -266,6 +279,9 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
           ...(assign ? {} : { decidedAt: now(), purgeAt: new Date(+now() + attempt.retentionDays * DAY) }),
         } });
         if (saved.count !== 1) throw conflict();
+        if (!assign && next === "APPROVED") {
+          await tx.account.updateMany({ where: { id: request.accountId, status: "ACTIVE" }, data: { photoReviewRequired: true } });
+        }
         await audit(tx, request, actorId, assign ? "ASSIGNED" : "DECIDED", attempt, attempt.state, next, assign ? null : data.note);
         // Recheck at the end as well as after locking the actor; no revoked/stale MFA commit.
         await reviewer(tx, actorId, sessionId);

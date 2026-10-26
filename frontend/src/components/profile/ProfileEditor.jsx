@@ -54,9 +54,11 @@ export default function ProfileEditor({
   onCancel,
   onReload,
   onSignIn,
+  photoReviewRequired = false,
 }) {
   const dialog = useRef(null);
   const { editor, form, profile, busy, error } = draft;
+  const needsPhotoReview = photoReviewRequired === true || profile.photoReview?.required === true;
   const countyRequired = requiresCounty(form.countryCode);
   const selectedCounty = canonicalLiberiaCounty(form.region);
   const legacyCounty = countyRequired && Boolean(form.region) && !selectedCounty;
@@ -284,7 +286,7 @@ export default function ProfileEditor({
                   </p>
                 )}
                 <p className="bw-profile-muted">
-                  A successful upload becomes your current picture immediately.
+                  {needsPhotoReview ? "Your approved photo stays visible while BrightWay reviews the replacement. Uploading another replacement supersedes your pending photo request." : "A successful upload becomes your current picture immediately."}
                 </p>
               </>
             )}
@@ -314,7 +316,7 @@ export default function ProfileEditor({
                 ? "Uploading…"
                 : "Saving…"
               : editor === "photo"
-                ? "Upload picture"
+                ? needsPhotoReview ? "Submit photo for review" : "Upload picture"
                 : "Save changes"}
           </button>
         </footer>

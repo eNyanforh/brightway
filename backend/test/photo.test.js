@@ -42,6 +42,11 @@ function fakeDatabase() {
     });
 
   const db = { records, calls };
+  db.account = {
+    async findUnique({ where }) { const personId = where.personId ?? where.id?.replace(/^account-/, ""); return personId ? { id: `account-${personId}`, personId, status: "ACTIVE", photoReviewRequired: false } : null; },
+    async updateMany() { return { count: 1 }; },
+  };
+  db.person = { async updateMany() { return { count: 1 }; } };
 
   for (const model of Object.keys(records)) {
     db[model] = {
