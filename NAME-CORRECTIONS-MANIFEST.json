@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-26",
+  "baseCommit": "cda7fd0efc0ea1fb15a3cc6f5e50f55dc3f55b4a",
+  "files": {
+    "backend/prisma/schema.prisma": "611dd4dbf06ce8e4adb50e5b9f7c99679abfd7bded3482e6fbead52fa9939be5",
+    "backend/prisma/migrations/20261026200000_add_identity_name_changes/migration.sql": "10febe56548e56e35ce33453daddece2e538eedf9d954c2c3583cecf1b3c704e",
+    "backend/src/modules/manual-identity/identity-name-change.service.js": "aa6846cde1221240a17ca13fc32cb77076c412a57f8f890d90cb019c03e4e30b",
+    "backend/src/modules/manual-identity/identity-name-change.routes.js": "ffee2c07ef01b40f2c8f1d81152fa759a67221cb621ee8d133c6370a35eaf53f",
+    "backend/src/modules/manual-identity/manual-identity-review.service.js": "e1c479a134aede478796810432ea19e5723cd1697aa52c79870becf0d15ec5ea",
+    "backend/src/routes/index.js": "7152b896270eecb4c2be9420439eff7ba55bc0a4a6f57f1525460e84755d5674",
+    "backend/scripts/cleanup-manual-identity-reviews.js": "9e654d3b20d91ee044f26133965b8b4992e786e7ed682b74a65dc99392bc47a8",
+    "backend/test-support/manual-identity-review-fixture.js": "92cf937e50f92f0c28e3ed0203fc308aee3aab6896af12f7194e239205b149ae",
+    "backend/test/identity-name-change.test.js": "96b60f30bf6519967f2eae2183936d97cefeed379d9c894aebe717903f5c6f00",
+    "backend/test/identity-name-change.database.test.js": "f43c356cce0705bde85cc9700c77d13bb014b8b22498675b7b99691156884e4e",
+    "frontend/src/api/name-changes.js": "692543fd7ac13c784d9e98532c4d31696cc295a57f86a2b99da4b069509f2537",
+    "frontend/src/pages/NameChangePage.jsx": "5692702bcd4f18125e92f53fc9b7facd70c8de6e1b207eea32da9af47502bb4f",
+    "frontend/src/pages/NameChangeReviewsPage.jsx": "c36aa72880a59aa7942751221bdc73ba92bf3a2a995237235d9c482c633d676d",
+    "frontend/src/pages/ManualIdentityPage.jsx": "71d254839555e9e1d0d18932deecd59c8c6e56f73dbda6dfbee93e132cfe1c35",
+    "frontend/src/components/profile/IdentityReviewerLink.jsx": "ecac5e13b6f910a32a5dc6cb2fc9fda68147df8bdc0dc5e4480e508eee49b863",
+    "frontend/src/routes/AppRoutes.jsx": "744dce28e9a2516a9a37232e36785d52c0daf86b330c8e382456c1e066932db7",
+    "frontend/src/test/name-change-flow.test.jsx": "8b93d637e0abac762b72b1f68e10f0908880ea93382be4ea4d6379482ca26276",
+    "NAME-CORRECTIONS.md": "cea3f421baa7f21b4f6c98ec215a20764876593e092ab61f2832a4fbdab955be",
+    "SPRINT-1-ACCEPTANCE.md": "f8970678a3bc5b530e28bac1e65027ea4e3db9a2ca395ab2e4c12fb1d7ca0a90"
+  }
+}

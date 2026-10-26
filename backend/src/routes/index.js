@@ -1,4 +1,6 @@
 import { createProfilePhotoReviewService } from "../modules/photos/profile-photo-review.service.js";
+import { createIdentityNameChangeService } from "../modules/manual-identity/identity-name-change.service.js";
+import { createIdentityNameChangeRoutes } from "../modules/manual-identity/identity-name-change.routes.js";
 import { createProfilePhotoReviewRoutes } from "../modules/photos/profile-photo-review.routes.js";
 import { createManualIdentityReviewService } from "../modules/manual-identity/manual-identity-review.service.js";
 import { createManualIdentityReviewRoutes } from "../modules/manual-identity/manual-identity-review.routes.js";
@@ -48,6 +50,7 @@ router.use(createCredentialRoutes({ credentials: createCredentialService({ prism
 router.use(createManualIdentityEvidenceRoutes({ evidence: createManualIdentityEvidenceService({ prisma, storage: createManualIdentityStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManualIdentityReviewRoutes({ reviews: createManualIdentityReviewService({ prisma, storage: createManualIdentityStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const photoStorage = createR2Storage();
+router.use(createIdentityNameChangeRoutes({ changes: createIdentityNameChangeService({ prisma, storage: createManualIdentityStorage(), photoStorage }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const photos = createPhotoService({ prisma, storage: photoStorage });
 router.use(createProfilePhotoReviewRoutes({ reviews: createProfilePhotoReviewService({ prisma, storage: photoStorage }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 

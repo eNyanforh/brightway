@@ -14,7 +14,7 @@ import {
 const DAY = 86400000;
 const active = new Set(["SUBMITTED", "IN_REVIEW"]);
 const evidenceSelect = { id: true, kind: true, state: true };
-const ownerAccountSelect = { photoReviewRequired: true, identityRevision: true, id: true, personId: true, username: true, email: true, status: true, emailVerifiedAt: true,
+const ownerAccountSelect = { latestNameChangeProof: { select: { accountId: true, state: true, identityAttemptId: true, approvedIdentityHash: true } }, photoReviewRequired: true, identityRevision: true, id: true, personId: true, username: true, email: true, status: true, emailVerifiedAt: true,
   person: { select: { identityRevision: true, firstName: true, middleName: true, lastName: true, birthDate: true, gender: true } } };
 function accountId(value) {
   if (typeof value !== "string" || !value.trim()) throw fail(401, "Please log in to continue.");
@@ -74,8 +74,10 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
     const education = ctx.profile.education.records.find((r) => r.id === attempt.educationRecordId);
     const experience = ctx.profile.experience.records.find((r) => r.id === attempt.experienceRecordId);
     const proof = ctx.approvedPhotoProof;
+    const nameProof = ctx.account.latestNameChangeProof;
     const identityMatches = attempt.identityHash === ctx.identityHash || (attempt.state === "APPROVED" && proof?.state === "APPROVED" &&
-      proof.accountId === ctx.account.id && proof.identityAttemptId === attempt.id && proof.approvedIdentityHash === ctx.identityHash);
+      proof.accountId === ctx.account.id && proof.identityAttemptId === attempt.id && proof.approvedIdentityHash === ctx.identityHash) ||
+      (attempt.state === "APPROVED" && nameProof?.state === "APPROVED" && nameProof.accountId === ctx.account.id && nameProof.identityAttemptId === attempt.id && nameProof.approvedIdentityHash === ctx.identityHash);
     if (!ctx.eligibility.requirementsMet || !ctx.identityDetailsComplete || !identityMatches ||
         education?.status !== "VERIFIED" || education.revision !== attempt.educationRevision ||
         experience?.status !== "VERIFIED" || experience.revision !== attempt.experienceRevision) return "INVALIDATED";

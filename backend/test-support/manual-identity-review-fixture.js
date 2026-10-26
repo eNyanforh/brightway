@@ -5,7 +5,7 @@ import { reviewPolicy, MANUAL_REVIEW_CONSENT } from "../src/modules/manual-ident
 export function manualReviewFixture() {
   let date = new Date("2026-10-23T12:00:00Z"), auditFails = false;
   const ownerId = randomUUID(), reviewerId = randomUUID(), otherId = randomUUID(), personId = randomUUID(), sessionId = randomUUID();
-  const modelNames = ["account", "profile", "session", "mfaFactor", "manualIdentityEvidence", "manualIdentityUploadBudget", "manualIdentityRequest", "manualIdentityAttempt", "manualIdentityAudit", "manualIdentityReviewer", "photoAsset", "profilePhotoReview", "profilePhotoReviewAudit"];
+  const modelNames = ["account", "profile", "session", "mfaFactor", "manualIdentityEvidence", "manualIdentityUploadBudget", "manualIdentityRequest", "manualIdentityAttempt", "manualIdentityAudit", "manualIdentityReviewer", "photoAsset", "profilePhotoReview", "profilePhotoReviewAudit", "identityNameChange", "identityNameChangeAudit"];
   const state = Object.fromEntries(modelNames.map((name) => [name, []]));
   state.account.push({ id: ownerId, identityRevision: 0, personId, status: "ACTIVE", username: "owner", email: "owner@example.invalid", emailVerifiedAt: date,
     person: { id: personId, firstName: "Sample", lastName: "Owner", middleName: null, birthDate: new Date("2000-01-01"), gender: "MALE", identityRevision: 0 } },
@@ -23,7 +23,7 @@ export function manualReviewFixture() {
   function matches(row, where = {}) {
     return Object.entries(where).every(([key, value]) => {
       if (key === "OR") return value.some((part) => matches(row, part));
-      if (key === "requestId_idempotencyKey") return matches(row, value);
+      if (key === "requestId_idempotencyKey" || key === "accountId_idempotencyKey") return matches(row, value);
       if (value instanceof Date) return +row[key] === +value;
       if (value && typeof value === "object") {
         if ("in" in value) return value.in.includes(row[key]);
@@ -48,6 +48,7 @@ export function manualReviewFixture() {
     db[model] = {
       async findUnique({ where, select }) {
         const row = state[model].find((r) => matches(r, where));
+        if (row && model === "account") row.latestNameChangeProof = state.identityNameChange.find(r => r.id === row.latestNameChangeId) ?? null;
         if (row && model === "profile") {
           row.latestPhotoReview = state.profilePhotoReview.find((r) => r.id === row.latestPhotoReviewId) ?? null;
           row.person.account.photoReviewRequired = state.account.find((a) => a.personId === row.personId)?.photoReviewRequired === true;
@@ -64,11 +65,12 @@ export function manualReviewFixture() {
       },
       async count({ where }) { return state[model].filter((r) => matches(r, where)).length; },
       async create({ data }) {
-        if (["manualIdentityAudit", "profilePhotoReviewAudit"].includes(model) && auditFails) throw Error("Audit storage failed");
+        if (["manualIdentityAudit", "profilePhotoReviewAudit", "identityNameChangeAudit"].includes(model) && auditFails) throw Error("Audit storage failed");
         const row = { id: randomUUID(), createdAt: date, updatedAt: date,
           ...(model === "manualIdentityAttempt" ? { reviewerId: null, note: null, decidedAt: null, purgedAt: null } : {}),
           ...(model === "photoAsset" ? { state: "UPLOADING", personId: null } : {}),
           ...(model === "profilePhotoReview" ? { state: "PENDING", version: 1, reviewerId: null, note: null, decidedAt: null, approvedIdentityHash: null } : {}),
+          ...(model === "identityNameChange" ? { state: "SUBMITTED", version: 1, reviewerId: null, note: null, decidedAt: null, purgedAt: null, approvedIdentityHash: null } : {}),
           ...clone(data) };
         state[model].push(row); return clone(row);
       },
@@ -93,10 +95,10 @@ export function manualReviewFixture() {
     async updateMany({ where, data }) {
       const row = state.account.find((a) => a.personId === where.id)?.person;
       if (!row || !matches(row, where)) return { count: 0 };
-      const previous = JSON.stringify([row.firstName, row.lastName, row.birthDate, row.gender]);
+      const previous = JSON.stringify([row.firstName, row.middleName, row.lastName, row.birthDate, row.gender]);
       const revision = row.identityRevision;
       change(row, data);
-      row.identityRevision = revision + (JSON.stringify([row.firstName, row.lastName, row.birthDate, row.gender]) === previous ? 0 : 1);
+      row.identityRevision = revision + (JSON.stringify([row.firstName, row.middleName, row.lastName, row.birthDate, row.gender]) === previous ? 0 : 1);
       return { count: 1 };
     },
   };
@@ -108,7 +110,7 @@ export function manualReviewFixture() {
   const service = createManualIdentityReviewService({ prisma: db, storage, policy, now });
   function images(account = ownerId) {
     return ["GOVERNMENT_ID", "SELFIE"].map((kind) => {
-      const id = randomUUID(); state.manualIdentityEvidence.push({ id, accountId: account, kind, state: "READY", attemptId: null,
+      const id = randomUUID(); state.manualIdentityEvidence.push({ id, accountId: account, kind, state: "READY", attemptId: null, nameChangeId: null,
         storageKey: `test/${id}`, expiresAt: new Date(+date + 86400000), updatedAt: date, createdAt: date }); return id;
     });
   }

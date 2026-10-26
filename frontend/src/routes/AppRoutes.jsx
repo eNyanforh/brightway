@@ -1,4 +1,6 @@
 import ProfilePhotoReviewsPage from "../pages/ProfilePhotoReviewsPage";
+import NameChangePage from "../pages/NameChangePage";
+import NameChangeReviewsPage from "../pages/NameChangeReviewsPage";
 import ManualIdentityPage from "../pages/ManualIdentityPage";
 import ManualIdentityReviewsPage from "../pages/ManualIdentityReviewsPage";
 import AccountSecurityPage from "../pages/AccountSecurityPage";
@@ -46,8 +48,10 @@ export default function AppRoutes() {
           <Route path="/credentials/:kind/:recordId" element={<CredentialPage />} />
           <Route path="/admin/credentials" element={<CredentialReviewsPage />} />
           <Route path="/manual-identity" element={<ManualIdentityPage />} />
+          <Route path="/manual-identity/name-change" element={<NameChangePage />} />
           <Route path="/admin/manual-identity" element={<ManualIdentityReviewsPage />} />
           <Route path="/admin/profile-photos" element={<ProfilePhotoReviewsPage />} />
+          <Route path="/admin/name-changes" element={<NameChangeReviewsPage />} />
           <Route path="/security" element={<AccountSecurityPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/explore" element={<ExplorePage />} />

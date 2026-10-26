@@ -38,6 +38,10 @@ enum PersonGender {
 }
 
 model Account {
+  latestNameChangeId String? @unique
+  latestNameChangeProof IdentityNameChange? @relation("LatestNameChange", fields: [latestNameChangeId], references: [id], onDelete: Restrict)
+  nameChanges IdentityNameChange[] @relation("NameChangeOwner")
+  assignedNameChanges IdentityNameChange[] @relation("NameChangeReviewer")
   photoReviewRequired Boolean @default(false)
   photoReviews ProfilePhotoReview[] @relation("PhotoReviewOwner")
   assignedPhotoReviews ProfilePhotoReview[] @relation("PhotoReviewAssignee")
@@ -483,6 +487,8 @@ enum ManualIdentityEvidenceKind {
   SELFIE
 }
 model ManualIdentityEvidence {
+  nameChangeId String?
+  nameChange IdentityNameChange? @relation(fields: [nameChangeId], references: [id], onDelete: Restrict)
   attemptId String?
   attempt ManualIdentityAttempt? @relation(fields: [attemptId], references: [id], onDelete: Restrict)
   id String @id @default(uuid())
@@ -500,6 +506,7 @@ model ManualIdentityEvidence {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([attemptId, state])
+  @@index([nameChangeId, state])
   @@index([accountId, state, expiresAt])
   @@index([state, expiresAt])
 }
@@ -540,6 +547,7 @@ model ManualIdentityRequest {
   @@index([state, initialSubmittedAt, id])
 }
 model ManualIdentityAttempt {
+  nameChanges IdentityNameChange[]
   photoReviews ProfilePhotoReview[]
   id String @id @default(uuid())
   requestId String
@@ -641,4 +649,61 @@ model ProfilePhotoReviewAudit {
   note String? @db.VarChar(2000)
   createdAt DateTime @default(now())
   @@index([reviewId, createdAt, id])
+}
+
+enum IdentityNameChangeState {
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  DECLINED
+  CANCELLED
+  EXPIRED
+}
+
+model IdentityNameChange {
+  id String @id @default(uuid())
+  accountId String
+  account Account @relation("NameChangeOwner", fields: [accountId], references: [id], onDelete: Restrict)
+  latestFor Account? @relation("LatestNameChange")
+  identityAttemptId String
+  identityAttempt ManualIdentityAttempt @relation(fields: [identityAttemptId], references: [id], onDelete: Restrict)
+  idempotencyKey String
+  inputHash String
+  baseIdentityHash String
+  approvedIdentityHash String?
+  previousName Json?
+  proposedName Json?
+  reason String? @db.VarChar(1000)
+  state IdentityNameChangeState @default(SUBMITTED)
+  version Int @default(1)
+  reviewerId String?
+  reviewer Account? @relation("NameChangeReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  note String? @db.VarChar(2000)
+  consentVersion String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  targetAt DateTime
+  calendarVersion String
+  expiresAt DateTime
+  purgeAt DateTime
+  decidedAt DateTime?
+  purgedAt DateTime?
+  evidence ManualIdentityEvidence[]
+  events IdentityNameChangeAudit[]
+  @@unique([accountId, idempotencyKey])
+  @@index([state, createdAt, id])
+  @@index([accountId, createdAt, id])
+  @@index([purgeAt, purgedAt])
+}
+
+model IdentityNameChangeAudit {
+  id String @id @default(uuid())
+  requestId String
+  request IdentityNameChange @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  actorId String
+  action String
+  fromState IdentityNameChangeState?
+  toState IdentityNameChangeState
+  createdAt DateTime @default(now())
+  @@index([requestId, createdAt, id])
 }

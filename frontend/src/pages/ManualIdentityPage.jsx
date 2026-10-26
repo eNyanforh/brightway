@@ -78,6 +78,7 @@ export default function ManualIdentityPage() {
     {data && <>
       <p className="bw-identity-status">Current status: <strong>{identityLabels[data.status] || data.status}</strong></p>
       {data.identityVerified && <p role="status">BrightWay has verified your identity.</p>}
+      {data.identityVerified === true && <p><Link to="/manual-identity/name-change">Request a name correction</Link></p>}
       {data.request && <p>Review target: <strong>{identityDate(data.request.targetAt)}</strong>{data.request.overdue && " · The review target has passed. This does not automatically approve your request."}</p>}
       <h2>Before you request verification</h2>
       <ul className="bw-identity-checks">{data.eligibility.checks.map((check) => <li key={check.code}>{check.satisfied ? "✓ Met" : "Still needed"} — {check.label}</li>)}</ul>

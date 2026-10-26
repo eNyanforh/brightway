@@ -2,6 +2,12 @@
 
 This is an evidence record, not a production-readiness certificate. G1 is due 1 November 2026. The full 14-sprint production target remains 26 January 2027. Deployment is paused; private staging follows Sprint 1 acceptance. Persona is paused; manual BrightWay identity review remains the active path, with government-issued ID and selfie, all three prerequisites, five working days and 30-day decision-evidence retention.
 
+## Subsequent GitHub implementation checkpoint
+
+The scope below headed **Exact evidence scope** records the earlier pre-publication snapshot. It is superseded where explicitly updated here. GitHub commit `cf3baed5b75680f036c3192dee7636b275c41117` published the photo-review update; run https://github.com/eNyanforh/brightway/actions/runs/40317887766 passed both supported Node versions, including all 15 database cases without skips, clean PostgreSQL migrations and replay. Dependency patch `cda7fd0efc0ea1fb15a3cc6f5e50f55dc3f55b4a` and its security audit also passed: https://github.com/eNyanforh/brightway/actions/runs/40364720737 . No application database migration or deployment followed from those CI runs.
+
+The authorized name-correction workflow is now implemented; see `NAME-CORRECTIONS.md` for the new migration, private owner/reviewer flow, exact trust binding, retention and acceptance instructions. Local checks passed 241 backend cases and 165 frontend cases, lint/build/schema validation; the 16 database cases were skipped locally. Its own new CI run and real owner/reviewer/R2 acceptance remain required. Earlier rows calling the workflow unimplemented are historical, not the current code state.
+
 ## Exact evidence scope
 
 - GitHub default branch `main`: `634b931a8b525f561caddb591a4a4180da71f051`, committed 25 October 2026 at 18:52:18 UTC, rechecked 26 October. The photo-review changes and CI workflow in this package are not included in that commit. No GitHub writes or deployments were performed here.
