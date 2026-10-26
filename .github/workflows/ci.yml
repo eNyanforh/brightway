@@ -58,6 +58,8 @@ jobs:
           npx --no-install prisma generate
       - name: Prepare check logs
         run: mkdir -p check-results
+      - name: Dependency security audit
+        run: npm audit --audit-level=moderate 2>&1 | tee check-results/audit.log
       - name: Backend regression
         run: npm run test --workspace backend 2>&1 | tee check-results/backend.log
       - name: Frontend regression
