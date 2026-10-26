@@ -1,0 +1,76 @@
+name: Private staging package
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - deploy/staging/**
+      - backend/scripts/*staging*.js
+      - backend/scripts/*cleanup*.js
+      - backend/src/jobs/**
+      - .github/workflows/staging-package.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - deploy/staging/**
+      - backend/scripts/*staging*.js
+      - backend/scripts/*cleanup*.js
+      - backend/src/jobs/**
+      - .github/workflows/staging-package.yml
+permissions:
+  contents: read
+jobs:
+  containers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Prepare synthetic configuration and ephemeral CI certificate
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/brightway-tls"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' -keyout "$RUNNER_TEMP/brightway-tls/key.pem" -out "$RUNNER_TEMP/brightway-tls/cert.pem" 2>/dev/null
+          chmod 644 "$RUNNER_TEMP/brightway-tls/"*.pem
+          cat > deploy/staging/.env.staging <<'ENV'
+          NODE_ENV=production
+          BRIGHTWAY_STAGE=private-staging
+          STAGING_DATABASE_ACK=isolated-staging-database
+          CLIENT_URL=https://localhost:8443
+          DATABASE_URL=postgresql://synthetic:unused@127.0.0.1/unused
+          DIRECT_URL=postgresql://synthetic:unused@127.0.0.1/unused
+          MFA_ENCRYPTION_KEY=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          EMAIL_VERIFICATION_SECRET=synthetic-ci-only-email-secret-not-for-use
+          RESEND_API_KEY=synthetic-ci-only
+          EMAIL_FROM=BrightWay <hello@joinbrightway.me>
+          R2_ACCOUNT_ID=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+          R2_ACCESS_KEY_ID=synthetic-ci-only
+          R2_SECRET_ACCESS_KEY=synthetic-ci-only
+          R2_BUCKET=synthetic-stage-photos
+          R2_IDENTITY_BUCKET=synthetic-stage-private
+          MANUAL_IDENTITY_RETENTION_DAYS=30
+          AUTH_TIMING=false
+          ENV
+          echo "BRIGHTWAY_REVISION=$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "STAGING_TLS_CERT=$RUNNER_TEMP/brightway-tls/cert.pem" >> "$GITHUB_ENV"
+          echo "STAGING_TLS_KEY=$RUNNER_TEMP/brightway-tls/key.pem" >> "$GITHUB_ENV"
+      - name: Build private staging images
+        run: docker compose -f deploy/staging/compose.yaml build api web
+      - name: Validate configuration and start only web/API
+        run: |
+          docker compose -f deploy/staging/compose.yaml run --rm --no-deps api node backend/scripts/check-staging-env.js
+          docker compose -f deploy/staging/compose.yaml up -d --wait api web
+      - name: Exercise local HTTPS routing without cloud credentials
+        shell: bash
+        run: |
+          # --insecure is ONLY for this ephemeral CI certificate, never an operator deployment recommendation.
+          curl --insecure --fail --silent https://127.0.0.1:8443/api/v1/health | python3 -c 'import json,sys; assert json.load(sys.stdin)["success"] is True'
+          curl --insecure --fail --silent https://127.0.0.1:8443/manual-identity/name-change | rg '<div id="root">'
+          docker compose -f deploy/staging/compose.yaml exec -T api node -e "const fs=require('fs'); if(fs.existsSync('/app/backend/.env')||fs.existsSync('/app/deploy/staging/.env.staging'))process.exit(1)"
+          # No cleanup service, migration, email, upload or authenticated DB journey is run here.
+      - name: Teardown isolated local containers
+        if: always()
+        run: docker compose -f deploy/staging/compose.yaml down --volumes --remove-orphans
