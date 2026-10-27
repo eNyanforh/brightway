@@ -113,3 +113,64 @@ test("public presence requires its request approval as well as active organizati
   f.state.organizationRequest[0].status = "REJECTED";
   await assert.rejects(f.service.publicOrganization(result.organizationId), { status: 404 });
 });
+
+function replacementAgent(f) {
+  const a = f.actors.other;
+  f.state.mfaFactor.push({ accountId: a.id, enabled: true, version: 1 });
+  Object.assign(f.state.session.find(s => s.id === a.sessionId), { mfaVerifiedAt: f.now(), mfaVersion: 1 });
+  f.state.organizationOperator.push({ accountId: a.id, agentEnabled: true, approverEnabled: false });
+  return a;
+}
+test("permanently revoked investigating Agent can be replaced without losing findings or restarting the target", async () => {
+  const f = organizationFixture(), next = replacementAgent(f), recommended = await f.report(await f.assign(await f.submit()));
+  const original = structuredClone(f.state.organizationFinding[0]), targetAt = +f.state.organizationRequest[0].targetAt;
+  f.state.organizationOperator.find(r => r.accountId === f.actors.agent.id).agentEnabled = false;
+  const approver = f.actors.approver, old = await f.service.detail(approver.id, approver.sessionId, recommended.id);
+  assert.equal(old.requiresReassignment, true); assert.equal(old.canDecide, false); assert.equal(old.canAssign, true);
+  await assert.rejects(f.decide(recommended), { status: 409 });
+  const assigned = await f.service.assign(approver.id, approver.sessionId, recommended.id, { expectedVersion: recommended.version, agentUsername: next.username });
+  assert.equal(assigned.status, "ASSIGNED"); assert.equal(+f.state.organizationRequest[0].targetAt, targetAt);
+  assert.equal(f.state.organizationFinding.length, 0); assert.equal(f.state.organizationFindingArchive.length, 1);
+  const archived = f.state.organizationFindingArchive[0]; for (const key of ["notes", "setupAssistance", "createdAt", "agentId", "recommendation", "existenceConfirmed"]) assert.deepEqual(archived[key], original[key]);
+  assert.equal(archived.sourceVersion, recommended.version); assert.equal(archived.retiredById, approver.id);
+  await assert.rejects(f.decide(assigned), { status: 409 });
+  await assert.rejects(f.report(assigned), { status: 403 });
+  const replacementView = await f.service.detail(next.id, next.sessionId, assigned.id); assert.equal(replacementView.finding, null); assert.deepEqual(replacementView.findingHistory, []); assert.equal(replacementView.canReport, true);
+  const owner = await f.service.owner(f.actors.owner.id, f.actors.owner.sessionId, assigned.id); assert.equal("findingHistory" in owner, false);
+  const fresh = await f.service.report(next.id, next.sessionId, assigned.id, { ...f.finding(), expectedVersion: assigned.version, notes: "Fresh independent replacement Agent findings." });
+  await assert.rejects(f.decide(recommended), { status: 409 });
+  assert.equal((await f.decide(fresh)).status, "APPROVED"); assert.equal(f.state.organization.length, 1); assert.equal(f.state.organizationRequestAudit.filter(a => a.action === "REASSIGNED").length, 1);
+});
+test("past investigators cannot become the final approver after another Agent submits new findings", async () => {
+  const f = organizationFixture(), next = replacementAgent(f), r = await f.report(await f.assign(await f.submit()));
+  const a = await f.service.assign(f.actors.approver.id, f.actors.approver.sessionId, r.id, { expectedVersion: r.version, agentUsername: next.username });
+  const fresh = await f.service.report(next.id, next.sessionId, a.id, { ...f.finding(), expectedVersion: a.version });
+  f.state.organizationOperator.find(x => x.accountId === f.actors.agent.id).approverEnabled = true;
+  assert.equal((await f.service.detail(f.actors.agent.id, f.actors.agent.sessionId, fresh.id)).canDecide, false);
+  await assert.rejects(f.service.decide(f.actors.agent.id, f.actors.agent.sessionId, fresh.id, { expectedVersion: fresh.version, decision: "APPROVE", reason: "An earlier investigator cannot make the final decision." }), { status: 403 });
+  assert.equal((await f.decide(fresh)).status, "APPROVED");
+});
+test("reassignment audit failure and mid-transaction permission/MFA withdrawal roll back findings retirement", async () => {
+  for (const mode of ["audit", "role", "mfa"]) {
+    const f = organizationFixture(), next = replacementAgent(f), r = await f.report(await f.assign(await f.submit()));
+    const snapshot = structuredClone(f.state.organizationFinding[0]);
+    if (mode === "audit") f.failAudit();
+    else f.onAudit(a => { if (a.action === "REASSIGNED") { if (mode === "mfa") f.state.mfaFactor.find(x => x.accountId === f.actors.approver.id).version++; else f.state.organizationOperator.find(x => x.accountId === f.actors.approver.id).approverEnabled = false; } });
+    await assert.rejects(f.service.assign(f.actors.approver.id, f.actors.approver.sessionId, r.id, { expectedVersion: r.version, agentUsername: next.username }), mode === "audit" ? /Audit failed/ : { status: 403 });
+    assert.equal(f.state.organizationRequest[0].status, "RECOMMENDED"); assert.equal(f.state.organizationRequest[0].version, r.version);
+    assert.deepEqual(f.state.organizationFinding[0], snapshot); assert.equal(f.state.organizationFindingArchive.length, 0);
+  }
+});
+test("concurrent reassignment has one winner and cannot target the applicant, revoked or same investigating Agent", async () => {
+  const f = organizationFixture(), next = replacementAgent(f), r = await f.report(await f.assign(await f.submit())), a = f.actors.approver;
+  await assert.rejects(f.assign(r), { status: 400 });
+  await assert.rejects(f.service.assign(a.id, a.sessionId, r.id, { expectedVersion: r.version, agentUsername: f.actors.owner.username }), { status: 403 });
+  f.state.organizationOperator.find(x => x.accountId === next.id).agentEnabled = false;
+  await assert.rejects(f.service.assign(a.id, a.sessionId, r.id, { expectedVersion: r.version, agentUsername: next.username }), { status: 400 });
+  f.state.organizationOperator.find(x => x.accountId === next.id).agentEnabled = true;
+  const body = { expectedVersion: r.version, agentUsername: next.username };
+  const results = await Promise.allSettled([f.service.assign(a.id, a.sessionId, r.id, body), f.service.assign(a.id, a.sessionId, r.id, body)]);
+  assert.equal(results.filter(x => x.status === "fulfilled").length, 1); assert.equal(results.find(x => x.status === "rejected").reason.status, 409);
+  assert.equal(f.state.organizationFindingArchive.length, 1); assert.equal(f.state.organizationRequestAudit.filter(a => a.action === "REASSIGNED").length, 1);
+  await assert.rejects(f.service.report(next.id, next.sessionId, r.id, { ...f.finding(), expectedVersion: r.version }), { status: 409 });
+});

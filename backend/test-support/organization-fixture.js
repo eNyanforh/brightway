@@ -3,7 +3,7 @@ import { createOrganizationService } from "../src/modules/organizations/organiza
 const clone = v => structuredClone(v);
 export function organizationFixture() {
   let date = new Date("2026-10-27T12:00:00Z"), auditFails = false, auditHook;
-  const state = Object.fromEntries(["account", "session", "mfaFactor", "organizationOperator", "organizationRequest", "organizationFinding", "organizationRequestAudit", "organization", "organizationOperatingLocation", "organizationMembership"].map(k => [k, []]));
+  const state = Object.fromEntries(["account", "session", "mfaFactor", "organizationOperator", "organizationRequest", "organizationFinding", "organizationFindingArchive", "organizationRequestAudit", "organization", "organizationOperatingLocation", "organizationMembership"].map(k => [k, []]));
   const actors = {};
   for (const label of ["owner", "agent", "approver", "other"]) {
     const id = randomUUID(), sessionId = randomUUID(); actors[label] = { id, sessionId, username: `${label}_fixture` };
@@ -60,6 +60,9 @@ export function organizationFixture() {
           state.organizationMembership.push({ id: randomUUID(), organizationId: value.id, enabled: true, ...memberships.create });
         }
         state[model].push(value); return clone(value);
+      },
+      async deleteMany({ where }) {
+        const before = state[model].length; state[model] = state[model].filter(row => !matches(row, where)); return { count: before - state[model].length };
       },
       async updateMany({ where, data }) {
         let count = 0; for (const row of state[model]) if (matches(row, where)) { for (const [k, v] of Object.entries(data)) row[k] = v && typeof v === "object" && "increment" in v ? row[k] + v.increment : clone(v); row.updatedAt = date; count++; } return { count };

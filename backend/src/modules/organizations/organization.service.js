@@ -43,11 +43,16 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
     const applicant = await db.account.findUnique({ where: { id: r.applicantId }, select: { username: true } });
     const finding = await db.organizationFinding.findUnique({ where: { requestId: r.id } });
     const permitted = roles.approverEnabled || r.assignedAgentId === actorId;
+    const findingHistory = roles.approverEnabled ? await db.organizationFindingArchive.findMany({ where: { requestId: r.id }, orderBy: [{ sourceVersion: "desc" }, { id: "desc" }], take: 10 }) : [];
+    const investigated = roles.approverEnabled && !!await db.organizationFindingArchive.findFirst({ where: { requestId: r.id, agentId: actorId } });
+    const assignedRole = r.assignedAgentId ? await db.organizationOperator.findUnique({ where: { accountId: r.assignedAgentId } }) : null;
+    const assignedAccount = r.assignedAgentId ? await db.account.findUnique({ where: { id: r.assignedAgentId } }) : null;
+    const requiresReassignment = r.status === "RECOMMENDED" && (!assignedRole?.agentEnabled || assignedAccount?.status !== "ACTIVE" || !assignedAccount.emailVerifiedAt);
     await capability(db, actorId, sessionId);
     return { ...await ownerView(db, r), applicantUsername: applicant?.username, assignedAgentId: r.assignedAgentId,
-      finding: permitted ? finding : null, canAssign: roles.approverEnabled && ["SUBMITTED", "ASSIGNED"].includes(r.status),
+      finding: permitted ? finding : null, findingHistory, requiresReassignment, canAssign: roles.approverEnabled && ["SUBMITTED", "ASSIGNED", "RECOMMENDED"].includes(r.status),
       canReport: roles.agentEnabled && r.assignedAgentId === actorId && r.status === "ASSIGNED",
-      canDecide: roles.approverEnabled && r.status === "RECOMMENDED" && r.assignedAgentId !== actorId };
+      canDecide: roles.approverEnabled && r.status === "RECOMMENDED" && !requiresReassignment && !investigated && r.assignedAgentId !== actorId };
   }
   const service = {
     async access(actorId, sessionId) {
@@ -103,10 +108,19 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
         const r = await row(tx, id), targetRole = await tx.organizationOperator.findUnique({ where: { accountId: target.id } }), targetAccount = await tx.account.findUnique({ where: { id: target.id } });
         if (actorId === r.applicantId || target.id === r.applicantId) throw fail(403, "Applicants cannot assign or investigate their own request.");
         if (!targetRole?.agentEnabled || !targetAccount?.emailVerifiedAt) throw fail(400, "Choose an active authorized Agent username.");
-        if (r.version !== data.expectedVersion || !["SUBMITTED", "ASSIGNED"].includes(r.status)) throw conflict();
+        if (r.version !== data.expectedVersion || !["SUBMITTED", "ASSIGNED", "RECOMMENDED"].includes(r.status)) throw conflict();
+        const replacing = r.status === "RECOMMENDED";
+        if (replacing && target.id === r.assignedAgentId) throw fail(400, "Choose a different Agent for a fresh investigation.");
+        const previousFinding = replacing ? await tx.organizationFinding.findUnique({ where: { requestId: id } }) : null;
+        if (replacing && (!previousFinding || previousFinding.agentId !== r.assignedAgentId)) throw conflict();
         const changed = await tx.organizationRequest.updateMany({ where: { id, version: r.version, status: r.status }, data: { assignedAgentId: target.id, status: "ASSIGNED", version: { increment: 1 } } });
         if (changed.count !== 1) throw conflict();
-        await audit(tx, r, actorId, "ASSIGNED", "ASSIGNED", r.version + 1); await capability(tx, actorId, sessionId, "approver");
+        if (replacing) {
+          // Preserve the exact prior investigation privately; it can no longer authorize a decision.
+          await tx.organizationFindingArchive.create({ data: { ...previousFinding, sourceVersion: r.version, retiredAt: now(), retiredById: actorId } });
+          if ((await tx.organizationFinding.deleteMany({ where: { requestId: id, agentId: r.assignedAgentId } })).count !== 1) throw conflict();
+        }
+        await audit(tx, r, actorId, replacing ? "REASSIGNED" : "ASSIGNED", "ASSIGNED", r.version + 1); await capability(tx, actorId, sessionId, "approver");
         return { id, status: "ASSIGNED", version: r.version + 1 };
       });
     },
@@ -127,7 +141,7 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
       return transaction(async tx => {
         await lock(tx, [actorId, known.applicantId, ...(known.assignedAgentId ? [known.assignedAgentId] : [])]); await capability(tx, actorId, sessionId, "approver");
         const r = await row(tx, id);
-        if (actorId === r.applicantId || actorId === r.assignedAgentId) throw fail(403, "A separate approver must decide this request.");
+        if (actorId === r.applicantId || actorId === r.assignedAgentId || await tx.organizationFindingArchive.findFirst({ where: { requestId: id, agentId: actorId } })) throw fail(403, "A separate approver who has not investigated this request must decide it.");
         if (r.version !== data.expectedVersion || r.status !== "RECOMMENDED" || r.assignedAgentId !== known.assignedAgentId) throw conflict();
         const finding = await tx.organizationFinding.findUnique({ where: { requestId: id } }), agentRole = await tx.organizationOperator.findUnique({ where: { accountId: r.assignedAgentId } });
         const agent = await tx.account.findUnique({ where: { id: r.assignedAgentId } });

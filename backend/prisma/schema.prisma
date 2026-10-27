@@ -45,6 +45,8 @@ model Account {
   decidedOrganizationRequests OrganizationRequest[] @relation("OrganizationApprover")
   organizationMemberships OrganizationMembership[]
   organizationFindings OrganizationFinding[]
+  retiredOrganizationFindings OrganizationFindingArchive[] @relation("ArchivedOrganizationAgent")
+  organizationReassignments OrganizationFindingArchive[] @relation("OrganizationFindingRetiredBy")
 
   latestNameChangeId String? @unique
   latestNameChangeProof IdentityNameChange? @relation("LatestNameChange", fields: [latestNameChangeId], references: [id], onDelete: Restrict)
@@ -785,6 +787,7 @@ model OrganizationRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   finding OrganizationFinding?
+  findingHistory OrganizationFindingArchive[]
   organization Organization?
   audits OrganizationRequestAudit[]
   @@unique([applicantId, idempotencyKey])
@@ -806,6 +809,28 @@ model OrganizationFinding {
   notes String @db.VarChar(4000)
   setupAssistance String @db.VarChar(2000)
   createdAt DateTime @default(now())
+}
+model OrganizationFindingArchive {
+  id String @id @default(uuid())
+  requestId String
+  request OrganizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  agentId String
+  agent Account @relation("ArchivedOrganizationAgent", fields: [agentId], references: [id], onDelete: Restrict)
+  sourceVersion Int
+  existenceConfirmed Boolean
+  locationConfirmed Boolean
+  authorityConfirmed Boolean
+  typeConfirmed Boolean
+  operationalConfirmed Boolean
+  recommendation OrganizationRecommendation
+  notes String @db.VarChar(4000)
+  setupAssistance String @db.VarChar(2000)
+  createdAt DateTime
+  retiredAt DateTime @default(now())
+  retiredById String
+  retiredBy Account @relation("OrganizationFindingRetiredBy", fields: [retiredById], references: [id], onDelete: Restrict)
+  @@unique([requestId, sourceVersion])
+  @@index([requestId, retiredAt, id])
 }
 model OrganizationRequestAudit {
   id String @id @default(uuid())

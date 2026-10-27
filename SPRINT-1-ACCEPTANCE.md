@@ -1,6 +1,6 @@
 # Sprint 1 acceptance record — 26 October 2026
 
-G1 is due **1 November 2026**. The full 14-sprint production target remains **26 January 2027**. This record separates implementation, automated checks and user-reported acceptance; it does not approve deployment. Deployment remains paused until Sprint 1 acceptance. Persona is paused; manual BrightWay identity review is the active path.
+G1 is due **1 November 2026**. The full 14-sprint production target remains **26 January 2027**. This record separates implementation, automated checks and user-reported acceptance; it does not approve deployment. Deployment is now paused until after Sprint 2 acceptance, including private staging; see the subsequent owner decision below. Persona is paused; manual BrightWay identity review is the active path.
 
 ## Confirmed evidence
 
@@ -24,7 +24,7 @@ The GitHub PostgreSQL integration cases use disposable data and synthetic/Map st
 - Identity, education and experience trust remain separate. Exact protected revisions prevent change-and-revert from restoring trust. Approved photo/name changes preserve trust only through their exact approved attestations.
 - Individuals may choose MFA; privileged reviewer actions require live server-verified MFA and current permission. No self-review. Credential-only permission does not grant identity review.
 
-## Remaining acceptance and next gate
+## Historical acceptance checklist — superseded where noted below
 
 | Area | Existing evidence | Still to record |
 | --- | --- | --- |
@@ -51,9 +51,9 @@ The original manual-identity projection exposed reviewer feedback without the sa
 
 No schema migration, new bucket or API key is required for this fix. Its tests include exact-deadline withholding before cleanup, assignment privacy, legacy repair, audit-failure rollback and unchanged valid identity. The existing PostgreSQL case now also asserts feedback removal and preservation of decision audit records. The privacy-fix CI referenced above executed those SQL assertions successfully.
 
-See `SPRINT-1-SECURITY-CHECKS.md` for the next manual checks. G1 remains open; do not start deployment or declare full production readiness from passing code checks alone.
+This historical checkpoint preceded the later owner-reported passes below. Preserve those results; do not treat its superseded pending items as requests to repeat accepted journeys. G1 still requires explicit owner acceptance, and deployment remains paused through Sprint 2.
 
-## G1 assessment after this review
+## Historical G1 assessment before the final retention result
 
 **Open; not yet accepted.** Implementation and regression checks passed at the reviewed SHA. The owner has confirmed the main database/photo/name journeys and the three requested security browser checks. Carry these passes forward.
 

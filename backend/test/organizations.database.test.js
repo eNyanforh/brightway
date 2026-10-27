@@ -11,13 +11,13 @@ test("database organization submission/decision races, separate roles and failed
   const marker = randomUUID(), accounts = [], sessions = [], now = new Date();
   const service = createOrganizationService({ prisma: db });
   try {
-    for (const label of ["owner", "agent", "admin"]) {
+    for (const label of ["owner", "agent", "admin", "replacement"]) {
       const account = await db.account.create({ data: { username: `org_${label}_${marker.replaceAll("-", "").slice(0, 16)}`, email: `org_${label}_${marker}@example.invalid`, passwordHash: "synthetic-unusable-hash", emailVerifiedAt: now, person: { create: { firstName: "Synthetic", lastName: label } } } }); accounts.push(account);
       const mfa = label !== "owner";
       if (mfa) await db.mfaFactor.create({ data: { accountId: account.id, encryptedSecret: "synthetic-test-no-usable-key", enabled: true, version: 1, windowStart: now } });
       sessions.push(await db.session.create({ data: { accountId: account.id, tokenHash: randomUUID(), expiresAt: new Date(+now + 86400000), mfaVersion: mfa ? 1 : 0, mfaVerifiedAt: mfa ? now : null } }));
     }
-    const [owner, agent, admin] = accounts;
+    const [owner, agent, admin, replacement] = accounts;
     await db.organizationOperator.create({ data: { accountId: agent.id, agentEnabled: true } });
     await db.organizationOperator.create({ data: { accountId: admin.id, approverEnabled: true } });
     const input = { name: `Synthetic global NGO ${marker}`, type: "NGO", representativeRole: "Director", countryCode: "GH", region: "", city: "Accra", address: "Synthetic fixture address", offersTraining: true, idempotencyKey: randomUUID() };
@@ -65,6 +65,52 @@ test("database organization submission/decision races, separate roles and failed
     await db.organization.update({ where: { id: organizationId }, data: { status: "SUSPENDED" } });
     await assert.rejects(service.publicOrganization(organizationId), { status: 404 });
     assert.equal((await db.account.findUnique({ where: { id: owner.id } })).platformRole, "MEMBER");
+    // Permanently retire an investigator after recommendation; no permission restoration is needed.
+    await db.organizationOperator.create({ data: { accountId: replacement.id, agentEnabled: true } });
+    const second = await service.submit(owner.id, sessions[0].id, { ...input, name: `Replacement flow ${marker}`, idempotencyKey: randomUUID() });
+    const assignedSecond = await service.assign(admin.id, sessions[2].id, second.id, { expectedVersion: second.version, agentUsername: agent.username });
+    const oldRecommendation = await service.report(agent.id, sessions[1].id, second.id, { ...finding, expectedVersion: assignedSecond.version });
+    const oldFinding = await db.organizationFinding.findUnique({ where: { requestId: second.id } });
+    await db.organizationOperator.update({ where: { accountId: agent.id }, data: { agentEnabled: false } });
+    const blocked = await service.detail(admin.id, sessions[2].id, second.id); assert.equal(blocked.requiresReassignment, true); assert.equal(blocked.canDecide, false);
+    await assert.rejects(service.decide(admin.id, sessions[2].id, second.id, { ...decision, expectedVersion: oldRecommendation.version }), { status: 409 });
+    const replace = { expectedVersion: oldRecommendation.version, agentUsername: replacement.username };
+    const failReassignment = new Proxy(db, { get(target, key) {
+      if (key === "$transaction") return work => target.$transaction(tx => work(new Proxy(tx, { get(client, field) {
+        if (field === "organizationRequestAudit") return { create: async args => { if (args.data.action === "REASSIGNED") throw Error("Injected reassignment audit failure"); return client.organizationRequestAudit.create(args); } };
+        const value = client[field]; return typeof value === "function" ? value.bind(client) : value;
+      } })));
+      const value = target[key]; return typeof value === "function" ? value.bind(target) : value;
+    } });
+    await assert.rejects(createOrganizationService({ prisma: failReassignment }).assign(admin.id, sessions[2].id, second.id, replace), /Injected reassignment audit failure/);
+    assert.deepEqual(await db.organizationFinding.findUnique({ where: { requestId: second.id } }), oldFinding);
+    assert.equal(await db.organizationFindingArchive.count({ where: { requestId: second.id } }), 0);
+    assert.equal((await db.organizationRequest.findUnique({ where: { id: second.id } })).status, "RECOMMENDED");
+    const replacements = await Promise.allSettled([service.assign(admin.id, sessions[2].id, second.id, replace), service.assign(admin.id, sessions[2].id, second.id, replace)]);
+    assert.equal(replacements.filter(x => x.status === "fulfilled").length, 1); assert.equal(replacements.find(x => x.status === "rejected").reason.status, 409);
+    const reassigned = replacements.find(x => x.status === "fulfilled").value;
+    const history = await db.organizationFindingArchive.findMany({ where: { requestId: second.id } }); assert.equal(history.length, 1);
+    for (const field of Object.keys(oldFinding)) assert.deepEqual(history[0][field], oldFinding[field]);
+    assert.equal(history[0].sourceVersion, oldRecommendation.version); assert.equal(history[0].retiredById, admin.id);
+    assert.equal(await db.organizationFinding.findUnique({ where: { requestId: second.id } }), null);
+    assert.equal(+(await db.organizationRequest.findUnique({ where: { id: second.id } })).targetAt, +second.targetAt);
+    await assert.rejects(service.report(replacement.id, sessions[3].id, second.id, { ...finding, expectedVersion: oldRecommendation.version }), { status: 409 });
+    await assert.rejects(service.decide(admin.id, sessions[2].id, second.id, { ...decision, expectedVersion: reassigned.version }), { status: 409 });
+    const freshView = await service.detail(replacement.id, sessions[3].id, second.id); assert.equal(freshView.canReport, true); assert.deepEqual(freshView.findingHistory, []);
+    assert.equal("findingHistory" in await service.owner(owner.id, sessions[0].id, second.id), false);
+    const fresh = await service.report(replacement.id, sessions[3].id, second.id, { ...finding, expectedVersion: reassigned.version, notes: "Fresh independent replacement investigation." });
+    const finalBody = { ...decision, expectedVersion: fresh.version };
+    // The former investigator retains an approver role, but history must still forbid their decision.
+    assert.equal((await service.detail(agent.id, sessions[1].id, second.id)).canDecide, false);
+    await assert.rejects(service.decide(agent.id, sessions[1].id, second.id, finalBody), { status: 403 });
+    await assert.rejects(service.decide(admin.id, sessions[2].id, second.id, { ...decision, expectedVersion: oldRecommendation.version }), { status: 409 });
+    const approvedAfterReplacement = await service.decide(admin.id, sessions[2].id, second.id, finalBody);
+    assert.equal((await service.publicOrganization(approvedAfterReplacement.organizationId)).verified, true);
+    assert.equal(await db.organization.count({ where: { requestId: second.id } }), 1);
+    assert.equal(await db.organizationMembership.count({ where: { organizationId: approvedAfterReplacement.organizationId, enabled: true } }), 1);
+    assert.equal(await db.organizationRequestAudit.count({ where: { requestId: second.id, action: "REASSIGNED" } }), 1);
+    assert.equal((await db.organizationOperator.findUnique({ where: { accountId: agent.id } })).agentEnabled, false);
+
   } finally {
     try {
       const ids = accounts.map(a => a.id), people = accounts.map(a => a.personId);
@@ -74,6 +120,7 @@ test("database organization submission/decision races, separate roles and failed
         await db.organizationMembership.deleteMany({ where: { organizationId: { in: orgIds } } });
         await db.organizationOperatingLocation.deleteMany({ where: { organizationId: { in: orgIds } } });
         await db.organization.deleteMany({ where: { id: { in: orgIds } } });
+        await db.organizationFindingArchive.deleteMany({ where: { requestId: { in: requestIds } } });
         await db.organizationFinding.deleteMany({ where: { requestId: { in: requestIds } } });
         await db.organizationRequestAudit.deleteMany({ where: { requestId: { in: requestIds } } });
         await db.organizationRequest.deleteMany({ where: { id: { in: requestIds } } });

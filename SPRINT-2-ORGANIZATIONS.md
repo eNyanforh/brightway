@@ -44,7 +44,7 @@ npm run lint --workspace frontend
 npm run build
 ```
 
-New migration: `20261027090000_add_organization_onboarding`. This adds organization tables/constraints without rewriting earlier migrations. Check the migration target privately before applying. An application development migration is not a cloud deployment.
+Organization migrations: `20261027090000_add_organization_onboarding` and `20261027120000_add_organization_finding_history`. This adds organization tables/constraints without rewriting earlier migrations. Check the migration target privately before applying. An application development migration is not a cloud deployment.
 
 Restart the usual local servers in separate terminals:
 
@@ -90,3 +90,26 @@ Local checks on this implementation: 265 backend cases passed; 19 database cases
 Native Chromium checks at desktop 1280px and mobile 390px exercise request → assignment → Agent recommendation → separate final approval → public page, using synthetic accounts and the actual organization service with a memory database behind intercepted API calls. They check runtime errors and horizontal overflow. This is not real PostgreSQL, R2, email or deployed-environment acceptance.
 
 GitHub Actions executes the full regression on the repository's supported Node versions, clean migration replay and dedicated PostgreSQL integration suite. Consult the exact commit's run for the actual result; reading test source is not a successful test execution. Any failed gate must be corrected and the forecast updated. Do not infer complete Sprint 2 or production readiness from code presence or dates.
+
+## Owner-reported organization browser acceptance — 27 October 2026
+
+Emmanuel reported that the following checks worked in the real local application: submission → assignment → Agent recommendation → separate approval; applicant reviewer access denied with “Organization verification permission is required”; approved public presence in an unsigned-in browser without private notes; rejection and owner-facing feedback; stale two-tab decisions; active duplicate requests; Agent permission withdrawal before findings and private-data denial; Agent/final-approver separation; mobile layout; and Agent permission without MFA remaining denied. These are owner reports, not independently captured HTTP/database/browser transcripts. The precise local SHA was not supplied. Preserve these passes; do not ask for wholesale repetition.
+
+The proposed requirement for a 100% complete individual profile before requesting an organization was paused by the owner. The separate Agent and approver workflow was explicitly retained. Neither decision requires changing the existing applicant prerequisites or removing investigation.
+
+## Recovery after an investigating Agent is revoked
+
+The follow-up adds a private `OrganizationFindingArchive` table. A currently authorized MFA approver can replace the Agent on a RECOMMENDED request, including when the prior Agent is permanently revoked or suspended. The replacement must be a different active authorized Agent. Reassignment preserves the exact old findings, their author/time and the version they supported; increments the request version; removes those findings from the current decision input; records an audit; and returns the request to ASSIGNED. The 72-hour target is unchanged. If any write/audit fails, retirement and reassignment roll back together.
+
+A new Agent must submit fresh checks and findings before a final decision. Neither current nor former investigating Agents can become the final approver of that request, even if later granted approver permission. Prior findings are shown only to currently authorized approvers, never in owner/public projections or to a replacement Agent. The UI shows the latest ten archived investigations; the server checks the entire history for separation of duties. Previous migrations, existing approvals and other verification trust remain intact.
+
+### Next application-browser check after updating
+
+1. Pull the reviewed update. First run the isolated database suite with `--migrate`. Then stop the application backend, apply pending development-database migrations and regenerate Prisma using the earlier commands. Restart both local servers. This is not a cloud deployment.
+2. Use a disposable pending organization request with an Agent recommendation already submitted. Keep a stale final-decision tab open as the approver.
+3. Revoke that Agent's permission using the existing CLI. Reload the approver's other tab: it should require reassignment and withhold final-decision controls.
+4. Assign a distinct replacement Agent who has verified email, enabled MFA and Agent permission. Four distinct account roles are needed for this case: applicant, original Agent, replacement Agent and final approver. An existing test account can be configured as the replacement; do not restore the revoked permission to bypass recovery.
+5. Confirm status ASSIGNED, the original target unchanged and earlier findings preserved under Previous investigations for the approver. Owner/public views and the replacement Agent must not receive that private history. No public organization should exist yet.
+6. Submit fresh replacement findings, then approve as the separate approver. The stale old decision must fail. Confirm one organization and one primary administrator, while the original Agent remains revoked. A past investigator with approver permission must still be denied a final decision.
+
+This new recovery journey still needs owner-reported acceptance after migration. Local service/HTTP regression covers 269 passing cases with 19 explicit database skips; the focused organization module covers 16 cases. The dedicated PostgreSQL case additionally covers permanent Agent withdrawal, reassignment races, audit-failure rollback, private exact history, stale findings/decisions and former-investigator exclusion. Frontend regression adds three focused recovery cases. Consult the exact commit's GitHub Actions results for actual SQL execution. Deployment remains paused through Sprint 2 acceptance; this fix does not declare G2 passed.
