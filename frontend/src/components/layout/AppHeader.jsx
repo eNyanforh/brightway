@@ -4,6 +4,7 @@ import NavigationIcon from "./NavigationIcon";
 import "./app-header.css";
 
 export default function AppHeader({
+  actingOrganization,
   photoId,
   unsaved,
   profileBusy,
@@ -50,7 +51,7 @@ export default function AppHeader({
         <div className="bw-design-account">
           <span className="bw-design-personal">
             <span />
-            Personal account
+            {actingOrganization?.name || "Personal account"}
           </span>
 
           <button

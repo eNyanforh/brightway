@@ -136,6 +136,8 @@ export default function HeaderProfileMenu({
             View profile
           </Action>
 
+          <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/organization-workspace"); }}>Switch account</Action>
+
           <Action
             type="button"
             disabled={busy || profileBusy}

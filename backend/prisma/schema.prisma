@@ -44,6 +44,9 @@ model Account {
   assignedOrganizationRequests OrganizationRequest[] @relation("OrganizationAgent")
   decidedOrganizationRequests OrganizationRequest[] @relation("OrganizationApprover")
   organizationMemberships OrganizationMembership[]
+  receivedOrganizationInvitations OrganizationInvitation[] @relation("OrganizationInviteRecipient")
+  sentOrganizationInvitations OrganizationInvitation[] @relation("OrganizationInviteSender")
+  organizationStaffActions OrganizationStaffAudit[]
   organizationFindings OrganizationFinding[]
   retiredOrganizationFindings OrganizationFindingArchive[] @relation("ArchivedOrganizationAgent")
   organizationReassignments OrganizationFindingArchive[] @relation("OrganizationFindingRetiredBy")
@@ -741,6 +744,7 @@ enum OrganizationStatus {
 }
 enum OrganizationMembershipRole {
   PRIMARY_ADMIN
+  STAFF
 }
 model OrganizationOperator {
   accountId String @id
@@ -857,6 +861,9 @@ model Organization {
   updatedAt DateTime @updatedAt
   locations OrganizationOperatingLocation[]
   memberships OrganizationMembership[]
+  invitations OrganizationInvitation[]
+  staffAudits OrganizationStaffAudit[]
+  staffVersion Int @default(1)
 }
 model OrganizationOperatingLocation {
   id String @id @default(uuid())
@@ -877,8 +884,51 @@ model OrganizationMembership {
   accountId String
   account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
   role OrganizationMembershipRole
+  permissions String[] @default([])
+  version Int @default(1)
+  updatedAt DateTime @default(now()) @updatedAt
   enabled Boolean @default(true)
   createdAt DateTime @default(now())
   @@unique([organizationId, accountId])
   @@index([accountId, enabled])
+}
+
+enum OrganizationInvitationState {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+}
+model OrganizationInvitation {
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  senderId String
+  sender Account @relation("OrganizationInviteSender", fields: [senderId], references: [id], onDelete: Restrict)
+  recipientId String
+  recipient Account @relation("OrganizationInviteRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+  permissions String[]
+  idempotencyKey String
+  inputHash String @db.VarChar(64)
+  state OrganizationInvitationState @default(PENDING)
+  version Int @default(1)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  respondedAt DateTime?
+  @@unique([organizationId, senderId, idempotencyKey])
+  @@index([recipientId, state, createdAt, id])
+  @@index([organizationId, state, createdAt, id])
+}
+model OrganizationStaffAudit {
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  actorId String
+  actor Account @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action String @db.VarChar(50)
+  entityId String
+  data Json
+  createdAt DateTime @default(now())
+  @@index([organizationId, createdAt, id])
 }

@@ -292,3 +292,4 @@
     width: 32px;
   }
 }
+.bw-design-personal { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -5,7 +5,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
 
 import AppHeader from "../components/layout/AppHeader";
 import AppSidebar from "../components/layout/AppSidebar";
@@ -20,6 +21,9 @@ import {
 import "./app-shell.css";
 
 export default function AppLayout() {
+  const { pathname } = useLocation(), { account } = useAuth();
+  const [actingOrganization, setActingOrganization] = useState(null);
+  const acting = actingOrganization?.accountId === account?.id && pathname === `/organization-workspace/${actingOrganization?.organization.id}` ? actingOrganization.organization : null;
   const [profileDraft, setProfileDraft] = useState(null);
   const [profileError, setProfileError] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -106,6 +110,7 @@ export default function AppLayout() {
   return (
     <div className="bw-app-shell">
       <AppHeader
+        actingOrganization={acting}
         photoId={profileDraft?.profile.photo?.id}
         unsaved={dirty}
         profileBusy={profileDraft?.busy}
@@ -127,6 +132,7 @@ export default function AppLayout() {
         <main className="bw-app-content">
           <Outlet
             context={{
+              setActingOrganization,
               profileDraft,
               setProfileDraft,
               profileError,

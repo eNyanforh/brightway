@@ -1,3 +1,4 @@
+import OrganizationWorkspacePage from "../pages/OrganizationWorkspacePage";
 import OrganizationRequestsPage from "../pages/OrganizationRequestsPage";
 import OrganizationReviewPage from "../pages/OrganizationReviewPage";
 import OrganizationPage from "../pages/OrganizationPage";
@@ -48,6 +49,8 @@ export default function AppRoutes() {
 
       <Route element={<AuthGate />}>
         <Route element={<AppLayout />}>
+          <Route path="/organization-workspace" element={<OrganizationWorkspacePage />} />
+          <Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} />
           <Route path="/organizations/new" element={<OrganizationRequestsPage />} />
           <Route path="/admin/organizations" element={<OrganizationReviewPage />} />
           <Route path="/credentials" element={<MyCredentialReviewsPage />} />
