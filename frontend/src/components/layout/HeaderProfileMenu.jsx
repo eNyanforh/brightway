@@ -157,8 +157,8 @@ export default function HeaderProfileMenu({
 
             <button
               type="button"
-              disabled
-              title="Organization registration is coming soon"
+              disabled={busy || profileBusy}
+              onClick={() => { setOpen(false); navigate("/organizations/new"); }}
             >
               <span className="organization-icon">
                 <svg

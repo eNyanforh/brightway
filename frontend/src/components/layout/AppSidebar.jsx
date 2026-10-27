@@ -76,17 +76,17 @@ export default function AppSidebar({ id, open, onNavigate }) {
           Bring your school, company, or community to BrightWay.
         </p>
 
-        <button
+        <NavLink
           className="bw-design-create-org"
           type="button"
-          disabled
-          title="Organization registration is coming soon"
+          onClick={onNavigate}
+          to="/organizations/new"
         >
           <span className="bw-design-create-org-icon">
             <NavigationIcon name="plus" />
           </span>
           <span>Create an organization</span>
-        </button>
+        </NavLink>
       </section>
 
       <p className="bw-design-sidebar-footer">

@@ -1,3 +1,6 @@
+import OrganizationRequestsPage from "../pages/OrganizationRequestsPage";
+import OrganizationReviewPage from "../pages/OrganizationReviewPage";
+import OrganizationPage from "../pages/OrganizationPage";
 import ProfilePhotoReviewsPage from "../pages/ProfilePhotoReviewsPage";
 import NameChangePage from "../pages/NameChangePage";
 import NameChangeReviewsPage from "../pages/NameChangeReviewsPage";
@@ -32,6 +35,7 @@ export default function AppRoutes() {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/partners" element={<PartnersPage />} />
+        <Route path="/organizations/:id" element={<OrganizationPage />} />
 
         <Route path="/forgot-password" element={<PasswordRecoveryPage />} />
 
@@ -44,6 +48,8 @@ export default function AppRoutes() {
 
       <Route element={<AuthGate />}>
         <Route element={<AppLayout />}>
+          <Route path="/organizations/new" element={<OrganizationRequestsPage />} />
+          <Route path="/admin/organizations" element={<OrganizationReviewPage />} />
           <Route path="/credentials" element={<MyCredentialReviewsPage />} />
           <Route path="/credentials/:kind/:recordId" element={<CredentialPage />} />
           <Route path="/admin/credentials" element={<CredentialReviewsPage />} />

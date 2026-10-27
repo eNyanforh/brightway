@@ -1,5 +1,7 @@
 # Start here — BrightWay recovery snapshot
 
+For current organization onboarding, use SPRINT-2-ORGANIZATIONS.md. This file retains the earlier recovery procedure. Deployment is now paused until after Sprint 2 acceptance, including private staging.
+
 ## Preserve the current project
 
 Stop both servers and keep your existing brightway folder intact as a backup. Extract this project into a separate folder. Do not delete your original .git directory, .env, unpushed commits or private recovery configuration. This ZIP has no Git history. Use it first as a separate working copy; reconcile it into your original repository after checking the restored behavior. No git reset, clean or force-push is required.
@@ -53,7 +55,7 @@ Open http://localhost:5173. The Vite proxy forwards /api to http://localhost:500
 
 Recheck six-step signup/email delivery/photo storage; ordinary login and logout; existing profile/drafts/history/contacts; credential upload/submission/correction feedback; /security enrollment and single-use backups; second-step login; old-code rejection after regeneration; reset retaining MFA; and authorized reviewer APIs rejecting sessions without MFA. Existing individual accounts are allowed to remain unenrolled. Setting up MFA does not grant reviewer permissions or individual Verified status.
 
-Continue the agreed plan only after recovery checks pass. No public deployment is performed or authorized by this package; deployment remains paused until Sprint 1 acceptance.
+Continue the agreed plan only after recovery checks pass. No public deployment is performed or authorized by this package; deployment remains paused until after Sprint 2 acceptance.
 
 ## Provenance
 

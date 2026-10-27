@@ -631,7 +631,7 @@ it("places the organization invitation beneath logout in the account disclosure"
   expect(logout.nextElementSibling).toBe(invitation);
   expect(within(invitation).getByText("Make room for your organization.")).toBeTruthy();
   expect(within(invitation).getByText("Bring your school, company, or community to BrightWay.")).toBeTruthy();
-  expect(within(invitation).getByText("Create an organization").closest("button").disabled).toBe(true);
+  expect(within(invitation).getByText("Create an organization").closest("button").disabled).toBe(false);
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profile/me"))).toHaveLength(1);
 });
 

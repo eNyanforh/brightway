@@ -38,6 +38,14 @@ enum PersonGender {
 }
 
 model Account {
+  organizationOperator OrganizationOperator?
+  organizationRoleAudits OrganizationOperatorAudit[]
+  organizationRequests OrganizationRequest[] @relation("OrganizationApplicant")
+  assignedOrganizationRequests OrganizationRequest[] @relation("OrganizationAgent")
+  decidedOrganizationRequests OrganizationRequest[] @relation("OrganizationApprover")
+  organizationMemberships OrganizationMembership[]
+  organizationFindings OrganizationFinding[]
+
   latestNameChangeId String? @unique
   latestNameChangeProof IdentityNameChange? @relation("LatestNameChange", fields: [latestNameChangeId], references: [id], onDelete: Restrict)
   nameChanges IdentityNameChange[] @relation("NameChangeOwner")
@@ -706,4 +714,146 @@ model IdentityNameChangeAudit {
   toState IdentityNameChangeState
   createdAt DateTime @default(now())
   @@index([requestId, createdAt, id])
+}
+
+// Sprint 2: global presence is independent of Campus activation and credential-review powers.
+enum OrganizationType {
+  SCHOOL
+  NGO
+  COMPANY
+}
+enum OrganizationRequestStatus {
+  SUBMITTED
+  ASSIGNED
+  RECOMMENDED
+  APPROVED
+  REJECTED
+}
+enum OrganizationRecommendation {
+  APPROVE
+  REJECT
+}
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+}
+enum OrganizationMembershipRole {
+  PRIMARY_ADMIN
+}
+model OrganizationOperator {
+  accountId String @id
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  agentEnabled Boolean @default(false)
+  approverEnabled Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model OrganizationOperatorAudit {
+  id String @id @default(uuid())
+  targetAccountId String
+  target Account @relation(fields: [targetAccountId], references: [id], onDelete: Restrict)
+  actorId String
+  capability String @db.VarChar(30)
+  enabled Boolean
+  createdAt DateTime @default(now())
+  @@index([targetAccountId, createdAt])
+}
+model OrganizationRequest {
+  id String @id @default(uuid())
+  applicantId String
+  applicant Account @relation("OrganizationApplicant", fields: [applicantId], references: [id], onDelete: Restrict)
+  idempotencyKey String
+  inputHash String @db.VarChar(64)
+  fingerprint String @db.VarChar(64)
+  name String @db.VarChar(160)
+  type OrganizationType
+  representativeRole String @db.VarChar(120)
+  countryCode String @db.VarChar(2)
+  region String @db.VarChar(120)
+  city String @db.VarChar(120)
+  address String @db.VarChar(300)
+  offersTraining Boolean
+  status OrganizationRequestStatus @default(SUBMITTED)
+  version Int @default(1)
+  assignedAgentId String?
+  assignedAgent Account? @relation("OrganizationAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict)
+  decidedById String?
+  decidedBy Account? @relation("OrganizationApprover", fields: [decidedById], references: [id], onDelete: Restrict)
+  decisionReason String? @db.VarChar(2000)
+  decidedAt DateTime?
+  targetAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  finding OrganizationFinding?
+  organization Organization?
+  audits OrganizationRequestAudit[]
+  @@unique([applicantId, idempotencyKey])
+  @@index([applicantId, createdAt, id])
+  @@index([status, createdAt, id])
+  @@index([assignedAgentId, status, createdAt])
+}
+model OrganizationFinding {
+  requestId String @id
+  request OrganizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  agentId String
+  agent Account @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  existenceConfirmed Boolean
+  locationConfirmed Boolean
+  authorityConfirmed Boolean
+  typeConfirmed Boolean
+  operationalConfirmed Boolean
+  recommendation OrganizationRecommendation
+  notes String @db.VarChar(4000)
+  setupAssistance String @db.VarChar(2000)
+  createdAt DateTime @default(now())
+}
+model OrganizationRequestAudit {
+  id String @id @default(uuid())
+  requestId String
+  request OrganizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  actorId String
+  action String @db.VarChar(40)
+  fromStatus OrganizationRequestStatus?
+  toStatus OrganizationRequestStatus
+  version Int
+  createdAt DateTime @default(now())
+  @@index([requestId, createdAt, id])
+}
+model Organization {
+  id String @id @default(uuid())
+  requestId String @unique
+  request OrganizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  name String @db.VarChar(160)
+  type OrganizationType
+  offersTraining Boolean
+  status OrganizationStatus @default(ACTIVE)
+  verifiedAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  locations OrganizationOperatingLocation[]
+  memberships OrganizationMembership[]
+}
+model OrganizationOperatingLocation {
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  countryCode String @db.VarChar(2)
+  region String @db.VarChar(120)
+  city String @db.VarChar(120)
+  address String @db.VarChar(300)
+  primary Boolean @default(true)
+  verifiedAt DateTime
+  @@index([organizationId])
+}
+model OrganizationMembership {
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  role OrganizationMembershipRole
+  enabled Boolean @default(true)
+  createdAt DateTime @default(now())
+  @@unique([organizationId, accountId])
+  @@index([accountId, enabled])
 }

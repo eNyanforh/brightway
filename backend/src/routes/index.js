@@ -1,3 +1,5 @@
+import { createOrganizationService } from "../modules/organizations/organization.service.js";
+import { createOrganizationRoutes } from "../modules/organizations/organization.routes.js";
 import { createProfilePhotoReviewService } from "../modules/photos/profile-photo-review.service.js";
 import { createIdentityNameChangeService } from "../modules/manual-identity/identity-name-change.service.js";
 import { createIdentityNameChangeRoutes } from "../modules/manual-identity/identity-name-change.routes.js";
@@ -43,6 +45,7 @@ const verification = createSignupEmailService({ prisma });
 router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const mfa = createMfaService({ prisma });
 const sessions = createSessionService({ prisma, mfa });
+router.use(createOrganizationRoutes({ organizations: createOrganizationService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createIdentityRoutes({ identity: createIdentityService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use("/auth", createMfaRoutes({ mfa, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use("/auth", createAccountEmailRoutes({ verification: createAccountEmailService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));

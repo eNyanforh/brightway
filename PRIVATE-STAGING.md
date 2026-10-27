@@ -1,5 +1,7 @@
 # Private staging preparation
 
+**Parked by owner decision: deployment, including private staging, stays paused until after Sprint 2 acceptance.** Keep this package for later review; do not provision resources or run host deployment commands during the pause.
+
 This is a reviewed configuration package, not a deployed environment. No host, DNS record, paid service, staging database, bucket, scheduler or alert destination has been provisioned. The owner reported the final retention check PASS on 26 October; see SPRINT-1-ACCEPTANCE.md. Public launch remains targeted for 26 January 2027, subject to the agreed production gates.
 
 ## Architecture and access boundary

@@ -1,0 +1,80 @@
+import { randomUUID } from "node:crypto";
+import { createOrganizationService } from "../src/modules/organizations/organization.service.js";
+const clone = v => structuredClone(v);
+export function organizationFixture() {
+  let date = new Date("2026-10-27T12:00:00Z"), auditFails = false, auditHook;
+  const state = Object.fromEntries(["account", "session", "mfaFactor", "organizationOperator", "organizationRequest", "organizationFinding", "organizationRequestAudit", "organization", "organizationOperatingLocation", "organizationMembership"].map(k => [k, []]));
+  const actors = {};
+  for (const label of ["owner", "agent", "approver", "other"]) {
+    const id = randomUUID(), sessionId = randomUUID(); actors[label] = { id, sessionId, username: `${label}_fixture` };
+    state.account.push({ id, username: `${label}_fixture`, emailVerifiedAt: date, status: "ACTIVE", personId: randomUUID(), identityRevision: 0, platformRole: "MEMBER" });
+    state.session.push({ id: sessionId, accountId: id, expiresAt: new Date(+date + 7 * 86400000), mfaVerifiedAt: ["agent", "approver"].includes(label) ? date : null, mfaVersion: ["agent", "approver"].includes(label) ? 1 : 0 });
+    if (["agent", "approver"].includes(label)) {
+      state.mfaFactor.push({ accountId: id, enabled: true, version: 1 });
+      state.organizationOperator.push({ accountId: id, agentEnabled: label === "agent", approverEnabled: label === "approver" });
+    }
+  }
+  function matches(row, where = {}) {
+    return Object.entries(where).every(([key, value]) => {
+      if (value === undefined) return true;
+      if (key === "request") return matches(state.organizationRequest.find(r => r.id === row.requestId) ?? {}, value);
+      if (key === "AND") return value.every(w => matches(row, w));
+      if (key === "OR") return value.some(w => matches(row, w));
+      if (key === "applicantId_idempotencyKey") return matches(row, value);
+      if (value instanceof Date) return +row[key] === +value;
+      if (value && typeof value === "object") {
+        if ("in" in value) return value.in.includes(row[key]); if ("not" in value) return row[key] !== value.not;
+        if ("gt" in value) return row[key] > value.gt; if ("gte" in value) return row[key] >= value.gte;
+      }
+      return row[key] === value;
+    });
+  }
+  function project(row, select) {
+    if (!row) return null;
+    if (row.requestId && state.organization.some(r => r.id === row.id)) row = { ...row, locations: state.organizationOperatingLocation.filter(r => r.organizationId === row.id) };
+    if (!select) return clone(row);
+    return Object.fromEntries(Object.entries(select).map(([key, value]) => [key, typeof value === "object" && value.select ? (row[key] || []).map(x => project(x, value.select)) : clone(row[key])]));
+  }
+  const db = {};
+  for (const [model, rows] of Object.entries(state)) {
+    void rows;
+    db[model] = {
+      async findUnique({ where, select }) { return project(state[model].find(r => matches(r, where)), select); },
+      async findFirst(args = {}) { return (await this.findMany({ ...args, take: 1 }))[0] ?? null; },
+      async findMany({ where, select, orderBy, cursor, skip = 0, take } = {}) {
+        let rows = state[model].filter(r => matches(r, where));
+        const order = Array.isArray(orderBy) ? orderBy : orderBy ? [orderBy] : [];
+        rows.sort((a, b) => { for (const entry of order) { const [key, direction] = Object.entries(entry)[0]; if (a[key] < b[key]) return direction === "desc" ? 1 : -1; if (a[key] > b[key]) return direction === "desc" ? -1 : 1; } return 0; });
+        if (cursor) { const index = rows.findIndex(r => r.id === cursor.id); rows = index < 0 ? [] : rows.slice(index + skip); }
+        return rows.slice(0, take).map(r => project(r, select));
+      },
+      async count({ where }) { return state[model].filter(r => matches(r, where)).length; },
+      async create({ data }) {
+        if (model === "organizationRequestAudit") { if (auditFails) throw Error("Audit failed"); if (auditHook) await auditHook(data); }
+        const value = { id: randomUUID(), createdAt: date, updatedAt: date,
+          ...(model === "organizationRequest" ? { version: 1, status: "SUBMITTED", assignedAgentId: null, decisionReason: null, decidedById: null, decidedAt: null } : {}),
+          ...(model === "organization" ? { status: "ACTIVE" } : {}), ...clone(data) };
+        if (model === "organization") {
+          const { locations, memberships } = value; delete value.locations; delete value.memberships;
+          state.organizationOperatingLocation.push({ id: randomUUID(), organizationId: value.id, primary: true, ...locations.create });
+          state.organizationMembership.push({ id: randomUUID(), organizationId: value.id, enabled: true, ...memberships.create });
+        }
+        state[model].push(value); return clone(value);
+      },
+      async updateMany({ where, data }) {
+        let count = 0; for (const row of state[model]) if (matches(row, where)) { for (const [k, v] of Object.entries(data)) row[k] = v && typeof v === "object" && "increment" in v ? row[k] + v.increment : clone(v); row.updatedAt = date; count++; } return { count };
+      },
+    };
+  }
+  let chain = Promise.resolve();
+  db.$transaction = work => { const result = chain.then(async () => { const before = clone(state); try { return await work(db); } catch (e) { for (const key of Object.keys(state)) state[key] = before[key]; throw e; } }); chain = result.catch(() => {}); return result; };
+  const service = createOrganizationService({ prisma: db, now: () => date });
+  const input = () => ({ idempotencyKey: randomUUID(), name: " Global Test School ", type: "SCHOOL", representativeRole: "Principal", countryCode: "gh", region: "", city: "Accra", address: "Synthetic operating location" });
+  const finding = () => ({ expectedVersion: 2, existenceConfirmed: true, locationConfirmed: true, authorityConfirmed: true, typeConfirmed: true, operationalConfirmed: true, recommendation: "APPROVE", notes: "Synthetic verification findings only.", setupAssistance: "Setup explained to the representative." });
+  return { db, state, actors, service, input, finding, now: () => date, advance(ms) { date = new Date(+date + ms); }, failAudit(value = true) { auditFails = value; }, onAudit(fn) { auditHook = fn; },
+    async submit(body = input()) { return service.submit(actors.owner.id, actors.owner.sessionId, body); },
+    async assign(r) { return service.assign(actors.approver.id, actors.approver.sessionId, r.id, { expectedVersion: r.version, agentUsername: actors.agent.username }); },
+    async report(r) { return service.report(actors.agent.id, actors.agent.sessionId, r.id, { ...finding(), expectedVersion: r.version }); },
+    async decide(r, decision = "APPROVE") { return service.decide(actors.approver.id, actors.approver.sessionId, r.id, { expectedVersion: r.version, decision, reason: "Synthetic organization decision feedback." }); },
+  };
+}
