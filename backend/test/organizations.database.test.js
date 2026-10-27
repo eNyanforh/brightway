@@ -11,7 +11,7 @@ test("database organization submission/decision races, separate roles and failed
   const marker = randomUUID(), accounts = [], sessions = [], now = new Date();
   const service = createOrganizationService({ prisma: db });
   try {
-    for (const label of ["owner", "agent", "admin", "replacement"]) {
+    for (const label of ["owner", "agent", "admin", "next"]) {
       const account = await db.account.create({ data: { username: `org_${label}_${marker.replaceAll("-", "").slice(0, 16)}`, email: `org_${label}_${marker}@example.invalid`, passwordHash: "synthetic-unusable-hash", emailVerifiedAt: now, person: { create: { firstName: "Synthetic", lastName: label } } } }); accounts.push(account);
       const mfa = label !== "owner";
       if (mfa) await db.mfaFactor.create({ data: { accountId: account.id, encryptedSecret: "synthetic-test-no-usable-key", enabled: true, version: 1, windowStart: now } });
