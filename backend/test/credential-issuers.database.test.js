@@ -50,8 +50,32 @@ test("database issuer review isolates tenants, serializes decisions/revocation a
     const input = { expectedVersion: 2, revision: 1, status: "VERIFIED", note: "The school confirmed the exact fixture claim." };
     await assert.rejects(failed.transition(reviewer.id, review.id, input, false, sessions[1].id, org), /Injected credential audit failure/);
     assert.equal((await db.educationRecord.findUnique({ where: { id: review.recordId } })).status, "IN_REVIEW");
-    const staff = createOrganizationStaffService({ prisma: db });
-    await staff.change(primary.id, sessions[3].id, org, member.id, { expectedStaffVersion: 1, expectedVersion: 1, enabled: false, permissions: [] });
+    // Hold the real staffing transaction after its audit write. The competing decision
+    // passes its initial (old) authority read, then must recheck after revocation commits.
+    let releaseRevoke, signalHeld, signalDecision;
+    const held = new Promise(resolve => { signalHeld = resolve; }), released = new Promise(resolve => { releaseRevoke = resolve; });
+    const decisionStarted = new Promise(resolve => { signalDecision = resolve; });
+    function pauseStaffAudit(client) { return new Proxy(client, { get(target, key) {
+      if (key === "$transaction") return work => target.$transaction(tx => work(pauseStaffAudit(tx)));
+      if (key === "organizationStaffAudit") return { create: async args => { const row = await target.organizationStaffAudit.create(args); signalHeld(); await released; return row; } };
+      const value = target[key]; return typeof value === "function" ? value.bind(target) : value;
+    } }); }
+    const decisionDb = new Proxy(db, { get(target, key) {
+      if (key === "$transaction") return work => { signalDecision(); return target.$transaction(work); };
+      const value = target[key]; return typeof value === "function" ? value.bind(target) : value;
+    } });
+    const staff = createOrganizationStaffService({ prisma: pauseStaffAudit(db) });
+    const revoke = staff.change(primary.id, sessions[3].id, org, member.id, { expectedStaffVersion: 1, expectedVersion: 1, enabled: false, permissions: [] });
+    let decision;
+    try {
+      await Promise.race([held, revoke.then(() => { throw Error("Expected a paused staffing audit"); })]);
+      decision = createCredentialService({ prisma: decisionDb, storage }).transition(reviewer.id, review.id, input, false, sessions[1].id, org);
+      // Attach the rejection handler immediately; either operation can finish first.
+      const denied = assert.rejects(decision, { status: 403 });
+      await Promise.race([decisionStarted, decision]); releaseRevoke();
+      await revoke; await denied;
+      assert.equal(await db.credentialAuditEvent.count({ where: { reviewId: review.id, action: "DECIDED" } }), 0);
+    } finally { releaseRevoke(); await Promise.allSettled([revoke, ...(decision ? [decision] : [])]); }
     await assert.rejects(service.transition(reviewer.id, review.id, input, false, sessions[1].id, org), { status: 403 });
     await assert.rejects(service.readEvidence(reviewer.id, reviewer.personId, asset.id, sessions[1].id), { status: 404 });
     assert.equal((await service.detail(primary.id, review.id, sessions[3].id, org)).canReassign, true);
