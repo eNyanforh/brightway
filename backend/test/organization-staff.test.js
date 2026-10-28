@@ -12,8 +12,8 @@ async function fixture() {
   const staff = createOrganizationStaffService({ prisma: f.db, now: f.now }), id = result.organizationId;
   return { ...f, staff, id, owner, recipient, context: () => staff.context(owner.id, owner.sessionId, id), invite: async (permissions = [POSTS], username = recipient.username, extra = {}) => staff.invite(owner.id, owner.sessionId, id, { expectedStaffVersion: f.state.organization[0].staffVersion, idempotencyKey: randomUUID(), username, permissions, ...extra }), accept: r => staff.respond(recipient.id, recipient.sessionId, r.id, { expectedVersion: r.version, decision: "ACCEPT" }) };
 }
-test("staff context requires live membership and verified active organization, without granting Campus or reviewer rights", async () => {
-  const f = await fixture(), c = await f.context(); assert(c.permissions.includes(MANAGE)); assert(!c.permissions.some(p => /campus|credentials/.test(p))); assert.equal(c.organization.id, f.id);
+test("staff context requires live membership and verified active organization, without granting Campus or internal BrightWay roles", async () => {
+  const f = await fixture(), c = await f.context(); assert(c.permissions.includes(MANAGE)); assert(!c.permissions.some(p => /campus|internal/.test(p))); assert(c.permissions.includes("organization.credentials.education.review")); assert.equal(c.organization.id, f.id);
   await assert.rejects(f.staff.context(f.recipient.id, f.recipient.sessionId, f.id), { status: 403 });
   await assert.rejects(f.staff.context(f.owner.id, undefined, f.id), { status: 401 });
   f.state.organization[0].status = "SUSPENDED"; await assert.rejects(f.context(), { status: 404 });
@@ -77,7 +77,7 @@ test("concurrent invitation acceptance and staffing edits have one winner", asyn
 });
 test("strict permissions reject injected roles, trust, ownership, duplicates and Campus scope", async () => {
   const f = await fixture(); for (const extra of [{ role: "PRIMARY_ADMIN" }, { actorId: f.recipient.id }, { identityVerified: true }, { organizationId: f.id }]) await assert.rejects(f.invite([POSTS], f.recipient.username, extra), { status: 400 });
-  for (const permissions of [["campus.billing.view"], [POSTS, POSTS], ["organization.credentials.education.review"]]) await assert.rejects(f.invite(permissions), { status: 400 });
+  for (const permissions of [["campus.billing.view"], [POSTS, POSTS], ["organization.credentials.identity.review"]]) await assert.rejects(f.invite(permissions), { status: 400 });
   f.state.organization[0].offersTraining = false; await assert.rejects(f.invite(["organization.programs.manage"]), { status: 403 });
 });
 test("tenant-bound paging never accepts another account or organization's cursor", async () => {

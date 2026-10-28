@@ -23,7 +23,7 @@ import "./app-shell.css";
 export default function AppLayout() {
   const { pathname } = useLocation(), { account } = useAuth();
   const [actingOrganization, setActingOrganization] = useState(null);
-  const acting = actingOrganization?.accountId === account?.id && pathname === `/organization-workspace/${actingOrganization?.organization.id}` ? actingOrganization.organization : null;
+  const acting = actingOrganization?.accountId === account?.id && [ `/organization-workspace/${actingOrganization?.organization.id}`, `/organization-workspace/${actingOrganization?.organization.id}/credentials` ].includes(pathname) ? actingOrganization.organization : null;
   const [profileDraft, setProfileDraft] = useState(null);
   const [profileError, setProfileError] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);

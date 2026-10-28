@@ -5,6 +5,8 @@ export const PERMISSIONS = Object.freeze({
   "organization.opportunities.manage": "Manage opportunities",
   "organization.programs.manage": "Manage programs",
   "organization.admissions.review": "Review admission applications",
+  "organization.credentials.education.review": "Review education credentials",
+  "organization.credentials.experience.review": "Review experience credentials",
 });
 export const permissionKeys = Object.keys(PERMISSIONS);
 const permissions = z.array(z.enum(permissionKeys)).max(permissionKeys.length).refine(v => new Set(v).size === v.length).transform(v => [...v].sort());

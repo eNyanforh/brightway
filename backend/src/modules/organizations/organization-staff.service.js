@@ -19,7 +19,7 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
     if (write && (await db.organization.updateMany({ where: { id, status: "ACTIVE" }, data: { staffVersion: { increment: 0 } } })).count !== 1) throw conflict();
     return result;
   }
-  const catalog = organization => permissionKeys.filter(p => organization.offersTraining || !["organization.programs.manage", "organization.admissions.review"].includes(p));
+  const catalog = organization => permissionKeys.filter(p => organization.offersTraining || !["organization.programs.manage", "organization.admissions.review", "organization.credentials.education.review"].includes(p));
   const effective = (membership, organization) => membership?.enabled ? (membership.role === "PRIMARY_ADMIN" ? catalog(organization) : (membership.permissions ?? []).filter(p => catalog(organization).includes(p))) : [];
   async function access(db, actorId, sessionId, organization, manage = false) {
     const account = await live(db, actorId, sessionId);

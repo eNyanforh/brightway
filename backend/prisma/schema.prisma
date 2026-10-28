@@ -317,9 +317,13 @@ model CredentialReview {
   submittedAt        DateTime @default(now())
   reviewerId         String?
   note               String? @db.VarChar(2000)
+  issuerOrganizationId String?
+  issuerOrganization Organization? @relation("CredentialIssuer", fields: [issuerOrganizationId], references: [id], onDelete: Restrict)
+  issuerName String? @db.VarChar(160)
   attempts           CredentialAttempt[]
   events             CredentialAuditEvent[]
   @@unique([kind, recordId])
+  @@index([issuerOrganizationId, kind, initialSubmittedAt, id], map: "CredentialReview_issuer_kind_submitted_id_idx")
   @@index([status, initialSubmittedAt, id])
 }
 
@@ -329,6 +333,9 @@ model CredentialAttempt {
   review     CredentialReview @relation(fields: [reviewId], references: [id], onDelete: Restrict)
   revision   Int
   snapshot   Json
+  issuerOrganizationId String?
+  issuerOrganization Organization? @relation("CredentialAttemptIssuer", fields: [issuerOrganizationId], references: [id], onDelete: Restrict)
+  issuerName String? @db.VarChar(160)
   status     CredentialStatus @default(SUBMITTED)
   reviewerId String?
   note       String? @db.VarChar(2000)
@@ -864,6 +871,8 @@ model Organization {
   invitations OrganizationInvitation[]
   staffAudits OrganizationStaffAudit[]
   staffVersion Int @default(1)
+  issuedCredentialReviews CredentialReview[] @relation("CredentialIssuer")
+  issuedCredentialAttempts CredentialAttempt[] @relation("CredentialAttemptIssuer")
 }
 model OrganizationOperatingLocation {
   id String @id @default(uuid())

@@ -1,3 +1,4 @@
+import { issuerSearchSchema } from "./credential-issuer.js";
 import { requireMfa } from "../auth/mfa.service.js";
 import { Router, raw } from "express";
 import { rateLimit } from "express-rate-limit";
@@ -36,6 +37,25 @@ export function createCredentialRoutes({ credentials, sessions, clientUrl, nodeE
     res.once("close", () => { if (!req.processingEvidence) req.releaseEvidence(); });
     next();
   }
+  router.get("/credentials/issuers", handle(async (req, res) => {
+    const parsed = issuerSearchSchema.safeParse(req.query);
+    if (!parsed.success) return res.status(400).json({ success: false, message: "Choose a credential type and search using 2–100 characters." });
+    json(res, await credentials.issuers(parsed.data.kind, parsed.data.query));
+  }));
+  const orgReview = "/organization-workspace/:organizationId/credential-reviews";
+  router.use(orgReview, (req, res, next) => { res.set("Cache-Control", "no-store"); next(); }, auth, requireMfa, (req, res, next) => {
+    if (!z.uuid().safeParse(req.params.organizationId).success) return res.status(404).json({ success: false, message: "Organization not found." });
+    next();
+  });
+  router.get(orgReview, handle(async (req, res) => {
+    const paging = z.strictObject({ cursor: z.uuid().optional() }).safeParse(req.query);
+    if (!paging.success) return res.status(400).json({ success: false, message: "Invalid queue page." });
+    json(res, await credentials.queue(actor(req), paging.data.cursor, req.auth.sessionId, req.params.organizationId));
+  }));
+  const reviewId = (req, res, next) => { if (!z.uuid().safeParse(req.params.id).success) return res.status(404).json({ success: false, message: "Review not found." }); next(); };
+  router.get(orgReview + "/:id", reviewId, handle(async (req, res) => json(res, await credentials.detail(actor(req), req.params.id, req.auth.sessionId, req.params.organizationId))));
+  router.post(orgReview + "/:id/assign", reviewId, origin, limits, body(assignSchema), handle(async (req, res) => json(res, await credentials.transition(actor(req), req.params.id, req.reviewInput, true, req.auth.sessionId, req.params.organizationId))));
+  router.post(orgReview + "/:id/decision", reviewId, origin, limits, body(decisionSchema), handle(async (req, res) => json(res, await credentials.transition(actor(req), req.params.id, req.reviewInput, false, req.auth.sessionId, req.params.organizationId))));
   router.get("/credentials", handle(async (req, res) => {
     const cursor = req.query.cursor;
     if (cursor !== undefined && !z.uuid().safeParse(cursor).success) return res.status(400).json({ success: false, message: "Invalid review cursor." });
@@ -70,3 +90,4 @@ export function createCredentialRoutes({ credentials, sessions, clientUrl, nodeE
   router.post("/admin/credentials/:id/decision", origin, limits, body(decisionSchema), handle(async (req, res) => json(res, await credentials.transition(actor(req), req.params.id, req.reviewInput, false, req.auth.sessionId))));
   return router;
 }
+

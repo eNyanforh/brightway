@@ -9,6 +9,7 @@ export function CredentialTimeline({ review, onError, allowDownload = true }) {
     {review.note && <p><strong>Reviewer feedback:</strong> {review.note}</p>}
     {review.attempts.map((attempt, index) => <article key={attempt.id}>
       <h3>Submission {index + 1} · Revision {attempt.revision}</h3>
+      <p>Reviewing issuer: {attempt.issuerName || "BrightWay (unlisted issuer)"}</p>
       <p>{credentialLabels[attempt.status]} · {date(attempt.createdAt)}</p>
       {attempt.note && <p>{attempt.note}</p>}
       <ul>{attempt.evidence.map((asset, i) => <li key={asset.id}><button type="button" disabled={!allowDownload} className="bw-profile-text-button" onClick={() => credentialsApi.download(asset.id, asset.contentType).catch(onError)}>Download supporting document {i + 1} ({Math.ceil(asset.size / 1024)} KiB)</button></li>)}</ul>

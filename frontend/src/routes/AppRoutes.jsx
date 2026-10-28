@@ -50,6 +50,7 @@ export default function AppRoutes() {
       <Route element={<AuthGate />}>
         <Route element={<AppLayout />}>
           <Route path="/organization-workspace" element={<OrganizationWorkspacePage />} />
+          <Route path="/organization-workspace/:organizationId/credentials" element={<CredentialReviewsPage />} />
           <Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} />
           <Route path="/organizations/new" element={<OrganizationRequestsPage />} />
           <Route path="/admin/organizations" element={<OrganizationReviewPage />} />

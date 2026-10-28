@@ -1,4 +1,5 @@
 import { assertMfaSession } from "../auth/mfa.service.js";
+import { authorizeCredentialReviewer, credentialReviewerScope, credentialIssuer, requireReviewScope, reviewerStillAuthorized, lockCredentialActors } from "./credential-issuer.js";
 import { randomUUID } from "node:crypto";
 import { educationSelect, experienceSelect } from "../profile/profile-history.service.js";
 import { ownerProfileSelect, profileView } from "../profile/profile.service.js";
@@ -12,12 +13,12 @@ const editable = new Set(["DRAFT", "ACTION_REQUIRED", "UNABLE_TO_VERIFY"]);
 const DAY = 86400000;
 const evidenceSelect = { id: true, contentType: true, size: true, createdAt: true };
 const attemptSelect = {
-  id: true, revision: true, snapshot: true, status: true, note: true, createdAt: true, decidedAt: true,
+  id: true, revision: true, snapshot: true, issuerOrganizationId: true, issuerName: true, status: true, note: true, createdAt: true, decidedAt: true,
   evidence: { select: evidenceSelect, orderBy: { createdAt: "asc" } },
 };
 export const reviewSelect = {
   id: true, kind: true, recordId: true, revision: true, version: true, status: true,
-  initialSubmittedAt: true, submittedAt: true, reviewerId: true, note: true,
+  initialSubmittedAt: true, submittedAt: true, reviewerId: true, note: true, issuerOrganizationId: true, issuerName: true,
   attempts: { select: attemptSelect, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
   events: { select: { id: true, actorId: true, action: true, revision: true, fromStatus: true, toStatus: true, note: true, createdAt: true }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
 };
@@ -25,9 +26,9 @@ export function reviewView(review, now = new Date(), admin = false) {
   if (!review) return null;
   const targetAt = new Date(new Date(review.initialSubmittedAt).getTime() + 7 * DAY);
   const deadlineAt = new Date(new Date(review.initialSubmittedAt).getTime() + 14 * DAY);
-  const result = { ...Object.fromEntries(["id", "kind", "recordId", "revision", "version", "status", "initialSubmittedAt", "submittedAt", "reviewerId", "note"].map((key) => [key, review[key]])),
+  const result = { ...Object.fromEntries(["id", "kind", "recordId", "revision", "version", "status", "initialSubmittedAt", "submittedAt", "reviewerId", "note", "issuerOrganizationId", "issuerName"].map((key) => [key, review[key]])),
     attempts: (review.attempts ?? []).map((attempt) => ({
-      ...Object.fromEntries(["id", "revision", "snapshot", "status", "note", "createdAt", "decidedAt"].map((key) => [key, attempt[key]])),
+      ...Object.fromEntries(["id", "revision", "snapshot", "status", "note", "createdAt", "decidedAt", "issuerOrganizationId", "issuerName"].map((key) => [key, attempt[key]])),
       evidence: (attempt.evidence ?? []).map((asset) => Object.fromEntries(Object.keys(evidenceSelect).map((key) => [key, asset[key]]))),
     })),
     events: (review.events ?? []).map((event) => Object.fromEntries(["id", "action", "revision", "fromStatus", "toStatus", "note", "createdAt", ...(admin ? ["actorId"] : [])].map((key) => [key, event[key]]))),
@@ -58,13 +59,6 @@ async function lockProfile(tx, profileId, expectedVersion) {
   const result = await tx.profile.updateMany({ where: { id: profileId, version: expectedVersion }, data: { version: { increment: 1 } } });
   if (result.count !== 1) throw conflict();
 }
-async function reviewer(tx, actorId, lock = false) {
-  const where = { id: actorId, status: "ACTIVE", platformRole: "CREDENTIAL_REVIEWER", emailVerifiedAt: { not: null } };
-  const ok = lock
-    ? (await tx.account.updateMany({ where, data: { platformRole: "CREDENTIAL_REVIEWER" } })).count === 1
-    : Boolean(await tx.account.findFirst({ where, select: { id: true } }));
-  if (!ok) throw failure(403, "Reviewer access is required.");
-}
 async function activeOwner(tx, personId, lock = false) {
   const owner = await tx.account.findFirst({ where: { personId, status: "ACTIVE", emailVerifiedAt: { not: null } }, select: { id: true } });
   if (!owner || (lock && (await tx.account.updateMany({ where: { id: owner.id, status: "ACTIVE", emailVerifiedAt: { not: null } }, data: { status: "ACTIVE" } })).count !== 1)) throw failure(403, "An active account with a verified email is required.");
@@ -80,7 +74,16 @@ async function transaction(prisma, work) {
 export function createCredentialService({ prisma, storage, process = processEvidence, now = () => new Date() }) {
   let uploads = 0;
   return {
-    async access(actorId, sessionId) { await reviewer(prisma, actorId); await assertMfaSession(prisma, actorId, sessionId, now()); return { allowed: true }; },
+    async access(actorId, sessionId, organizationId) {
+      const scope = await authorizeCredentialReviewer(prisma, actorId, sessionId, organizationId, now());
+      return { allowed: true, kinds: scope.kinds, organization: scope.organization ? { id: scope.organization.id, name: scope.organization.name } : null };
+    },
+    async issuers(kind, query) {
+      const rows = await prisma.organization.findMany({ where: { status: "ACTIVE", request: { status: "APPROVED" }, name: { contains: query, mode: "insensitive" },
+        ...(kind === "education" ? { OR: [{ type: "SCHOOL" }, { offersTraining: true }] } : {}) }, orderBy: [{ name: "asc" }, { id: "asc" }], take: 21,
+        select: { id: true, name: true, type: true, locations: { select: { countryCode: true, city: true }, take: 1, orderBy: { id: "asc" } } } });
+      return { organizations: rows.slice(0, 20), refineSearch: rows.length > 20 };
+    },
     async ownerReviews(personId, cursor) {
       const reviews = await prisma.credentialReview.findMany({ where: { profile: { personId } },
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 31,
@@ -136,6 +139,10 @@ export function createCredentialService({ prisma, storage, process = processEvid
         void status;
         if (!historySchema(kind).safeParse({ expectedVersion: input.expectedVersion, mode: "RECORDS", records: [validation] }).success) throw failure(400, "Complete and save this record before submitting it.");
         let review = await tx.credentialReview.findUnique({ where: { kind_recordId: { kind, recordId } } });
+        const issuerOrganizationId = input.issuerOrganizationId ?? null;
+        if (review && (review.issuerOrganizationId ?? null) !== issuerOrganizationId) throw failure(409, "This review keeps its original issuer. Contact BrightWay support for a routing correction.");
+        const issuer = issuerOrganizationId ? await credentialIssuer(tx, issuerOrganizationId, kind, true) : null;
+        const issuerName = review ? review.issuerName ?? null : issuer?.name ?? null;
         const previousStatus = record.status;
         if (review) {
           if (!["ACTION_REQUIRED", "UNABLE_TO_VERIFY"].includes(review.status)) throw conflict();
@@ -144,9 +151,9 @@ export function createCredentialService({ prisma, storage, process = processEvid
           } });
           if (changed.count !== 1) throw conflict();
         } else {
-          review = await tx.credentialReview.create({ data: { profileId: profile.id, kind, recordId, revision: record.revision, initialSubmittedAt: now(), submittedAt: now() } });
+          review = await tx.credentialReview.create({ data: { profileId: profile.id, kind, recordId, revision: record.revision, issuerOrganizationId, issuerName, initialSubmittedAt: now(), submittedAt: now() } });
         }
-        const attempt = await tx.credentialAttempt.create({ data: { reviewId: review.id, revision: record.revision, snapshot } });
+        const attempt = await tx.credentialAttempt.create({ data: { reviewId: review.id, revision: record.revision, snapshot, issuerOrganizationId, issuerName } });
         const claimed = await tx.credentialEvidence.updateMany({ where: {
           id: { in: input.evidenceIds }, personId, kind, recordId, revision: record.revision,
           state: "READY", attemptId: null, expiresAt: { gt: now() },
@@ -158,38 +165,50 @@ export function createCredentialService({ prisma, storage, process = processEvid
         return { profile: profileView(await tx.profile.findUnique({ where: { personId }, select: ownerProfileSelect })) };
       });
     },
-    async queue(actorId, cursor, sessionId) {
-      await reviewer(prisma, actorId);
-      await assertMfaSession(prisma, actorId, sessionId, now());
-      const reviews = await prisma.credentialReview.findMany({
+    async queue(actorId, cursor, sessionId, organizationId) {
+      const scope = await authorizeCredentialReviewer(prisma, actorId, sessionId, organizationId, now());
+      const where = { issuerOrganizationId: scope.organization?.id ?? null, kind: { in: scope.kinds }, profile: { personId: { not: scope.account.personId } } };
+      if (cursor && !await prisma.credentialReview.findFirst({ where: { ...where, id: cursor }, select: { id: true } })) throw failure(404, "Queue page not found.");
+      const reviews = await prisma.credentialReview.findMany({ where,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 31,
         orderBy: [{ initialSubmittedAt: "asc" }, { id: "asc" }],
-        select: { id: true, kind: true, recordId: true, revision: true, version: true, status: true, initialSubmittedAt: true, submittedAt: true, reviewerId: true,
+        select: { id: true, kind: true, recordId: true, revision: true, version: true, status: true, initialSubmittedAt: true, submittedAt: true, reviewerId: true, issuerOrganizationId: true, issuerName: true,
           profile: { select: { person: { select: { firstName: true, lastName: true, account: { select: { username: true } } } } } } },
       });
-      return { reviews: reviews.slice(0, 30).map((r) => reviewView(r, now(), true)), nextCursor: reviews.length > 30 ? reviews[29].id : null };
+      const finalScope = await authorizeCredentialReviewer(prisma, actorId, sessionId, organizationId, now());
+      if (reviews.some(review => !finalScope.kinds.includes(review.kind))) throw failure(403, "Credential-review permission changed. Reload access.");
+      return { reviews: reviews.slice(0, 30).map((r) => reviewView(r, now(), true)), nextCursor: reviews.length > 30 ? reviews[29].id : null,
+        organization: scope.organization ? { id: scope.organization.id, name: scope.organization.name } : null };
     },
-    async detail(actorId, id, sessionId) {
-      await reviewer(prisma, actorId);
-      await assertMfaSession(prisma, actorId, sessionId, now());
+    async detail(actorId, id, sessionId, organizationId) {
+      const scope = await authorizeCredentialReviewer(prisma, actorId, sessionId, organizationId, now());
       const review = await prisma.credentialReview.findUnique({ where: { id }, select: { ...reviewSelect, profile: { select: { personId: true, person: { select: { account: { select: { id: true, username: true } } } } } } } });
       if (!review) throw failure(404, "Review not found.");
+      requireReviewScope(review, scope);
       if (review.profile.person.account.id === actorId) throw failure(403, "You cannot review your own credentials.");
+      const canReassign = review.status === "IN_REVIEW" && review.reviewerId !== actorId && !await reviewerStillAuthorized(prisma, review.reviewerId, review);
       const { profile, ...safe } = review;
-      return { review: reviewView(safe, now(), true), username: profile.person.account.username };
+      requireReviewScope(review, await authorizeCredentialReviewer(prisma, actorId, sessionId, organizationId, now()));
+      return { review: reviewView(safe, now(), true), username: profile.person.account.username, canReassign };
     },
-    async transition(actorId, id, input, assign = false, sessionId) {
+    async transition(actorId, id, input, assign = false, sessionId, organizationId) {
+      await authorizeCredentialReviewer(prisma, actorId, sessionId, organizationId, now());
       return transaction(prisma, async (tx) => {
-        await reviewer(tx, actorId, true);
-        await assertMfaSession(tx, actorId, sessionId, now());
-        const review = await tx.credentialReview.findUnique({ where: { id }, include: { profile: { select: { id: true, version: true, personId: true } } } });
+        let review = await tx.credentialReview.findUnique({ where: { id }, include: { profile: { select: { id: true, version: true, personId: true } } } });
         if (!review) throw failure(404, "Review not found.");
-        const owner = await activeOwner(tx, review.profile.personId, true);
+        const owner = await activeOwner(tx, review.profile.personId);
         if (owner.id === actorId) throw failure(403, "You cannot review your own credentials.");
+        await lockCredentialActors(tx, [actorId, owner.id]);
+        const scope = await authorizeCredentialReviewer(tx, actorId, sessionId, organizationId, now(), true);
+        requireReviewScope(review, scope);
+        // Read the profile after acquiring account/organization locks; its version CAS serializes all claim edits.
+        review = await tx.credentialReview.findUnique({ where: { id }, include: { profile: { select: { id: true, version: true, personId: true } } } });
+        requireReviewScope(review, scope);
         if (review.version !== input.expectedVersion) throw conflict();
+        const reassign = assign && review.status === "IN_REVIEW" && review.reviewerId !== actorId && !await reviewerStillAuthorized(tx, review.reviewerId, review);
+        if (assign ? review.status !== "SUBMITTED" && !reassign : review.status !== "IN_REVIEW" || review.reviewerId !== actorId || input.revision !== review.revision) throw conflict();
         await lockProfile(tx, review.profileId, review.profile.version);
         const next = assign ? "IN_REVIEW" : input.status;
-        if (assign ? review.status !== "SUBMITTED" : review.status !== "IN_REVIEW" || review.reviewerId !== actorId || input.revision !== review.revision) throw conflict();
         const updated = await tx[modelFor(review.kind)].updateMany({ where: { id: review.recordId, profileId: review.profileId, revision: review.revision, status: review.status }, data: { status: next } });
         if (updated.count !== 1) throw conflict();
         const changed = await tx.credentialReview.updateMany({ where: { id, version: input.expectedVersion, status: review.status }, data: { version: { increment: 1 }, status: next, reviewerId: actorId, note: assign ? null : input.note } });
@@ -197,7 +216,8 @@ export function createCredentialService({ prisma, storage, process = processEvid
         const attempt = await tx.credentialAttempt.findFirst({ where: { reviewId: id }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
         if (!attempt || attempt.revision !== review.revision || attempt.status !== review.status) throw conflict();
         await tx.credentialAttempt.update({ where: { id: attempt.id }, data: { status: next, reviewerId: actorId, note: assign ? null : input.note, decidedAt: assign ? null : now() } });
-        await tx.credentialAuditEvent.create({ data: { reviewId: id, actorId, action: assign ? "ASSIGNED" : "DECIDED", revision: review.revision, fromStatus: review.status, toStatus: next, note: assign ? null : input.note } });
+        await tx.credentialAuditEvent.create({ data: { reviewId: id, actorId, action: reassign ? "REASSIGNED" : assign ? "ASSIGNED" : "DECIDED", revision: review.revision, fromStatus: review.status, toStatus: next, note: reassign ? "Previous reviewer no longer authorized." : assign ? null : input.note } });
+        requireReviewScope(review, await authorizeCredentialReviewer(tx, actorId, sessionId, organizationId, now()));
         return { id, status: next };
       });
     },
@@ -207,13 +227,22 @@ export function createCredentialService({ prisma, storage, process = processEvid
     async readEvidence(actorId, personId, id, sessionId) {
       const asset = await prisma.credentialEvidence.findUnique({ where: { id } });
       if (!asset || asset.state !== "ATTACHED") throw failure(404, "Evidence not found.");
-      if (asset.personId !== personId) {
-        try { await reviewer(prisma, actorId); } catch (error) { if (error.status === 403) throw failure(404, "Evidence not found."); throw error; }
+      async function check() {
+        if (asset.personId === personId) return;
+        const attempt = await prisma.credentialAttempt.findUnique({ where: { id: asset.attemptId }, select: { review: true } });
+        const review = attempt?.review;
+        if (!review) throw failure(404, "Evidence not found.");
+        try {
+          const scope = await credentialReviewerScope(prisma, actorId, review.issuerOrganizationId);
+          requireReviewScope(review, scope);
+        } catch (error) { if ([403, 404, 409].includes(error.status)) throw failure(404, "Evidence not found."); throw error; }
         await assertMfaSession(prisma, actorId, sessionId, now());
-        const attempt = await prisma.credentialAttempt.findUnique({ where: { id: asset.attemptId }, select: { review: { select: { reviewerId: true } } } });
-        if (attempt?.review.reviewerId !== actorId) throw failure(403, "Assign this review to yourself before downloading its evidence.");
+        if (review.reviewerId !== actorId) throw failure(403, "Assign this review to yourself before downloading its evidence.");
       }
-      return { bytes: await storage.get(asset.storageKey, { maxBytes: 5 * 1024 * 1024 }), contentType: asset.contentType };
+      await check();
+      const bytes = await storage.get(asset.storageKey, { maxBytes: 5 * 1024 * 1024 });
+      await check(); // Do not return private bytes after permission withdrawal during slow storage I/O.
+      return { bytes, contentType: asset.contentType };
     },
     async cleanup() {
       const rows = await prisma.credentialEvidence.findMany({ where: { attemptId: null, OR: [{ state: "DELETE_PENDING" }, { state: { in: ["UPLOADING", "READY"] }, expiresAt: { lte: now() } }] }, take: 100 });
@@ -232,3 +261,4 @@ export function createCredentialService({ prisma, storage, process = processEvid
     },
   };
 }
+

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 const copy = (v) => structuredClone(v);
 export function credentialFixture() {
-  const state = Object.fromEntries(["session", "mfaFactor", "account", "profile", "educationRecord", "experienceRecord", "credentialReview", "credentialAttempt", "credentialEvidence", "credentialUploadBudget", "credentialAuditEvent"].map((name) => [name, []]));
+  const state = Object.fromEntries(["organization", "organizationRequest", "organizationMembership", "session", "mfaFactor", "account", "profile", "educationRecord", "experienceRecord", "credentialReview", "credentialAttempt", "credentialEvidence", "credentialUploadBudget", "credentialAuditEvent"].map((name) => [name, []]));
   let date = new Date("2026-10-18T12:00:00Z");
   const personId = randomUUID(), ownerId = randomUUID(), reviewerId = randomUUID(), otherId = randomUUID(), profileId = randomUUID(), recordId = randomUUID();
   state.account.push({ id: ownerId, personId, status: "ACTIVE", platformRole: "MEMBER", emailVerifiedAt: date }, { id: reviewerId, personId: randomUUID(), status: "ACTIVE", platformRole: "CREDENTIAL_REVIEWER", emailVerifiedAt: date }, { id: otherId, personId: randomUUID(), status: "ACTIVE", platformRole: "MEMBER", emailVerifiedAt: date });
@@ -10,10 +10,14 @@ export function credentialFixture() {
   const db = {};
   function matches(row, where = {}) {
     return Object.entries(where).every(([key, value]) => {
+      if (key === "AND") return value.every((v) => matches(row, v));
+      if (key === "request") return matches(state.organizationRequest.find(r => r.id === row.requestId) ?? {}, value);
       if (key === "OR") return value.some((v) => matches(row, v));
       if (key === "profile") { const profile = state.profile.find((v) => v.id === row.profileId); return Boolean(profile && matches(profile, value)); }
       if (["kind_recordId", "personId_hour"].includes(key)) return matches(row, value);
       if (value && typeof value === "object" && !(value instanceof Date)) {
+        if ("has" in value) return row[key]?.includes(value.has);
+        if ("contains" in value) return String(row[key]).toLowerCase().includes(value.contains.toLowerCase());
         if ("in" in value) return value.in.includes(row[key]);
         if ("lt" in value) return row[key] < value.lt;
         if ("lte" in value) return row[key] <= value.lte;
@@ -50,10 +54,11 @@ export function credentialFixture() {
       const rows = state[model].filter((v) => matches(v, args.where));
       const order = Array.isArray(args.orderBy) ? args.orderBy : args.orderBy ? [args.orderBy] : [];
       rows.sort((a, b) => { for (const term of order) { const [key, direction] = Object.entries(term)[0]; if (a[key] < b[key]) return direction === "desc" ? 1 : -1; if (a[key] > b[key]) return direction === "desc" ? -1 : 1; } return 0; });
-      return rows.slice(0, args.take).map((v) => view(model, v, args));
+      const start = args.cursor ? rows.findIndex(v => v.id === args.cursor.id) + (args.skip || 0) : 0;
+      return rows.slice(start, args.take ? start + args.take : undefined).map((v) => view(model, v, args));
     },
     async create({ data }) {
-      const row = { id: randomUUID(), version: 1, status: "SUBMITTED", createdAt: date, count: 0, state: "UPLOADING", attemptId: null, reviewerId: null, note: null, ...data };
+      const row = { id: randomUUID(), version: 1, status: "SUBMITTED", createdAt: date, count: 0, state: "UPLOADING", attemptId: null, reviewerId: null, note: null, issuerOrganizationId: null, issuerName: null, ...data };
       state[model].push(row); return view(model, row);
     },
     async upsert({ where, create, update }) { const row = state[model].find((v) => matches(v, where)); if (!row) return this.create({ data: create }); Object.assign(row, update); return copy(row); },
@@ -81,3 +86,4 @@ export function credentialFixture() {
   const storage = { check() {}, async put() {}, async get() { return Buffer.from("private"); }, async delete() {} };
   return { db, state, storage, personId, ownerId, reviewerId, otherId, profileId, recordId, reviewerSessionId, authorizeReviewer, now: () => date, setNow: (next) => { date = new Date(next); } };
 }
+

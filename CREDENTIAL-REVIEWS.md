@@ -113,3 +113,7 @@ node scripts/cleanup-credential-evidence.js
 Each run processes up to 100 unclaimed objects. It never deletes evidence attached to a submission. Previous submission evidence and audit history are deliberately retained, including after corrections or a false-credential decision; they are not temporary uploads. There is no automatic attached-evidence retention/deletion job in this increment.
 
 No remote migration, GitHub push, deployment, or live reviewer grant was performed. Homepage and header files are not included.
+
+## Issuer routing update — 28 October 2026
+
+The Sprint 3 integration adds explicit verified-organization issuer selection, per-kind organization reviewer permissions and scoped review/evidence authorization. Existing and unlisted reviews retain authorized BrightWay review. Consult [SPRINT-3-ISSUER-REVIEWS.md](SPRINT-3-ISSUER-REVIEWS.md) for current routing, migration, limitations and application acceptance; earlier implementation evidence above is historical. No automatic name matching or cross-issuer transfer is performed.

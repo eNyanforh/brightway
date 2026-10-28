@@ -22,10 +22,9 @@ export const credentialsApi = {
   owner: (kind, id, signal) => request(`/credentials/${kind}/${id}`, { signal }),
   upload: (kind, id, revision, file) => request(`/credentials/${kind}/${id}/evidence`, { file, revision }),
   submit: (kind, id, body) => request(`/credentials/${kind}/${id}/submit`, { body }),
-  queue: (cursor, signal) => request(`/admin/credentials${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`, { signal }),
-  detail: (id) => request(`/admin/credentials/${id}`),
-  assign: (id, expectedVersion) => request(`/admin/credentials/${id}/assign`, { body: { expectedVersion } }),
-  decide: (id, body) => request(`/admin/credentials/${id}/decision`, { body }),
+  ...reviewerApi(),
+  inOrganization: reviewerApi,
+  issuers: (kind, query, signal) => request(`/credentials/issuers?${new URLSearchParams({ kind, query })}`, { signal }),
   async download(id, contentType) {
     const response = await fetch(base + `/credentials/evidence/${id}/download`, { credentials: "include", cache: "no-store" });
     if (!response.ok) {
@@ -41,3 +40,13 @@ export const credentialsApi = {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   },
 };
+
+function reviewerApi(organizationId) {
+  const path = organizationId ? `/organization-workspace/${encodeURIComponent(organizationId)}/credential-reviews` : "/admin/credentials";
+  return {
+    queue: (cursor, signal) => request(`${path}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`, { signal }),
+    detail: (id, signal) => request(`${path}/${encodeURIComponent(id)}`, { signal }),
+    assign: (id, expectedVersion) => request(`${path}/${encodeURIComponent(id)}/assign`, { body: { expectedVersion } }),
+    decide: (id, body) => request(`${path}/${encodeURIComponent(id)}/decision`, { body }),
+  };
+}

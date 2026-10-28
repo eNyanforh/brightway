@@ -1,3 +1,5 @@
+import { useAuth } from "../auth/useAuth";
+import CredentialIssuerPicker from "../components/profile/CredentialIssuerPicker";
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { credentialsApi } from "../api/credentials";
@@ -7,9 +9,14 @@ import { credentialLabels, rebaseCredentialProfile } from "./credential-form";
 import "./credentials.css";
 
 export default function CredentialPage() {
+  const { account } = useAuth(), { kind, recordId } = useParams();
+  return <CredentialRecordPage key={`${account?.id}:${kind}:${recordId}`} />;
+}
+function CredentialRecordPage() {
   const { kind, recordId } = useParams();
   const { profileDraft: draft, setProfileDraft, reloadProfile } = useOutletContext();
   const [data, setData] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false), [files, setFiles] = useState([]);
+  const [issuer, setIssuer] = useState("");
   const locked = useRef(false), uploaded = useRef(new Map());
   const validKind = ["education", "experience"].includes(kind);
   useEffect(() => {
@@ -29,6 +36,7 @@ export default function CredentialPage() {
   async function submit(event) {
     event.preventDefault();
     if (locked.current || !draft || !canSubmit || dirtyHistory || staleSavedProfile || draft?.busy) return;
+    if (!data.review && !issuer) { setError(new Error("Choose the issuer or explicitly request BrightWay review.")); return; }
     if (!files.length) { setError(new Error("Choose at least one supporting document.")); return; }
     locked.current = true; setBusy(true); setError(null);
     setProfileDraft((previous) => previous ? { ...previous, busy: true } : previous);
@@ -42,7 +50,7 @@ export default function CredentialPage() {
         }
         evidenceIds.push(asset.id);
       }
-      const result = await credentialsApi.submit(kind, recordId, { expectedVersion: data.profileVersion, revision: data.record.revision, evidenceIds });
+      const result = await credentialsApi.submit(kind, recordId, { expectedVersion: data.profileVersion, revision: data.record.revision, evidenceIds, issuerOrganizationId: data.review ? data.review.issuerOrganizationId ?? null : issuer === "unlisted" ? null : issuer });
       setProfileDraft((previous) => rebaseCredentialProfile(previous, result.profile));
       setFiles([]); uploaded.current.clear();
       setData(await credentialsApi.owner(kind, recordId));
@@ -77,6 +85,7 @@ export default function CredentialPage() {
       {dirtyHistory && <p role="status">You have unsaved {kind} edits. Save or discard them on your profile before submitting this record.</p>}
       {canSubmit && <form onSubmit={submit}>
         <fieldset disabled={!draft || busy || draft?.busy || dirtyHistory || staleSavedProfile}>
+          {data.review ? <p>Reviewing issuer: {data.review.issuerName || "BrightWay (unlisted issuer)"}. Corrections keep the original review route.</p> : <CredentialIssuerPicker kind={kind} value={issuer} onChange={setIssuer} disabled={busy || draft?.busy} />}
           <label htmlFor="credential-documents">Supporting documents</label>
           <input id="credential-documents" type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(e) => {
             const selected = [...(e.target.files || [])];

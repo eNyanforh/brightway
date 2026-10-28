@@ -31,12 +31,13 @@ it("submits the saved revision with private evidence and blocks duplicate final 
     return response({ record: { ...record, status: submitted ? "SUBMITTED" : "DRAFT" }, profileVersion: submitted ? 2 : 1, review: null });
   });
   await screen.findByRole("heading", { name: "Diploma" });
+  await user.click(screen.getByLabelText(/My issuer is not listed/));
   await user.upload(screen.getByLabelText("Supporting documents"), new File(["pdf"], "proof.pdf", { type: "application/pdf" }));
   const form = screen.getByLabelText("Supporting documents").closest("form");
   fireEvent.submit(form); fireEvent.submit(form);
   await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/submit"))).toHaveLength(1));
   const options = fetchMock.mock.calls.find(([url]) => url.endsWith("/submit"))[1];
-  expect(JSON.parse(options.body)).toEqual({ expectedVersion: 1, revision: 1, evidenceIds: ["asset"] });
+  expect(JSON.parse(options.body)).toEqual({ expectedVersion: 1, revision: 1, evidenceIds: ["asset"], issuerOrganizationId: null });
   expect(fetchMock.mock.calls.find(([url]) => url.endsWith("/evidence"))[1].credentials).toBe("include");
   release(response({ profile: { ...profile, version: 2, education: { mode: "RECORDS", records: [{ ...record, status: "SUBMITTED" }] } } }));
   await screen.findByText("Status: Submitted");
@@ -49,6 +50,7 @@ it("retains selected documents after failed submission and does not silently ret
     return response({ record, profileVersion: 1, review: null });
   });
   await screen.findByRole("heading", { name: "Diploma" });
+  await user.click(screen.getByLabelText(/My issuer is not listed/));
   await user.upload(screen.getByLabelText("Supporting documents"), new File(["pdf"], "keep.pdf", { type: "application/pdf" }));
   await user.click(screen.getByRole("button", { name: "Submit for verification" }));
   expect((await screen.findByRole("alert")).textContent).toContain("record changed");
