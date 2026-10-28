@@ -23,7 +23,7 @@ test("database issuer review isolates tenants, serializes decisions/revocation a
     }
     const [owner, reviewer, admin, primary, foreign] = accounts;
     for (const [i, person] of [[0, primary], [1, foreign]]) {
-      const request = await db.organizationRequest.create({ data: { applicantId: person.id, status: "APPROVED", idempotencyKey: randomUUID(), inputHash: "a".repeat(64), fingerprint: `${marker}_${i}`, name: `Issuer fixture ${i} ${marker}`, type: i ? "COMPANY" : "SCHOOL", representativeRole: "Director", countryCode: "GH", region: "", city: "Accra", address: "Synthetic", offersTraining: !i, targetAt: new Date(+date + 72 * 3600000), decidedAt: date } }); requests.push(request.id);
+      const request = await db.organizationRequest.create({ data: { applicantId: person.id, assignedAgentId: reviewer.id, decidedById: admin.id, status: "APPROVED", version: 4, idempotencyKey: randomUUID(), inputHash: "a".repeat(64), fingerprint: `${marker}_${i}`, name: `Issuer fixture ${i} ${marker}`, type: i ? "COMPANY" : "SCHOOL", representativeRole: "Director", countryCode: "GH", region: "", city: "Accra", address: "Synthetic", offersTraining: !i, targetAt: new Date(+date + 72 * 3600000), decidedAt: date } }); requests.push(request.id);
       const org = await db.organization.create({ data: { requestId: request.id, name: request.name, type: request.type, offersTraining: request.offersTraining, verifiedAt: date, memberships: { create: { accountId: person.id, role: "PRIMARY_ADMIN" } } } }); orgs.push(org.id);
     }
     const org = orgs[0], other = orgs[1];
