@@ -82,3 +82,12 @@ it("a publishing-only member sees their available scope and no staff, review or 
   expect(screen.queryByRole("heading", { name: "Admissions" })).toBeNull();
   const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" }); expect(within(mobile).getAllByRole("link")).toHaveLength(2);
 });
+it("a direct staff URL never exposes staff controls to a member without staff-management permission", async () => {
+  const limited = { ...context, membership: { role: "STAFF" }, permissions: ["organization.posts.publish"], workspace: { available: available.slice(0, 2), planned: planned.slice(0, 1), campusActive: false } };
+  const f = mount(base + "/staff", url => url.endsWith("/staff") ? reply({ staffVersion: 1, members: [{ id: "private", username: "private_staff" }], invitations: [] }) : reply(limited));
+  await screen.findByRole("heading", { name: "This tool is not available to your role" });
+  expect(screen.queryByText("@private_staff")).toBeNull();
+  expect(screen.queryByLabelText("BrightWay username")).toBeNull();
+  expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/staff"))).toBe(false);
+  expect(screen.getByRole("link", { name: "Return to your workspace" }).getAttribute("href")).toBe(base);
+});

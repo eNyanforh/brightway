@@ -11,6 +11,7 @@ The approved organization's primary administrator enters its private workspace r
 - `/organization-workspace/:id/credentials` contains issuer-scoped credential review. Both privileged destinations retain existing server-enforced current permission and MFA checks.
 - Organization sidebar/mobile navigation replaces Personal destinations while acting for an organization. Overview, staff, reviews and switching remain reachable on mobile according to the current membership. The existing header, avatar and personal navigation stay intact outside organization context.
 - The workspace metadata is built from authenticated organization membership and effective permissions on the backend. URL labels or navigation alone grant nothing. Foreign/revoked/suspended memberships cannot acquire tools; focus rechecks remove withdrawn permissions and private rows. Personal profile drafts stay in the existing parent layout during switches.
+- **Manage** always opens the selected organization's private context. The sidebar, mobile navigation and overview are derived from that member's effective permissions. A copied direct URL for a tool outside the member's scope shows no private controls or rows, while the API independently rejects unauthorized access.
 
 ## Agreed functionality and delivery boundaries
 
