@@ -5,6 +5,7 @@ import { expect, it, vi } from "vitest";
 import { AuthContext } from "../auth/auth-context";
 import AppLayout from "../layouts/AppLayout";
 import OrganizationWorkspacePage from "../pages/OrganizationWorkspacePage";
+import WorkPage from "../pages/WorkPage";
 import OrganizationRequestsPage from "../pages/OrganizationRequestsPage";
 import CredentialReviewsPage from "../pages/CredentialReviewsPage";
 const id = "843f9b44-7e5a-4ecb-9e62-1bc1c0844d59", base = `/organization-workspace/${id}`;
@@ -23,6 +24,7 @@ const reply = (data, status = 200) => new Response(JSON.stringify(status < 400 ?
 function mount(path = base, handler = () => reply(context)) {
   const fetch = vi.fn((url, options) => url.endsWith("/profile/me") ? reply({ profile }) : handler(url, options)); vi.stubGlobal("fetch", fetch);
   render(<AuthContext.Provider value={{ account: { id: "owner", username: "owner", person: { firstName: "Test", lastName: "Owner" } } }}><MemoryRouter initialEntries={[path]}><Routes><Route element={<AppLayout />}>
+    <Route path="/work" element={<WorkPage />} />
     <Route path="/organizations/new" element={<OrganizationRequestsPage />} />
     <Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} />
     <Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} />
@@ -31,9 +33,9 @@ function mount(path = base, handler = () => reply(context)) {
   </Route></Routes></MemoryRouter></AuthContext.Provider>);
   return { fetch, user: userEvent.setup() };
 }
-it("an approved organization request opens its private administrator workspace instead of the public profile", async () => {
-  const f = mount("/organizations/new", url => url.endsWith("/access") ? reply({}) : url.endsWith("/organization-requests") ? reply({ requests: [{ id: "different-request-id", organizationId: id, name: organization.name, status: "APPROVED", targetAt: "2026-10-30" }] }) : reply(context));
-  const entry = await screen.findByRole("link", { name: "Open organization workspace" }); expect(entry.getAttribute("href")).toBe(base);
+it("an approved organization in My Workspace opens its private administrator workspace instead of the public profile", async () => {
+  const f = mount("/work", url => url.endsWith("/organization-requests") ? reply({ requests: [{ id: "different-request-id", organizationId: id, name: organization.name, status: "APPROVED", workspaceAvailable: true, targetAt: "2026-10-30" }] }) : url.endsWith("/organization-workspace") ? reply({ organizations: [], invitations: [] }) : reply(context));
+  const entry = await screen.findByRole("link", { name: "Manage" }); expect(entry.getAttribute("href")).toBe(base);
   await f.user.click(entry); await screen.findByRole("heading", { name: organization.name, level: 1 });
   await screen.findByRole("navigation", { name: "Organization tools" });
   expect(document.querySelector(".bw-design-personal").textContent).toContain(organization.name);

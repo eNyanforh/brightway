@@ -735,6 +735,7 @@ enum OrganizationType {
   COMPANY
 }
 enum OrganizationRequestStatus {
+  ABORTED
   SUBMITTED
   ASSIGNED
   RECOMMENDED
@@ -800,6 +801,7 @@ model OrganizationRequest {
   finding OrganizationFinding?
   findingHistory OrganizationFindingArchive[]
   organization Organization?
+  revisions OrganizationRequestRevision[]
   audits OrganizationRequestAudit[]
   @@unique([applicantId, idempotencyKey])
   @@index([applicantId, createdAt, id])
@@ -940,4 +942,16 @@ model OrganizationStaffAudit {
   data Json
   createdAt DateTime @default(now())
   @@index([organizationId, createdAt, id])
+}
+
+// Immutable, private input snapshots before an applicant edits a pending request.
+model OrganizationRequestRevision {
+  id String @id @default(uuid())
+  requestId String
+  request OrganizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  sourceVersion Int
+  actorId String
+  snapshot Json
+  createdAt DateTime @default(now())
+  @@unique([requestId, sourceVersion])
 }

@@ -10,6 +10,10 @@ async function request(path, method = "GET", body, signal) {
 }
 const admin = "/admin/organizations", owner = "/organization-requests";
 export const organizationsApi = {
+  workAccess: signal => request("/work/access", "GET", undefined, signal),
+  owner: (id, signal) => request(`${owner}/${encodeURIComponent(id)}`, "GET", undefined, signal),
+  edit: (id, body) => request(`${owner}/${encodeURIComponent(id)}`, "PATCH", body),
+  abort: (id, body) => request(`${owner}/${encodeURIComponent(id)}/abort`, "POST", body),
   access: signal => request("/organization-operations/access", "GET", undefined, signal),
   list: (signal, cursor) => request(owner + (cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""), "GET", undefined, signal),
   submit: body => request(owner, "POST", body),

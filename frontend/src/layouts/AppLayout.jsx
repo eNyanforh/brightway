@@ -13,6 +13,7 @@ import OrganizationNavigation from "../components/layout/OrganizationNavigation"
 import AppSidebar from "../components/layout/AppSidebar";
 import MobileNavigation from "../components/layout/MobileNavigation";
 
+import { organizationsApi } from "../api/organizations";
 import { profileApi } from "../api/profile";
 import {
   createProfileDraft,
@@ -23,6 +24,20 @@ import "./app-shell.css";
 
 export default function AppLayout() {
   const { pathname } = useLocation(), { account } = useAuth();
+  const [workAccess, setWorkAccess] = useState(null);
+  const workGeneration = useRef(0);
+  const hasWork = workAccess?.accountId === account?.id && workAccess.hasWork;
+  const onOrganizationSubmitted = useCallback(() => { workGeneration.current++; setWorkAccess({ accountId: account?.id, hasWork: true }); }, [account?.id]);
+  useEffect(() => {
+    let controller;
+    const load = () => {
+      controller?.abort(); controller = new AbortController(); const signal = controller.signal, generation = workGeneration.current;
+      if (!account?.id) return;
+      organizationsApi.workAccess(signal).then(result => { if (!signal.aborted && generation === workGeneration.current) setWorkAccess({ accountId: account.id, hasWork: result.hasWork === true }); }).catch(error => { if (!signal.aborted && [401, 403].includes(error.status)) setWorkAccess(null); });
+    };
+    load(); window.addEventListener("focus", load);
+    return () => { controller?.abort(); window.removeEventListener("focus", load); };
+  }, [account?.id]);
   const [actingOrganization, setActingOrganization] = useState(null);
   const organizationMode = /^\/organization-workspace\/[^/]+(?:\/|$)/.test(pathname);
   const organizationBase = `/organization-workspace/${actingOrganization?.organization.id}`;
@@ -114,6 +129,7 @@ export default function AppLayout() {
   return (
     <div className="bw-app-shell">
       <AppHeader
+        hasWork={hasWork}
         actingOrganization={acting}
         photoId={profileDraft?.profile.photo?.id}
         unsaved={dirty}
@@ -128,6 +144,7 @@ export default function AppLayout() {
 
       <div className="bw-design-layout">
         {organizationMode ? <OrganizationNavigation acting={activeOrganization} id={navigationId} open={navigationOpen} onNavigate={() => setNavigationOpen(false)} /> : <AppSidebar
+          hasWork={hasWork}
           id={navigationId}
           open={navigationOpen}
           onNavigate={() => setNavigationOpen(false)}
@@ -136,6 +153,7 @@ export default function AppLayout() {
         <main className="bw-app-content">
           <Outlet
             context={{
+              onOrganizationSubmitted,
               setActingOrganization,
               profileDraft,
               setProfileDraft,

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 const OrganizationWorkspacePage = lazy(() => import("../pages/OrganizationWorkspacePage"));
 function WorkspaceRoute({ section }) { return <Suspense fallback={<p role="status">Loading organization workspace…</p>}><OrganizationWorkspacePage section={section} /></Suspense>; }
+const WorkPage = lazy(() => import("../pages/WorkPage"));
 import OrganizationRequestsPage from "../pages/OrganizationRequestsPage";
 import OrganizationReviewPage from "../pages/OrganizationReviewPage";
 import OrganizationPage from "../pages/OrganizationPage";
@@ -55,6 +56,8 @@ export default function AppRoutes() {
           <Route path="/organization-workspace/:organizationId/credentials" element={<CredentialReviewsPage />} />
           <Route path="/organization-workspace/:id/staff" element={<WorkspaceRoute section="staff" />} />
           <Route path="/organization-workspace/:id" element={<WorkspaceRoute />} />
+          <Route path="/work" element={<Suspense fallback={<p role="status">Loading Work…</p>}><WorkPage /></Suspense>} />
+          <Route path="/work/requests/:id/edit" element={<OrganizationRequestsPage />} />
           <Route path="/organizations/new" element={<OrganizationRequestsPage />} />
           <Route path="/admin/organizations" element={<OrganizationReviewPage />} />
           <Route path="/credentials" element={<MyCredentialReviewsPage />} />

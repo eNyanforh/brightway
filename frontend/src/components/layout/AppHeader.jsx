@@ -5,6 +5,7 @@ import "./app-header.css";
 
 export default function AppHeader({
   actingOrganization,
+  hasWork,
   photoId,
   unsaved,
   profileBusy,
@@ -85,6 +86,7 @@ export default function AppHeader({
           </button>
 
           <HeaderProfileMenu
+            hasWork={hasWork}
             photoId={photoId}
             unsaved={unsaved}
             profileBusy={profileBusy}

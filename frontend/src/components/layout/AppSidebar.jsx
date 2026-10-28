@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import NavigationIcon from "./NavigationIcon";
 import "./app-sidebar.css";
 
@@ -15,7 +15,10 @@ const navigation = [
   { label: "Notifications", icon: "notifications" },
 ];
 
-export default function AppSidebar({ id, open, onNavigate }) {
+export default function AppSidebar({ id, open, onNavigate, hasWork = false }) {
+  const { pathname } = useLocation();
+  const items = [...navigation];
+  if (hasWork) items.splice(4, 0, { label: "Work", to: "/work", icon: "work" });
   return (
     <aside
       id={id}
@@ -28,14 +31,14 @@ export default function AppSidebar({ id, open, onNavigate }) {
         className="bw-design-sidebar-nav"
         aria-label="Main navigation"
       >
-        {navigation.map((item) =>
+        {items.map((item) =>
           item.to ? (
             <NavLink
               key={item.label}
               to={item.to}
               onClick={onNavigate}
               className={({ isActive }) =>
-                isActive ? "bw-design-sidebar-active" : ""
+                (isActive || item.label === "Work" && pathname === "/organizations/new") ? "bw-design-sidebar-active" : ""
               }
             >
               {({ isActive }) => (
@@ -80,12 +83,12 @@ export default function AppSidebar({ id, open, onNavigate }) {
           className="bw-design-create-org"
           type="button"
           onClick={onNavigate}
-          to="/organizations/new"
+          to={hasWork ? "/work" : "/organizations/new"}
         >
           <span className="bw-design-create-org-icon">
-            <NavigationIcon name="plus" />
+            <NavigationIcon name={hasWork ? "work" : "plus"} />
           </span>
-          <span>Create an organization</span>
+          <span>{hasWork ? "My Workspace" : "Create an organization"}</span>
         </NavLink>
       </section>
 

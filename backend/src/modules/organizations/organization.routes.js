@@ -11,6 +11,9 @@ export function createOrganizationRoutes({ organizations, sessions, clientUrl, n
   router.use("/organization-requests", privateResponse, auth);
   router.get("/organization-requests", handle(req => organizations.ownerList(req.auth.account.id, req.auth.sessionId, req.query.cursor)));
   router.post("/organization-requests", origin, limits, handle(req => organizations.submit(req.auth.account.id, req.auth.sessionId, req.body)));
+  router.get("/work/access", privateResponse, auth, handle(req => organizations.workAccess(req.auth.account.id, req.auth.sessionId)));
+  router.patch("/organization-requests/:id", origin, limits, handle(req => organizations.edit(req.auth.account.id, req.auth.sessionId, req.params.id, req.body)));
+  router.post("/organization-requests/:id/abort", origin, limits, handle(req => organizations.abort(req.auth.account.id, req.auth.sessionId, req.params.id, req.body)));
   router.get("/organization-requests/:id", handle(req => organizations.owner(req.auth.account.id, req.auth.sessionId, req.params.id)));
   router.get("/organization-operations/access", privateResponse, auth, handle(req => organizations.access(req.auth.account.id, req.auth.sessionId)));
   router.use("/admin/organizations", privateResponse, auth, requireMfa);

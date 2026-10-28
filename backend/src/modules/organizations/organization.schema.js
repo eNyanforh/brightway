@@ -2,15 +2,22 @@ import { z } from "zod";
 import { createHash } from "node:crypto";
 import { countryCodes } from "../profile/profile.schema.js";
 const text = max => z.string().trim().min(1).max(max).refine(s => !/[\u0000-\u001f\u007f]/.test(s));
-export const organizationRequestSchema = z.strictObject({
+const requestFields = {
   idempotencyKey: z.uuid(), name: text(160).min(2), type: z.enum(["SCHOOL", "NGO", "COMPANY"]), representativeRole: text(120).min(2),
   countryCode: text(2).transform(s => s.toUpperCase()).refine(s => countryCodes.has(s)),
   region: z.string().trim().max(120).refine(s => !/[\u0000-\u001f\u007f]/.test(s)), city: text(120), address: text(300), offersTraining: z.boolean().optional(),
-}).superRefine((v, ctx) => {
+};
+function requestRules(v, ctx) {
   if (v.type !== "SCHOOL" && v.offersTraining === undefined) ctx.addIssue({ code: "custom", message: "Answer the training question.", path: ["offersTraining"] });
   if (v.type === "SCHOOL" && v.offersTraining !== undefined) ctx.addIssue({ code: "custom", message: "School capability is set by the server.", path: ["offersTraining"] });
-}).transform(v => ({ ...v, offersTraining: v.type === "SCHOOL" ? true : v.offersTraining }));
+}
+const normalizeRequest = v => ({ ...v, offersTraining: v.type === "SCHOOL" ? true : v.offersTraining });
+export const organizationRequestSchema = z.strictObject(requestFields).superRefine(requestRules).transform(normalizeRequest);
 export const versionSchema = z.number().int().min(1).max(2147483646);
+const { idempotencyKey: unusedKey, ...editableFields } = requestFields;
+void unusedKey;
+export const editOrganizationSchema = z.strictObject({ ...editableFields, expectedVersion: versionSchema }).superRefine(requestRules).transform(normalizeRequest);
+export const abortOrganizationSchema = z.strictObject({ expectedVersion: versionSchema });
 export const assignOrganizationSchema = z.strictObject({ expectedVersion: versionSchema, agentUsername: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,30}$/) });
 export const organizationFindingSchema = z.strictObject({ expectedVersion: versionSchema,
   existenceConfirmed: z.boolean(), locationConfirmed: z.boolean(), authorityConfirmed: z.boolean(), typeConfirmed: z.boolean(), operationalConfirmed: z.boolean(),

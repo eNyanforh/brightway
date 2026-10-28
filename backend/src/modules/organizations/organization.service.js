@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
-import { organizationRequestSchema, assignOrganizationSchema, organizationFindingSchema, organizationDecisionSchema, allChecks, digest, failure as fail, parse, requestId } from "./organization.schema.js";
+import { organizationRequestSchema, assignOrganizationSchema, organizationFindingSchema, organizationDecisionSchema, editOrganizationSchema, abortOrganizationSchema, allChecks, digest, failure as fail, parse, requestId } from "./organization.schema.js";
 const active = ["SUBMITTED", "ASSIGNED", "RECOMMENDED"], DAY = 86400000;
 const conflict = () => fail(409, "This organization request changed. Reload before continuing.");
 export function createOrganizationService({ prisma, now = () => new Date() }) {
@@ -32,8 +32,9 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
     await db.organizationRequestAudit.create({ data: { requestId: r.id, actorId, action, fromStatus: action === "SUBMITTED" ? null : r.status, toStatus: next, version } });
   }
   async function ownerView(db, r) {
-    const organization = await db.organization.findUnique({ where: { requestId: r.id }, select: { id: true } });
-    return { id: r.id, name: r.name, type: r.type, representativeRole: r.representativeRole,
+    const organization = await db.organization.findUnique({ where: { requestId: r.id }, select: { id: true, status: true } });
+    const membership = organization ? await db.organizationMembership.findFirst({ where: { organizationId: organization.id, accountId: r.applicantId, enabled: true } }) : null;
+    return { userRole: membership?.role ?? null, workspaceAvailable: r.status === "APPROVED" && organization?.status === "ACTIVE" && !!membership, id: r.id, name: r.name, type: r.type, representativeRole: r.representativeRole,
       location: { countryCode: r.countryCode, region: r.region, city: r.city, address: r.address }, offersTraining: r.offersTraining,
       status: r.status, version: r.version, createdAt: r.createdAt, targetAt: r.targetAt, overdue: active.includes(r.status) && r.targetAt <= now(),
       decisionReason: r.decisionReason, decidedAt: r.decidedAt, organizationId: organization?.id ?? null };
@@ -60,6 +61,43 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
       const account = await prisma.account.findUnique({ where: { id: actorId }, select: { emailVerifiedAt: true } });
       const r = await prisma.organizationOperator.findUnique({ where: { accountId: actorId } });
       return { agent: !!account.emailVerifiedAt && r?.agentEnabled === true, approver: !!account.emailVerifiedAt && r?.approverEnabled === true };
+    },
+    async workAccess(actorId, sessionId) {
+      await live(prisma, actorId, sessionId);
+      const hasWork = !!await prisma.organizationRequest.findFirst({ where: { applicantId: actorId }, select: { id: true } }) || !!await prisma.organizationMembership.findFirst({ where: { accountId: actorId, enabled: true }, select: { id: true } });
+      await live(prisma, actorId, sessionId);
+      return { hasWork };
+    },
+    async edit(actorId, sessionId, id, body) {
+      requestId(id); const { expectedVersion, ...fields } = parse(editOrganizationSchema, body);
+      const fingerprint = digest([fields.type, fields.name.toLowerCase(), fields.countryCode, fields.region.toLowerCase(), fields.city.toLowerCase(), fields.address.toLowerCase()]);
+      return transaction(async tx => {
+        await lock(tx, [actorId]); await live(tx, actorId, sessionId); const r = await row(tx, id);
+        if (r.applicantId !== actorId) throw fail(404, "Organization request not found.");
+        if (!active.includes(r.status) || r.version !== expectedVersion) throw conflict();
+        if (await tx.organizationRequest.findFirst({ where: { id: { not: id }, applicantId: actorId, fingerprint, status: { in: active } } })) throw fail(409, "You already have an active request for this organization.");
+        const snapshot = Object.fromEntries(["name", "type", "representativeRole", "countryCode", "region", "city", "address", "offersTraining", "status", "assignedAgentId"].map(key => [key, r[key]]));
+        await tx.organizationRequestRevision.create({ data: { requestId: id, sourceVersion: r.version, actorId, snapshot } });
+        if ((await tx.organizationRequest.updateMany({ where: { id, applicantId: actorId, version: expectedVersion, status: r.status }, data: { ...fields, fingerprint, status: "SUBMITTED", assignedAgentId: null, version: { increment: 1 } } })).count !== 1) throw conflict();
+        const finding = await tx.organizationFinding.findUnique({ where: { requestId: id } });
+        if (finding) {
+          await tx.organizationFindingArchive.create({ data: { ...finding, sourceVersion: r.version, retiredAt: now(), retiredById: actorId } });
+          if ((await tx.organizationFinding.deleteMany({ where: { requestId: id, agentId: finding.agentId } })).count !== 1) throw conflict();
+        }
+        await audit(tx, r, actorId, "APPLICANT_EDITED", "SUBMITTED", r.version + 1); await live(tx, actorId, sessionId);
+        return ownerView(tx, await row(tx, id));
+      });
+    },
+    async abort(actorId, sessionId, id, body) {
+      requestId(id); const { expectedVersion } = parse(abortOrganizationSchema, body);
+      return transaction(async tx => {
+        await lock(tx, [actorId]); await live(tx, actorId, sessionId); const r = await row(tx, id);
+        if (r.applicantId !== actorId) throw fail(404, "Organization request not found.");
+        if (!active.includes(r.status) || r.version !== expectedVersion) throw conflict();
+        if ((await tx.organizationRequest.updateMany({ where: { id, applicantId: actorId, version: expectedVersion, status: r.status }, data: { status: "ABORTED", version: { increment: 1 } } })).count !== 1) throw conflict();
+        await audit(tx, r, actorId, "APPLICANT_ABORTED", "ABORTED", r.version + 1); await live(tx, actorId, sessionId);
+        return ownerView(tx, await row(tx, id));
+      });
     },
     async submit(actorId, sessionId, supplied) {
       const data = parse(organizationRequestSchema, supplied), { idempotencyKey, ...fields } = data;

@@ -34,6 +34,7 @@ const ok = (data) => response(200, { success: true, data });
 function mount({ verify, send, getCompletion } = {}) {
   let verified = false;
   const fetchMock = vi.fn(async (url, options) => {
+    if (url.endsWith("/work/access")) return ok({ hasWork: false });
     if (url.endsWith("/auth/me")) return ok({ account: { id: "account", username: "existing", email: original.contact.email,
       emailVerifiedAt: verified ? verifiedAt : null, person: { id: "person", firstName: "Existing", lastName: "User" } } });
     if (url.endsWith("/profile/me")) return ok({ profile: { ...original, completion: checklist(verified) } });

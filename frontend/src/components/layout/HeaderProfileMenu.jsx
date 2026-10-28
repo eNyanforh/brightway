@@ -7,6 +7,7 @@ import ProfilePicture from "../profile/ProfilePicture";
 
 export default function HeaderProfileMenu({
   photoId,
+  hasWork,
   unsaved,
   profileBusy,
 }) {
@@ -138,6 +139,8 @@ export default function HeaderProfileMenu({
 
           <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/organization-workspace"); }}>Switch account</Action>
 
+          {hasWork && <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/work"); }}>Work</Action>}
+
           <Action
             type="button"
             disabled={busy || profileBusy}
@@ -160,7 +163,7 @@ export default function HeaderProfileMenu({
             <button
               type="button"
               disabled={busy || profileBusy}
-              onClick={() => { setOpen(false); navigate("/organizations/new"); }}
+              onClick={() => { setOpen(false); navigate(hasWork ? "/work" : "/organizations/new"); }}
             >
               <span className="organization-icon">
                 <svg
@@ -178,7 +181,7 @@ export default function HeaderProfileMenu({
                 </svg>
               </span>
 
-              <span>Create an organization</span>
+              <span>{hasWork ? "My Workspace" : "Create an organization"}</span>
             </button>
           </MobileOrganization>
 

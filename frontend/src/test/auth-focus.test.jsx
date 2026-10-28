@@ -45,7 +45,7 @@ const authenticated = () =>
 function mount(path, fetchMock) {
   // Header profile loading is independent of the auth-session response queue.
   vi.stubGlobal("fetch", (url, options) =>
-    url.endsWith("/profile/me")
+    url.endsWith("/work/access") ? reply(200, { success: true, data: { hasWork: false } }) : url.endsWith("/profile/me")
       ? reply(200, {
           success: true,
           data: {

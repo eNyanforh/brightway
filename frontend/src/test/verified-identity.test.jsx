@@ -26,6 +26,7 @@ const profile = { id: "profile", version: 1, identityVerified: true, headline: "
 const status = (extra = {}) => ({ accountId: "owner", profileVersion: 1, status: "APPROVED", identityVerified: true, identityDetailsComplete: true, canSubmit: false, ...extra });
 function mount(handler) {
   const fetchMock = vi.fn(async (url, options) => {
+    if (url.endsWith("/work/access")) return response({ hasWork: false });
     if (url.endsWith("/auth/me")) return response({ account });
     if (url.endsWith("/profile/me")) return response({ profile });
     if (url.endsWith("/admin/manual-identity/access")) return response("Access denied.", 403);

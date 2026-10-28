@@ -43,6 +43,10 @@ export default function NavigationIcon({
       );
       break;
 
+    case "work":
+      shape = <><rect x="3" y="7" width="18" height="14" rx="3" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12c5 4 13 4 18 0M12 12v4" /></>;
+      break;
+
     case "learning":
       shape = active ? (
         <>

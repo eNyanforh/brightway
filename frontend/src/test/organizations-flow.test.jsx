@@ -33,7 +33,7 @@ it("submits a global school request without evidence or injected ownership and k
   expect(body).toMatchObject({ name: "Global Learning Centre", countryCode: "GH", representativeRole: "Director" });
   expect(Object.keys(body).sort()).toEqual(["name", "type", "representativeRole", "countryCode", "region", "city", "address", "idempotencyKey"].sort()); expect(options.credentials).toBe("include");
   release(response({ id, name: body.name, status: "SUBMITTED", version: 1, targetAt: "2026-10-30T12:00:00Z" }));
-  await screen.findByText("Organization request submitted. It stays private until BrightWay approves it."); expect(screen.queryByRole("link", { name: "View organization" })).toBeNull();
+  await screen.findByText(/Your interest to register.*is submitted for review in 72 hours/); expect(screen.queryByRole("link", { name: "View organization" })).toBeNull();
 });
 it("requires the separate education capability answer for a non-school organization", async () => {
   const f = owner(async (url, options) => options?.method === "POST" ? response("Please check this request.", 400) : response({ requests: [] }));
