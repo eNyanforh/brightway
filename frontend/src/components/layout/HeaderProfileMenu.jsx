@@ -139,7 +139,7 @@ export default function HeaderProfileMenu({
 
           <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/organization-workspace"); }}>Switch account</Action>
 
-          {hasWork && <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/work"); }}>Work</Action>}
+          {hasWork && <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/work"); }}>My Workspace</Action>}
 
           <Action
             type="button"
@@ -149,7 +149,7 @@ export default function HeaderProfileMenu({
             {busy ? "Logging out…" : "Log out"}
           </Action>
 
-          <MobileOrganization aria-label="Grow your organization">
+          {!hasWork && <MobileOrganization aria-label="Grow your organization">
             <span className="organization-eyebrow">
               GROW TOGETHER
             </span>
@@ -163,7 +163,7 @@ export default function HeaderProfileMenu({
             <button
               type="button"
               disabled={busy || profileBusy}
-              onClick={() => { setOpen(false); navigate(hasWork ? "/work" : "/organizations/new"); }}
+              onClick={() => { setOpen(false); navigate("/organizations/new"); }}
             >
               <span className="organization-icon">
                 <svg
@@ -181,9 +181,9 @@ export default function HeaderProfileMenu({
                 </svg>
               </span>
 
-              <span>{hasWork ? "My Workspace" : "Create an organization"}</span>
+              <span>Create an organization</span>
             </button>
-          </MobileOrganization>
+          </MobileOrganization>}
 
           {error && (
             <ErrorMessage role="alert">{error}</ErrorMessage>

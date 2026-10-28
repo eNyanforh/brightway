@@ -18,7 +18,7 @@ const navigation = [
 export default function AppSidebar({ id, open, onNavigate, hasWork = false }) {
   const { pathname } = useLocation();
   const items = [...navigation];
-  if (hasWork) items.splice(4, 0, { label: "Work", to: "/work", icon: "work" });
+  if (hasWork) items.splice(4, 0, { label: "My Workspace", to: "/work", icon: "work" });
   return (
     <aside
       id={id}
@@ -38,7 +38,7 @@ export default function AppSidebar({ id, open, onNavigate, hasWork = false }) {
               to={item.to}
               onClick={onNavigate}
               className={({ isActive }) =>
-                (isActive || item.label === "Work" && pathname === "/organizations/new") ? "bw-design-sidebar-active" : ""
+                (isActive || item.label === "My Workspace" && pathname === "/organizations/new") ? "bw-design-sidebar-active" : ""
               }
             >
               {({ isActive }) => (
@@ -66,7 +66,7 @@ export default function AppSidebar({ id, open, onNavigate, hasWork = false }) {
         )}
       </nav>
 
-      <div className="bw-design-sidebar-divider" />
+      {!hasWork && <><div className="bw-design-sidebar-divider" />
 
       <section className="bw-design-sidebar-organization">
         <span className="bw-design-sidebar-eyebrow">
@@ -83,14 +83,14 @@ export default function AppSidebar({ id, open, onNavigate, hasWork = false }) {
           className="bw-design-create-org"
           type="button"
           onClick={onNavigate}
-          to={hasWork ? "/work" : "/organizations/new"}
+          to="/organizations/new"
         >
           <span className="bw-design-create-org-icon">
-            <NavigationIcon name={hasWork ? "work" : "plus"} />
+            <NavigationIcon name="plus" />
           </span>
-          <span>{hasWork ? "My Workspace" : "Create an organization"}</span>
+          <span>Create an organization</span>
         </NavLink>
-      </section>
+      </section></>}
 
       <p className="bw-design-sidebar-footer">
         Empower. Learn. Network. Earn.

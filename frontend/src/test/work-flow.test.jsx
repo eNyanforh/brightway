@@ -22,23 +22,25 @@ function mount({ path = "/work", requests = [request], organizations = [], custo
   const tree = actor => <AuthContext.Provider value={{ account: { id: actor, username: actor, person: { firstName: "Synthetic", lastName: "User" } } }}><MemoryRouter initialEntries={[path]}><Routes><Route element={<AppLayout />}><Route path="/work" element={<WorkPage />} /><Route path="/work/requests/:id/edit" element={<OrganizationRequestsPage />} /><Route path="/organizations/new" element={<OrganizationRequestsPage />} /><Route path="/explore" element={<p>Explore destination</p>} /><Route path="/organization-workspace/:id" element={<p>Scoped organization workspace</p>} /></Route></Routes></MemoryRouter></AuthContext.Provider>;
   const view = render(tree("owner")); return { fetchMock, user: userEvent.setup(), switchAccount: () => view.rerender(tree("other")) };
 }
-it("Work appears immediately after Learning only for persisted organization participation", async () => {
+it("My Workspace appears immediately after Learning only for persisted organization participation", async () => {
   mount(); const nav = screen.getByRole("navigation", { name: "Main navigation" });
-  const link = await within(nav).findByRole("link", { name: "Work" }); expect(link.previousElementSibling.textContent).toContain("Learning");
-  expect(within(screen.getByRole("navigation", { name: "Work tabs" })).getByRole("link", { name: "My Workspace" }).getAttribute("href")).toBe("/work");
+  const link = await within(nav).findByRole("link", { name: "My Workspace" }); expect(link.previousElementSibling.textContent).toContain("Learning");
+  expect(screen.getByRole("heading", { name: "My Workspace", level: 1 })).toBeTruthy();
+  expect(screen.queryByRole("navigation", { name: "Work tabs" })).toBeNull();
+  expect(screen.getByRole("link", { name: "Create an organization" }).getAttribute("href")).toBe("/organizations/new");
 });
-it("first use keeps the original interest entry and submission reveals Work plus confirmation without another form", async () => {
+it("first use keeps the original interest entry and submission reveals My Workspace plus confirmation without another form", async () => {
   let applied = false;
   const f = mount({ path: "/organizations/new", requests: [], hasWork: false, custom: (url, options) => {
     if (url.endsWith("/work/access")) return reply({ hasWork: applied });
     if (options?.method === "POST") { applied = true; return reply({ ...request, status: "SUBMITTED", version: 1 }); }
   } });
-  expect(within(screen.getByRole("navigation", { name: "Main navigation" })).queryByRole("link", { name: "Work" })).toBeNull();
+  expect(within(screen.getByRole("navigation", { name: "Main navigation" })).queryByRole("link", { name: "My Workspace" })).toBeNull();
   await f.user.type(await screen.findByLabelText("Organization name"), request.name); await f.user.type(screen.getByLabelText("Your representative role"), "Principal"); await f.user.selectOptions(screen.getByLabelText("Country of operation"), "GH"); await f.user.type(screen.getByLabelText("City / locality"), "Accra"); await f.user.type(screen.getByLabelText("Operating address"), "Synthetic street");
   fireEvent.submit(screen.getByLabelText("Organization name").closest("form"));
   await screen.findByText(/Your interest to register.*Bright Future School.*is submitted for review in 72 hours/);
   expect(screen.queryByLabelText("Organization name")).toBeNull(); expect(screen.getByRole("link", { name: "View Progress" }).getAttribute("href")).toBe(`/work#request-${id}`);
-  expect(within(screen.getByRole("navigation", { name: "Main navigation" })).getByRole("link", { name: "Work" })).toBeTruthy();
+  expect(within(screen.getByRole("navigation", { name: "Main navigation" })).getByRole("link", { name: "My Workspace" })).toBeTruthy();
   await f.user.click(screen.getByRole("button", { name: "Create another organization" })); expect((await screen.findByLabelText("Organization name")).value).toBe("");
 });
 it("My Workspace combines pending requests and memberships, deduplicates approved requests and provides real review-stage progress", async () => {
@@ -76,11 +78,23 @@ it("account changes and rejected focus checks clear private organization cards",
   await screen.findByRole("heading", { name: request.name }); denied = true; act(() => window.dispatchEvent(new Event("focus")));
   await screen.findByRole("alert"); expect(screen.queryByRole("heading", { name: request.name })).toBeNull();
 });
-it("a delayed pre-submission Work lookup cannot hide navigation after the confirmed first interest", async () => {
+it("a delayed pre-submission workspace lookup cannot hide navigation after the confirmed first interest", async () => {
   let release; const delayed = new Promise(resolve => { release = resolve; });
   const f = mount({ path: "/organizations/new", hasWork: false, custom: (url, options) => url.endsWith("/work/access") ? delayed : options?.method === "POST" ? reply(request) : undefined });
   await f.user.type(await screen.findByLabelText("Organization name"), request.name); await f.user.type(screen.getByLabelText("Your representative role"), "Principal"); await f.user.selectOptions(screen.getByLabelText("Country of operation"), "GH"); await f.user.type(screen.getByLabelText("City / locality"), "Accra"); await f.user.type(screen.getByLabelText("Operating address"), "Synthetic street");
   await f.user.click(screen.getByRole("button", { name: "Submit organization request" })); await screen.findByRole("heading", { name: "Interest submitted" });
   await act(async () => release(reply({ hasWork: false })));
-  expect(within(screen.getByRole("navigation", { name: "Main navigation" })).getByRole("link", { name: "Work" })).toBeTruthy();
+  expect(within(screen.getByRole("navigation", { name: "Main navigation" })).getByRole("link", { name: "My Workspace" })).toBeTruthy();
+});
+
+it("search filters the combined pending and approved list by organization name and can be cleared", async () => {
+  const f = mount({ requests: [request], organizations: [{ id: org, name: "Approved Employer", role: "STAFF" }] });
+  const search = await screen.findByLabelText("Search organizations");
+  await f.user.type(search, "approved");
+  expect(screen.queryByRole("heading", { name: request.name })).toBeNull(); expect(screen.getByRole("heading", { name: "Approved Employer" })).toBeTruthy();
+  expect(screen.getByText("1 of 2 organizations")).toBeTruthy();
+  await f.user.clear(search); await f.user.type(search, "missing name");
+  expect(screen.getByRole("heading", { name: "No organizations found" })).toBeTruthy();
+  await f.user.click(screen.getByRole("button", { name: "Clear search" }));
+  expect(screen.getByRole("heading", { name: request.name })).toBeTruthy(); expect(screen.getByRole("heading", { name: "Approved Employer" })).toBeTruthy();
 });

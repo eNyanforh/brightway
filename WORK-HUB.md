@@ -1,14 +1,15 @@
-# Work and organization interests
+# My Workspace and organization interests
 
-Work appears immediately after Learning in the personal sidebar once the authenticated account has submitted any organization interest or holds an enabled organization membership. The server derives that flag; browser storage and account URLs grant no rights. It remains available after rejection or withdrawal, so history is not lost. On mobile, Work is reachable from the avatar menu; the existing five bottom destinations are unchanged.
+My Workspace appears immediately after Learning in the personal sidebar once the authenticated account has submitted any organization interest or holds an enabled organization membership. The server derives that flag; browser storage and account URLs grant no rights. It remains available after rejection or withdrawal, so history is not lost. On mobile, My Workspace is reachable from the avatar menu; the existing five bottom destinations are unchanged.
 
 ## User journey
 
 - Before first submission, the existing sidebar invitation opens only the interest form (`/organizations/new`). Its supporting text stays in place.
 - After a successful submission, the form is replaced by: **Your interest to register “Organization name” is submitted for review in 72 hours.** The page explains that 72 hours is a review target, not automatic approval.
 - **View Progress** opens the relevant card in `/work`. **Create another organization** opens a blank interest form with a new idempotency key. Repeated ambiguous create requests retry the same immutable body/key, never silently create another request.
-- After first use, the initial sidebar invitation opens **My Workspace**. New interests are created from **Work → + Create an organization**.
-- Work has two navigation tabs: **My Workspace** and **+ Create an organization**.
+- After first use, the initial sidebar invitation is removed and **My Workspace** appears after Learning. The workspace header has a **+** action that opens a blank organization interest form.
+- The separate Work heading and two-tab strip are not used. My Workspace has one header, the create action, organization search and one combined list.
+- Search filters the currently loaded combined list by organization name without exposing another account’s data. Empty results can be cleared locally.
 - My Workspace combines the authenticated owner's request history and current active organization memberships, including staff memberships, with separate cursor-bound pagination. Loaded approved requests already represented by a membership are deduplicated.
 - Cards show the organization name, role and an initials image placeholder. Actual organization logo storage/upload has not been implemented; these placeholders are labelled and are not fabricated logos or identity evidence. No new upload input/provider dependency is introduced.
 - Pending cards show a semantic progress bar, Edit and Abort. Progress comes from review stages: submitted 25, assigned Agent 50, recommendation awaiting separate decision 75; passing time never approves a request. The original deadline and overdue state remain visible. Agent notes are never returned to the applicant.
@@ -53,7 +54,7 @@ Restart the existing servers in separate terminals using `npm run dev:backend` a
 
 ## Focused acceptance
 
-1. First-time representative: initial invitation opens only the interest form. Submit once, confirm the named 72-hour acknowledgement and both next actions, and verify Work appears directly after Learning without a hard reload. Refresh/sign in again and confirm it persists.
+1. First-time representative: initial invitation opens only the interest form. Submit once, confirm the named 72-hour acknowledgement and both next actions, and verify My Workspace appears directly after Learning without a hard reload. Refresh/sign in again and confirm it persists.
 2. Create a second distinct organization. Both pending cards appear with the correct roles/progress. An approved organization appears once with Manage and a separate staff member's organizations are included. Unknown/revoked membership cannot manage via direct URLs.
 3. Edit a pending request: confirm the saved input changes, status returns to submitted, old Agent assignment/findings cannot authorize approval and the original target is unchanged. A stale second tab retains entered fields and receives a conflict rather than overwriting.
 4. Cancel Abort: no write occurs. Confirm Abort: card becomes withdrawn, no progress/Edit/Abort remains and stale Agent/approver mutations fail. An approved organization cannot be aborted through this API.

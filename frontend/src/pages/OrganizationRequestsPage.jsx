@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { organizationsApi as api } from "../api/organizations";
-import WorkTabs from "../components/organizations/WorkTabs";
 import { countryCodes } from "./profile-countries";
 import "./organizations.css";
 const empty = { name: "", type: "SCHOOL", representativeRole: "", countryCode: "", region: "", city: "", address: "", offersTraining: "" };
@@ -55,7 +54,7 @@ function OrganizationRequests({ actor, id }) {
     } finally { if (life.current === current) { lock.current = false; setBusy(false); } }
   }
   function another() { setCreated(null); setDraft(null); setError(null); }
-  return <section className="bw-org-page"><h1>{id ? "Edit organization request" : "Create an organization"}</h1><WorkTabs />
+  return <section className="bw-org-page"><h1>{id ? "Edit organization request" : "Create an organization"}</h1>
     {error && <p role="alert">{error.message}</p>}
     {created ? <div className="bw-work-confirmation" role="status"><h2>{id ? "Organization request updated" : "Interest submitted"}</h2>
       <p>{id ? `Your changes to “${created.name}” were saved. Review will restart; the original 72-hour review target is unchanged.` : `Your interest to register “${created.name}” is submitted for review in 72 hours.`}</p>

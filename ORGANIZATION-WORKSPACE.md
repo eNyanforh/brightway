@@ -4,7 +4,7 @@ The approved organization's primary administrator enters its private workspace r
 
 ## Entry and navigation
 
-- After the first organization interest, **Work** appears after Learning. **My Workspace** lists pending requests and current organization memberships. Approved organizations expose **Manage**, opening the private organization workspace. See [WORK-HUB.md](WORK-HUB.md) for the current submission/edit/withdrawal journey. The existing public organization profile remains available from inside the workspace.
+- After the first organization interest, **My Workspace** appears after Learning and lists pending requests and current organization memberships. Approved organizations expose **Manage**, opening the private organization workspace. See [WORK-HUB.md](WORK-HUB.md) for the current submission/edit/withdrawal journey. The existing public organization profile remains available from inside the workspace.
 - Returning members use avatar → Switch account → organization. No duplicate login or new organization request is needed.
 - `/organization-workspace/:id` is the overview. It identifies the organization and current role, shows available tools and separates the remaining agreed production modules by delivery status.
 - `/organization-workspace/:id/staff` contains invitations, membership permissions, revocation and primary-administrator protection.
@@ -35,7 +35,7 @@ No new dependency or database migration is introduced by this workspace update. 
 
 From the root, pull with `git pull --ff-only origin main`, then restart the existing backend/frontend. Test the new workspace behavior rather than repeating already reported onboarding acceptance:
 
-1. An approved requester opens **Work → My Workspace → Manage** and sees its own organization overview. A pending/rejected requester receives no operational workspace.
+1. An approved requester opens **My Workspace → Manage** and sees its own organization overview. A pending/rejected requester receives no operational workspace.
 2. Returning primary administrator: avatar → Switch account → organization. The header/sidebar/bottom navigation identify organization context. Enter Staff & permissions, then Overview, then Credential reviews without returning to a personal sidebar.
 3. Confirm staff/review tools require the correct current permission and MFA. A publishing-only member must not receive staff/review tools. Revoke access with a stale tab open and verify UI data clears and direct API requests fail.
 4. School/training organizations show applicable planned programs/admissions. A non-training Company does not. None can activate Campus/billing from this overview.
