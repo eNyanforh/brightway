@@ -11,15 +11,15 @@ const organization = { id, name: "Global school", type: "SCHOOL", offersTraining
 const context = { accountId: "owner", organization, permissions: [MANAGE, POSTS], staffVersion: 1, permissionCatalog: catalog, membership: { role: "PRIMARY_ADMIN", version: 1 } };
 const staff = { staffVersion: 1, members: [{ id: "primary", username: "owner", role: "PRIMARY_ADMIN", enabled: true, version: 1, permissions: [MANAGE, POSTS] }, { id: memberId, username: "staff", role: "STAFF", enabled: true, version: 1, permissions: [POSTS] }], invitations: [] };
 const reply = (data, status = 200) => new Response(JSON.stringify(status >= 400 ? { success: false, message: data } : { success: true, data }), { status, headers: { "Content-Type": "application/json" } });
-function mount(handler, path = `/organization-workspace/${id}`, actor = "owner") {
+function mount(handler, path = `/organization-workspace/${id}/staff`, actor = "owner") {
   const fetch = vi.fn(handler); vi.stubGlobal("fetch", fetch); const setActingOrganization = vi.fn();
-  const tree = current => <AuthContext.Provider value={{ account: { id: current, username: current } }}><MemoryRouter initialEntries={[path]}><Routes><Route element={<Outlet context={{ setActingOrganization }} />}><Route path="/organization-workspace" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} /></Route><Route path="/explore" element={<p>Personal account page</p>} /></Routes></MemoryRouter></AuthContext.Provider>;
+  const tree = current => <AuthContext.Provider value={{ account: { id: current, username: current } }}><MemoryRouter initialEntries={[path]}><Routes><Route element={<Outlet context={{ setActingOrganization }} />}><Route path="/organization-workspace" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} /></Route><Route path="/explore" element={<p>Personal account page</p>} /></Routes></MemoryRouter></AuthContext.Provider>;
   const view = render(tree(actor)); return { fetch, setActingOrganization, user: userEvent.setup(), switchAccount: next => view.rerender(tree(next)) };
 }
 const defaultRead = url => url.endsWith("/staff") ? reply(staff) : reply(context);
 it("opens the server-authorized organization context, protects the primary administrator and switches to Personal", async () => {
   const f = mount(defaultRead); await screen.findByRole("heading", { name: "Global school", level: 1 }); await screen.findByText("Primary administrator");
-  expect(f.setActingOrganization).toHaveBeenCalledWith({ accountId: "owner", organization });
+  expect(f.setActingOrganization).toHaveBeenCalledWith(expect.objectContaining({ accountId: "owner", organization }));
   expect(screen.queryByRole("button", { name: "Save permissions for @owner" })).toBeNull();
   await f.user.click(screen.getByRole("link", { name: "Personal account" })); await screen.findByText("Personal account page"); expect(f.setActingOrganization).toHaveBeenLastCalledWith(null);
 });
@@ -52,7 +52,7 @@ it("focus rechecks clear private staff immediately when management permission is
   await screen.findByRole("alert"); expect(screen.queryByText("@staff")).toBeNull(); expect(screen.queryByLabelText("BrightWay username")).toBeNull(); expect(f.fetch).toHaveBeenCalled();
 });
 it("a foreign or revoked membership cannot display an organization workspace", async () => {
-  const f = mount(() => reply("Active organization membership is required.", 403)); await screen.findByRole("alert"); expect(screen.queryByRole("heading", { name: "Global school" })).toBeNull(); expect(f.setActingOrganization).not.toHaveBeenCalledWith({ accountId: "owner", organization });
+  const f = mount(() => reply("Active organization membership is required.", 403)); await screen.findByRole("alert"); expect(screen.queryByRole("heading", { name: "Global school" })).toBeNull(); expect(f.setActingOrganization).not.toHaveBeenCalledWith(expect.objectContaining({ accountId: "owner", organization }));
 });
 it("account changes discard private staffing data and ignore a late response for the previous account", async () => {
   let release; const late = new Promise(resolve => { release = resolve; }); let initial = true;
@@ -69,7 +69,7 @@ it("organization switching keeps personal drafts separate and reflects the actin
   const profile = { id: "profile", version: 1, photo: null, headline: "Original headline", bio: null, location: { countryCode: "GH", region: "", locality: "Accra" }, careerField: { mode: "EXPLORING" }, careerGoals: null, skills: [], interests: [] };
   vi.stubGlobal("fetch", vi.fn(async url => url.endsWith("/profile/me") ? reply({ profile }) : url.endsWith("/staff") ? reply(staff) : url === "/api/v1/organization-workspace" ? reply({ organizations: [{ ...organization, role: "PRIMARY_ADMIN" }], invitations: [] }) : reply(context)));
   const account = { id: "owner", username: "owner", person: { firstName: "Test", lastName: "Owner" } }, user = userEvent.setup();
-  render(<AuthContext.Provider value={{ account }}><MemoryRouter initialEntries={["/explore"]}><Routes><Route element={<AppLayout />}><Route path="/explore" element={<PersonalDraftProbe />} /><Route path="/organization-workspace" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} /></Route></Routes></MemoryRouter></AuthContext.Provider>);
+  render(<AuthContext.Provider value={{ account }}><MemoryRouter initialEntries={["/explore"]}><Routes><Route element={<AppLayout />}><Route path="/explore" element={<PersonalDraftProbe />} /><Route path="/organization-workspace" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} /></Route></Routes></MemoryRouter></AuthContext.Provider>);
   await user.clear(await screen.findByLabelText("Personal headline")); await user.type(screen.getByLabelText("Personal headline"), "Unsaved personal headline");
   await user.click(screen.getByRole("button", { name: "Open account menu" })); await user.click(screen.getByRole("button", { name: "Switch account", exact: true }));
   await user.click(await screen.findByRole("link", { name: "Global school", exact: true })); await screen.findByRole("heading", { name: "Global school", level: 1 });

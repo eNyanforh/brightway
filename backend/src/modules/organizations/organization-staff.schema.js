@@ -17,3 +17,5 @@ export const cancelInviteSchema = z.strictObject({ expectedStaffVersion: version
 export const respondInviteSchema = z.strictObject({ expectedVersion: version, decision: z.enum(["ACCEPT", "DECLINE"]) });
 
 export const listStaffSchema = z.strictObject({ memberCursor: z.uuid().optional(), inviteCursor: z.uuid().optional() });
+
+export const organizationPermissionKeys = organization => permissionKeys.filter(p => organization.offersTraining || !["organization.programs.manage", "organization.admissions.review", "organization.credentials.education.review"].includes(p));

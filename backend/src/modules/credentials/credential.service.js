@@ -1,3 +1,4 @@
+import { organizationWorkspace } from "../../../../shared/organization-workspace.mjs";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { authorizeCredentialReviewer, credentialReviewerScope, credentialIssuer, requireReviewScope, reviewerStillAuthorized, lockCredentialActors } from "./credential-issuer.js";
 import { randomUUID } from "node:crypto";
@@ -178,7 +179,8 @@ export function createCredentialService({ prisma, storage, process = processEvid
       const finalScope = await authorizeCredentialReviewer(prisma, actorId, sessionId, organizationId, now());
       if (reviews.some(review => !finalScope.kinds.includes(review.kind))) throw failure(403, "Credential-review permission changed. Reload access.");
       return { reviews: reviews.slice(0, 30).map((r) => reviewView(r, now(), true)), nextCursor: reviews.length > 30 ? reviews[29].id : null,
-        organization: scope.organization ? { id: scope.organization.id, name: scope.organization.name } : null };
+        organization: scope.organization ? { id: scope.organization.id, name: scope.organization.name, type: scope.organization.type, offersTraining: scope.organization.offersTraining } : null,
+        workspace: scope.organization ? organizationWorkspace(scope.organization, finalScope.permissions, finalScope.membership.role) : null };
     },
     async detail(actorId, id, sessionId, organizationId) {
       const scope = await authorizeCredentialReviewer(prisma, actorId, sessionId, organizationId, now());

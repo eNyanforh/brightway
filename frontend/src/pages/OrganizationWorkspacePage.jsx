@@ -1,3 +1,5 @@
+import { organizationWorkspace } from "../../../shared/organization-workspace.mjs";
+import OrganizationOverview from "../components/organizations/OrganizationOverview";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -12,11 +14,11 @@ function Member({ member, catalog, disabled, save }) {
   return <li><h3>@{member.username}</h3><p>{member.role === "PRIMARY_ADMIN" ? "Primary administrator" : enabled ? "Active staff" : "Access revoked"}</p>{member.role !== "PRIMARY_ADMIN" && <form onSubmit={e => { e.preventDefault(); void save({ expectedVersion: member.version, permissions, enabled }); }}>
     <PermissionChoices catalog={catalog} value={permissions} onChange={setPermissions} disabled={disabled} /><label className="bw-org-check"><input type="checkbox" disabled={disabled} checked={enabled} onChange={e => setEnabled(e.target.checked)} />Membership enabled</label><button disabled={disabled}>Save permissions for @{member.username}</button></form>}</li>;
 }
-export default function OrganizationWorkspacePage() {
+export default function OrganizationWorkspacePage({ section = "overview" }) {
   const { account } = useAuth(), { id } = useParams();
-  return <Workspace key={`${account?.id}:${id || "personal"}`} actor={account?.id} usernameLabel={account?.username} id={id} />;
+  return <Workspace key={`${account?.id}:${id || "personal"}:${section}`} actor={account?.id} usernameLabel={account?.username} id={id} section={section} />;
 }
-function Workspace({ actor, usernameLabel, id }) {
+function Workspace({ actor, usernameLabel, id, section }) {
   const outlet = useOutletContext(), setActing = outlet?.setActingOrganization;
   const [view, setView] = useState(null), [staff, setStaff] = useState(null), [error, setError] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [stale, setStale] = useState(false), [generation, setGeneration] = useState(0);
   const [username, setUsername] = useState(""), [permissions, setPermissions] = useState([]), [retrying, setRetrying] = useState(false);
@@ -27,19 +29,19 @@ function Workspace({ actor, usernameLabel, id }) {
     try {
       const next = id ? await api.context(id, signal) : await api.home(signal);
       if (life.current !== current || signal.aborted) return;
+      if (id) setActing?.({ accountId: actor, organization: next.organization, workspace: next.workspace || organizationWorkspace(next.organization, next.permissions, next.membership?.role) });
       if (preserve && id && currentView.current && (next.staffVersion !== currentView.current.staffVersion || JSON.stringify(next.permissions) !== JSON.stringify(currentView.current.permissions))) {
         if (!next.permissions.includes(MANAGE)) setStaff(null);
         setView(next); setStale(true); setError(new Error("Organization permissions or staff changed. Reload before continuing.")); return;
       }
       setView(next); setError(null);
-      if (id) setActing?.({ accountId: actor, organization: next.organization });
-      if (id && next.permissions.includes(MANAGE)) {
+      if (id && section === "staff" && next.permissions.includes(MANAGE)) {
         try { const people = await api.staff(id, signal); if (life.current === current && !signal.aborted && !preserve) setStaff(people); }
         catch (e) { if (life.current === current && !signal.aborted) { setStaff(null); setError(e); } }
       } else if (id) setStaff(null);
       if (!preserve) { setStale(false); setGeneration(g => g + 1); }
     } catch (e) { if (life.current !== current || signal.aborted || e.name === "AbortError") return; setError(e); if ([401, 403, 404].includes(e.status)) { setView(null); setStaff(null); setActing?.(null); setUsername(""); setPermissions([]); inviteRetry.current = null; setRetrying(false); } }
-  }, [actor, id, setActing]);
+  }, [actor, id, section, setActing]);
   useEffect(() => {
     const current = { actor, id, controller: null }; life.current = current;
     if (actor) void Promise.resolve().then(() => { if (life.current === current) return load(current); });
@@ -82,7 +84,9 @@ function Workspace({ actor, usernameLabel, id }) {
     <button type="button" disabled={busy} onClick={reload}>Reload account workspace</button>
     {!view && !error && <p role="status">Checking account access…</p>}
     {!id && view && <><h2>Your organizations</h2>{!view.organizations.length && <p>You have no active organization memberships.</p>}<ul className="bw-org-list">{view.organizations.map(o => <li key={o.id}><Link to={`/organization-workspace/${o.id}`}>{o.name}</Link><p>{o.role === "PRIMARY_ADMIN" ? "Primary administrator" : "Staff"}</p></li>)}</ul><h2>Your invitations</h2>{!view.invitations.length && <p>No pending invitations.</p>}<ul className="bw-org-list">{view.invitations.map(r => <li key={r.id}><h3>{r.organization.name}</h3><p>Expires {new Date(r.expiresAt).toLocaleDateString()}</p><p>Requested permissions: {r.permissions.length ? (r.permissionLabels || r.permissions).join(", ") : "Organization workspace access"}</p><button disabled={busy || stale} onClick={() => void action(() => api.respond(r.id, { expectedVersion: r.version, decision: "ACCEPT" }))}>Accept invitation from {r.organization.name}</button>{" "}<button disabled={busy || stale} onClick={() => void action(() => api.respond(r.id, { expectedVersion: r.version, decision: "DECLINE" }))}>Decline invitation from {r.organization.name}</button></li>)}</ul>{view.nextMemberCursor && <button disabled={busy} onClick={() => void more("member")}>More organizations</button>}{view.nextInviteCursor && <button disabled={busy} onClick={() => void more("invite")}>More invitations</button>}</>}
-    {id && view && <><p>Acting for <strong>{view.organization.name}</strong> as @{usernameLabel}. <Link to={`/organizations/${id}`} target="_blank" rel="noopener noreferrer">View public organization</Link></p>{view.permissions.some(p => p.startsWith("organization.credentials.")) && <p><Link to={`/organization-workspace/${id}/credentials`}>Credential review workspace</Link></p>}<h2>Your permissions</h2>{!view.permissions.length && <p>Organization workspace access only.</p>}<ul>{view.permissionCatalog.filter(p => view.permissions.includes(p.key)).map(p => <li key={p.key}>{p.label}</li>)}</ul>
+    {id && view && section === "overview" && <OrganizationOverview organization={view.organization} role={view.membership?.role} workspace={view.workspace || organizationWorkspace(view.organization, view.permissions, view.membership?.role)} />}
+    {id && view && section === "staff" && <><p>Acting for <strong>{view.organization.name}</strong> as @{usernameLabel}. <Link to={`/organizations/${id}`} target="_blank" rel="noopener noreferrer">View public organization</Link></p>{view.permissions.some(p => p.startsWith("organization.credentials.")) && <p><Link to={`/organization-workspace/${id}/credentials`}>Credential review workspace</Link></p>}<h2>Your permissions</h2>{!view.permissions.length && <p>Organization workspace access only.</p>}<ul>{view.permissionCatalog.filter(p => view.permissions.includes(p.key)).map(p => <li key={p.key}>{p.label}</li>)}</ul>
+      {!view.permissions.includes(MANAGE) && <p role={error ? undefined : "alert"}>Staff-management permission is required for this organization.</p>}
       {view.permissions.includes(MANAGE) && !staff && <p>Staff management requires verified email, two-factor authentication and current permission. Enable MFA in Account security, then sign in again and reload.</p>}
       {staff && <><h2>Invite staff</h2><form onSubmit={e => { e.preventDefault(); const body = inviteRetry.current || { username, permissions, expectedStaffVersion: staff.staffVersion, idempotencyKey: crypto.randomUUID() }; inviteRetry.current = body; void action(() => api.invite(id, body), true); }}><fieldset disabled={disabled}><legend>Invite an existing BrightWay account</legend><label>BrightWay username<input required pattern="[a-zA-Z0-9_]{3,30}" value={username} onChange={e => setUsername(e.target.value)} /></label><PermissionChoices catalog={view.permissionCatalog.filter(p => view.permissions.includes(p.key))} value={permissions} onChange={setPermissions} disabled={disabled} /></fieldset><button disabled={busy || stale}>{retrying ? "Retry same invitation" : "Send invitation"}</button></form>
         <h2>Staff</h2><ul className="bw-org-list">{staff.members.map(m => <Member key={`${generation}:${m.id}`} member={m} catalog={view.permissionCatalog.filter(p => view.permissions.includes(p.key))} disabled={disabled} save={body => action(() => api.change(id, m.id, { ...body, expectedStaffVersion: staff.staffVersion }))} />)}</ul>

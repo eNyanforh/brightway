@@ -65,3 +65,7 @@ The subsequent issuer-review integration binds participating schools/employers t
 ## Owner progress report — 28 October 2026
 
 Emmanuel reported completing the previous update and checks the night before. Carry that forward as owner-reported progress rather than asking for the entire staffing checklist again. No exact local SHA or per-check transcript accompanied the report. It does not provide acceptance of the new issuer-review slice.
+
+## Organization overview/navigation update — 28 October 2026
+
+The organization root now opens an overview; choose **Staff & permissions** to reach `/organization-workspace/:id/staff`. Approved requests have **Open organization workspace**, while **View organization** remains the public profile. Desktop/mobile navigation follows the active organization and current permissions. See [ORGANIZATION-WORKSPACE.md](ORGANIZATION-WORKSPACE.md) for entry, delivery boundaries and focused acceptance checks.

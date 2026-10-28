@@ -1,3 +1,4 @@
+import { organizationPermissionKeys } from "../organizations/organization-staff.schema.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { z } from "zod";
 const fail = (status, message) => Object.assign(new Error(message), { status });
@@ -26,7 +27,9 @@ export async function credentialReviewerScope(db, actorId, organizationId, lock 
   const membership = await db.organizationMembership.findFirst({ where: { organizationId, accountId: actorId, enabled: true } });
   const allowed = membership ? permittedKinds(organization).filter(kind => membership.role === "PRIMARY_ADMIN" || (membership.permissions ?? []).includes(issuerPermission(kind))) : [];
   if (!allowed.length) throw fail(403, "This organization requires credential-review permission.");
-  return { account, organization, kinds: allowed };
+  const catalog = organizationPermissionKeys(organization);
+  const permissions = membership.role === "PRIMARY_ADMIN" ? catalog : (membership.permissions ?? []).filter(key => catalog.includes(key));
+  return { account, organization, kinds: allowed, membership, permissions };
 }
 export async function authorizeCredentialReviewer(db, actorId, sessionId, organizationId, now, lock = false) {
   const scope = await credentialReviewerScope(db, actorId, organizationId, lock);

@@ -27,7 +27,7 @@ function ReviewWorkspace({ accountId, organizationId }) {
         const next = await api.queue(null, controller.signal);
         if (controller.signal.aborted || lifetime.current !== current) return;
         setQueue(next); setError(null);
-        if (organizationId && next.organization) setActing?.({ accountId, organization: next.organization });
+        if (organizationId && next.organization) setActing?.({ accountId, organization: next.organization, workspace: next.workspace });
         if (preserve && selected.current) {
           const nextDetail = await api.detail(selected.current.id, controller.signal);
           if (controller.signal.aborted || lifetime.current !== current) return;

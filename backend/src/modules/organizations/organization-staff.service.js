@@ -1,7 +1,8 @@
+import { organizationWorkspace } from "../../../../shared/organization-workspace.mjs";
 import { randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { digest, failure as fail, parse, requestId } from "./organization.schema.js";
-import { PERMISSIONS, permissionKeys, inviteSchema, changeMemberSchema, cancelInviteSchema, respondInviteSchema, listStaffSchema } from "./organization-staff.schema.js";
+import { PERMISSIONS, organizationPermissionKeys, inviteSchema, changeMemberSchema, cancelInviteSchema, respondInviteSchema, listStaffSchema } from "./organization-staff.schema.js";
 const MANAGE = "organization.members.manage", conflict = () => fail(409, "Organization staffing changed. Reload before continuing.");
 export function createOrganizationStaffService({ prisma, now = () => new Date() }) {
   async function transaction(work) { try { return await prisma.$transaction(work); } catch (e) { if (["P2002", "P2034"].includes(e.code)) throw conflict(); throw e; } }
@@ -19,7 +20,7 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
     if (write && (await db.organization.updateMany({ where: { id, status: "ACTIVE" }, data: { staffVersion: { increment: 0 } } })).count !== 1) throw conflict();
     return result;
   }
-  const catalog = organization => permissionKeys.filter(p => organization.offersTraining || !["organization.programs.manage", "organization.admissions.review", "organization.credentials.education.review"].includes(p));
+  const catalog = organizationPermissionKeys;
   const effective = (membership, organization) => membership?.enabled ? (membership.role === "PRIMARY_ADMIN" ? catalog(organization) : (membership.permissions ?? []).filter(p => catalog(organization).includes(p))) : [];
   async function access(db, actorId, sessionId, organization, manage = false) {
     const account = await live(db, actorId, sessionId);
@@ -59,7 +60,7 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
     async context(actorId, sessionId, id) {
       requestId(id); return transaction(async db => {
         await lock(db, [actorId]); const organization = await org(db, id, true), actor = await access(db, actorId, sessionId, organization);
-        return { accountId: actorId, organization: summary(organization), membership: { id: actor.membership.id, role: actor.membership.role, version: actor.membership.version }, permissions: actor.permissions, staffVersion: organization.staffVersion, permissionCatalog: catalog(organization).map(key => ({ key, label: PERMISSIONS[key] })) };
+        return { accountId: actorId, organization: summary(organization), membership: { id: actor.membership.id, role: actor.membership.role, version: actor.membership.version }, permissions: actor.permissions, workspace: organizationWorkspace(organization, actor.permissions, actor.membership.role), staffVersion: organization.staffVersion, permissionCatalog: catalog(organization).map(key => ({ key, label: PERMISSIONS[key] })) };
       });
     },
     async staff(actorId, sessionId, id, supplied = {}) {

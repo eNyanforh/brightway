@@ -1,0 +1,47 @@
+# Organization workspace
+
+The approved organization's primary administrator enters its private workspace rather than using its public profile as an administration page. One person retains one login and can switch between Personal and multiple organization memberships. Pending requests remain private and cannot operate an organization.
+
+## Entry and navigation
+
+- After approval, My organization requests shows **Open organization workspace**. The secondary **View organization** link retains the public profile.
+- Returning members use avatar → Switch account → organization. No duplicate login or new organization request is needed.
+- `/organization-workspace/:id` is the overview. It identifies the organization and current role, shows available tools and separates the remaining agreed production modules by delivery status.
+- `/organization-workspace/:id/staff` contains invitations, membership permissions, revocation and primary-administrator protection.
+- `/organization-workspace/:id/credentials` contains issuer-scoped credential review. Both privileged destinations retain existing server-enforced current permission and MFA checks.
+- Organization sidebar/mobile navigation replaces Personal destinations while acting for an organization. Overview, staff, reviews and switching remain reachable on mobile according to the current membership. The existing header, avatar and personal navigation stay intact outside organization context.
+- The workspace metadata is built from authenticated organization membership and effective permissions on the backend. URL labels or navigation alone grant nothing. Foreign/revoked/suspended memberships cannot acquire tools; focus rechecks remove withdrawn permissions and private rows. Personal profile drafts stay in the existing parent layout during switches.
+
+## Agreed functionality and delivery boundaries
+
+The saved master architecture (organization membership/permissions and frontend architecture) and product specification §22.3 define organization profile/content, staff, opportunities/applications, programs/admissions where applicable, analytics, and eligible active Campus operations/billing.
+
+| Area | Current workspace behavior |
+| --- | --- |
+| Organization profile | Opens the already implemented approved public organization/location in a separate tab. Profile/content editing is not claimed by this view. |
+| Staff and permissions | Working scoped staff/invitation management; sensitive operations require MFA. |
+| Credential reviews | Working issuer-scoped review, evidence, decisions and permission-withdrawal recovery. |
+| Posts/content | Displayed as planned Sprint 5 work only for authorized publishing scope. |
+| Opportunities/applications | Planned Sprint 6; no fake publishing or application actions. |
+| Programs/admissions | Planned Sprint 7; only education-capable organizations with the relevant scope see these planned tools. |
+| Analytics | Planned with the corresponding product modules; no fabricated counts/reports. |
+| Virtual Campus/billing | Not activated by organization approval. Campus is a later module requiring a qualifying verified Liberia operation and actual activation; Grade School/TVET stay separate. There are no Campus/billing navigation actions in this release. |
+
+Planned cards have no action links or forms. This is the workspace entry/navigation foundation, not a claim that later sprint backends have been delivered. Existing core grants prepare those modules without making them operational. Full agreed production scope and the 26 January 2027 target remain unchanged and subject to acceptance. Deployment remains paused.
+
+## Updating and acceptance
+
+No new dependency or database migration is introduced by this workspace update. If the preceding issuer-review update has not yet been applied, first follow SPRINT-3-ISSUER-REVIEWS.md, including isolated database checks and application development migration/client generation. Preserve private environment values and the original MFA key.
+
+From the root, pull with `git pull --ff-only origin main`, then restart the existing backend/frontend. Test the new workspace behavior rather than repeating already reported onboarding acceptance:
+
+1. An approved requester opens **Open organization workspace** and sees its own organization overview. A pending/rejected requester receives no operational workspace.
+2. Returning primary administrator: avatar → Switch account → organization. The header/sidebar/bottom navigation identify organization context. Enter Staff & permissions, then Overview, then Credential reviews without returning to a personal sidebar.
+3. Confirm staff/review tools require the correct current permission and MFA. A publishing-only member must not receive staff/review tools. Revoke access with a stale tab open and verify UI data clears and direct API requests fail.
+4. School/training organizations show applicable planned programs/admissions. A non-training Company does not. None can activate Campus/billing from this overview.
+5. Planned posts/opportunities/admissions/analytics cards do not submit forms or imply saved/published data. Their real backend work remains scheduled.
+6. Check desktop/mobile navigation, keyboard focus, no horizontal overflow, public profile opening separately, and preservation of unsaved personal profile edits across context changes.
+
+Record the exact local SHA and outcomes. CI/service/UI/native-browser checks are separate from owner acceptance on the application database; no cloud environment or user documents are accessed by these implementation checks.
+
+Local verification: 296 backend cases passed (21 explicit database skips), 202 frontend cases passed, plus lint and build. The workspace route is split into a separate bundle; the main production bundle is below Vite’s default warning threshold. Native Chromium at 1280px and 390px exercised approved entry → overview → staff → issuer reviews → overview using actual services with a fixture database, with no runtime errors or horizontal overflow. These do not claim acceptance on the owner’s application database, real provider services or a deployed environment. Use the exact commit’s CI run for actual PostgreSQL execution.

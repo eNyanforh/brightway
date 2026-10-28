@@ -73,7 +73,7 @@ function OrganizationRequests({ actor }) {
     </fieldset><button type="submit" disabled={busy}>{busy ? "Please wait…" : retrying ? "Retry same organization request" : "Submit organization request"}</button></form>
       <h2>My organization requests</h2><button type="button" disabled={busy} onClick={reload}>Reload organization status</button>
       {!data.requests.length && <p>No organization requests yet.</p>}
-      <ul className="bw-org-list">{data.requests.map(r => <li key={r.id}><h3>{r.name}</h3><p>Status: <strong>{r.status}</strong> · Review target: {identityDate(r.targetAt)}{r.overdue && " · Past target; approval is still required"}</p>{r.decisionReason && <p>{r.decisionReason}</p>}{r.organizationId && <p>You are the primary administrator. <Link to={`/organizations/${r.organizationId}`}>View organization</Link></p>}</li>)}</ul>
+      <ul className="bw-org-list">{data.requests.map(r => <li key={r.id}><h3>{r.name}</h3><p>Status: <strong>{r.status}</strong> · Review target: {identityDate(r.targetAt)}{r.overdue && " · Past target; approval is still required"}</p>{r.decisionReason && <p>{r.decisionReason}</p>}{r.organizationId && <p>You are the primary administrator. <Link className="bw-org-workspace-entry" to={`/organization-workspace/${r.organizationId}`}>Open organization workspace</Link>{" "}<Link to={`/organizations/${r.organizationId}`}>View organization</Link></p>}</li>)}</ul>
       {data.nextCursor && <button type="button" disabled={busy} onClick={async () => {
         if (lock.current) return; lock.current = true; setBusy(true); const current = life.current;
         try { const next = await api.list(undefined, data.nextCursor); if (life.current === current) setState(old => ({ actor, data: { ...next, access: old.data.access } })); }
