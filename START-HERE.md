@@ -60,3 +60,9 @@ Continue the agreed plan only after recovery checks pass. No public deployment i
 ## Provenance
 
 The package uses the pinned GitHub source/UI and restored MFA integration from our working project. RECOVERY-CHANGES.json lists restored/adjusted paths relative to that GitHub head. FILE-MANIFEST.sha256 lists the deliverable source files. VALIDATION.md records the actual local checks and their limits.
+
+## Development startup after installing dependencies
+
+`npm run dev:backend` now runs the backend `predev` lifecycle (`prisma generate`) before starting the Node watcher. This regenerates the schema-specific client after `npm ci`, rather than starting the application with a missing client and reporting a misleading named-export error. Generation uses the existing backend Prisma config and private `.env`; if generation fails, the server does not start. It does not connect to or migrate the database. Production `start` is unchanged; production client generation remains part of release preparation.
+
+On the development machine, stop old watchers and run `npm ci --include=dev` from the repository root. Then run `npm run dev:backend`. Confirm Generated Prisma Client appears before the backend startup message. Start `npm run dev:frontend` in another terminal. Keep the lockfile and environment files. If generation fails, diagnose that output before changing service imports.
