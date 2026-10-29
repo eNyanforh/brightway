@@ -64,7 +64,7 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
     },
     async workAccess(actorId, sessionId) {
       await live(prisma, actorId, sessionId);
-      const hasWork = !!await prisma.organizationRequest.findFirst({ where: { applicantId: actorId }, select: { id: true } }) || !!await prisma.organizationMembership.findFirst({ where: { accountId: actorId, enabled: true }, select: { id: true } });
+      const hasWork = !!await prisma.organizationRequest.findFirst({ where: { applicantId: actorId }, select: { id: true } }) || !!await prisma.organizationMembership.findFirst({ where: { accountId: actorId, enabled: true }, select: { id: true } }) || !!await prisma.organizationInvitation.findFirst({ where: { recipientId: actorId, state: "PENDING", expiresAt: { gt: now() }, organization: { status: "ACTIVE", request: { status: "APPROVED" } } }, select: { id: true } });
       await live(prisma, actorId, sessionId);
       return { hasWork };
     },

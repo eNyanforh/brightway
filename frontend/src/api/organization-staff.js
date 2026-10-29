@@ -10,6 +10,7 @@ async function request(path, method = "GET", body, signal) {
 }
 const query = paging => { const value = new URLSearchParams(paging || {}).toString(); return value ? `?${value}` : ""; };
 export const staffApi = {
+  directory: (signal, filters) => request("/my-workspace" + query(filters), "GET", undefined, signal),
   home: (signal, paging) => request("/organization-workspace" + query(paging), "GET", undefined, signal),
   context: (id, signal) => request(`/organization-workspace/${encodeURIComponent(id)}`, "GET", undefined, signal),
   staff: (id, signal, paging) => request(`/organization-workspace/${encodeURIComponent(id)}/staff${query(paging)}`, "GET", undefined, signal),

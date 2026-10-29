@@ -4,8 +4,9 @@ import { createRequireAuth, createSessionCookieConfig, requireTrustedOrigin } fr
 export function createOrganizationStaffRoutes({ staff, sessions, clientUrl, nodeEnv, limiter }) {
   const router = Router(), auth = createRequireAuth({ sessions, cookieName: createSessionCookieConfig(nodeEnv).name }), origin = requireTrustedOrigin(clientUrl);
   const limits = limiter ?? rateLimit({ windowMs: 900000, limit: 80, standardHeaders: "draft-8", legacyHeaders: false, keyGenerator: req => req.auth.account.id });
-  router.use(["/organization-workspace", "/organization-invitations"], (req, res, next) => { res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); next(); }, auth);
+  router.use(["/organization-workspace", "/organization-invitations", "/my-workspace"], (req, res, next) => { res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); next(); }, auth);
   const handle = fn => async (req, res, next) => { try { res.json({ success: true, data: await fn(req, req.auth.account.id, req.auth.sessionId) }); } catch (e) { next(e.status >= 400 && e.status <= 599 ? e : Object.assign(Error("Organization staffing is temporarily unavailable."), { status: 503 })); } };
+  router.get("/my-workspace", handle((r, a, s) => staff.directory(a, s, r.query)));
   router.get("/organization-workspace", handle((r, a, s) => staff.home(a, s, r.query)));
   router.get("/organization-workspace/:orgId", handle((r, a, s) => staff.context(a, s, r.params.orgId)));
   router.get("/organization-workspace/:orgId/staff", handle((r, a, s) => staff.staff(a, s, r.params.orgId, r.query)));

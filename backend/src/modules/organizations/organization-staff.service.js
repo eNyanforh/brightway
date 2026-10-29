@@ -2,7 +2,7 @@ import { organizationWorkspace } from "../../../../shared/organization-workspace
 import { randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { digest, failure as fail, parse, requestId } from "./organization.schema.js";
-import { PERMISSIONS, organizationPermissionKeys, inviteSchema, changeMemberSchema, cancelInviteSchema, respondInviteSchema, listStaffSchema } from "./organization-staff.schema.js";
+import { PERMISSIONS, workspaceDirectorySchema, organizationPermissionKeys, inviteSchema, changeMemberSchema, cancelInviteSchema, respondInviteSchema, listStaffSchema } from "./organization-staff.schema.js";
 const MANAGE = "organization.members.manage", conflict = () => fail(409, "Organization staffing changed. Reload before continuing.");
 export function createOrganizationStaffService({ prisma, now = () => new Date() }) {
   async function transaction(work) { try { return await prisma.$transaction(work); } catch (e) { if (["P2002", "P2034"].includes(e.code)) throw conflict(); throw e; } }
@@ -44,6 +44,35 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
     return db[model].findMany({ where, orderBy: [{ createdAt: direction }, { id: direction }], ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 21 });
   }
   const service = {
+    async directory(actorId, sessionId, supplied = {}) {
+      const { tab, search, cursor } = parse(workspaceDirectorySchema, supplied);
+      return transaction(async db => {
+        await live(db, actorId, sessionId);
+        const name = search ? { contains: search, mode: "insensitive" } : undefined;
+        const organization = { status: "ACTIVE", request: { status: "APPROVED" }, ...(name ? { name } : {}) };
+        const requestBase = { applicantId: actorId, ...(name ? { name } : {}) };
+        const scopes = {
+          approved: ["organizationMembership", { accountId: actorId, enabled: true, organization }],
+          pending: ["organizationRequest", { ...requestBase, status: { in: ["SUBMITTED", "ASSIGNED", "RECOMMENDED"] } }],
+          invitations: ["organizationInvitation", { recipientId: actorId, state: "PENDING", expiresAt: { gt: now() }, organization }],
+          history: ["organizationRequest", { ...requestBase, status: { in: ["REJECTED", "ABORTED"] } }],
+        };
+        const counts = {};
+        for (const [key, [model, where]] of Object.entries(scopes)) counts[key] = await db[model].count({ where });
+        const [model, where] = scopes[tab];
+        if (cursor && !await db[model].findFirst({ where: { ...where, id: cursor }, select: { id: true } })) throw fail(409, "This workspace list changed. Reload before continuing.");
+        const organizationSelect = { id: true, name: true, type: true, offersTraining: true };
+        const select = tab === "approved" ? { id: true, role: true, organization: { select: organizationSelect } }
+          : tab === "invitations" ? { id: true, version: true, expiresAt: true, permissions: true, organization: { select: organizationSelect } }
+          : { id: true, name: true, type: true, representativeRole: true, version: true, status: true, targetAt: true, decisionReason: true };
+        const rows = await db[model].findMany({ where, select, orderBy: [{ createdAt: "desc" }, { id: "desc" }], ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 21 });
+        const items = rows.slice(0, 20).map(row => tab === "approved" ? { ...row.organization, role: row.role }
+          : tab === "invitations" ? { ...row, permissionLabels: row.permissions.map(key => PERMISSIONS[key]).filter(Boolean) }
+          : { ...row, overdue: row.targetAt < now() });
+        await live(db, actorId, sessionId);
+        return { tab, search, counts, items, nextCursor: rows.length > 20 ? rows[19].id : null };
+      });
+    },
     async home(actorId, sessionId, supplied = {}) {
       const paging = parse(listStaffSchema, supplied);
       const account = await live(prisma, actorId, sessionId);

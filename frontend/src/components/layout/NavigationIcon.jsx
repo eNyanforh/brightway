@@ -44,7 +44,7 @@ export default function NavigationIcon({
       break;
 
     case "work":
-      shape = <><rect x="3" y="7" width="18" height="14" rx="3" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12c5 4 13 4 18 0M12 12v4" /></>;
+      shape = <><path d="M4 21V3h11v18M15 9h5v12M2 21h20M8 21v-4h3v4M7 7h1m3 0h1M7 11h1m3 0h1M17 13h1m-1 4h1" /></>;
       break;
 
     case "learning":

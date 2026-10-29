@@ -34,7 +34,7 @@ function mount(path = base, handler = () => reply(context)) {
   return { fetch, user: userEvent.setup() };
 }
 it("an approved organization in My Workspace opens its private administrator workspace instead of the public profile", async () => {
-  const f = mount("/work", url => url.endsWith("/organization-requests") ? reply({ requests: [{ id: "different-request-id", organizationId: id, name: organization.name, status: "APPROVED", workspaceAvailable: true, targetAt: "2026-10-30" }] }) : url.endsWith("/organization-workspace") ? reply({ organizations: [], invitations: [] }) : reply(context));
+  const f = mount("/work", url => url.includes("/my-workspace") ? reply({ tab: "approved", search: "", counts: { approved: 1, pending: 0, invitations: 0, history: 0 }, items: [{ ...organization, role: "PRIMARY_ADMIN" }] }) : reply(context));
   const entry = await screen.findByRole("link", { name: "Manage" }); expect(entry.getAttribute("href")).toBe(base);
   await f.user.click(entry); await screen.findByRole("heading", { name: organization.name, level: 1 });
   await screen.findByRole("navigation", { name: "Organization tools" });

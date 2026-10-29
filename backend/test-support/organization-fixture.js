@@ -17,12 +17,14 @@ export function organizationFixture() {
   function matches(row, where = {}) {
     return Object.entries(where).every(([key, value]) => {
       if (value === undefined) return true;
+      if (key === "organization") return matches(state.organization.find(r => r.id === row.organizationId) ?? {}, value);
       if (key === "request") return matches(state.organizationRequest.find(r => r.id === row.requestId) ?? {}, value);
       if (key === "AND") return value.every(w => matches(row, w));
       if (key === "OR") return value.some(w => matches(row, w));
       if (key === "applicantId_idempotencyKey") return matches(row, value);
       if (value instanceof Date) return +row[key] === +value;
       if (value && typeof value === "object") {
+        if ("contains" in value) return String(row[key] ?? "").toLowerCase().includes(value.contains.toLowerCase());
         if ("in" in value) return value.in.includes(row[key]); if ("not" in value) return row[key] !== value.not;
         if ("gt" in value) return row[key] > value.gt; if ("gte" in value) return row[key] >= value.gte;
       }
@@ -32,8 +34,9 @@ export function organizationFixture() {
   function project(row, select) {
     if (!row) return null;
     if (row.requestId && state.organization.some(r => r.id === row.id)) row = { ...row, locations: state.organizationOperatingLocation.filter(r => r.organizationId === row.id) };
+    if (row.organizationId) row = { ...row, organization: state.organization.find(r => r.id === row.organizationId) };
     if (!select) return clone(row);
-    return Object.fromEntries(Object.entries(select).map(([key, value]) => [key, typeof value === "object" && value.select ? (row[key] || []).map(x => project(x, value.select)) : clone(row[key])]));
+    return Object.fromEntries(Object.entries(select).map(([key, value]) => [key, typeof value === "object" && value.select ? Array.isArray(row[key]) ? row[key].map(x => project(x, value.select)) : project(row[key], value.select) : clone(row[key])]));
   }
   const db = {};
   for (const [model, rows] of Object.entries(state)) {

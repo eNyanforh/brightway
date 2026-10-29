@@ -94,6 +94,10 @@ test("staff HTTP mutations require session and trusted Origin and keep organizat
   app.use((e, req, res, next) => { void next; res.status(e.status || 500).json({ success: false, message: e.message }); });
   const server = app.listen(0, "127.0.0.1"); await new Promise(r => server.once("listening", r)); const base = `http://127.0.0.1:${server.address().port}/api/v1`;
   try {
+    assert.equal((await fetch(base + "/my-workspace")).status, 401);
+    const directory = await fetch(base + "/my-workspace?tab=approved", { headers: { Cookie: "brightway_session=owner" } });
+    assert.equal(directory.status, 200); assert.equal(directory.headers.get("cache-control"), "no-store"); assert.equal((await directory.json()).data.items[0].id, f.id);
+    assert.equal((await fetch(base + "/my-workspace?accountId=foreign", { headers: { Cookie: "brightway_session=owner" } })).status, 400);
     const path = `/organization-workspace/${f.id}/invitations`, body = { expectedStaffVersion: 1, idempotencyKey: randomUUID(), username: f.recipient.username, permissions: [POSTS] };
     const send = (token, origin) => fetch(base + path, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Cookie: `brightway_session=${token}` } : {}), ...(origin ? { Origin: origin } : {}) }, body: JSON.stringify(body) });
     assert.equal((await send()).status, 401); assert.equal((await send("owner")).status, 403); assert.equal((await send("owner", "https://foreign.test")).status, 403);
@@ -110,4 +114,42 @@ test("staff paging returns bounded tenant-scoped pages with private projections"
   const next = await f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { memberCursor: first.nextMemberCursor }); assert.equal(next.members.length, 3);
   assert.equal(new Set([...first.members, ...next.members].map(m => m.id)).size, 23);
   for (const m of [...first.members, ...next.members]) { assert(m.username); assert.equal("email" in m, false); }
+});
+
+test("workspace categories search the complete owner scope, paginate safely and never expose private findings", async () => {
+  const f = await fixture();
+  for (let i = 0; i < 23; i++) await f.db.organizationRequest.create({ data: { applicantId: f.owner.id, name: `Searchable school ${String(i).padStart(2, "0")}`, representativeRole: "Principal", targetAt: new Date(+f.now() + 10000), notes: "PRIVATE", status: "SUBMITTED" } });
+  await f.db.organizationRequest.create({ data: { applicantId: f.recipient.id, name: "Searchable foreign", status: "SUBMITTED" } });
+  const first = await f.staff.directory(f.owner.id, f.owner.sessionId, { tab: "pending", search: "SEARCHABLE" });
+  assert.equal(first.counts.pending, 23); assert.equal(first.items.length, 20); assert(first.nextCursor);
+  const second = await f.staff.directory(f.owner.id, f.owner.sessionId, { tab: "pending", search: "searchable", cursor: first.nextCursor });
+  assert.equal(second.items.length, 3); assert.equal(new Set([...first.items, ...second.items].map(r => r.id)).size, 23);
+  const exact = await f.staff.directory(f.owner.id, f.owner.sessionId, { tab: "pending", search: "school 22" }); assert.equal(exact.items.length, 1);
+  assert(!JSON.stringify(first).includes("PRIVATE")); assert(first.items.every(r => !r.applicantId && !r.assignedAgentId));
+  await assert.rejects(f.staff.directory(f.recipient.id, f.recipient.sessionId, { tab: "pending", cursor: first.nextCursor }), { status: 409 });
+  await assert.rejects(f.staff.directory(f.owner.id, f.owner.sessionId, { tab: "approved", cursor: first.nextCursor }), { status: 409 });
+  const approved = await f.staff.directory(f.owner.id, f.owner.sessionId); assert.equal(approved.tab, "approved"); assert.equal(approved.items[0].id, f.id); assert.equal(approved.counts.pending, 23);
+  assert.equal(approved.items[0].role, "PRIMARY_ADMIN");
+});
+test("incoming invitations enable My Workspace, move to Approved only after consent and exclude expired or inactive organizations", async () => {
+  const f = await fixture(); const r = await f.invite();
+  assert.equal((await f.service.workAccess(f.recipient.id, f.recipient.sessionId)).hasWork, true);
+  let directory = await f.staff.directory(f.recipient.id, f.recipient.sessionId, { tab: "invitations" });
+  assert.equal(directory.counts.approved, 0); assert.equal(directory.items[0].organization.id, f.id); assert.deepEqual(directory.items[0].permissionLabels, ["Publish posts"]);
+  await f.accept(r); directory = await f.staff.directory(f.recipient.id, f.recipient.sessionId);
+  assert.equal(directory.items[0].id, f.id); assert.equal(directory.counts.invitations, 0);
+  f.state.organizationMembership.find(m => m.accountId === f.recipient.id).enabled = false;
+  assert.equal((await f.staff.directory(f.recipient.id, f.recipient.sessionId)).items.length, 0);
+  const another = await f.invite(); f.state.organizationInvitation.find(i => i.id === another.id).expiresAt = f.now();
+  assert.equal((await f.staff.directory(f.recipient.id, f.recipient.sessionId, { tab: "invitations" })).items.length, 0);
+  f.state.organization[0].status = "SUSPENDED";
+  assert.equal((await f.staff.directory(f.owner.id, f.owner.sessionId)).items.length, 0);
+});
+test("workspace history stays owner-only and query injection or dead sessions are rejected", async () => {
+  const f = await fixture();
+  for (const status of ["REJECTED", "ABORTED"]) await f.db.organizationRequest.create({ data: { applicantId: f.owner.id, name: status, status, decisionReason: "Owner feedback" } });
+  assert.equal((await f.staff.directory(f.owner.id, f.owner.sessionId, { tab: "history" })).items.length, 2);
+  assert.equal((await f.staff.directory(f.recipient.id, f.recipient.sessionId, { tab: "history" })).items.length, 0);
+  for (const supplied of [{ accountId: f.owner.id }, { tab: "all" }, { search: "a".repeat(161) }, { search: ["a", "b"] }, { cursor: "bad" }]) await assert.rejects(f.staff.directory(f.owner.id, f.owner.sessionId, supplied), { status: 400 });
+  await assert.rejects(f.staff.directory(f.owner.id, "foreign-session"), { status: 401 });
 });

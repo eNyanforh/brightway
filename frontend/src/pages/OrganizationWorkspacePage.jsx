@@ -80,7 +80,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
   }
   const disabled = busy || stale || retrying;
   const sectionAllowed = !id || !view || section === "overview" || (section === "staff" && view.permissions.includes(MANAGE));
-  return <section className="bw-org-page"><h1>{id && view ? view.organization.name : "Switch account"}</h1><p><Link to="/explore">Personal account</Link>{id && <> · <Link to="/organization-workspace">Switch organization</Link></>} · <Link to="/security">Account security</Link></p>
+  return <section className="bw-org-page"><h1>{id && view ? view.organization.name : "Switch account"}</h1><p><Link to="/explore">Personal account</Link>{id && <> · <Link to="/work">Back to My Workspace</Link></>} · <Link to="/security">Account security</Link></p>
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}{stale && <p>Changes have been kept. Reload to discard unsaved staffing changes and get current access.</p>}
     <button type="button" disabled={busy} onClick={reload}>Reload account workspace</button>
     {!view && !error && <p role="status">Checking account access…</p>}

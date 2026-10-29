@@ -29,6 +29,11 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     const input = { expectedStaffVersion: 1, idempotencyKey: randomUUID(), username: staff.username, permissions: [POSTS] };
     const copies = await Promise.all([service.invite(owner.id, sessions[0].id, organization.id, input), service.invite(owner.id, sessions[0].id, organization.id, input)]); assert.equal(copies[0].id, copies[1].id);
     assert.equal(await db.organizationMembership.count({ where: { organizationId: organization.id } }), 1);
+    const invited = await service.directory(staff.id, sessions[1].id, { tab: "invitations", search: "STAFF FIXTURE" });
+    assert.equal(invited.items.length, 1); assert.equal(invited.items[0].organization.id, organization.id); assert.equal(invited.counts.approved, 0);
+    const owned = await service.directory(owner.id, sessions[0].id, { search: "staff fixture" }); assert.equal(owned.items[0].id, organization.id); assert.equal(owned.counts.approved, 1);
+    const ownerMembership = await db.organizationMembership.findFirst({ where: { accountId: owner.id, organizationId: organization.id } });
+    await assert.rejects(service.directory(staff.id, sessions[1].id, { cursor: ownerMembership.id }), { status: 409 });
     const invite = copies[0], accept = () => service.respond(staff.id, sessions[1].id, invite.id, { expectedVersion: 1, decision: "ACCEPT" });
     function failAudit(client) { return new Proxy(client, { get(target, key) {
       if (key === "$transaction") return work => target.$transaction(tx => work(failAudit(tx)));
@@ -40,12 +45,15 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     const responses = await Promise.allSettled([accept(), accept()]); assert.equal(responses.filter(x => x.status === "fulfilled").length, 1); assert.equal(responses.find(x => x.status === "rejected").reason.status, 409);
     const member = await db.organizationMembership.findFirst({ where: { organizationId: organization.id, accountId: staff.id } }); assert.equal(member.role, "STAFF"); assert.deepEqual(member.permissions, [POSTS]);
     assert.equal(await db.organizationStaffAudit.count({ where: { organizationId: organization.id, action: "INVITATION_ACCEPTED" } }), 1);
+    assert.equal((await service.directory(staff.id, sessions[1].id, { tab: "invitations" })).items.length, 0);
+    assert.equal((await service.directory(staff.id, sessions[1].id, { search: "staff fixture" })).items[0].id, organization.id);
     await assert.rejects(service.staff(staff.id, sessions[1].id, organization.id), { status: 403 });
     const scope = await context(), update = { expectedStaffVersion: scope.staffVersion, expectedVersion: member.version, permissions: [MANAGE], enabled: true };
     const edits = await Promise.allSettled([service.change(owner.id, sessions[0].id, organization.id, member.id, update), service.change(owner.id, sessions[0].id, organization.id, member.id, update)]); assert.equal(edits.filter(x => x.status === "fulfilled").length, 1);
     const delegatedInvite = await service.invite(staff.id, sessions[1].id, organization.id, { expectedStaffVersion: (await context()).staffVersion, idempotencyKey: randomUUID(), username: agent.username, permissions: [MANAGE] });
     const latest = await db.organizationMembership.findUnique({ where: { id: member.id } });
     await service.change(owner.id, sessions[0].id, organization.id, member.id, { expectedStaffVersion: (await context()).staffVersion, expectedVersion: latest.version, permissions: [], enabled: false });
+    assert.equal((await service.directory(staff.id, sessions[1].id, { search: "staff fixture" })).items.length, 0);
     await assert.rejects(service.context(staff.id, sessions[1].id, organization.id), { status: 403 });
     await assert.rejects(service.respond(agent.id, sessions[2].id, delegatedInvite.id, { expectedVersion: 1, decision: "ACCEPT" }), { status: 409 });
     assert.equal(await db.organizationMembership.count({ where: { organizationId: organization.id, accountId: agent.id } }), 0);

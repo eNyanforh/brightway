@@ -9,11 +9,17 @@ import AppLayout from "../layouts/AppLayout";
 const id = "843f9b44-7e5a-4ecb-9e62-1bc1c0844d59", org = "c9818628-8ca8-49d3-8050-e762f15f3401";
 const request = { id, name: "Bright Future School", type: "SCHOOL", representativeRole: "Principal", version: 3, status: "RECOMMENDED", targetAt: "2026-10-31T12:00:00Z", location: { countryCode: "GH", city: "Accra", address: "Synthetic street", region: "" }, offersTraining: true };
 const reply = (data, status = 200) => new Response(JSON.stringify(status < 400 ? { success: true, data } : { success: false, message: data }), { status, headers: { "Content-Type": "application/json" } });
-function mount({ path = "/work", requests = [request], organizations = [], custom, hasWork = true } = {}) {
+function mount({ path = "/work?tab=pending", requests = [request], organizations = [], invitations = [], custom, hasWork = true } = {}) {
   const fetchMock = vi.fn((url, options) => {
     const result = custom?.(url, options); if (result !== undefined) return result;
     if (url.endsWith("/profile/me")) return reply({ profile: { version: 1, location: {}, photo: null, interests: [], skills: [] } });
     if (url.endsWith("/work/access")) return reply({ hasWork });
+    if (url.includes("/my-workspace")) {
+      const params = new URL(url, "https://brightway.test").searchParams, tab = params.get("tab") || "approved", search = params.get("search") || "";
+      const groups = { approved: organizations, pending: requests.filter(r => ["SUBMITTED", "ASSIGNED", "RECOMMENDED"].includes(r.status)), history: requests.filter(r => ["ABORTED", "REJECTED"].includes(r.status)), invitations };
+      const filtered = Object.fromEntries(Object.entries(groups).map(([key, rows]) => [key, rows.filter(row => (row.organization?.name || row.name).toLowerCase().includes(search.toLowerCase()))]));
+      return reply({ tab, search, counts: Object.fromEntries(Object.entries(filtered).map(([key, rows]) => [key, rows.length])), items: filtered[tab], nextCursor: null });
+    }
     if (url.endsWith("/organization-requests")) return reply({ requests });
     if (url.endsWith("/organization-workspace")) return reply({ organizations, invitations: [] });
     if (url.endsWith(id)) return reply(request);
@@ -39,25 +45,31 @@ it("first use keeps the original interest entry and submission reveals My Worksp
   await f.user.type(await screen.findByLabelText("Organization name"), request.name); await f.user.type(screen.getByLabelText("Your representative role"), "Principal"); await f.user.selectOptions(screen.getByLabelText("Country of operation"), "GH"); await f.user.type(screen.getByLabelText("City / locality"), "Accra"); await f.user.type(screen.getByLabelText("Operating address"), "Synthetic street");
   fireEvent.submit(screen.getByLabelText("Organization name").closest("form"));
   await screen.findByText(/Your interest to register.*Bright Future School.*is submitted for review in 72 hours/);
-  expect(screen.queryByLabelText("Organization name")).toBeNull(); expect(screen.getByRole("link", { name: "View Progress" }).getAttribute("href")).toBe(`/work#request-${id}`);
+  expect(screen.queryByLabelText("Organization name")).toBeNull(); expect(screen.getByRole("link", { name: "View Progress" }).getAttribute("href")).toBe(`/work?tab=pending#request-${id}`);
   expect(within(screen.getByRole("navigation", { name: "Main navigation" })).getByRole("link", { name: "My Workspace" })).toBeTruthy();
   await f.user.click(screen.getByRole("button", { name: "Create another organization" })); expect((await screen.findByLabelText("Organization name")).value).toBe("");
 });
 it("My Workspace combines pending requests and memberships, deduplicates approved requests and provides real review-stage progress", async () => {
   mount({ requests: [request, { ...request, id: "approved", organizationId: org, status: "APPROVED" }], organizations: [{ id: org, name: "Approved Employer", role: "STAFF" }] });
+  const f = { user: userEvent.setup() };
   const progress = await screen.findByRole("progressbar", { name: `${request.name} review progress` }); expect(progress.value).toBe(75);
-  expect(screen.getByRole("heading", { name: "Approved Employer" })).toBeTruthy(); expect(screen.getByText("Staff")).toBeTruthy();
+  await f.user.click(screen.getByRole("button", { name: /Approved/ }));
+  expect(await screen.findByRole("heading", { name: "Approved Employer" })).toBeTruthy(); expect(screen.getByText("Staff")).toBeTruthy();
   expect(screen.getAllByRole("link", { name: "Manage" })).toHaveLength(1); expect(screen.getByRole("link", { name: "Manage" }).getAttribute("href")).toBe(`/organization-workspace/${org}`);
-  expect(screen.getByRole("link", { name: "Edit" }).getAttribute("href")).toBe(`/work/requests/${id}/edit`);
+  await f.user.click(screen.getByRole("button", { name: /Pending/ }));
+  expect((await screen.findByRole("link", { name: "Edit" })).getAttribute("href")).toBe(`/work/requests/${id}/edit`);
 });
 it("Abort requires confirmation, cannot double-submit, and replaces progress with withdrawn status", async () => {
   let resolve; const pending = new Promise(r => { resolve = r; });
-  const f = mount({ custom: (url, options) => options?.method === "POST" ? pending : undefined });
+  const rows = [{ ...request }];
+  const f = mount({ requests: rows, custom: (url, options) => options?.method === "POST" ? pending : undefined });
   await f.user.click(await screen.findByRole("button", { name: "Abort" }));
   const dialog = screen.getByRole("dialog"); expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Keep request" }));
   fireEvent.click(within(dialog).getByRole("button", { name: "Abort request" })); fireEvent.click(within(dialog).getByRole("button", { name: "Withdrawing…" }));
   expect(f.fetchMock.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
-  await act(async () => resolve(reply({ ...request, status: "ABORTED", version: 4 })));
+  await act(async () => { rows[0].status = "ABORTED"; resolve(reply({ ...request, status: "ABORTED", version: 4 })); });
+  await screen.findByRole("heading", { name: "No pending requests" });
+  await f.user.click(screen.getByRole("button", { name: /Request history/ }));
   await screen.findByText("Aborted by you"); expect(screen.queryByRole("progressbar")).toBeNull(); expect(screen.queryByRole("button", { name: "Abort" })).toBeNull();
 });
 it("cancelling Abort makes no request and stale failures require a fresh read", async () => {
@@ -74,7 +86,7 @@ it("editing loads only the owner's request, keeps fields after a stale save and 
 });
 it("account changes and rejected focus checks clear private organization cards", async () => {
   let denied = false;
-  mount({ custom: url => denied && (url.endsWith("/organization-workspace") || url.endsWith("/organization-requests")) ? reply("Sign in again", 401) : undefined });
+  mount({ custom: url => denied && (url.includes("/my-workspace")) ? reply("Sign in again", 401) : undefined });
   await screen.findByRole("heading", { name: request.name }); denied = true; act(() => window.dispatchEvent(new Event("focus")));
   await screen.findByRole("alert"); expect(screen.queryByRole("heading", { name: request.name })).toBeNull();
 });
@@ -87,14 +99,43 @@ it("a delayed pre-submission workspace lookup cannot hide navigation after the c
   expect(within(screen.getByRole("navigation", { name: "Main navigation" })).getByRole("link", { name: "My Workspace" })).toBeTruthy();
 });
 
-it("search filters the combined pending and approved list by organization name and can be cleared", async () => {
-  const f = mount({ requests: [request], organizations: [{ id: org, name: "Approved Employer", role: "STAFF" }] });
-  const search = await screen.findByLabelText("Search organizations");
-  await f.user.type(search, "approved");
-  expect(screen.queryByRole("heading", { name: request.name })).toBeNull(); expect(screen.getByRole("heading", { name: "Approved Employer" })).toBeTruthy();
-  expect(screen.getByText("1 of 2 organizations")).toBeTruthy();
-  await f.user.clear(search); await f.user.type(search, "missing name");
-  expect(screen.getByRole("heading", { name: "No organizations found" })).toBeTruthy();
-  await f.user.click(screen.getByRole("button", { name: "Clear search" }));
-  expect(screen.getByRole("heading", { name: request.name })).toBeTruthy(); expect(screen.getByRole("heading", { name: "Approved Employer" })).toBeTruthy();
+it("search is sent to the server for the selected category and resets paging", async () => {
+  const f = mount({ path: "/work", organizations: [{ id: org, name: "Approved Employer", role: "STAFF" }] });
+  await screen.findByRole("heading", { name: "Approved Employer" });
+  await f.user.type(screen.getByLabelText("Search organizations"), "missing name");
+  await screen.findByRole("heading", { name: "No organizations found" });
+  const call = f.fetchMock.mock.calls.filter(([url]) => url.includes("/my-workspace")).at(-1);
+  expect(new URL(call[0], "https://brightway.test").searchParams.get("search")).toBe("missing name");
+  expect(new URL(call[0], "https://brightway.test").searchParams.get("tab")).toBe("approved");
+  expect(call[1].credentials).toBe("include");
+  await f.user.click(screen.getByRole("button", { name: "Clear search" })); await screen.findByRole("heading", { name: "Approved Employer" });
+});
+it("Approved is the default, categories separate requests, and redundant switching links are absent", async () => {
+  const f = mount({ path: "/work", organizations: [{ id: org, name: "Approved Employer", role: "STAFF" }], requests: [request, { ...request, id: "history", name: "Rejected school", status: "REJECTED" }] });
+  await screen.findByRole("heading", { name: "Approved Employer" });
+  expect(screen.queryByRole("heading", { name: request.name })).toBeNull();
+  expect(screen.queryByRole("link", { name: /staff invitations and switch/ })).toBeNull();
+  expect(screen.getByRole("button", { name: /Approved/ }).getAttribute("aria-current")).toBe("page");
+  await f.user.click(screen.getByRole("button", { name: /Pending/ })); await screen.findByRole("heading", { name: request.name });
+  await f.user.click(screen.getByRole("button", { name: /Request history/ })); await screen.findByRole("heading", { name: "Rejected school" });
+  expect(screen.queryByRole("button", { name: "Abort" })).toBeNull();
+});
+it("invitation acceptance is single-flight and moves the organization into Approved", async () => {
+  let accepted = false, release; const waiting = new Promise(resolve => { release = resolve; });
+  const invitation = { id, version: 2, organization: { id: org, name: "Inviting School" }, permissions: [], permissionLabels: ["Publish posts"], expiresAt: "2026-11-02" };
+  const f = mount({ path: "/work?tab=invitations", invitations: [invitation], custom: (url, options) => {
+    if (options?.method === "POST") return waiting;
+    if (accepted && url.includes("/my-workspace")) return reply({ tab: "approved", search: "", counts: { approved: 1, pending: 0, invitations: 0, history: 0 }, items: [{ id: org, name: "Inviting School", role: "STAFF" }] });
+  } });
+  const button = await screen.findByRole("button", { name: "Accept invitation from Inviting School" });
+  fireEvent.click(button); fireEvent.click(button);
+  const calls = f.fetchMock.mock.calls.filter(([, options]) => options?.method === "POST"); expect(calls).toHaveLength(1); expect(JSON.parse(calls[0][1].body)).toEqual({ expectedVersion: 2, decision: "ACCEPT" });
+  await act(async () => { accepted = true; release(reply({ state: "ACCEPTED" })); });
+  await screen.findByRole("link", { name: "Manage" }); expect(screen.getByRole("button", { name: /Approved/ }).getAttribute("aria-current")).toBe("page");
+});
+it("a failed invitation response preserves the invitation and requires reload without replay", async () => {
+  const f = mount({ path: "/work?tab=invitations", invitations: [{ id, version: 1, organization: { id: org, name: "Inviting School" }, permissionLabels: [], expiresAt: "2026-11-02" }], custom: (url, options) => options?.method === "POST" ? reply("Invitation changed", 409) : undefined });
+  await f.user.click(await screen.findByRole("button", { name: "Decline invitation from Inviting School" }));
+  await screen.findByRole("alert"); expect(screen.getByRole("button", { name: "Accept invitation from Inviting School" }).disabled).toBe(true);
+  expect(f.fetchMock.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
 });

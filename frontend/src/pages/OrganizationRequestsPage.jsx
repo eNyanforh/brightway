@@ -59,7 +59,7 @@ function OrganizationRequests({ actor, id }) {
     {created ? <div className="bw-work-confirmation" role="status"><h2>{id ? "Organization request updated" : "Interest submitted"}</h2>
       <p>{id ? `Your changes to “${created.name}” were saved. Review will restart; the original 72-hour review target is unchanged.` : `Your interest to register “${created.name}” is submitted for review in 72 hours.`}</p>
       {!id && <p>This is our review target. Your organization becomes available after approval.</p>}
-      <div className="bw-work-actions"><Link className="bw-org-workspace-entry" to={`/work#request-${created.id}`}>View Progress</Link>{id ? <Link to="/organizations/new">Create another organization</Link> : <button type="button" onClick={another}>Create another organization</button>}</div>
+      <div className="bw-work-actions"><Link className="bw-org-workspace-entry" to={`/work?tab=pending#request-${created.id}`}>View Progress</Link>{id ? <Link to="/organizations/new">Create another organization</Link> : <button type="button" onClick={another}>Create another organization</button>}</div>
     </div> : <>
       <p>Register your interest to bring your school, NGO or company to BrightWay. An Agent checks your request; a separate BrightWay approver makes the final decision. Our review target is 72 hours.</p>
       <p>No document uploads are required. Your organization name, type, training capability and operating location become public only after approval. Your account email and internal review notes stay private.</p>
@@ -74,7 +74,7 @@ function OrganizationRequests({ actor, id }) {
         <label>City / locality<input required maxLength={120} value={values.city} onChange={e => change("city", e.target.value)} /></label>
         <label>Operating address<input required maxLength={300} value={values.address} onChange={e => change("address", e.target.value)} /></label>
         {values.type !== "SCHOOL" && <label>Can this organization offer training/education also?<select required value={values.offersTraining} onChange={e => change("offersTraining", e.target.value)}><option value="">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select></label>}
-      </fieldset><div className="bw-work-actions"><button type="submit" disabled={busy || stale}>{busy ? "Please wait…" : id ? "Save organization changes" : retrying ? "Retry same organization request" : "Submit organization request"}</button>{id && <Link to="/work">Back to My Workspace</Link>}</div></form>}
+      </fieldset><div className="bw-work-actions"><button type="submit" disabled={busy || stale}>{busy ? "Please wait…" : id ? "Save organization changes" : retrying ? "Retry same organization request" : "Submit organization request"}</button>{id && <Link to="/work?tab=pending">Back to My Workspace</Link>}</div></form>}
       {stale && <p>Reload this page to review the current request before making more changes. Your entered details have been kept.</p>}
     </>}
   </section>;
