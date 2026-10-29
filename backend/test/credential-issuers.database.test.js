@@ -1,3 +1,4 @@
+import { seedOrganizationProfile, clearOrganizationProfiles } from "../test-support/organization-profile-seed.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -24,7 +25,7 @@ test("database issuer review isolates tenants, serializes decisions/revocation a
     const [owner, reviewer, admin, primary, foreign] = accounts;
     for (const [i, person] of [[0, primary], [1, foreign]]) {
       const request = await db.organizationRequest.create({ data: { applicantId: person.id, assignedAgentId: reviewer.id, decidedById: admin.id, status: "APPROVED", version: 4, idempotencyKey: randomUUID(), inputHash: "a".repeat(64), fingerprint: `${marker}_${i}`, name: `Issuer fixture ${i} ${marker}`, type: i ? "COMPANY" : "SCHOOL", representativeRole: "Director", countryCode: "GH", region: "", city: "Accra", address: "Synthetic", offersTraining: !i, targetAt: new Date(+date + 72 * 3600000), decidedAt: date } }); requests.push(request.id);
-      const org = await db.organization.create({ data: { requestId: request.id, name: request.name, type: request.type, offersTraining: request.offersTraining, verifiedAt: date, memberships: { create: { accountId: person.id, role: "PRIMARY_ADMIN" } } } }); orgs.push(org.id);
+      const org = await db.organization.create({ data: { requestId: request.id, name: request.name, type: request.type, offersTraining: request.offersTraining, verifiedAt: date, memberships: { create: { accountId: person.id, role: "PRIMARY_ADMIN" } } } }); orgs.push(org.id); await seedOrganizationProfile(db, org.id, date);
     }
     const org = orgs[0], other = orgs[1];
     const member = await db.organizationMembership.create({ data: { organizationId: org, accountId: reviewer.id, role: "STAFF", permissions: [issuerPermission("education")] } });
@@ -102,7 +103,7 @@ test("database issuer review isolates tenants, serializes decisions/revocation a
       await db.credentialEvidence.deleteMany({ where: { personId: { in: personIds } } }); await db.credentialUploadBudget.deleteMany({ where: { personId: { in: personIds } } });
       await db.credentialAuditEvent.deleteMany({ where: { reviewId: { in: reviewIds } } }); await db.credentialAttempt.deleteMany({ where: { reviewId: { in: reviewIds } } }); await db.credentialReview.deleteMany({ where: { id: { in: reviewIds } } });
       await db.profile.deleteMany({ where: { id: { in: profiles } } });
-      await db.organizationStaffAudit.deleteMany({ where: { organizationId: { in: orgs } } }); await db.organizationMembership.deleteMany({ where: { organizationId: { in: orgs } } }); await db.organization.deleteMany({ where: { id: { in: orgs } } }); await db.organizationRequest.deleteMany({ where: { id: { in: requests } } });
+      await db.organizationStaffAudit.deleteMany({ where: { organizationId: { in: orgs } } }); await db.organizationMembership.deleteMany({ where: { organizationId: { in: orgs } } }); await clearOrganizationProfiles(db, orgs); await db.organization.deleteMany({ where: { id: { in: orgs } } }); await db.organizationRequest.deleteMany({ where: { id: { in: requests } } });
       await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } }); await db.account.deleteMany({ where: { id: { in: ids } } }); await db.person.deleteMany({ where: { id: { in: personIds } } });
     } finally { await db.$disconnect(); }
   }

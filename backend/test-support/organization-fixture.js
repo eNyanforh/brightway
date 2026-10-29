@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { createOrganizationService } from "../src/modules/organizations/organization.service.js";
 const clone = v => structuredClone(v);
-export function organizationFixture() {
+export function organizationFixture({ ready = true } = {}) {
   let date = new Date("2026-10-27T12:00:00Z"), auditFails = false, auditHook;
-  const state = Object.fromEntries(["account", "session", "mfaFactor", "organizationOperator", "organizationRequest", "organizationFinding", "organizationFindingArchive", "organizationRequestAudit", "organizationRequestRevision", "organization", "organizationOperatingLocation", "organizationMembership", "organizationInvitation", "organizationStaffAudit"].map(k => [k, []]));
+  const state = Object.fromEntries(["account", "session", "mfaFactor", "organizationOperator", "organizationRequest", "organizationFinding", "organizationFindingArchive", "organizationRequestAudit", "organizationRequestRevision", "organization", "organizationOperatingLocation", "organizationMembership", "organizationInvitation", "organizationStaffAudit", "organizationPhoto"].map(k => [k, []]));
   const actors = {};
   for (const label of ["owner", "agent", "approver", "other"]) {
     const id = randomUUID(), sessionId = randomUUID(); actors[label] = { id, sessionId, username: `${label}_fixture` };
@@ -56,7 +56,8 @@ export function organizationFixture() {
         if (["organizationRequestAudit", "organizationStaffAudit"].includes(model)) { if (auditFails) throw Error("Audit failed"); if (auditHook) await auditHook(data); }
         const value = { id: randomUUID(), createdAt: date, updatedAt: date,
           ...(model === "organizationRequest" ? { version: 1, status: "SUBMITTED", assignedAgentId: null, decisionReason: null, decidedById: null, decidedAt: null } : {}),
-          ...(model === "organization" ? { status: "ACTIVE", staffVersion: 1 } : {}),
+          ...(model === "organization" ? { status: "ACTIVE", staffVersion: 1, username: null, profileVersion: 0, profileReadyAt: null, profilePhotoId: null } : {}),
+          ...(model === "organizationPhoto" ? { state: "UPLOADING" } : {}),
           ...(model === "organizationMembership" ? { role: "STAFF", enabled: true, permissions: [], version: 1 } : {}),
           ...(model === "organizationInvitation" ? { state: "PENDING", version: 1, respondedAt: null } : {}), ...clone(data) };
         if (model === "organization") {
@@ -83,6 +84,12 @@ export function organizationFixture() {
     async submit(body = input()) { return service.submit(actors.owner.id, actors.owner.sessionId, body); },
     async assign(r) { return service.assign(actors.approver.id, actors.approver.sessionId, r.id, { expectedVersion: r.version, agentUsername: actors.agent.username }); },
     async report(r) { return service.report(actors.agent.id, actors.agent.sessionId, r.id, { ...finding(), expectedVersion: r.version }); },
-    async decide(r, decision = "APPROVE") { return service.decide(actors.approver.id, actors.approver.sessionId, r.id, { expectedVersion: r.version, decision, reason: "Synthetic organization decision feedback." }); },
+    async decide(r, decision = "APPROVE") { const result = await service.decide(actors.approver.id, actors.approver.sessionId, r.id, { expectedVersion: r.version, decision, reason: "Synthetic organization decision feedback." });
+      if (ready && result.organizationId) {
+        const org = state.organization.find(o => o.id === result.organizationId), photoId = randomUUID();
+        Object.assign(org, { username: `org_${org.id.replaceAll("-", "").slice(0, 20)}`, profilePhotoId: photoId, profileReadyAt: date, profileVersion: 2 });
+        state.organizationPhoto.push({ id: photoId, organizationId: org.id, storageKey: `synthetic/${photoId}`, state: "CLAIMED", expiresAt: date, createdAt: date, updatedAt: date });
+      }
+      return result; },
   };
 }

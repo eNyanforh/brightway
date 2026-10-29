@@ -7,7 +7,10 @@ const { createR2Storage } = await import("../src/modules/photos/photo.storage.js
 
 try {
   const result = await createPhotoService({ prisma, storage: createR2Storage() }).cleanup();
-  console.info(`Deleted ${result.deleted} abandoned or replaced photo objects.`);
+  const { createOrganizationProfileService } = await import("../src/modules/organizations/organization-profile.service.js");
+  const organization = await createOrganizationProfileService({ prisma, storage: createR2Storage() }).cleanup();
+  console.info(`Deleted ${result.deleted} personal and ${organization.deleted} organization photo objects. Organization deletion retries pending: ${organization.failed}.`);
+  if (organization.failed) process.exitCode = 1;
 } catch {
   console.error("Profile photo cleanup failed. Check database connectivity, migrations and profile-photo storage configuration.");
   process.exitCode = 1;

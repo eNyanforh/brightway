@@ -64,3 +64,31 @@ The organization tools are ordered **Profile**, **Dashboard**, **Staff**, **Cred
 Dashboard shows only current operational tools. Future posts, opportunities, programs, admissions and analytics cards have been removed from the visible dashboard until those tools are delivered. The separately requested Build Campus block and its Coming soon overview remain. Manage still opens the selected organization's Dashboard directly, and existing credential/staff URLs and authorization are preserved. No schema migration or new dependency is required.
 
 The organization Profile opens directly with the organization name as its only main heading. Its redundant Profile heading and top Personal account / Back to My Workspace / Account security links are removed. Sidebar context links remain; Account security is available in the avatar menu. View public profile is retained, and a secondary Reload organization profile action below the details preserves refresh/retry behavior. Other workspace sections retain their existing navigation.
+
+## Required profile setup — 29 October 2026
+
+An approved organization's first Manage entry opens a required native modal: (1) unique public organization username, (2) organization picture. No close, Escape or backdrop dismissal unlocks the workspace. A saved username survives navigation/reload; the next visit resumes the picture step. Completion is recorded only after decoded image storage and the versioned database/audit transaction succeed. Already approved organizations without both fields must complete setup after this migration as well. Individual account login usernames remain separate; organization usernames are unique among organizations, normalized lowercase, 3–30 characters, start with a letter and allow letters/numbers/underscores. Reserved platform names cannot be claimed.
+
+Primary administrators and staff explicitly granted **Edit organization profile** may manage it. Writes require verified email and a current MFA session, including a final recheck after object I/O. If MFA needs configuration, the modal links Account security in a separate tab; after reauthentication, reload the saved profile. Members without profile permission see setup pending and may return to My Workspace. Existing effective staff/review authority is preserved. Incomplete setup blocks operational staffing/review APIs independently of route/button visibility; copying Dashboard, Staff or Credential Review URLs cannot bypass the setup gate. This does not grant individual identity, new organization approval, Campus activation or billing rights.
+
+The profile uses stronger text/button contrast and its former View public profile action becomes **Edit Profile**, opening the real two-step editor only for members with current permission. Organization name, type, locations and verified status remain the approved data and are not editable here. Completed profiles can update the username and replace or retain the picture. Step 1 explicitly saves the username; Close does not undo a completed save. The organization picture is public on the existing public organization profile and My Workspace cards; the R2 bucket remains private. Images are proxied by an organization/current-photo-bound API route. Storage keys and credentials never appear in responses.
+
+Images reuse existing photo R2 configuration (`R2_BUCKET`), without a new bucket or credentials. JPEG/PNG/WebP up to 5 MiB are decoded with the existing pixel/concurrency limits, converted to WebP and stripped of metadata. Version conflicts do not retry writes silently. A persisted daily reservation budget and bounded HTTP processing limit uploads. Failed, abandoned and replaced objects have durable deletion states; current pictures are protected. Include `node backend/scripts/cleanup-photos.js` in the eventual hosted photo cleanup schedule; it now cleans both personal and organization pictures and reports failed organization deletions as failures. Deployment remains paused.
+
+### Apply and verify
+
+Stop both development servers before pulling. From the repository root:
+
+```bash
+git pull --ff-only origin main
+cd backend
+npx --no-install prisma validate
+npx --no-install prisma migrate deploy
+npx --no-install prisma generate
+cd ..
+npm run dev:backend
+```
+
+Start `npm run dev:frontend` in a second terminal. The new additive migration is `20261029210000_add_organization_profile_setup`; preserve existing environment secrets, MFA key and applied migrations. Run isolated database checks with `npm run test:database --workspace backend -- --migrate`; never point TEST_DATABASE_URL to the application database.
+
+Acceptance on the actual application: Manage an approved incomplete organization; confirm no dismissal grants access. Save a username, refresh and confirm step 2 resumes. Try an already claimed organization username and a failed/invalid upload; no workspace should unlock. Upload a real organization picture and confirm the modal closes, refresh stays complete, the Profile and My Workspace show the image, and Edit Profile persists authorized updates. Copy a Staff/review URL before completion and confirm denial, then verify existing staff/review permissions after completion. Ordinary staff cannot complete setup without the explicit profile grant. Test mobile/keyboard focus and confirm optional editing can close while required setup cannot. Real R2/browser acceptance is separate from fixture and isolated PostgreSQL test evidence.

@@ -1,3 +1,4 @@
+import { organizationPhotoUrl } from "./organization-profile.schema.js";
 import { randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { organizationRequestSchema, assignOrganizationSchema, organizationFindingSchema, organizationDecisionSchema, editOrganizationSchema, abortOrganizationSchema, allChecks, digest, failure as fail, parse, requestId } from "./organization.schema.js";
@@ -201,9 +202,9 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
     },
     async publicOrganization(id) {
       requestId(id);
-      const org = await prisma.organization.findFirst({ where: { id, status: "ACTIVE", request: { status: "APPROVED" } }, select: { id: true, name: true, type: true, offersTraining: true, verifiedAt: true,
+      const org = await prisma.organization.findFirst({ where: { id, status: "ACTIVE", request: { status: "APPROVED" } }, select: { id: true, name: true, type: true, offersTraining: true, verifiedAt: true, username: true, profilePhotoId: true,
         locations: { select: { countryCode: true, region: true, city: true, address: true, primary: true, verifiedAt: true } } } });
-      if (!org) throw fail(404, "Organization not found."); return { ...org, verified: true };
+      if (!org) throw fail(404, "Organization not found."); const { profilePhotoId, ...publicFields } = org; return { ...publicFields, photo: profilePhotoId ? { id: profilePhotoId, url: organizationPhotoUrl(id, profilePhotoId) } : null, verified: true };
     },
   };
   return service;

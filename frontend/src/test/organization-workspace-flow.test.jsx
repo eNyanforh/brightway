@@ -140,7 +140,8 @@ it("Profile opens inside the organization workspace with verified details and th
   expect(within(page).getByRole("heading", { level: 1, name: organization.name })).toBeTruthy();
   expect(within(page).queryByRole("heading", { name: "Profile", exact: true })).toBeNull();
   for (const name of ["Personal account", "Back to My Workspace", "Account security"]) expect(within(page).queryByRole("link", { name, exact: true })).toBeNull();
-  expect(within(page).getByRole("link", { name: "View public profile" }).getAttribute("href")).toBe(`/organizations/${id}`);
+  expect(within(page).queryByRole("link", { name: "View public profile" })).toBeNull();
+  expect(within(page).getByRole("button", { name: "Edit Profile" })).toBeTruthy();
   expect(within(page).getByRole("button", { name: "Reload organization profile" })).toBeTruthy();
   expect(within(page).queryByRole("button", { name: "Reload account workspace" })).toBeNull();
   const contexts = screen.getByRole("navigation", { name: "Account contexts" });

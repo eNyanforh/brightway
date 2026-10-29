@@ -134,3 +134,5 @@
 @media(prefers-reduced-motion:reduce){.bw-work-page *,.bw-work-dialog *{animation:none!important;transition:none!important}}
 
 .bw-work-form-page .bw-work-actions button{min-height:44px;padding:11px 16px;font-size:12px;font-weight:600;border-radius:9px}
+
+.bw-work-image img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}

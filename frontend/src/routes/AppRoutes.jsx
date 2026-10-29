@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
+const OrganizationSetupGate = lazy(() => import("../components/organizations/OrganizationSetupGate"));
 const OrganizationWorkspacePage = lazy(() => import("../pages/OrganizationWorkspacePage"));
-function WorkspaceRoute({ section }) { return <Suspense fallback={<p role="status">Loading organization workspace…</p>}><OrganizationWorkspacePage section={section} /></Suspense>; }
+function WorkspaceRoute({ section }) { return <Suspense fallback={<p role="status">Loading organization workspace…</p>}><OrganizationSetupGate><OrganizationWorkspacePage section={section} /></OrganizationSetupGate></Suspense>; }
 const WorkPage = lazy(() => import("../pages/WorkPage"));
 import OrganizationRequestsPage from "../pages/OrganizationRequestsPage";
 import OrganizationReviewPage from "../pages/OrganizationReviewPage";
@@ -53,7 +54,7 @@ export default function AppRoutes() {
       <Route element={<AuthGate />}>
         <Route element={<AppLayout />}>
           <Route path="/organization-workspace" element={<Navigate to="/work" replace />} />
-          <Route path="/organization-workspace/:organizationId/credentials" element={<CredentialReviewsPage />} />
+          <Route path="/organization-workspace/:organizationId/credentials" element={<Suspense fallback={<p role="status">Loading organization workspace…</p>}><OrganizationSetupGate><CredentialReviewsPage /></OrganizationSetupGate></Suspense>} />
           <Route path="/organization-workspace/:id/profile" element={<WorkspaceRoute section="profile" />} />
           <Route path="/organization-workspace/:id/campus" element={<WorkspaceRoute section="campus" />} />
           <Route path="/organization-workspace/:id/staff" element={<WorkspaceRoute section="staff" />} />

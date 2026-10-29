@@ -1,3 +1,4 @@
+import { seedOrganizationProfile, clearOrganizationProfiles } from "../test-support/organization-profile-seed.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -15,10 +16,10 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     }
     const [owner, staff, agent, admin] = accounts;
     const r = await db.organizationRequest.create({ data: { applicantId: owner.id, assignedAgentId: agent.id, decidedById: admin.id, status: "APPROVED", version: 4, idempotencyKey: randomUUID(), inputHash: "a".repeat(64), fingerprint: marker, name: `Staff fixture ${marker}`, type: "SCHOOL", representativeRole: "Director", countryCode: "GH", region: "", city: "Accra", address: "Synthetic fixture", offersTraining: true, targetAt: new Date(+now + 72 * 3600000), decidedAt: now } }); requestIds.push(r.id);
-    const organization = await db.organization.create({ data: { requestId: r.id, name: r.name, type: "SCHOOL", offersTraining: true, verifiedAt: now, memberships: { create: { accountId: owner.id, role: "PRIMARY_ADMIN" } } } }); orgIds.push(organization.id);
+    const organization = await db.organization.create({ data: { requestId: r.id, name: r.name, type: "SCHOOL", offersTraining: true, verifiedAt: now, memberships: { create: { accountId: owner.id, role: "PRIMARY_ADMIN" } } } }); orgIds.push(organization.id); await seedOrganizationProfile(db, organization.id, now);
     const service = createOrganizationStaffService({ prisma: db }), context = () => service.context(owner.id, sessions[0].id, organization.id);
     const otherRequest = await db.organizationRequest.create({ data: { applicantId: staff.id, assignedAgentId: agent.id, decidedById: admin.id, status: "APPROVED", version: 4, idempotencyKey: randomUUID(), inputHash: "b".repeat(64), fingerprint: `other_${marker}`, name: `Other tenant ${marker}`, type: "COMPANY", representativeRole: "Director", countryCode: "US", region: "", city: "Synthetic", address: "Synthetic fixture", offersTraining: false, targetAt: new Date(+now + 72 * 3600000), decidedAt: now } }); requestIds.push(otherRequest.id);
-    const otherOrg = await db.organization.create({ data: { requestId: otherRequest.id, name: otherRequest.name, type: "COMPANY", offersTraining: false, verifiedAt: now, memberships: { create: { accountId: staff.id, role: "PRIMARY_ADMIN" } } } }); orgIds.push(otherOrg.id);
+    const otherOrg = await db.organization.create({ data: { requestId: otherRequest.id, name: otherRequest.name, type: "COMPANY", offersTraining: false, verifiedAt: now, memberships: { create: { accountId: staff.id, role: "PRIMARY_ADMIN" } } } }); orgIds.push(otherOrg.id); await seedOrganizationProfile(db, otherOrg.id, now);
     await assert.rejects(service.context(owner.id, sessions[0].id, otherOrg.id), { status: 403 });
     await assert.rejects(service.staff(owner.id, sessions[0].id, otherOrg.id), { status: 403 });
     const otherPrimary = await db.organizationMembership.findFirst({ where: { organizationId: otherOrg.id } });
@@ -63,6 +64,7 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     assert.equal((await db.account.findUnique({ where: { id: staff.id } })).platformRole, "MEMBER");
   } finally {
     try {
+      await clearOrganizationProfiles(db, orgIds);
       await db.organizationStaffAudit.deleteMany({ where: { organizationId: { in: orgIds } } }); await db.organizationInvitation.deleteMany({ where: { organizationId: { in: orgIds } } });
       await db.organizationMembership.deleteMany({ where: { organizationId: { in: orgIds } } }); await db.organization.deleteMany({ where: { id: { in: orgIds } } }); await db.organizationRequest.deleteMany({ where: { id: { in: requestIds } } });
       const ids = accounts.map(a => a.id); await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } }); await db.account.deleteMany({ where: { id: { in: ids } } }); await db.person.deleteMany({ where: { id: { in: accounts.map(a => a.personId) } } });

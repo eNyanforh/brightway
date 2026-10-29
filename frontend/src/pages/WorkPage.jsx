@@ -1,3 +1,4 @@
+import { organizationPictureUrl } from "../api/organization-profile";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -9,8 +10,9 @@ import "./organizations.css";
 import "./my-workspace.css";
 const pending = status => ["SUBMITTED", "ASSIGNED", "RECOMMENDED"].includes(status);
 const stages = { SUBMITTED: [25, "Interest submitted"], ASSIGNED: [50, "Agent review in progress"], RECOMMENDED: [75, "Awaiting BrightWay decision"], APPROVED: [100, "Approved"], REJECTED: [0, "Not approved"], ABORTED: [0, "Aborted by you"] };
-function OrganizationImage({ name, type }) {
+function OrganizationImage({ name, type, organization }) {
   const initials = name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase();
+  if (organization?.photoId) return <span className="bw-work-image"><img src={organizationPictureUrl(organization.id, organization.photoId)} alt={`${name} profile picture`} /></span>;
   return <span className={`bw-work-image bw-work-image-${type || "ORGANIZATION"}`} role="img" aria-label={`${name} — organization image placeholder`}>{initials}</span>;
 }
 function AbortDialog({ request, busy, onClose, onAbort }) {
@@ -103,7 +105,7 @@ function Work({ actor }) {
           const state = tab === "approved" ? "approved" : tab === "invitations" ? "invited" : row.status.toLowerCase();
           const [progress, stageLabel] = stages[row.status] || [0, ""];
           return <li key={row.id} id={`request-${row.id}`}><article className={`bw-work-card bw-work-card-${tab}`}>
-            <div className="bw-work-card-top"><div className="bw-work-card-heading"><OrganizationImage name={name} type={type} /><div><span className="bw-work-type">{typeLabels[type] || "Organization"}</span><h3>{name}</h3><p>{tab === "approved" ? row.role === "PRIMARY_ADMIN" ? "Primary administrator" : "Staff" : tab === "invitations" ? "Invited as staff" : row.representativeRole || "Organization representative"}</p></div></div>
+            <div className="bw-work-card-top"><div className="bw-work-card-heading"><OrganizationImage name={name} type={type} organization={tab === "approved" ? row : row.organization} /><div><span className="bw-work-type">{typeLabels[type] || "Organization"}</span><h3>{name}</h3><p>{tab === "approved" ? row.role === "PRIMARY_ADMIN" ? "Primary administrator" : "Staff" : tab === "invitations" ? "Invited as staff" : row.representativeRole || "Organization representative"}</p></div></div>
               <span className={`bw-work-state bw-work-state-${state}`}><WorkspaceIcon name={tab === "approved" ? "check" : tab === "invitations" ? "mail" : pending(row.status) ? "clock" : "archive"} size={14} />{tab === "approved" ? "Approved" : tab === "invitations" ? "Invitation" : stageLabel}</span></div>
             {tab === "pending" && pending(row.status) && <div className="bw-work-progress"><div className="bw-work-progress-label"><span>Review progress</span><strong>{progress}%</strong></div><progress max="100" value={progress} aria-label={`${name} review progress`}>{progress}%</progress><ol className="bw-work-stages" aria-label={`${name} review stages`}>{["Submitted", "Agent review", "Decision"].map((label, index) => <li key={label} data-reached={progress >= (index + 1) * 25}><span />{label}</li>)}</ol><p className={`bw-work-hint${row.overdue ? " bw-work-overdue" : ""}`}><WorkspaceIcon name="clock" size={14} />Review target: {identityDate(row.targetAt)}{row.overdue && " · Awaiting a decision"}</p></div>}
             {tab === "invitations" && <div className="bw-work-invitation-details"><p className="bw-work-detail-label">Proposed access</p><ul className="bw-work-permissions" aria-label="Proposed permissions">{(row.permissionLabels.length ? row.permissionLabels : ["Organization workspace access"]).map(label => <li key={label}>{label}</li>)}</ul><p className="bw-work-hint"><WorkspaceIcon name="clock" size={14} />Expires {identityDate(row.expiresAt)}</p></div>}

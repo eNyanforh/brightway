@@ -1,3 +1,4 @@
+import { requireOrganizationProfile } from "../organizations/organization-profile.schema.js";
 import { organizationPermissionKeys } from "../organizations/organization-staff.schema.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { z } from "zod";
@@ -24,6 +25,7 @@ export async function credentialReviewerScope(db, actorId, organizationId, lock 
   let organization;
   try { organization = await credentialIssuer(db, organizationId, undefined, lock); }
   catch (error) { if ([400, 409].includes(error.status)) throw fail(403, "Organization credential review is unavailable."); throw error; }
+  requireOrganizationProfile(organization);
   const membership = await db.organizationMembership.findFirst({ where: { organizationId, accountId: actorId, enabled: true } });
   const allowed = membership ? permittedKinds(organization).filter(kind => membership.role === "PRIMARY_ADMIN" || (membership.permissions ?? []).includes(issuerPermission(kind))) : [];
   if (!allowed.length) throw fail(403, "This organization requires credential-review permission.");

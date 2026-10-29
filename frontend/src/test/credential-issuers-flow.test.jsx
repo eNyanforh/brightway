@@ -14,6 +14,7 @@ function mount(path, handler) {
   const fetchMock = vi.fn(async (url, options) => {
     if (url.endsWith("/auth/me")) return response({ account: { id: "reviewer", username: "tester", person: { firstName: "Test", lastName: "User" } } });
     if (url.endsWith("/profile/me")) return response({ profile });
+    if (url.endsWith(`/organization-workspace/${org}/profile`)) return response({ organization: { id: org, name: "Listed School" }, required: false, canEdit: false, username: "listed_school", photo: { id }, version: 2 });
     return handler(url, options);
   });
   vi.stubGlobal("fetch", fetchMock);

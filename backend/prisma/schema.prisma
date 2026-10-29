@@ -858,6 +858,12 @@ model OrganizationRequestAudit {
   @@index([requestId, createdAt, id])
 }
 model Organization {
+  username String? @unique @db.VarChar(30)
+  profileVersion Int @default(0)
+  profileReadyAt DateTime?
+  profilePhotoId String? @unique
+  profilePhoto OrganizationPhoto? @relation("CurrentOrganizationPhoto", fields: [profilePhotoId], references: [id], onDelete: Restrict)
+  photos OrganizationPhoto[] @relation("OrganizationPhotos")
   id String @id @default(uuid())
   requestId String @unique
   request OrganizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
@@ -954,4 +960,21 @@ model OrganizationRequestRevision {
   snapshot Json
   createdAt DateTime @default(now())
   @@unique([requestId, sourceVersion])
+}
+
+model OrganizationPhoto {
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation("OrganizationPhotos", fields: [organizationId], references: [id], onDelete: Restrict)
+  currentFor Organization? @relation("CurrentOrganizationPhoto")
+  storageKey String @unique
+  state PhotoState @default(UPLOADING)
+  expiresAt DateTime
+  byteSize Int?
+  width Int?
+  height Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([state, expiresAt])
+  @@index([organizationId, createdAt])
 }

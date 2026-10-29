@@ -1,3 +1,4 @@
+import { requireOrganizationProfile, organizationProfileReady } from "./organization-profile.schema.js";
 import { organizationWorkspace } from "../../../../shared/organization-workspace.mjs";
 import { randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
@@ -22,10 +23,11 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
   }
   const catalog = organizationPermissionKeys;
   const effective = (membership, organization) => membership?.enabled ? (membership.role === "PRIMARY_ADMIN" ? catalog(organization) : (membership.permissions ?? []).filter(p => catalog(organization).includes(p))) : [];
-  async function access(db, actorId, sessionId, organization, manage = false) {
+  async function access(db, actorId, sessionId, organization, manage = false, allowSetup = false) {
     const account = await live(db, actorId, sessionId);
     const membership = await db.organizationMembership.findFirst({ where: { organizationId: organization.id, accountId: actorId, enabled: true } });
     if (!membership) throw fail(403, "Active organization membership is required.");
+    if (!allowSetup) requireOrganizationProfile(organization);
     const permissions = effective(membership, organization);
     if (manage) { if (!account.emailVerifiedAt || !permissions.includes(MANAGE)) throw fail(403, "Staff-management permission is required."); await assertMfaSession(db, actorId, sessionId, now()); }
     return { membership, permissions };
@@ -61,13 +63,14 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
         for (const [key, [model, where]] of Object.entries(scopes)) counts[key] = await db[model].count({ where });
         const [model, where] = scopes[tab];
         if (cursor && !await db[model].findFirst({ where: { ...where, id: cursor }, select: { id: true } })) throw fail(409, "This workspace list changed. Reload before continuing.");
-        const organizationSelect = { id: true, name: true, type: true, offersTraining: true };
+        const organizationSelect = { id: true, name: true, type: true, offersTraining: true, username: true, profilePhotoId: true };
         const select = tab === "approved" ? { id: true, role: true, organization: { select: organizationSelect } }
           : tab === "invitations" ? { id: true, version: true, expiresAt: true, permissions: true, organization: { select: organizationSelect } }
           : { id: true, name: true, type: true, representativeRole: true, version: true, status: true, targetAt: true, decisionReason: true };
         const rows = await db[model].findMany({ where, select, orderBy: [{ createdAt: "desc" }, { id: "desc" }], ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 21 });
-        const items = rows.slice(0, 20).map(row => tab === "approved" ? { ...row.organization, role: row.role }
-          : tab === "invitations" ? { ...row, permissionLabels: row.permissions.map(key => PERMISSIONS[key]).filter(Boolean) }
+        const publicSummary = organization => { const { profilePhotoId, ...fields } = organization; return { ...fields, photoId: profilePhotoId }; };
+        const items = rows.slice(0, 20).map(row => tab === "approved" ? { ...publicSummary(row.organization), role: row.role }
+          : tab === "invitations" ? { ...row, organization: publicSummary(row.organization), permissionLabels: row.permissions.map(key => PERMISSIONS[key]).filter(Boolean) }
           : { ...row, overdue: row.targetAt < now() });
         await live(db, actorId, sessionId);
         return { tab, search, counts, items, nextCursor: rows.length > 20 ? rows[19].id : null };
@@ -88,8 +91,8 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
     },
     async context(actorId, sessionId, id) {
       requestId(id); return transaction(async db => {
-        await lock(db, [actorId]); const organization = await org(db, id, true), actor = await access(db, actorId, sessionId, organization);
-        return { accountId: actorId, organization: summary(organization), membership: { id: actor.membership.id, role: actor.membership.role, version: actor.membership.version }, permissions: actor.permissions, workspace: organizationWorkspace(organization, actor.permissions, actor.membership.role), staffVersion: organization.staffVersion, permissionCatalog: catalog(organization).map(key => ({ key, label: PERMISSIONS[key] })) };
+        await lock(db, [actorId]); const organization = await org(db, id, true), actor = await access(db, actorId, sessionId, organization, false, true);
+        return { accountId: actorId, organization: summary(organization), membership: { id: actor.membership.id, role: actor.membership.role, version: actor.membership.version }, permissions: actor.permissions, setupRequired: !organizationProfileReady(organization), workspace: organizationProfileReady(organization) ? organizationWorkspace(organization, actor.permissions, actor.membership.role) : { available: [], planned: [], campusActive: false, campusSetup: null }, staffVersion: organization.staffVersion, permissionCatalog: catalog(organization).map(key => ({ key, label: PERMISSIONS[key] })) };
       });
     },
     async staff(actorId, sessionId, id, supplied = {}) {
@@ -128,7 +131,7 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
       requestId(invitationId); const data = parse(respondInviteSchema, body); await live(prisma, actorId, sessionId); const known = await invitation(prisma, invitationId);
       if (known.recipientId !== actorId) throw fail(404, "Invitation not found.");
       return transaction(async db => {
-        await lock(db, [actorId, ...(data.decision === "ACCEPT" ? [known.senderId] : [])]); const organization = await org(db, known.organizationId, true); await live(db, actorId, sessionId); const r = await invitation(db, invitationId);
+        await lock(db, [actorId, ...(data.decision === "ACCEPT" ? [known.senderId] : [])]); const organization = await org(db, known.organizationId, true); if (data.decision === "ACCEPT") requireOrganizationProfile(organization); await live(db, actorId, sessionId); const r = await invitation(db, invitationId);
         if (r.recipientId !== actorId || r.version !== data.expectedVersion || r.state !== "PENDING" || r.expiresAt <= now()) throw conflict();
         if (data.decision === "ACCEPT") {
           const sender = await db.account.findUnique({ where: { id: r.senderId } }), membership = await db.organizationMembership.findFirst({ where: { organizationId: organization.id, accountId: r.senderId, enabled: true } });

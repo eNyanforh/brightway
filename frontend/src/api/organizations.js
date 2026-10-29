@@ -1,3 +1,4 @@
+import { organizationPictureUrl } from "./organization-profile";
 import { ApiError } from "./auth";
 const base = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/$/, "");
 async function request(path, method = "GET", body, signal) {
@@ -22,5 +23,5 @@ export const organizationsApi = {
   assign: (id, body) => request(`${admin}/${encodeURIComponent(id)}/assign`, "POST", body),
   report: (id, body) => request(`${admin}/${encodeURIComponent(id)}/findings`, "POST", body),
   decide: (id, body) => request(`${admin}/${encodeURIComponent(id)}/decision`, "POST", body),
-  publicOrganization: (id, signal) => request(`/organizations/${encodeURIComponent(id)}`, "GET", undefined, signal),
+  publicOrganization: async (id, signal) => { const data = await request(`/organizations/${encodeURIComponent(id)}`, "GET", undefined, signal); return data.photo ? { ...data, photo: { id: data.photo.id, url: organizationPictureUrl(id, data.photo.id) } } : data; },
 };

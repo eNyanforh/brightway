@@ -1,5 +1,6 @@
 import { z } from "zod";
 export const PERMISSIONS = Object.freeze({
+  "organization.profile.manage": "Edit organization profile",
   "organization.members.manage": "Manage staff",
   "organization.posts.publish": "Publish posts",
   "organization.opportunities.manage": "Manage opportunities",
