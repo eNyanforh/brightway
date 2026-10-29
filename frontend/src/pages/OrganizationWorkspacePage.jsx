@@ -1,7 +1,7 @@
 import { organizationWorkspace } from "../../../shared/organization-workspace.mjs";
 import OrganizationOverview from "../components/organizations/OrganizationOverview";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useOutletContext, useParams } from "react-router-dom";
+import { Link, Navigate, useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { staffApi as api } from "../api/organization-staff";
 import "./organizations.css";
@@ -16,6 +16,7 @@ function Member({ member, catalog, disabled, save }) {
 }
 export default function OrganizationWorkspacePage({ section = "overview" }) {
   const { account } = useAuth(), { id } = useParams();
+  if (!id) return <Navigate to="/work" replace />;
   return <Workspace key={`${account?.id}:${id || "personal"}:${section}`} actor={account?.id} usernameLabel={account?.username} id={id} section={section} />;
 }
 function Workspace({ actor, usernameLabel, id, section }) {
@@ -27,7 +28,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
   const load = useCallback(async (current, preserve = false) => {
     current.controller?.abort(); current.controller = new AbortController(); const signal = current.controller.signal;
     try {
-      const next = id ? await api.context(id, signal) : await api.home(signal);
+      const next = await api.context(id, signal);
       if (life.current !== current || signal.aborted) return;
       if (id) setActing?.({ accountId: actor, organization: next.organization, workspace: next.workspace || organizationWorkspace(next.organization, next.permissions, next.membership?.role) });
       if (preserve && id && currentView.current && (next.staffVersion !== currentView.current.staffVersion || JSON.stringify(next.permissions) !== JSON.stringify(currentView.current.permissions))) {
@@ -66,25 +67,25 @@ function Workspace({ actor, usernameLabel, id, section }) {
   }
   function reload() { if (lock.current) return; inviteRetry.current = null; setRetrying(false); setUsername(""); setPermissions([]); void action(async () => {}, false, ""); }
   async function more(kind) {
-    if (lock.current) return; lock.current = true; setBusy(true); const current = life.current, source = id ? staff : view;
+    if (lock.current) return; lock.current = true; setBusy(true); const current = life.current, source = staff;
     try {
       const paging = kind === "member" ? { memberCursor: source.nextMemberCursor } : { inviteCursor: source.nextInviteCursor };
-      const next = id ? await api.staff(id, undefined, paging) : await api.home(undefined, paging);
+      const next = await api.staff(id, undefined, paging);
       if (life.current !== current) return;
       if (id && next.staffVersion !== source.staffVersion) { setStale(true); throw new Error("Organization staffing changed. Reload before continuing."); }
-      const key = kind === "member" ? id ? "members" : "organizations" : "invitations", cursor = kind === "member" ? "nextMemberCursor" : "nextInviteCursor";
+      const key = kind === "member" ? "members" : "invitations", cursor = kind === "member" ? "nextMemberCursor" : "nextInviteCursor";
       const merge = old => ({ ...old, [key]: [...new Map([...old[key], ...next[key]].map(row => [row.id, row])).values()], [cursor]: next[cursor] });
-      if (id) setStaff(merge); else setView(merge);
+      setStaff(merge);
     } catch (e) { if (life.current === current) { setError(e); if ([401, 403, 404].includes(e.status)) { setStaff(null); setView(null); setActing?.(null); } } }
     finally { if (life.current === current) { lock.current = false; setBusy(false); } }
   }
   const disabled = busy || stale || retrying;
   const sectionAllowed = !id || !view || section === "overview" || (section === "staff" && view.permissions.includes(MANAGE));
-  return <section className="bw-org-page"><h1>{id && view ? view.organization.name : "Switch account"}</h1><p><Link to="/explore">Personal account</Link>{id && <> · <Link to="/work">Back to My Workspace</Link></>} · <Link to="/security">Account security</Link></p>
+  return <section className="bw-org-page"><h1>{id && view ? view.organization.name : "Organization workspace"}</h1><p><Link to="/explore">Personal account</Link>{id && <> · <Link to="/work">Back to My Workspace</Link></>} · <Link to="/security">Account security</Link></p>
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}{stale && <p>Changes have been kept. Reload to discard unsaved staffing changes and get current access.</p>}
     <button type="button" disabled={busy} onClick={reload}>Reload account workspace</button>
     {!view && !error && <p role="status">Checking account access…</p>}
-    {!id && view && <><h2>Your organizations</h2>{!view.organizations.length && <p>You have no active organization memberships.</p>}<ul className="bw-org-list">{view.organizations.map(o => <li key={o.id}><Link to={`/organization-workspace/${o.id}`}>{o.name}</Link><p>{o.role === "PRIMARY_ADMIN" ? "Primary administrator" : "Staff"}</p></li>)}</ul><h2>Your invitations</h2>{!view.invitations.length && <p>No pending invitations.</p>}<ul className="bw-org-list">{view.invitations.map(r => <li key={r.id}><h3>{r.organization.name}</h3><p>Expires {new Date(r.expiresAt).toLocaleDateString()}</p><p>Requested permissions: {r.permissions.length ? (r.permissionLabels || r.permissions).join(", ") : "Organization workspace access"}</p><button disabled={busy || stale} onClick={() => void action(() => api.respond(r.id, { expectedVersion: r.version, decision: "ACCEPT" }))}>Accept invitation from {r.organization.name}</button>{" "}<button disabled={busy || stale} onClick={() => void action(() => api.respond(r.id, { expectedVersion: r.version, decision: "DECLINE" }))}>Decline invitation from {r.organization.name}</button></li>)}</ul>{view.nextMemberCursor && <button disabled={busy} onClick={() => void more("member")}>More organizations</button>}{view.nextInviteCursor && <button disabled={busy} onClick={() => void more("invite")}>More invitations</button>}</>}
+
     {id && view && !sectionAllowed && <section className="bw-org-access-denied" aria-labelledby="workspace-access-title"><h2 id="workspace-access-title">This tool is not available to your role</h2><p>Your organization membership is active, but it does not include permission to manage staff and permissions.</p><Link className="bw-org-workspace-entry" to={`/organization-workspace/${id}`}>Return to your workspace</Link></section>}
     {id && view && sectionAllowed && section === "overview" && <OrganizationOverview organization={view.organization} role={view.membership?.role} workspace={view.workspace || organizationWorkspace(view.organization, view.permissions, view.membership?.role)} />}
     {id && view && sectionAllowed && section === "staff" && <><p>Acting for <strong>{view.organization.name}</strong> as @{usernameLabel}. <Link to={`/organizations/${id}`} target="_blank" rel="noopener noreferrer">View public organization</Link></p>{view.permissions.some(p => p.startsWith("organization.credentials.")) && <p><Link to={`/organization-workspace/${id}/credentials`}>Credential review workspace</Link></p>}<h2>Your permissions</h2><ul>{view.permissionCatalog.filter(p => view.permissions.includes(p.key)).map(p => <li key={p.key}>{p.label}</li>)}</ul>

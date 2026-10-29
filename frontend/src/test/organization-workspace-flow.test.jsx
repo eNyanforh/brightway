@@ -36,7 +36,7 @@ function mount(path = base, handler = () => reply(context)) {
 it("an approved organization in My Workspace opens its private administrator workspace instead of the public profile", async () => {
   const f = mount("/work", url => url.includes("/my-workspace") ? reply({ tab: "approved", search: "", counts: { approved: 1, pending: 0, invitations: 0, history: 0 }, items: [{ ...organization, role: "PRIMARY_ADMIN" }] }) : reply(context));
   const entry = await screen.findByRole("link", { name: "Manage" }); expect(entry.getAttribute("href")).toBe(base);
-  await f.user.click(entry); await screen.findByRole("heading", { name: organization.name, level: 1 });
+  await f.user.click(entry); expect(screen.queryByRole("heading", { name: "Switch account" })).toBeNull(); await screen.findByRole("heading", { name: organization.name, level: 1 });
   await screen.findByRole("navigation", { name: "Organization tools" });
   expect(document.querySelector(".bw-design-personal").textContent).toContain(organization.name);
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/staff"))).toBe(false);
@@ -90,4 +90,13 @@ it("a direct staff URL never exposes staff controls to a member without staff-ma
   expect(screen.queryByLabelText("BrightWay username")).toBeNull();
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/staff"))).toBe(false);
   expect(screen.getByRole("link", { name: "Return to your workspace" }).getAttribute("href")).toBe(base);
+});
+
+it("direct organization entry shows workspace loading rather than an account picker", async () => {
+  let release; const pending = new Promise(resolve => { release = resolve; });
+  mount(base, url => url.endsWith(base) ? pending : reply({}));
+  await screen.findByRole("heading", { name: "Organization workspace", level: 1 });
+  expect(screen.queryByRole("heading", { name: "Switch account" })).toBeNull();
+  await act(async () => release(reply(context)));
+  await screen.findByRole("heading", { name: organization.name, level: 1 });
 });

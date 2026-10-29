@@ -4,6 +4,7 @@ import { MemoryRouter, Outlet, Route, Routes, useOutletContext } from "react-rou
 import { it, expect, vi } from "vitest";
 import { AuthContext } from "../auth/auth-context";
 import AppLayout from "../layouts/AppLayout";
+import WorkPage from "../pages/WorkPage";
 import OrganizationWorkspacePage from "../pages/OrganizationWorkspacePage";
 const id = "843f9b44-7e5a-4ecb-9e62-1bc1c0844d59", inviteId = "743f9b44-7e5a-4ecb-9e62-1bc1c0844d59", memberId = "643f9b44-7e5a-4ecb-9e62-1bc1c0844d59";
 const MANAGE = "organization.members.manage", POSTS = "organization.posts.publish", catalog = [{ key: MANAGE, label: "Manage staff" }, { key: POSTS, label: "Publish posts" }];
@@ -13,7 +14,7 @@ const staff = { staffVersion: 1, members: [{ id: "primary", username: "owner", r
 const reply = (data, status = 200) => new Response(JSON.stringify(status >= 400 ? { success: false, message: data } : { success: true, data }), { status, headers: { "Content-Type": "application/json" } });
 function mount(handler, path = `/organization-workspace/${id}/staff`, actor = "owner") {
   const fetch = vi.fn(handler); vi.stubGlobal("fetch", fetch); const setActingOrganization = vi.fn();
-  const tree = current => <AuthContext.Provider value={{ account: { id: current, username: current } }}><MemoryRouter initialEntries={[path]}><Routes><Route element={<Outlet context={{ setActingOrganization }} />}><Route path="/organization-workspace" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} /></Route><Route path="/explore" element={<p>Personal account page</p>} /></Routes></MemoryRouter></AuthContext.Provider>;
+  const tree = current => <AuthContext.Provider value={{ account: { id: current, username: current } }}><MemoryRouter initialEntries={[path]}><Routes><Route element={<Outlet context={{ setActingOrganization }} />}><Route path="/organization-workspace" element={<OrganizationWorkspacePage />} /><Route path="/work" element={<WorkPage />} /><Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} /></Route><Route path="/explore" element={<p>Personal account page</p>} /></Routes></MemoryRouter></AuthContext.Provider>;
   const view = render(tree(actor)); return { fetch, setActingOrganization, user: userEvent.setup(), switchAccount: next => view.rerender(tree(next)) };
 }
 const defaultRead = url => url.endsWith("/staff") ? reply(staff) : reply(context);
@@ -37,9 +38,11 @@ it("ambiguous delivery retries the identical invitation without accepting edits 
   await f.user.click(await screen.findByRole("button", { name: "Retry same invitation" }));
   await waitFor(() => expect(f.fetch.mock.calls.filter(([, o]) => o?.method === "POST")).toHaveLength(2)); const writes = f.fetch.mock.calls.filter(([, o]) => o?.method === "POST"); expect(writes[0][1].body).toBe(writes[1][1].body);
 });
-it("a recipient must explicitly accept or decline and cannot select PRIMARY_ADMIN or Campus permissions", async () => {
-  const calls = [], f = mount((url, options) => { if (options?.method === "POST") { calls.push(JSON.parse(options.body)); return reply({ state: "ACCEPTED" }); } return reply({ organizations: [], invitations: [{ id: inviteId, version: 1, organization, permissions: [POSTS], permissionLabels: ["Publish posts"], expiresAt: "2026-11-03T12:00:00Z" }] }); }, "/organization-workspace", "recipient");
-  expect(await screen.findByText("Global school")).toBeTruthy(); expect(calls).toHaveLength(0); await f.user.click(screen.getByRole("button", { name: "Accept invitation from Global school" })); await screen.findByText(/Saved. Organization access/); expect(calls).toEqual([{ expectedVersion: 1, decision: "ACCEPT" }]);
+it("the legacy account-picker URL redirects to My Workspace without fetching the old picker", async () => {
+  const f = mount(url => url.includes("/my-workspace") ? reply({ tab: "approved", search: "", counts: { approved: 0, pending: 0, invitations: 0, history: 0 }, items: [] }) : reply({}), "/organization-workspace");
+  await screen.findByRole("heading", { name: "My Workspace", level: 1 });
+  expect(screen.queryByRole("heading", { name: "Switch account" })).toBeNull();
+  expect(f.fetch.mock.calls.some(([url]) => url === "/api/v1/organization-workspace")).toBe(false);
 });
 it("stale membership edits retain selections and require explicit reload", async () => {
   const f = mount((url, options) => options?.method === "PATCH" ? reply("Staff changed", 409) : defaultRead(url));
@@ -67,12 +70,12 @@ function PersonalDraftProbe() {
 
 it("organization switching keeps personal drafts separate and reflects the acting organization in the header", async () => {
   const profile = { id: "profile", version: 1, photo: null, headline: "Original headline", bio: null, location: { countryCode: "GH", region: "", locality: "Accra" }, careerField: { mode: "EXPLORING" }, careerGoals: null, skills: [], interests: [] };
-  vi.stubGlobal("fetch", vi.fn(async url => url.endsWith("/profile/me") ? reply({ profile }) : url.endsWith("/staff") ? reply(staff) : url === "/api/v1/organization-workspace" ? reply({ organizations: [{ ...organization, role: "PRIMARY_ADMIN" }], invitations: [] }) : reply(context)));
+  vi.stubGlobal("fetch", vi.fn(async url => url.endsWith("/profile/me") ? reply({ profile }) : url.endsWith("/staff") ? reply(staff) : url.endsWith("/work/access") ? reply({ hasWork: true }) : url.includes("/my-workspace") ? reply({ tab: "approved", search: "", counts: { approved: 1, pending: 0, invitations: 0, history: 0 }, items: [{ ...organization, role: "PRIMARY_ADMIN" }] }) : reply(context)));
   const account = { id: "owner", username: "owner", person: { firstName: "Test", lastName: "Owner" } }, user = userEvent.setup();
-  render(<AuthContext.Provider value={{ account }}><MemoryRouter initialEntries={["/explore"]}><Routes><Route element={<AppLayout />}><Route path="/explore" element={<PersonalDraftProbe />} /><Route path="/organization-workspace" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} /></Route></Routes></MemoryRouter></AuthContext.Provider>);
+  render(<AuthContext.Provider value={{ account }}><MemoryRouter initialEntries={["/explore"]}><Routes><Route element={<AppLayout />}><Route path="/explore" element={<PersonalDraftProbe />} /><Route path="/organization-workspace" element={<OrganizationWorkspacePage />} /><Route path="/work" element={<WorkPage />} /><Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} /><Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} /></Route></Routes></MemoryRouter></AuthContext.Provider>);
   await user.clear(await screen.findByLabelText("Personal headline")); await user.type(screen.getByLabelText("Personal headline"), "Unsaved personal headline");
-  await user.click(screen.getByRole("button", { name: "Open account menu" })); await user.click(screen.getByRole("button", { name: "Switch account", exact: true }));
-  await user.click(await screen.findByRole("link", { name: "Global school", exact: true })); await screen.findByRole("heading", { name: "Global school", level: 1 });
+  await user.click(screen.getByRole("button", { name: "Open account menu" })); expect(screen.queryByRole("button", { name: "Switch account", exact: true })).toBeNull(); await user.click(screen.getByRole("button", { name: "My Workspace", exact: true }));
+  await user.click(await screen.findByRole("link", { name: "Manage", exact: true })); await screen.findByRole("heading", { name: "Global school", level: 1 });
   await waitFor(() => expect(document.querySelector(".bw-design-personal").textContent).toContain("Global school"));
   await user.click(screen.getByRole("link", { name: "Personal account", exact: true }));
   expect((await screen.findByLabelText("Personal headline")).value).toBe("Unsaved personal headline"); expect(document.querySelector(".bw-design-personal").textContent).toContain("Personal account");

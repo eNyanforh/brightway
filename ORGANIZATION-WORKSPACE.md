@@ -5,7 +5,7 @@ The approved organization's primary administrator enters its private workspace r
 ## Entry and navigation
 
 - After the first organization interest, **My Workspace** appears after Learning and lists pending requests and current organization memberships. Approved organizations expose **Manage**, opening the private organization workspace. See [WORK-HUB.md](WORK-HUB.md) for the current submission/edit/withdrawal journey. The existing public organization profile remains available from inside the workspace.
-- Returning members use avatar → Switch account → organization. No duplicate login or new organization request is needed.
+- Returning members use My Workspace → Approved → Manage (also accessible through avatar → My Workspace). No duplicate login or new organization request is needed.
 - `/organization-workspace/:id` is the overview. It identifies the organization and current role, shows available tools and separates the remaining agreed production modules by delivery status.
 - `/organization-workspace/:id/staff` contains invitations, membership permissions, revocation and primary-administrator protection.
 - `/organization-workspace/:id/credentials` contains issuer-scoped credential review. Both privileged destinations retain existing server-enforced current permission and MFA checks.
@@ -46,3 +46,7 @@ From the root, pull with `git pull --ff-only origin main`, then restart the exis
 Record the exact local SHA and outcomes. CI/service/UI/native-browser checks are separate from owner acceptance on the application database; no cloud environment or user documents are accessed by these implementation checks.
 
 Local verification: 296 backend cases passed (21 explicit database skips), 202 frontend cases passed, plus lint and build. The workspace route is split into a separate bundle; the main production bundle is below Vite’s default warning threshold. Native Chromium at 1280px and 390px exercised approved entry → overview → staff → issuer reviews → overview using actual services with a fixture database, with no runtime errors or horizontal overflow. These do not claim acceptance on the owner’s application database, real provider services or a deployed environment. Use the exact commit’s CI run for actual PostgreSQL execution.
+
+## Direct organization entry — 29 October 2026
+
+Manage opens `/organization-workspace/:id` directly for the selected organization. It never opens an account-selection step. The loading heading is Organization workspace until the authorized organization name is returned; it no longer flashes Switch account. The Switch account avatar action and legacy picker screen are retired. Old `/organization-workspace` UI bookmarks redirect to `/work`; My Workspace holds organization selection and incoming invitations. This does not remove the existing authenticated backend API or weaken organization membership, permission, MFA or revocation checks. Personal drafts remain in the shared parent layout across Manage and Return to Personal.

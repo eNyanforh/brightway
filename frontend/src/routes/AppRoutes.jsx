@@ -15,7 +15,7 @@ import PasswordRecoveryPage from "../pages/PasswordRecoveryPage";
 import MyCredentialReviewsPage from "../pages/MyCredentialReviewsPage";
 import CredentialPage from "../pages/CredentialPage";
 import CredentialReviewsPage from "../pages/CredentialReviewsPage";
-import { Routes, Route } from "react-router-dom";
+import { Navigate, Routes, Route } from "react-router-dom";
 
 import PublicLayout from "../layouts/PublicLayout";
 import AppLayout from "../layouts/AppLayout";
@@ -52,7 +52,7 @@ export default function AppRoutes() {
 
       <Route element={<AuthGate />}>
         <Route element={<AppLayout />}>
-          <Route path="/organization-workspace" element={<WorkspaceRoute />} />
+          <Route path="/organization-workspace" element={<Navigate to="/work" replace />} />
           <Route path="/organization-workspace/:organizationId/credentials" element={<CredentialReviewsPage />} />
           <Route path="/organization-workspace/:id/staff" element={<WorkspaceRoute section="staff" />} />
           <Route path="/organization-workspace/:id" element={<WorkspaceRoute />} />
