@@ -54,6 +54,16 @@ it("focus rechecks clear private staff immediately when management permission is
   await screen.findByRole("button", { name: "Save permissions for @staff" }); revoked = true; act(() => window.dispatchEvent(new Event("focus")));
   await screen.findByRole("alert"); expect(screen.queryByText("@staff")).toBeNull(); expect(screen.queryByLabelText("BrightWay username")).toBeNull(); expect(f.fetch).toHaveBeenCalled();
 });
+it("a focus refresh during the initial staff read compares against the authorized context before React paints it", async () => {
+  let revoked = false;
+  const f = mount(url => {
+    if (url.endsWith("/staff")) { revoked = true; window.dispatchEvent(new Event("focus")); return reply(staff); }
+    return reply(revoked ? { ...context, permissions: [] } : context);
+  });
+  await screen.findByRole("alert");
+  expect(screen.queryByText("@staff")).toBeNull(); expect(screen.queryByLabelText("BrightWay username")).toBeNull();
+  expect(f.fetch.mock.calls.filter(([url]) => !url.endsWith("/staff"))).toHaveLength(2);
+});
 it("a foreign or revoked membership cannot display an organization workspace", async () => {
   const f = mount(() => reply("Active organization membership is required.", 403)); await screen.findByRole("alert"); expect(screen.queryByRole("heading", { name: "Global school" })).toBeNull(); expect(f.setActingOrganization).not.toHaveBeenCalledWith(expect.objectContaining({ accountId: "owner", organization }));
 });

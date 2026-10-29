@@ -26,7 +26,6 @@ function Workspace({ actor, usernameLabel, id, section }) {
   const [view, setView] = useState(null), [staff, setStaff] = useState(null), [error, setError] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [stale, setStale] = useState(false), [generation, setGeneration] = useState(0);
   const [username, setUsername] = useState(""), [permissions, setPermissions] = useState([]), [retrying, setRetrying] = useState(false);
   const life = useRef(null), lock = useRef(false), inviteRetry = useRef(null), currentView = useRef(null);
-  useEffect(() => { currentView.current = view; }, [view]);
   const load = useCallback(async (current, preserve = false) => {
     current.controller?.abort(); current.controller = new AbortController(); const signal = current.controller.signal;
     try {
@@ -35,15 +34,15 @@ function Workspace({ actor, usernameLabel, id, section }) {
       if (id) setActing?.({ accountId: actor, organization: next.organization, workspace: next.workspace || organizationWorkspace(next.organization, next.permissions, next.membership?.role) });
       if (preserve && id && currentView.current && (next.staffVersion !== currentView.current.staffVersion || JSON.stringify(next.permissions) !== JSON.stringify(currentView.current.permissions))) {
         if (!next.permissions.includes(MANAGE)) setStaff(null);
-        setView(next); setStale(true); setError(new Error("Organization permissions or staff changed. Reload before continuing.")); return;
+        currentView.current = next; setView(next); setStale(true); setError(new Error("Organization permissions or staff changed. Reload before continuing.")); return;
       }
-      setView(next); setError(null);
+      currentView.current = next; setView(next); setError(null);
       if (id && section === "staff" && next.permissions.includes(MANAGE)) {
         try { const people = await api.staff(id, signal); if (life.current === current && !signal.aborted && !preserve) setStaff(people); }
         catch (e) { if (life.current === current && !signal.aborted) { setStaff(null); setError(e); } }
       } else if (id) setStaff(null);
       if (!preserve) { setStale(false); setGeneration(g => g + 1); }
-    } catch (e) { if (life.current !== current || signal.aborted || e.name === "AbortError") return; setError(e); if ([401, 403, 404].includes(e.status)) { setView(null); setStaff(null); setActing?.(null); setUsername(""); setPermissions([]); inviteRetry.current = null; setRetrying(false); } }
+    } catch (e) { if (life.current !== current || signal.aborted || e.name === "AbortError") return; setError(e); if ([401, 403, 404].includes(e.status)) { currentView.current = null; setView(null); setStaff(null); setActing?.(null); setUsername(""); setPermissions([]); inviteRetry.current = null; setRetrying(false); } }
   }, [actor, id, section, setActing]);
   useEffect(() => {
     const current = { actor, id, controller: null }; life.current = current;
@@ -64,7 +63,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
     } catch (e) {
       if (life.current !== current) return; setError(e);
       if (invitation && (!e.status || e.status >= 500)) setRetrying(true); else { inviteRetry.current = null; setRetrying(false); setStale(true); }
-      if ([401, 403, 404].includes(e.status)) { setView(null); setStaff(null); setActing?.(null); setUsername(""); setPermissions([]); }
+      if ([401, 403, 404].includes(e.status)) { currentView.current = null; setView(null); setStaff(null); setActing?.(null); setUsername(""); setPermissions([]); }
     } finally { if (life.current === current) { lock.current = false; setBusy(false); } }
   }
   function reload() { if (lock.current) return; inviteRetry.current = null; setRetrying(false); setUsername(""); setPermissions([]); void action(async () => {}, false, ""); }
@@ -78,7 +77,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
       const key = kind === "member" ? "members" : "invitations", cursor = kind === "member" ? "nextMemberCursor" : "nextInviteCursor";
       const merge = old => ({ ...old, [key]: [...new Map([...old[key], ...next[key]].map(row => [row.id, row])).values()], [cursor]: next[cursor] });
       setStaff(merge);
-    } catch (e) { if (life.current === current) { setError(e); if ([401, 403, 404].includes(e.status)) { setStaff(null); setView(null); setActing?.(null); } } }
+    } catch (e) { if (life.current === current) { setError(e); if ([401, 403, 404].includes(e.status)) { setStaff(null); currentView.current = null; setView(null); setActing?.(null); } } }
     finally { if (life.current === current) { lock.current = false; setBusy(false); } }
   }
   const disabled = busy || stale || retrying;
