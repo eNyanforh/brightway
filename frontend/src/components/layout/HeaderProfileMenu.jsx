@@ -139,6 +139,8 @@ export default function HeaderProfileMenu({
 
           {hasWork && <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/work"); }}>My Workspace</Action>}
 
+          <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/security"); }}>Account security</Action>
+
           <Action
             type="button"
             disabled={busy || profileBusy}

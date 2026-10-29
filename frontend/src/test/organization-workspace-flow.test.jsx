@@ -32,6 +32,7 @@ function mount(path = base, handler = () => reply(context)) {
     <Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} />
     <Route path="/organization-workspace/:organizationId/credentials" element={<CredentialReviewsPage />} />
     <Route path="/explore" element={<p>Personal destination</p>} />
+    <Route path="/security" element={<h1>Account security destination</h1>} />
   </Route></Routes></MemoryRouter></AuthContext.Provider>);
   return { fetch, user: userEvent.setup() };
 }
@@ -135,10 +136,23 @@ it("Profile opens inside the organization workspace with verified details and th
   const nav = screen.getByRole("navigation", { name: "Organization tools" });
   const profile = within(nav).getByRole("link", { name: "Profile", exact: true }); expect(profile.getAttribute("href")).toBe(base + "/profile"); expect(profile.getAttribute("target")).toBeNull();
   await f.user.click(profile); await screen.findByRole("heading", { name: "Operating locations" });
+  const page = screen.getByRole("region", { name: "Organization profile" });
+  expect(within(page).getByRole("heading", { level: 1, name: organization.name })).toBeTruthy();
+  expect(within(page).queryByRole("heading", { name: "Profile", exact: true })).toBeNull();
+  for (const name of ["Personal account", "Back to My Workspace", "Account security"]) expect(within(page).queryByRole("link", { name, exact: true })).toBeNull();
+  expect(within(page).getByRole("link", { name: "View public profile" }).getAttribute("href")).toBe(`/organizations/${id}`);
+  expect(within(page).getByRole("button", { name: "Reload organization profile" })).toBeTruthy();
+  expect(within(page).queryByRole("button", { name: "Reload account workspace" })).toBeNull();
+  const contexts = screen.getByRole("navigation", { name: "Account contexts" });
+  expect(within(contexts).getByRole("link", { name: "My Workspace" }).getAttribute("href")).toBe("/work");
+  expect(within(contexts).getByRole("link", { name: "Return to Personal" }).getAttribute("href")).toBe("/explore");
   expect(screen.getByLabelText("Verified organization")).toBeTruthy();
   expect(screen.getByText("Approved address, Accra, Greater Accra, Ghana")).toBeTruthy();
   expect(within(screen.getByRole("navigation", { name: "Organization tools" })).getByRole("link", { name: "Profile", exact: true }).getAttribute("aria-current")).toBe("page");
   const call = f.fetch.mock.calls.find(([url]) => url.endsWith(`/organizations/${id}`)); expect(call[1].credentials).toBe("include");
+  await f.user.click(screen.getByRole("button", { name: "Open account menu" }));
+  await f.user.click(screen.getByRole("button", { name: "Account security", exact: true }));
+  await screen.findByRole("heading", { name: "Account security destination" });
 });
 it("a denied organization context cannot load the internal Profile or leave another organization's details visible", async () => {
   const f = mount(base + "/profile", () => reply("Membership required", 403)); await screen.findByRole("alert");

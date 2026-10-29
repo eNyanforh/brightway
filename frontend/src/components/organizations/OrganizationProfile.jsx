@@ -24,7 +24,7 @@ export default function OrganizationProfile({ organization, role }) {
       <div className="bw-organization-cover" aria-hidden="true"><WorkspaceIcon name="building" size={110} /></div>
       <div className="bw-organization-profile-identity"><span className="bw-organization-avatar" role="img" aria-label={`${data.name} — organization image placeholder`}>{initials}</span>
         <div className="bw-organization-profile-actions"><a href={`/organizations/${data.id}`} target="_blank" rel="noopener noreferrer">View public profile<WorkspaceIcon name="arrow" size={16} /></a></div>
-        <div className="bw-organization-profile-name"><h2 id="organization-profile-name">{data.name}</h2>{data.verified === true && <span className="bw-organization-verified" aria-label="Verified organization"><WorkspaceIcon name="check" size={14} /></span>}</div>
+        <div className="bw-organization-profile-name"><h1 id="organization-profile-name">{data.name}</h1>{data.verified === true && <span className="bw-organization-verified" aria-label="Verified organization"><WorkspaceIcon name="check" size={14} /></span>}</div>
         <p className="bw-organization-subtitle">{typeLabels[data.type] || "Organization"}{data.offersTraining && " · Education and training"}</p>
         {data.locations[0] && <p className="bw-organization-location"><WorkspaceIcon name="building" size={15} />{[data.locations[0].city, countryName(data.locations[0].countryCode)].filter(Boolean).join(", ")}</p>}
         <span className="bw-organization-your-role">Your role: {role === "PRIMARY_ADMIN" ? "Primary administrator" : "Staff"}</span>

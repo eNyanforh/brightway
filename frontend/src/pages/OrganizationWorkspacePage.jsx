@@ -84,9 +84,9 @@ function Workspace({ actor, usernameLabel, id, section }) {
   const disabled = busy || stale || retrying;
   const campusAllowed = view?.membership?.role === "PRIMARY_ADMIN" && (view.organization.type === "SCHOOL" || view.organization.offersTraining);
   const sectionAllowed = !id || !view || section === "overview" || section === "profile" || (section === "staff" && view.permissions.includes(MANAGE)) || (section === "campus" && campusAllowed);
-  return <section className="bw-org-page"><h1>{view && section === "profile" ? "Profile" : id && view ? view.organization.name : "Organization workspace"}</h1><p><Link to="/explore">Personal account</Link>{id && <> · <Link to="/work">Back to My Workspace</Link></>} · <Link to="/security">Account security</Link></p>
+  return <section className={`bw-org-page${section === "profile" ? " bw-org-profile-page" : ""}`} aria-label={section === "profile" ? "Organization profile" : undefined}>{section !== "profile" && <><h1>{id && view ? view.organization.name : "Organization workspace"}</h1><p><Link to="/explore">Personal account</Link>{id && <> · <Link to="/work">Back to My Workspace</Link></>} · <Link to="/security">Account security</Link></p></>}
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}{stale && <p>Changes have been kept. Reload to discard unsaved staffing changes and get current access.</p>}
-    <button type="button" disabled={busy} onClick={reload}>Reload account workspace</button>
+    {section !== "profile" && <button type="button" disabled={busy} onClick={reload}>Reload account workspace</button>}
     {!view && !error && <p role="status">Checking account access…</p>}
 
     {id && view && !sectionAllowed && <section className="bw-org-access-denied" aria-labelledby="workspace-access-title"><h2 id="workspace-access-title">This tool is not available to your role</h2><p>Your organization membership is active, but it does not include access to this organization tool.</p><Link className="bw-org-workspace-entry" to={`/organization-workspace/${id}`}>Return to your workspace</Link></section>}
@@ -99,5 +99,6 @@ function Workspace({ actor, usernameLabel, id, section }) {
         <h2>Staff</h2><ul className="bw-org-list">{staff.members.map(m => <Member key={`${generation}:${m.id}`} member={m} catalog={view.permissionCatalog.filter(p => view.permissions.includes(p.key))} disabled={disabled} save={body => action(() => api.change(id, m.id, { ...body, expectedStaffVersion: staff.staffVersion }))} />)}</ul>
         <h2>Pending invitations</h2><ul className="bw-org-list">{staff.invitations.map(r => <li key={r.id}><p>@{r.username} · {r.state}</p>{r.state === "PENDING" && <button disabled={disabled} onClick={() => void action(() => api.cancel(id, r.id, { expectedVersion: r.version, expectedStaffVersion: staff.staffVersion }))}>Cancel invitation for @{r.username}</button>}</li>)}</ul>{staff.nextMemberCursor && <button disabled={disabled} onClick={() => void more("member")}>More staff</button>}{staff.nextInviteCursor && <button disabled={disabled} onClick={() => void more("invite")}>More pending invitations</button>}</>}
     </>}
+    {section === "profile" && <div className="bw-organization-profile-refresh"><button type="button" disabled={busy} onClick={reload}>Reload organization profile</button></div>}
   </section>;
 }
