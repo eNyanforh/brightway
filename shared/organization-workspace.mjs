@@ -3,11 +3,11 @@ export function organizationWorkspace(organization, permissions = [], role = "ST
   const base = `/organization-workspace/${organization.id}`;
   const has = key => permissions.includes(key);
   const available = [
-    { key: "overview", label: "Overview", shortLabel: "Overview", icon: "explore", to: base, description: "Your organization account and available tools." },
-    { key: "profile", label: "Organization profile", icon: "explore", to: `/organizations/${organization.id}`, external: true, description: "View your approved public organization and operating location." },
+    { key: "profile", label: "Profile", shortLabel: "Profile", icon: "work", to: `${base}/profile`, description: "Your organization profile and verified operating locations." },
+    { key: "dashboard", label: "Dashboard", shortLabel: "Dashboard", icon: "explore", to: base, description: "Your organization account and available tools." },
   ];
-  if (has("organization.members.manage")) available.push({ key: "staff", label: "Staff & permissions", shortLabel: "Staff", icon: "network", to: `${base}/staff`, sensitive: true, description: "Invite staff, manage permissions and revoke access." });
-  if (["education", "experience"].some(kind => has(`organization.credentials.${kind}.review`))) available.push({ key: "credentials", label: "Credential reviews", shortLabel: "Reviews", icon: "learning", to: `${base}/credentials`, sensitive: true, description: "Review education or experience claims submitted to this issuer." });
+  if (has("organization.members.manage")) available.push({ key: "staff", label: "Staff", shortLabel: "Staff", icon: "network", to: `${base}/staff`, sensitive: true, description: "Invite staff, manage permissions and revoke access." });
+  if (["education", "experience"].some(kind => has(`organization.credentials.${kind}.review`))) available.push({ key: "credentials", label: "Credential Review", shortLabel: "Reviews", icon: "learning", to: `${base}/credentials`, sensitive: true, description: "Review education or experience claims submitted to this issuer." });
   const planned = [];
   if (has("organization.posts.publish")) planned.push({ key: "posts", label: "Posts & content", sprint: 5, description: "Publish organization content and manage its interactions." });
   if (has("organization.opportunities.manage")) planned.push(

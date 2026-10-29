@@ -11,7 +11,8 @@ async function fixture(input) {
 }
 test("approved primary administrator receives scoped ready tools and honest planned tools without Campus activation", async () => {
   const f = await fixture(), c = await f.context();
-  assert.deepEqual(c.workspace.available.map(m => m.key), ["overview", "profile", "staff", "credentials"]);
+  assert.deepEqual(c.workspace.available.map(m => m.key), ["profile", "dashboard", "staff", "credentials"]);
+  assert.deepEqual(c.workspace.available.map(m => m.label), ["Profile", "Dashboard", "Staff", "Credential Review"]);
   assert(c.workspace.available.filter(m => !m.external).every(m => m.to.startsWith(`/organization-workspace/${f.orgId}`)));
   assert.deepEqual(c.workspace.planned.map(m => m.key), ["posts", "opportunities", "applications", "programs", "admissions", "analytics"]);
   assert(c.workspace.planned.every(m => !m.to)); assert.equal(c.workspace.campusActive, false);
@@ -23,7 +24,7 @@ test("ordinary staff only receive tools allowed by their current membership and 
   const f = await fixture(), member = { id: randomUUID(), organizationId: f.orgId, accountId: f.actors.other.id, enabled: true, role: "STAFF", permissions: ["organization.credentials.education.review"], version: 1 };
   f.state.organizationMembership.push(member);
   const read = () => f.staff.context(f.actors.other.id, f.actors.other.sessionId, f.orgId);
-  assert.deepEqual((await read()).workspace.available.map(m => m.key), ["overview", "profile", "credentials"]);
+  assert.deepEqual((await read()).workspace.available.map(m => m.key), ["profile", "dashboard", "credentials"]);
   assert.equal((await read()).workspace.planned.length, 0); assert.equal((await read()).workspace.campusSetup, null);
   f.state.organizationMembership.find(m => m.id === member.id).enabled = false;
   await assert.rejects(read(), { status: 403 });

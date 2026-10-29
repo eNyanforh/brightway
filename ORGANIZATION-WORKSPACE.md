@@ -6,7 +6,7 @@ The approved organization's primary administrator enters its private workspace r
 
 - After the first organization interest, **My Workspace** appears after Learning and lists pending requests and current organization memberships. Approved organizations expose **Manage**, opening the private organization workspace. See [WORK-HUB.md](WORK-HUB.md) for the current submission/edit/withdrawal journey. The existing public organization profile remains available from inside the workspace.
 - Returning members use My Workspace → Approved → Manage (also accessible through avatar → My Workspace). No duplicate login or new organization request is needed.
-- `/organization-workspace/:id` is the overview. It identifies the organization and current role, shows available tools and separates the remaining agreed production modules by delivery status.
+- `/organization-workspace/:id` is the Dashboard. It identifies the organization and current role, shows available tools and separates the remaining agreed production modules by delivery status.
 - `/organization-workspace/:id/staff` contains invitations, membership permissions, revocation and primary-administrator protection.
 - `/organization-workspace/:id/credentials` contains issuer-scoped credential review. Both privileged destinations retain existing server-enforced current permission and MFA checks.
 - Organization sidebar/mobile navigation replaces Personal destinations while acting for an organization. Overview, staff, reviews and switching remain reachable on mobile according to the current membership. The existing header, avatar and personal navigation stay intact outside organization context.
@@ -19,7 +19,7 @@ The saved master architecture (organization membership/permissions and frontend 
 
 | Area | Current workspace behavior |
 | --- | --- |
-| Organization profile | Opens the already implemented approved public organization/location in a separate tab. Profile/content editing is not claimed by this view. |
+| Organization profile | Opens an internal profile-style page using approved public organization/location data. A separate View public profile action remains available. Profile/content editing is not included. |
 | Staff and permissions | Working scoped staff/invitation management; sensitive operations require MFA. |
 | Credential reviews | Working issuer-scoped review, evidence, decisions and permission-withdrawal recovery. |
 | Posts/content | Displayed as planned Sprint 5 work only for authorized publishing scope. |
@@ -56,3 +56,9 @@ Manage opens `/organization-workspace/:id` directly for the selected organizatio
 A separate promotional block beneath the organization tools uses the existing Create an organization sidebar treatment, supporting copy and a **Build Campus** action. Backend workspace metadata returns this informational entry only for PRIMARY_ADMIN members of a School or an organization with training capability. Ordinary staff and non-training organization administrators do not receive it. On mobile the organization overview exposes the same entry; the bottom operational navigation remains unchanged.
 
 The entry opens `/organization-workspace/:id/campus`, after the existing authenticated organization context check. The informational page also checks the current primary role and education capability and handles revoked/foreign contexts through existing denial behavior. It states Coming soon, explains the qualifying verified Liberia operation/administration/activation requirements, and creates no Campus, bill, payment, academic record or eligibility attestation. The actual Campus setup and server-enforced activation/billing workflows remain the agreed later-sprint delivery. The entry is distinct from operational tools; organization approval and admission acceptance still cannot activate or bill Campus. No schema migration or new dependency is introduced.
+
+## Current organization navigation — 29 October 2026
+
+The organization tools are ordered **Profile**, **Dashboard**, **Staff**, **Credential Review**. Staff and Credential Review remain conditional on the member's live effective permissions. Dashboard replaces the Overview label at the existing root URL. Profile is an internal `/organization-workspace/:id/profile` route with a user-profile-style cover, labelled initials placeholder, organization-specific verified badge, details and operating-location cards. It loads the existing public projection only after the parent membership context succeeds, checks response organization binding, aborts late loads and displays no account contacts, private requests or reviewer notes. Reload retries the profile read. No editing/upload action or new profile fields are invented.
+
+Dashboard shows only current operational tools. Future posts, opportunities, programs, admissions and analytics cards have been removed from the visible dashboard until those tools are delivered. The separately requested Build Campus block and its Coming soon overview remain. Manage still opens the selected organization's Dashboard directly, and existing credential/staff URLs and authorization are preserved. No schema migration or new dependency is required.

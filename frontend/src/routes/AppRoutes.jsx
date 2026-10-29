@@ -54,6 +54,7 @@ export default function AppRoutes() {
         <Route element={<AppLayout />}>
           <Route path="/organization-workspace" element={<Navigate to="/work" replace />} />
           <Route path="/organization-workspace/:organizationId/credentials" element={<CredentialReviewsPage />} />
+          <Route path="/organization-workspace/:id/profile" element={<WorkspaceRoute section="profile" />} />
           <Route path="/organization-workspace/:id/campus" element={<WorkspaceRoute section="campus" />} />
           <Route path="/organization-workspace/:id/staff" element={<WorkspaceRoute section="staff" />} />
           <Route path="/organization-workspace/:id" element={<WorkspaceRoute />} />
