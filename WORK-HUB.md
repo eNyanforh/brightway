@@ -75,3 +75,11 @@ My Workspace now uses a company-building sidebar icon, a labelled **Create an or
 - Category/search navigation is URL-addressable, search is debounced and old requests are aborted. Delayed responses cannot replace a newer category/account. Mutation failures retain the view and require explicit reload; no invitation response or Abort is automatically replayed. No new migration, dependency or storage credential is required.
 
 Acceptance: verify default Approved, Pending after submission, invitation Accept/Decline, labelled create action, full-scope search/pagination, private history, expired/foreign/revoked access denial, stale mutation handling and desktop/mobile keyboard layout. Existing onboarding/review decisions and privileged MFA remain unchanged. Deployment remains paused.
+
+## Workspace interface refresh — 29 October 2026
+
+The My Workspace directory and its create/edit interest journey use the scoped `frontend/src/pages/my-workspace.css` stylesheet. Shared organization-tool styles remain in `organizations.css`; obsolete directory overrides have been removed from that shared file. The public header and Personal/organization authorization models remain intact.
+
+The refreshed interface provides a compact page header and labelled create action, one search/category surface, readable organization type/role/status cards, stage-based review progress, explicit proposed invitation permissions and expiry, private decision feedback, purpose-built empty/loading/error states, a clear Abort confirmation and responsive touch/keyboard controls. Initials remain labelled placeholders; this update does not introduce logo uploads, invented statistics or new trust states. Reduced-motion preferences are respected. A failed background refresh retains the visible list but blocks mutations until a successful reload.
+
+Acceptance should cover Approved/Pending/Invitations and history, live search and pagination, loading/empty/error recovery, invitation consent, Edit/Abort confirmation, create/edit fields, and scoped Manage on desktop and narrow mobile. The underlying request/consent APIs and business rules are unchanged. There is no migration or dependency change, and deployment remains paused.

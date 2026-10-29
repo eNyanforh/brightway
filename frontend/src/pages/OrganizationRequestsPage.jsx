@@ -3,7 +3,9 @@ import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { organizationsApi as api } from "../api/organizations";
 import { countryCodes } from "./profile-countries";
+import WorkspaceIcon from "../components/workspace/WorkspaceIcon";
 import "./organizations.css";
+import "./my-workspace.css";
 const empty = { name: "", type: "SCHOOL", representativeRole: "", countryCode: "", region: "", city: "", address: "", offersTraining: "" };
 const names = new Intl.DisplayNames(["en"], { type: "region" });
 const countries = countryCodes.map(code => ({ code, label: names.of(code) || code })).sort((a, b) => a.label.localeCompare(b.label));
@@ -54,9 +56,9 @@ function OrganizationRequests({ actor, id }) {
     } finally { if (life.current === current) { lock.current = false; setBusy(false); } }
   }
   function another() { setCreated(null); setDraft(null); setError(null); }
-  return <section className="bw-org-page"><h1>{id ? "Edit organization request" : "Create an organization"}</h1>
+  return <section className="bw-org-page bw-work-form-page"><Link className="bw-work-form-breadcrumb" to="/work"><WorkspaceIcon name="arrow" size={16} />My Workspace</Link><h1>{id ? "Edit organization request" : "Create an organization"}</h1>
     {error && <p role="alert">{error.message}</p>}
-    {created ? <div className="bw-work-confirmation" role="status"><h2>{id ? "Organization request updated" : "Interest submitted"}</h2>
+    {created ? <div className="bw-work-confirmation" role="status"><span className="bw-work-confirmation-icon"><WorkspaceIcon name="check" size={27} /></span><h2>{id ? "Organization request updated" : "Interest submitted"}</h2>
       <p>{id ? `Your changes to “${created.name}” were saved. Review will restart; the original 72-hour review target is unchanged.` : `Your interest to register “${created.name}” is submitted for review in 72 hours.`}</p>
       {!id && <p>This is our review target. Your organization becomes available after approval.</p>}
       <div className="bw-work-actions"><Link className="bw-org-workspace-entry" to={`/work?tab=pending#request-${created.id}`}>View Progress</Link>{id ? <Link to="/organizations/new">Create another organization</Link> : <button type="button" onClick={another}>Create another organization</button>}</div>

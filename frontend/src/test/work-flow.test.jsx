@@ -139,3 +139,18 @@ it("a failed invitation response preserves the invitation and requires reload wi
   await screen.findByRole("alert"); expect(screen.getByRole("button", { name: "Accept invitation from Inviting School" }).disabled).toBe(true);
   expect(f.fetchMock.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
 });
+
+it("a failed background refresh retains the workspace but blocks edits until a successful reload", async () => {
+  let offline = false;
+  const f = mount({ custom: url => offline && url.includes("/my-workspace") ? reply("Service temporarily unavailable", 503) : undefined });
+  await screen.findByRole("heading", { name: request.name });
+  offline = true; act(() => window.dispatchEvent(new Event("focus")));
+  await screen.findByRole("alert");
+  expect(screen.getByRole("heading", { name: request.name })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Abort", exact: true }).disabled).toBe(true);
+  expect(screen.getByRole("link", { name: "Edit" }).getAttribute("aria-disabled")).toBe("true");
+  offline = false; await f.user.click(screen.getByRole("button", { name: "Reload workspaces" }));
+  await screen.findByRole("button", { name: "Abort", exact: true });
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByRole("button", { name: "Abort", exact: true }).disabled).toBe(false);
+});
