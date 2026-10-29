@@ -1,3 +1,5 @@
 .bw-org-context-heading{padding:8px 12px 14px}.bw-org-context-heading h2{font-size:18px;line-height:1.4;margin:8px 0 0;color:#172b3a;overflow-wrap:anywhere}.bw-org-sidebar>p{padding:0 12px;font-size:14px;line-height:1.6}.bw-org-mobile-navigation .bw-mobile-navigation-label{font-size:10px}.bw-org-mobile-navigation a{overflow-wrap:anywhere}
 
 @media(max-width:700px){.bw-app-shell .bw-design-navigation-toggle{display:none}}
+
+.bw-org-campus-promo{margin-top:0}.bw-org-campus-promo .bw-design-create-org{box-sizing:border-box;text-decoration:none}.bw-org-campus-promo .bw-design-create-org[aria-current=page]{outline:2px solid #175cd3;outline-offset:3px}.bw-org-campus-promo small{display:block;margin-top:10px;color:#647087;font-size:11px;line-height:1.6}

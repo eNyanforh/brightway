@@ -26,7 +26,7 @@ The saved master architecture (organization membership/permissions and frontend 
 | Opportunities/applications | Planned Sprint 6; no fake publishing or application actions. |
 | Programs/admissions | Planned Sprint 7; only education-capable organizations with the relevant scope see these planned tools. |
 | Analytics | Planned with the corresponding product modules; no fabricated counts/reports. |
-| Virtual Campus/billing | Not activated by organization approval. Campus is a later module requiring a qualifying verified Liberia operation and actual activation; Grade School/TVET stay separate. There are no Campus/billing navigation actions in this release. |
+| Virtual Campus/billing | Not activated by organization approval. Campus is a later module requiring a qualifying verified Liberia operation and actual activation; Grade School/TVET stay separate. There are no operational Campus/billing actions in this release. Build Campus is an informational setup overview, explicitly marked Coming soon. |
 
 Planned cards have no action links or forms. This is the workspace entry/navigation foundation, not a claim that later sprint backends have been delivered. Existing core grants prepare those modules without making them operational. Full agreed production scope and the 26 January 2027 target remain unchanged and subject to acceptance. Deployment remains paused.
 
@@ -50,3 +50,9 @@ Local verification: 296 backend cases passed (21 explicit database skips), 202 f
 ## Direct organization entry — 29 October 2026
 
 Manage opens `/organization-workspace/:id` directly for the selected organization. It never opens an account-selection step. The loading heading is Organization workspace until the authorized organization name is returned; it no longer flashes Switch account. The Switch account avatar action and legacy picker screen are retired. Old `/organization-workspace` UI bookmarks redirect to `/work`; My Workspace holds organization selection and incoming invitations. This does not remove the existing authenticated backend API or weaken organization membership, permission, MFA or revocation checks. Personal drafts remain in the shared parent layout across Manage and Return to Personal.
+
+## Build Campus entry — 29 October 2026
+
+A separate promotional block beneath the organization tools uses the existing Create an organization sidebar treatment, supporting copy and a **Build Campus** action. Backend workspace metadata returns this informational entry only for PRIMARY_ADMIN members of a School or an organization with training capability. Ordinary staff and non-training organization administrators do not receive it. On mobile the organization overview exposes the same entry; the bottom operational navigation remains unchanged.
+
+The entry opens `/organization-workspace/:id/campus`, after the existing authenticated organization context check. The informational page also checks the current primary role and education capability and handles revoked/foreign contexts through existing denial behavior. It states Coming soon, explains the qualifying verified Liberia operation/administration/activation requirements, and creates no Campus, bill, payment, academic record or eligibility attestation. The actual Campus setup and server-enforced activation/billing workflows remain the agreed later-sprint delivery. The entry is distinct from operational tools; organization approval and admission acceptance still cannot activate or bill Campus. No schema migration or new dependency is introduced.

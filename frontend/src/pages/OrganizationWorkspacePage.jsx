@@ -1,4 +1,5 @@
 import { organizationWorkspace } from "../../../shared/organization-workspace.mjs";
+import CampusSetupOverview from "../components/organizations/CampusSetupOverview";
 import OrganizationOverview from "../components/organizations/OrganizationOverview";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext, useParams } from "react-router-dom";
@@ -80,14 +81,16 @@ function Workspace({ actor, usernameLabel, id, section }) {
     finally { if (life.current === current) { lock.current = false; setBusy(false); } }
   }
   const disabled = busy || stale || retrying;
-  const sectionAllowed = !id || !view || section === "overview" || (section === "staff" && view.permissions.includes(MANAGE));
+  const campusAllowed = view?.membership?.role === "PRIMARY_ADMIN" && (view.organization.type === "SCHOOL" || view.organization.offersTraining);
+  const sectionAllowed = !id || !view || section === "overview" || (section === "staff" && view.permissions.includes(MANAGE)) || (section === "campus" && campusAllowed);
   return <section className="bw-org-page"><h1>{id && view ? view.organization.name : "Organization workspace"}</h1><p><Link to="/explore">Personal account</Link>{id && <> · <Link to="/work">Back to My Workspace</Link></>} · <Link to="/security">Account security</Link></p>
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}{stale && <p>Changes have been kept. Reload to discard unsaved staffing changes and get current access.</p>}
     <button type="button" disabled={busy} onClick={reload}>Reload account workspace</button>
     {!view && !error && <p role="status">Checking account access…</p>}
 
-    {id && view && !sectionAllowed && <section className="bw-org-access-denied" aria-labelledby="workspace-access-title"><h2 id="workspace-access-title">This tool is not available to your role</h2><p>Your organization membership is active, but it does not include permission to manage staff and permissions.</p><Link className="bw-org-workspace-entry" to={`/organization-workspace/${id}`}>Return to your workspace</Link></section>}
+    {id && view && !sectionAllowed && <section className="bw-org-access-denied" aria-labelledby="workspace-access-title"><h2 id="workspace-access-title">This tool is not available to your role</h2><p>Your organization membership is active, but it does not include access to this organization tool.</p><Link className="bw-org-workspace-entry" to={`/organization-workspace/${id}`}>Return to your workspace</Link></section>}
     {id && view && sectionAllowed && section === "overview" && <OrganizationOverview organization={view.organization} role={view.membership?.role} workspace={view.workspace || organizationWorkspace(view.organization, view.permissions, view.membership?.role)} />}
+    {id && view && sectionAllowed && section === "campus" && <CampusSetupOverview organization={view.organization} />}
     {id && view && sectionAllowed && section === "staff" && <><p>Acting for <strong>{view.organization.name}</strong> as @{usernameLabel}. <Link to={`/organizations/${id}`} target="_blank" rel="noopener noreferrer">View public organization</Link></p>{view.permissions.some(p => p.startsWith("organization.credentials.")) && <p><Link to={`/organization-workspace/${id}/credentials`}>Credential review workspace</Link></p>}<h2>Your permissions</h2><ul>{view.permissionCatalog.filter(p => view.permissions.includes(p.key)).map(p => <li key={p.key}>{p.label}</li>)}</ul>
       {!staff && <p>Staff management requires verified email, two-factor authentication and current permission. Enable MFA in Account security, then sign in again and reload.</p>}
       {staff && <><h2>Invite staff</h2><form onSubmit={e => { e.preventDefault(); const body = inviteRetry.current || { username, permissions, expectedStaffVersion: staff.staffVersion, idempotencyKey: crypto.randomUUID() }; inviteRetry.current = body; void action(() => api.invite(id, body), true); }}><fieldset disabled={disabled}><legend>Invite an existing BrightWay account</legend><label>BrightWay username<input required pattern="[a-zA-Z0-9_]{3,30}" value={username} onChange={e => setUsername(e.target.value)} /></label><PermissionChoices catalog={view.permissionCatalog.filter(p => view.permissions.includes(p.key))} value={permissions} onChange={setPermissions} disabled={disabled} /></fieldset><button disabled={busy || stale}>{retrying ? "Retry same invitation" : "Send invitation"}</button></form>

@@ -18,7 +18,7 @@ const available = [
   { key: "credentials", label: "Credential reviews", icon: "learning", shortLabel: "Reviews", to: base + "/credentials", sensitive: true },
 ];
 const planned = [{ key: "posts", label: "Posts & content", sprint: 5 }, { key: "opportunities", label: "Opportunities", sprint: 6 }, { key: "programs", label: "Programs", sprint: 7 }, { key: "admissions", label: "Admissions", sprint: 7 }];
-const context = { accountId: "owner", organization, permissions: [MANAGE, REVIEW], membership: { role: "PRIMARY_ADMIN", version: 1 }, permissionCatalog: [{ key: MANAGE, label: "Manage staff" }, { key: REVIEW, label: "Review education credentials" }], staffVersion: 1, workspace: { available, planned, campusActive: false } };
+const context = { accountId: "owner", organization, permissions: [MANAGE, REVIEW], membership: { role: "PRIMARY_ADMIN", version: 1 }, permissionCatalog: [{ key: MANAGE, label: "Manage staff" }, { key: REVIEW, label: "Review education credentials" }], staffVersion: 1, workspace: { available, planned, campusActive: false, campusSetup: { label: "Build Campus", to: base + "/campus", status: "COMING_SOON" } } };
 const profile = { version: 1, photo: null, location: {}, skills: [], interests: [] };
 const reply = (data, status = 200) => new Response(JSON.stringify(status < 400 ? { success: true, data } : { success: false, message: data }), { status, headers: { "Content-Type": "application/json" } });
 function mount(path = base, handler = () => reply(context)) {
@@ -27,6 +27,7 @@ function mount(path = base, handler = () => reply(context)) {
     <Route path="/work" element={<WorkPage />} />
     <Route path="/organizations/new" element={<OrganizationRequestsPage />} />
     <Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} />
+    <Route path="/organization-workspace/:id/campus" element={<OrganizationWorkspacePage section="campus" />} />
     <Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} />
     <Route path="/organization-workspace/:organizationId/credentials" element={<CredentialReviewsPage />} />
     <Route path="/explore" element={<p>Personal destination</p>} />
@@ -99,4 +100,29 @@ it("direct organization entry shows workspace loading rather than an account pic
   expect(screen.queryByRole("heading", { name: "Switch account" })).toBeNull();
   await act(async () => release(reply(context)));
   await screen.findByRole("heading", { name: organization.name, level: 1 });
+});
+
+it("Build Campus is a separate sidebar block and opens an informational overview without activation", async () => {
+  const f = mount(); await screen.findByRole("heading", { name: organization.name, level: 1 });
+  const sidebar = screen.getByRole("complementary", { name: "Organization navigation" });
+  const entry = within(sidebar).getByRole("link", { name: "Build Campus" });
+  expect(within(screen.getByRole("navigation", { name: "Organization tools" })).queryByRole("link", { name: "Build Campus" })).toBeNull();
+  expect(entry.getAttribute("href")).toBe(base + "/campus"); await f.user.click(entry);
+  await screen.findByRole("heading", { name: "Build Campus" });
+  expect(screen.getByText("Campus setup is not available yet.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /activate|pay|submit/i })).toBeNull();
+  expect(f.fetch.mock.calls.some(([, options]) => options?.method && options.method !== "GET")).toBe(false);
+});
+it("Campus overview rejects ordinary members and non-training company administrators", async () => {
+  const limited = { ...context, organization: { ...organization, type: "COMPANY", offersTraining: false }, workspace: { available: available.slice(0, 2), planned: [], campusActive: false, campusSetup: null } };
+  mount(base + "/campus", () => reply(limited));
+  await screen.findByRole("heading", { name: "This tool is not available to your role" });
+  expect(screen.queryByRole("heading", { name: "Build Campus" })).toBeNull();
+  expect(within(screen.getByRole("complementary", { name: "Organization navigation" })).queryByRole("link", { name: "Build Campus" })).toBeNull();
+});
+it("ordinary school staff cannot open the Campus administrator overview through a copied URL", async () => {
+  mount(base + "/campus", () => reply({ ...context, membership: { role: "STAFF" }, workspace: { available: available.slice(0, 2), planned: [], campusActive: false, campusSetup: null } }));
+  await screen.findByRole("heading", { name: "This tool is not available to your role" });
+  expect(screen.queryByRole("heading", { name: "Build Campus" })).toBeNull();
+  expect(within(screen.getByRole("complementary", { name: "Organization navigation" })).queryByRole("link", { name: "Build Campus" })).toBeNull();
 });
