@@ -18,7 +18,7 @@ const available = [
   { key: "staff", label: "Staff", icon: "network", shortLabel: "Staff", to: base + "/staff", sensitive: true },
   { key: "credentials", label: "Credential Review", icon: "learning", shortLabel: "Reviews", to: base + "/credentials", sensitive: true },
 ];
-const planned = [{ key: "posts", label: "Posts & content", sprint: 5 }, { key: "opportunities", label: "Opportunities", sprint: 6 }, { key: "programs", label: "Programs", sprint: 7 }, { key: "admissions", label: "Admissions", sprint: 7 }];
+const planned = [{ key: "posts", label: "Posts & content", sprint: 5 }, { key: "opportunities", label: "Opportunities", sprint: 6 }, { key: "applications", label: "Applications", sprint: 6 }, { key: "programs", label: "Programs", sprint: 7 }, { key: "admissions", label: "Admissions", sprint: 7 }];
 const context = { accountId: "owner", organization, permissions: [MANAGE, REVIEW], membership: { role: "PRIMARY_ADMIN", version: 1 }, permissionCatalog: [{ key: MANAGE, label: "Manage staff" }, { key: REVIEW, label: "Review education credentials" }], staffVersion: 1, workspace: { available, planned, campusActive: false, campusSetup: { label: "Build Campus", to: base + "/campus", status: "COMING_SOON" } } };
 const profile = { version: 1, photo: null, location: {}, skills: [], interests: [] };
 const reply = (data, status = 200) => new Response(JSON.stringify(status < 400 ? { success: true, data } : { success: false, message: data }), { status, headers: { "Content-Type": "application/json" } });
@@ -55,10 +55,13 @@ it("desktop and mobile organization navigation expose scoped operational tools w
   expect(within(mobile).getByRole("link", { name: "Dashboard" }).getAttribute("aria-current")).toBe("page");
   expect(within(mobile).queryByRole("link", { name: "Post" })).toBeNull();
 });
-it("the organization sidebar exposes only Profile, Dashboard and authorized Staff/Credential Review tools", async () => {
+it("the organization sidebar keeps working links separate from the five disabled planned tools", async () => {
   mount(); await screen.findByRole("heading", { name: "Dashboard", level: 2 });
   const nav = screen.getByRole("navigation", { name: "Organization tools" });
   expect(within(nav).getAllByRole("link").map(link => link.textContent)).toEqual(["Profile", "Dashboard", "Staff", "Credential Review"]);
+  const future = screen.getByRole("navigation", { name: "Planned organization tools" });
+  expect(within(future).getAllByRole("button").map(button => button.getAttribute("aria-label"))).toEqual(["Posts & content — Coming soon", "Opportunities — Coming soon", "Applications — Coming soon", "Programs — Coming soon", "Admissions — Coming soon"]);
+  expect(within(future).getAllByRole("button").every(button => button.disabled)).toBe(true); expect(within(future).queryByRole("link")).toBeNull();
   expect(screen.queryByRole("heading", { name: "Planned workspace tools" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Posts & content" })).toBeNull();
   expect(screen.queryByRole("button", { name: /activate campus/i })).toBeNull();
@@ -68,7 +71,7 @@ it("staff management is a dedicated scoped destination and revoked permission cl
   const f = mount(base + "/staff", url => url.endsWith("/staff") ? reply({ staffVersion: 1, members: [{ id: "member", username: "private_staff", fullName: "Private Staff Member", role: "STAFF", version: 1, enabled: true, permissions: [] }], invitations: [] }) : reply(revoked ? { ...context, permissions: [], workspace: { available: available.slice(0, 2), planned: [], campusActive: false } } : context));
   await screen.findByText("Private Staff Member"); revoked = true; act(() => window.dispatchEvent(new Event("focus")));
   await screen.findByRole("alert"); expect(screen.queryByText("Private Staff Member")).toBeNull();
-  const nav = screen.getByRole("navigation", { name: "Organization tools" }); expect(within(nav).queryByRole("link", { name: "Staff" })).toBeNull(); expect(f.fetch).toHaveBeenCalled();
+  const nav = screen.getByRole("navigation", { name: "Organization tools" }); expect(within(nav).queryByRole("link", { name: "Staff" })).toBeNull(); expect(f.fetch).toHaveBeenCalled(); expect(screen.queryByRole("navigation", { name: "Planned organization tools" })).toBeNull();
 });
 it("a direct issuer review URL keeps the organization tools available and links back to staff management", async () => {
   const f = mount(base + "/credentials", url => url.includes("/credential-reviews") ? reply({ reviews: [], nextCursor: null, organization, workspace: context.workspace }) : url.endsWith("/staff") ? reply({ staffVersion: 1, members: [], invitations: [] }) : reply(context));
@@ -87,6 +90,8 @@ it("a publishing-only member sees their available scope and no staff, review or 
   await screen.findByRole("heading", { name: organization.name, level: 1 });
   const nav = screen.getByRole("navigation", { name: "Organization tools" }); expect(within(nav).queryByRole("link", { name: "Staff" })).toBeNull(); expect(within(nav).queryByRole("link", { name: "Credential Review" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Admissions" })).toBeNull();
+  const future = screen.getByRole("navigation", { name: "Planned organization tools" });
+  expect(within(future).getAllByRole("button")).toHaveLength(1); expect(within(future).getByRole("button", { name: "Posts & content — Coming soon" }).disabled).toBe(true);
   const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" }); expect(within(mobile).getAllByRole("link")).toHaveLength(3);
   await screen.findByRole("heading", { name: "Analytics access is limited" });
   expect(screen.queryByRole("link", { name: "Open Staff" })).toBeNull();
@@ -200,4 +205,15 @@ it("Dashboard attention links open a server-filtered issuer queue and keep that 
   await f.user.click(screen.getByRole("button", { name: "Clear review filter" }));
   expect(screen.queryByText("Showing: Unassigned submissions.")).toBeNull();
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/credential-reviews"))).toBe(true);
+});
+
+it("the organization menu exposes planned tools without changing the mobile bottom destinations and closes with Escape or navigation", async () => {
+  const f = mount(); await screen.findByRole("navigation", { name: "Planned organization tools" });
+  const toggle = screen.getByRole("button", { name: "Toggle navigation" }); await f.user.click(toggle);
+  expect(toggle.getAttribute("aria-expanded")).toBe("true"); expect(screen.getByRole("complementary", { name: "Organization navigation" }).classList.contains("bw-design-sidebar-open")).toBe(true);
+  await f.user.keyboard("{Escape}"); expect(toggle.getAttribute("aria-expanded")).toBe("false"); expect(document.activeElement).toBe(toggle);
+  await f.user.click(toggle); await f.user.click(within(screen.getByRole("navigation", { name: "Organization tools" })).getByRole("link", { name: "Dashboard" }));
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" });
+  expect(within(mobile).getAllByRole("link")).toHaveLength(5); expect(within(mobile).queryByRole("button", { name: /Coming soon/ })).toBeNull();
 });

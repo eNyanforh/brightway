@@ -108,3 +108,10 @@ The analytical Dashboard supersedes the earlier tool-card design. It shows curre
 ## Staff directory — 30 October 2026
 
 Staff management now uses a server-searched roster, All staff/Enabled/Revoked/Invitations categories, scoped permissions and native action dialogs instead of every member's form expanded inline. Saved grants remain visible after revocation and restoration cannot exceed the manager's authority. Explicit confirmation, pending-write locks, invitation idempotency and stale-draft reconciliation remain. See [ORGANIZATION-STAFF.md](ORGANIZATION-STAFF.md) for API/filter definitions, protections, application checks and update instructions. This change adds no migration or dependency; deployment remains paused.
+
+
+## Planned sidebar tools — 30 October 2026
+
+The sidebar now displays the existing permission-scoped planned tools below the working Profile, Dashboard, Staff and Credential Review links: Posts & content, Opportunities, Applications, Programs and Admissions. Each has an icon and an explicit Coming soon label. They are disabled placeholders with no destination, form, API call or active state. A limited staff member sees only the planned items returned by their authorized workspace metadata; non-training organizations do not gain academic tools. These rows do not implement later modules or activate Campus.
+
+Build Campus remains its separate informational block. On mobile, Toggle navigation opens the organization sidebar to make the planned list accessible; Escape and choosing a live destination close it. The existing mobile bottom destinations stay unchanged. No backend, database migration or dependency change is required. Pull and restart the frontend. Deployment remains paused.
