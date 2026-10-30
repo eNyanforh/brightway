@@ -7,7 +7,7 @@ import AuthProvider from "../auth/AuthProvider";
 import { AuthContext } from "../auth/auth-context";
 import { useIdentityStatus } from "../auth/useIdentityStatus";
 import AppRoutes from "../routes/AppRoutes";
-import VerifiedIdentityBadge from "../components/profile/VerifiedIdentityBadge";
+import VerificationBadge from "../components/VerificationBadge";
 import { hasVerifiedIdentity } from "../pages/manual-identity-format";
 import { theme } from "../styles/theme";
 beforeEach(() => {
@@ -39,7 +39,7 @@ function mount(handler) {
 it("adds an accessible blue mark beside the approved profile name and removes Verify my identity", async () => {
   const { fetchMock } = mount(async () => response(status()));
   await screen.findByRole("img", { name: "Verified identity" });
-  expect(screen.getByRole("heading", { level: 1, name: /Test User/ }).querySelector(".bw-verified-identity")).toBeTruthy();
+  expect(screen.getByRole("heading", { level: 1, name: /Test User/ }).querySelector(".bw-verification-badge")).toBeTruthy();
   expect(screen.queryByRole("link", { name: "Verify my identity" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Identity verification requirements" })).toBeNull();
   expect(screen.getByText("Your identity is verified by BrightWay.")).toBeTruthy();
@@ -91,7 +91,7 @@ it("clears an old badge when a refresh fails and provides an explicit retry", as
 });
 function StatusHarness({ version }) {
   const { identityStatus } = useIdentityStatus(version);
-  return hasVerifiedIdentity(identityStatus) ? <VerifiedIdentityBadge /> : <span>No current badge</span>;
+  return hasVerifiedIdentity(identityStatus) ? <VerificationBadge /> : <span>No current badge</span>;
 }
 it("immediately stops using approval from an earlier saved profile version while the new version is checked", async () => {
   let release; const pending = new Promise((resolve) => { release = resolve; });

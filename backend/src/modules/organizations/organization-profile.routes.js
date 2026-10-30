@@ -12,6 +12,7 @@ export function createOrganizationProfileRoutes({ profiles, sessions, clientUrl,
   router.use("/organization-workspace/:orgId/profile", (req, res, next) => { res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); next(); }, auth);
   router.get("/organization-workspace/:orgId/profile", handle((r, a, s) => profiles.read(a, s, r.params.orgId)));
   router.put("/organization-workspace/:orgId/profile", origin, limits, handle((r, a, s) => profiles.saveUsername(a, s, r.params.orgId, r.body)));
+  router.patch("/organization-workspace/:orgId/profile", origin, limits, handle((r, a, s) => profiles.saveContact(a, s, r.params.orgId, r.body)));
   let inFlight = 0;
   router.post("/organization-workspace/:orgId/profile/photo", origin, limits, (req, res, next) => {
     if (!/^(0|[1-9]\d*)$/.test(req.get("X-Organization-Profile-Version") || "") || Number(req.get("X-Organization-Profile-Version")) > 2147483646) return res.status(400).json({ success: false, message: "Send the current X-Organization-Profile-Version header." });

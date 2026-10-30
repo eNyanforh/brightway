@@ -56,7 +56,7 @@ export function organizationFixture({ ready = true } = {}) {
         if (["organizationRequestAudit", "organizationStaffAudit"].includes(model)) { if (auditFails) throw Error("Audit failed"); if (auditHook) await auditHook(data); }
         const value = { id: randomUUID(), createdAt: date, updatedAt: date,
           ...(model === "organizationRequest" ? { version: 1, status: "SUBMITTED", assignedAgentId: null, decisionReason: null, decidedById: null, decidedAt: null } : {}),
-          ...(model === "organization" ? { status: "ACTIVE", staffVersion: 1, username: null, profileVersion: 0, profileReadyAt: null, profilePhotoId: null } : {}),
+          ...(model === "organization" ? { status: "ACTIVE", staffVersion: 1, username: null, profileVersion: 0, profileSetupStep: 1, phoneNumber: null, contactEmail: null, website: null, profileReadyAt: null, profilePhotoId: null } : {}),
           ...(model === "organizationPhoto" ? { state: "UPLOADING" } : {}),
           ...(model === "organizationMembership" ? { role: "STAFF", enabled: true, permissions: [], version: 1 } : {}),
           ...(model === "organizationInvitation" ? { state: "PENDING", version: 1, respondedAt: null } : {}), ...clone(data) };
@@ -87,7 +87,7 @@ export function organizationFixture({ ready = true } = {}) {
     async decide(r, decision = "APPROVE") { const result = await service.decide(actors.approver.id, actors.approver.sessionId, r.id, { expectedVersion: r.version, decision, reason: "Synthetic organization decision feedback." });
       if (ready && result.organizationId) {
         const org = state.organization.find(o => o.id === result.organizationId), photoId = randomUUID();
-        Object.assign(org, { username: `org_${org.id.replaceAll("-", "").slice(0, 20)}`, profilePhotoId: photoId, profileReadyAt: date, profileVersion: 2 });
+        Object.assign(org, { username: `org_${org.id.replaceAll("-", "").slice(0, 20)}`, profilePhotoId: photoId, profileReadyAt: date, profileVersion: 2, profileSetupStep: 5 });
         state.organizationPhoto.push({ id: photoId, organizationId: org.id, storageKey: `synthetic/${photoId}`, state: "CLAIMED", expiresAt: date, createdAt: date, updatedAt: date });
       }
       return result; },

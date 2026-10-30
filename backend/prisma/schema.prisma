@@ -860,6 +860,10 @@ model OrganizationRequestAudit {
 model Organization {
   username String? @unique @db.VarChar(30)
   profileVersion Int @default(0)
+  profileSetupStep Int @default(1)
+  phoneNumber String? @db.VarChar(16)
+  contactEmail String? @db.VarChar(254)
+  website String? @db.VarChar(2048)
   profileReadyAt DateTime?
   profilePhotoId String? @unique
   profilePhoto OrganizationPhoto? @relation("CurrentOrganizationPhoto", fields: [profilePhotoId], references: [id], onDelete: Restrict)

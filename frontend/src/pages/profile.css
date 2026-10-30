@@ -1154,3 +1154,4 @@
     transition: none !important;
   }
 }
+.bw-profile-identity h1.bw-profile-verified-name{display:flex;align-items:center;flex-wrap:wrap;gap:8px}

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { processPhoto } from "../photos/photo.image.js";
 import { failure, parse, requestId } from "./organization.schema.js";
-import { PROFILE_MANAGE, organizationPhotoUrl, organizationProfileReady, organizationProfileSchema, profileVersion } from "./organization-profile.schema.js";
+import { PROFILE_MANAGE, organizationPhotoUrl, organizationProfileReady, organizationProfileSchema, organizationContactSchema, organizationSetupStep, profileVersion } from "./organization-profile.schema.js";
 const conflict = () => failure(409, "This organization profile changed. Reload the saved profile before continuing.");
 export function createOrganizationProfileService({ prisma, storage, process = processPhoto, now = () => new Date() }) {
   async function transaction(work) {
@@ -33,7 +33,7 @@ export function createOrganizationProfileService({ prisma, storage, process = pr
     }
     return { organization, canEdit, role: membership.role };
   }
-  const view = ({ organization: o, canEdit, role }) => ({ organization: { id: o.id, name: o.name, type: o.type, offersTraining: o.offersTraining }, role, canEdit, required: !organizationProfileReady(o), version: o.profileVersion, username: o.username, photo: o.profilePhotoId ? { id: o.profilePhotoId, url: organizationPhotoUrl(o.id, o.profilePhotoId) } : null });
+  const view = ({ organization: o, canEdit, role }) => ({ organization: { id: o.id, name: o.name, type: o.type, offersTraining: o.offersTraining }, role, canEdit, required: !organizationProfileReady(o), nextStep: organizationSetupStep(o), version: o.profileVersion, username: o.username, phoneNumber: o.phoneNumber ?? null, contactEmail: o.contactEmail ?? null, website: o.website ?? null, photo: o.profilePhotoId ? { id: o.profilePhotoId, url: organizationPhotoUrl(o.id, o.profilePhotoId) } : null });
   async function audit(db, id, actorId, action, entityId, data) { await db.organizationStaffAudit.create({ data: { organizationId: id, actorId, action, entityId, data } }); }
   const service = {
     async read(actorId, sessionId, id) { return transaction(async db => view(await access(db, actorId, sessionId, id))); },
@@ -45,7 +45,7 @@ export function createOrganizationProfileService({ prisma, storage, process = pr
         if (o.username === input.username) return view(scope);
         const occupied = await db.organization.findFirst({ where: { username: input.username, id: { not: id } }, select: { id: true } });
         if (occupied) throw failure(409, "That organization username is unavailable. Choose another username.");
-        if ((await db.organization.updateMany({ where: { id, profileVersion: input.expectedVersion }, data: { username: input.username, profileVersion: { increment: 1 } } })).count !== 1) throw conflict();
+        if ((await db.organization.updateMany({ where: { id, profileVersion: input.expectedVersion }, data: { username: input.username, profileSetupStep: Math.max(2, o.profileSetupStep || 1), profileVersion: { increment: 1 } } })).count !== 1) throw conflict();
         await audit(db, id, actorId, "PROFILE_USERNAME_CHANGED", id, { before: o.username, after: input.username });
         return view(await access(db, actorId, sessionId, id, true));
       });
@@ -67,9 +67,9 @@ export function createOrganizationProfileService({ prisma, storage, process = pr
           const { organization: o } = await access(db, actorId, sessionId, id, true);
           if (o.profileVersion !== expectedVersion || !o.username) throw conflict();
           if ((await db.organizationPhoto.updateMany({ where: { id: asset.id, organizationId: id, state: "UPLOADING", expiresAt: { gt: now() } }, data: { state: "CLAIMED", byteSize: image.bytes.length, width: image.width, height: image.height } })).count !== 1) throw conflict();
-          if ((await db.organization.updateMany({ where: { id, profileVersion: expectedVersion }, data: { profilePhotoId: asset.id, profileReadyAt: o.profileReadyAt || now(), profileVersion: { increment: 1 } } })).count !== 1) throw conflict();
+          if ((await db.organization.updateMany({ where: { id, profileVersion: expectedVersion }, data: { profilePhotoId: asset.id, profileSetupStep: Math.max(3, o.profileSetupStep || 1), profileVersion: { increment: 1 } } })).count !== 1) throw conflict();
           if (o.profilePhotoId) await db.organizationPhoto.updateMany({ where: { id: o.profilePhotoId, organizationId: id, state: "CLAIMED" }, data: { state: "DELETE_PENDING" } });
-          await audit(db, id, actorId, o.profileReadyAt ? "PROFILE_PHOTO_CHANGED" : "PROFILE_SETUP_COMPLETED", asset.id, { previousPhotoId: o.profilePhotoId, photoId: asset.id });
+          await audit(db, id, actorId, o.profileReadyAt ? "PROFILE_PHOTO_CHANGED" : "PROFILE_PHOTO_SAVED", asset.id, { previousPhotoId: o.profilePhotoId, photoId: asset.id });
           return view(await access(db, actorId, sessionId, id, true));
         });
       } catch (error) {
@@ -77,6 +77,20 @@ export function createOrganizationProfileService({ prisma, storage, process = pr
         await prisma.organizationPhoto.updateMany({ where: { id: asset.id, state: "UPLOADING" }, data: { state: "DELETE_PENDING" } }).catch(() => {});
         throw error;
       }
+    },
+    async saveContact(actorId, sessionId, id, supplied) {
+      const input = parse(organizationContactSchema, supplied), step = { phoneNumber: 3, contactEmail: 4, website: 5 }[input.field];
+      return transaction(async db => {
+        const { organization: o } = await access(db, actorId, sessionId, id, true);
+        if (o.profileVersion !== input.expectedVersion) throw conflict();
+        if (!o.username || !o.profilePhotoId || (!organizationProfileReady(o) && organizationSetupStep(o) < step)) throw failure(409, "Complete or skip the earlier setup steps first.");
+        const completing = !o.profileReadyAt && step === 5;
+        const data = { [input.field]: input.value, profileSetupStep: Math.max(o.profileSetupStep || 3, Math.min(step + 1, 5)), profileVersion: { increment: 1 }, ...(completing ? { profileReadyAt: now() } : {}) };
+        if ((await db.organization.updateMany({ where: { id, profileVersion: input.expectedVersion }, data })).count !== 1) throw conflict();
+        // Record the changed field, not another copy of public contact values in the audit log.
+        await audit(db, id, actorId, completing ? "PROFILE_SETUP_COMPLETED" : "PROFILE_CONTACT_CHANGED", id, { field: input.field, cleared: input.value === null });
+        return view(await access(db, actorId, sessionId, id, true));
+      });
     },
     async readPhoto(id, photoId) {
       requestId(id); requestId(photoId);

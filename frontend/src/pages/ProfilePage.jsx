@@ -1,7 +1,7 @@
 import ProfilePhotoReviewStatus from "../components/profile/ProfilePhotoReviewStatus";
 import { profilePhotoReviewsApi } from "../api/profile-photo-reviews";
 import { useIdentityStatus } from "../auth/useIdentityStatus";
-import VerifiedIdentityBadge from "../components/profile/VerifiedIdentityBadge";
+import VerificationBadge from "../components/VerificationBadge";
 import { hasVerifiedIdentity } from "./manual-identity-format";
 import IdentityReviewerLink from "../components/profile/IdentityReviewerLink";
 import { useRef, useState } from "react";
@@ -580,7 +580,7 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-              <h1 className="bw-profile-verified-name"><span>{name}</span>{identityVerified && <VerifiedIdentityBadge />}</h1>
+              <h1 className="bw-profile-verified-name"><span>{name}</span>{identityVerified && <VerificationBadge />}</h1>
 
               <p className="bw-profile-handle">
                 @{account.username}

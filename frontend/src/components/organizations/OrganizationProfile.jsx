@@ -1,3 +1,4 @@
+import VerificationBadge from "../VerificationBadge";
 import { useEffect, useState } from "react";
 import { organizationsApi } from "../../api/organizations";
 import { organizationProfileApi } from "../../api/organization-profile";
@@ -30,12 +31,12 @@ export default function OrganizationProfile({ organization, role, canEdit = fals
   const initials = data.name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase();
   return <div className="bw-organization-profile">
     {error && <p role="alert">{error.message}</p>}
-    {editing && <OrganizationProfileEditor profile={editing} onClose={() => setEditing(null)} onSaved={saved => { setData(previous => ({ ...previous, username: saved.username, photo: saved.photo })); setEditing(null); setRevision(value => value + 1); }} />}
+    {editing && <OrganizationProfileEditor profile={editing} onClose={() => { setEditing(null); setRevision(value => value + 1); }} onSaved={saved => { setData(previous => ({ ...previous, username: saved.username, photo: saved.photo, phoneNumber: saved.phoneNumber, contactEmail: saved.contactEmail, website: saved.website })); setEditing(null); setRevision(value => value + 1); }} />}
     <section className="bw-organization-profile-hero" aria-labelledby="organization-profile-name">
       <div className="bw-organization-cover" aria-hidden="true"><WorkspaceIcon name="building" size={110} /></div>
       <div className="bw-organization-profile-identity"><span className="bw-organization-avatar">{data.photo?.url ? <img src={data.photo.url} alt={`${data.name} profile picture`} /> : <span role="img" aria-label={`${data.name} — organization image placeholder`}>{initials}</span>}</span>
         {canEdit && <div className="bw-organization-profile-actions"><button type="button" disabled={opening} onClick={edit}>{opening ? "Opening…" : "Edit Profile"}</button></div>}
-        <div className="bw-organization-profile-name"><h1 id="organization-profile-name">{data.name}</h1>{data.verified === true && <span className="bw-organization-verified" aria-label="Verified organization"><WorkspaceIcon name="check" size={14} /></span>}</div>
+        <div className="bw-organization-profile-name"><h1 id="organization-profile-name">{data.name}</h1>{data.verified === true && <VerificationBadge kind="organization" />}</div>
         {data.username && <p className="bw-organization-username">@{data.username}</p>}
         <p className="bw-organization-subtitle">{typeLabels[data.type] || "Organization"}{data.offersTraining && " · Education and training"}</p>
         {data.locations[0] && <p className="bw-organization-location"><WorkspaceIcon name="building" size={15} />{[data.locations[0].city, countryName(data.locations[0].countryCode)].filter(Boolean).join(", ")}</p>}
@@ -43,6 +44,7 @@ export default function OrganizationProfile({ organization, role, canEdit = fals
       </div>
     </section>
     <div className="bw-organization-profile-grid"><section className="bw-organization-profile-section"><h2>Organization details</h2><dl><div><dt>Organization type</dt><dd>{typeLabels[data.type] || data.type}</dd></div><div><dt>Education or training</dt><dd>{data.offersTraining ? "Offered" : "Not offered"}</dd></div><div><dt>Verification</dt><dd>{data.verified === true ? "Verified organization" : "Not verified"}</dd></div></dl></section>
+      <section className="bw-organization-profile-section"><h2>Contact information</h2><p className="bw-organization-contact-caption">Public organization contacts</p>{data.phoneNumber || data.contactEmail || data.website ? <dl>{data.phoneNumber && <div><dt>Phone number</dt><dd><a href={`tel:${data.phoneNumber}`}>{data.phoneNumber}</a></dd></div>}{data.contactEmail && <div><dt>Email</dt><dd><a href={`mailto:${data.contactEmail}`}>{data.contactEmail}</a></dd></div>}{data.website && <div><dt>Website</dt><dd><a href={data.website} target="_blank" rel="noopener noreferrer">{data.website}</a></dd></div>}</dl> : <p>No public contact details added.</p>}</section>
       <section className="bw-organization-profile-section"><h2>Operating locations</h2>{data.locations.length ? data.locations.map((location, index) => <div className="bw-organization-location-card" key={index}><span>{location.primary ? "Primary location" : "Operating location"}</span><p>{[location.address, location.city, location.region, countryName(location.countryCode)].filter(Boolean).join(", ")}</p></div>) : <p>No operating locations available.</p>}</section></div>
   </div>;
 }

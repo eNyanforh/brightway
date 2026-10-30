@@ -42,13 +42,23 @@ test("database organization usernames, setup/upload races, stale edits, revoked 
     assert.equal((await db.organization.findUnique({ where: { id: orgs[0] } })).profilePhotoId, null);
     const raced = await Promise.allSettled([upload(1), upload(1)]);
     assert.equal(raced.filter(r => r.status === "fulfilled").length, 1); assert.equal(raced.find(r => r.status === "rejected").reason.status, 409);
-    const done = raced.find(r => r.status === "fulfilled").value; assert.equal(done.required, false);
+    const photo = raced.find(r => r.status === "fulfilled").value; assert.equal(photo.required, true); assert.equal(photo.nextStep, 3);
+    const contact = (field, value, expectedVersion, service = profiles) => service.saveContact(accounts[0].id, sessions[0].id, orgs[0], { field, value, expectedVersion });
+    await assert.rejects(contact("website", null, 2), { status: 409 });
+    await assert.rejects(contact("phoneNumber", "+231771234567", 2, make(failAudit(db))), /Injected profile audit failure/);
+    assert.equal((await db.organization.findUnique({ where: { id: orgs[0] } })).phoneNumber, null);
+    const phones = await Promise.allSettled([contact("phoneNumber", "+231 (77) 123-4567", 2), contact("phoneNumber", null, 2)]);
+    assert.equal(phones.filter(r => r.status === "fulfilled").length, 1); assert.equal(phones.find(r => r.status === "rejected").reason.status, 409);
+    await contact("contactEmail", "office@example.invalid", 3);
+    const finishes = await Promise.allSettled([contact("website", "school.example.invalid", 4), contact("website", null, 4)]);
+    assert.equal(finishes.filter(r => r.status === "fulfilled").length, 1); assert.equal(finishes.find(r => r.status === "rejected").reason.status, 409);
+    const done = finishes.find(r => r.status === "fulfilled").value; assert.equal(done.required, false); assert.equal(done.version, 5); assert.equal(done.photo.id, photo.photo.id);
     assert.equal(await db.organizationPhoto.count({ where: { organizationId: orgs[0], state: "CLAIMED" } }), 1);
     assert.equal(await db.organizationStaffAudit.count({ where: { organizationId: orgs[0], action: "PROFILE_SETUP_COMPLETED" } }), 1);
     await assert.rejects(upload(1), { status: 409 });
     // Revoke the writer while external object I/O is in flight; the final transaction must recheck.
     storage.put = async (key, bytes) => { objects.set(key, bytes); await db.organizationMembership.updateMany({ where: { organizationId: orgs[0], accountId: accounts[0].id }, data: { enabled: false, version: { increment: 1 } } }); };
-    await assert.rejects(upload(2), { status: 403 });
+    await assert.rejects(upload(5), { status: 403 });
     assert.equal((await db.organization.findUnique({ where: { id: orgs[0] } })).profilePhotoId, done.photo.id);
     const cleanup = await profiles.cleanup(); assert.equal(cleanup.failed, 0); assert(cleanup.deleted >= 2);
     assert.equal(await db.organizationPhoto.count({ where: { organizationId: orgs[0], state: "CLAIMED" } }), 1);

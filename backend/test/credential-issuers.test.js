@@ -9,7 +9,7 @@ import { issuerPermission } from "../src/modules/credentials/credential-issuer.j
 import { submitSchema } from "../src/modules/credentials/credential.schema.js";
 function fixture() {
   const f = credentialFixture();
-  const org = { id: randomUUID(), requestId: randomUUID(), status: "ACTIVE", name: "Listed School", type: "SCHOOL", offersTraining: true, staffVersion: 1, username: "listed_school", profileReadyAt: f.now(), profilePhotoId: randomUUID() };
+  const org = { id: randomUUID(), requestId: randomUUID(), status: "ACTIVE", name: "Listed School", type: "SCHOOL", offersTraining: true, staffVersion: 1, username: "listed_school", profileReadyAt: f.now(), profileSetupStep: 5, profilePhotoId: randomUUID() };
   const foreign = { ...org, id: randomUUID(), requestId: randomUUID(), name: "Another issuer" };
   f.state.organization.push(org, foreign); f.state.organizationRequest.push({ id: org.requestId, status: "APPROVED" }, { id: foreign.requestId, status: "APPROVED" });
   const member = { id: randomUUID(), organizationId: org.id, accountId: f.otherId, enabled: true, role: "STAFF", permissions: [issuerPermission("education")], version: 1 };

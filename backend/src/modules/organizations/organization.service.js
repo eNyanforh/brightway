@@ -202,7 +202,7 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
     },
     async publicOrganization(id) {
       requestId(id);
-      const org = await prisma.organization.findFirst({ where: { id, status: "ACTIVE", request: { status: "APPROVED" } }, select: { id: true, name: true, type: true, offersTraining: true, verifiedAt: true, username: true, profilePhotoId: true,
+      const org = await prisma.organization.findFirst({ where: { id, status: "ACTIVE", request: { status: "APPROVED" } }, select: { id: true, name: true, type: true, offersTraining: true, verifiedAt: true, username: true, profilePhotoId: true, phoneNumber: true, contactEmail: true, website: true,
         locations: { select: { countryCode: true, region: true, city: true, address: true, primary: true, verifiedAt: true } } } });
       if (!org) throw fail(404, "Organization not found."); const { profilePhotoId, ...publicFields } = org; return { ...publicFields, photo: profilePhotoId ? { id: profilePhotoId, url: organizationPhotoUrl(id, profilePhotoId) } : null, verified: true };
     },

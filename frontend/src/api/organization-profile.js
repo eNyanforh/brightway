@@ -15,5 +15,6 @@ async function request(id, { method = "GET", body, headers, photo = false, signa
 export const organizationProfileApi = {
   read: (id, signal) => request(id, { signal }),
   save: (id, username, expectedVersion, signal) => request(id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, expectedVersion }), signal }),
+  contact: (id, field, value, expectedVersion, signal) => request(id, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ field, value, expectedVersion }), signal }),
   upload: (id, file, version, signal) => request(id, { method: "POST", photo: true, headers: { "Content-Type": file.type, "X-Organization-Profile-Version": String(version) }, body: file, signal }),
 };

@@ -19,6 +19,6 @@ function Gate({ id, children }) {
   if (error) return <section className="bw-org-page"><h1>Organization workspace</h1><p role="alert">{error.message}</p><button type="button" onClick={refresh}>Reload organization access</button><p><Link to="/work">Back to My Workspace</Link></p></section>;
   if (!profile) return <p role="status">Checking organization setup…</p>;
   if (!profile.required) return children;
-  if (!profile.canEdit) return <section className="bw-org-page"><h1>Organization setup pending</h1><p>An authorized administrator must add a username and profile picture for {profile.organization.name} before its workspace opens.</p><button type="button" onClick={refresh}>Check setup status</button><p><Link to="/work">Back to My Workspace</Link></p></section>;
+  if (!profile.canEdit) return <section className="bw-org-page"><h1>Organization setup pending</h1><p>An authorized administrator must finish profile setup for {profile.organization.name} before its workspace opens. Contact details are optional.</p><button type="button" onClick={refresh}>Check setup status</button><p><Link to="/work">Back to My Workspace</Link></p></section>;
   return <OrganizationProfileEditor key={generation} profile={profile} required onSaved={setProfile} />;
 }
