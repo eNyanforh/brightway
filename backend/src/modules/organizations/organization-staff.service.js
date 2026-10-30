@@ -6,7 +6,7 @@ import { assertMfaSession } from "../auth/mfa.service.js";
 import { digest, failure as fail, parse, requestId } from "./organization.schema.js";
 import { PERMISSIONS, workspaceDirectorySchema, organizationPermissionKeys, inviteSchema, changeMemberSchema, cancelInviteSchema, respondInviteSchema, listStaffSchema, staffListQuerySchema } from "./organization-staff.schema.js";
 const MANAGE = "organization.members.manage", conflict = () => fail(409, "Organization staffing changed. Reload before continuing.");
-export function createOrganizationStaffService({ prisma, now = () => new Date() }) {
+export function createOrganizationStaffService({ prisma, storage, now = () => new Date() }) {
   async function transaction(work) { try { return await prisma.$transaction(work); } catch (e) { if (["P2002", "P2034"].includes(e.code)) throw conflict(); throw e; } }
   async function live(db, actorId, sessionId) {
     if (typeof actorId !== "string" || !actorId || typeof sessionId !== "string" || !sessionId) throw fail(401, "Please sign in again.");
@@ -43,6 +43,27 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
   async function invitation(db, id) { const r = await db.organizationInvitation.findUnique({ where: { id } }); if (!r) throw fail(404, "Invitation not found."); return r; }
   function projectInvitation(r, username) { return { id: r.id, username, permissions: r.permissions, permissionLabels: r.permissions.map(key => PERMISSIONS[key]), state: r.state === "PENDING" && r.expiresAt <= now() ? "EXPIRED" : r.state, version: r.version, expiresAt: r.expiresAt }; }
   async function invitationView(db, r) { const recipient = await db.account.findUnique({ where: { id: r.recipientId }, select: { username: true } }); return projectInvitation(r, recipient?.username); }
+  const personSelect = { firstName: true, middleName: true, lastName: true, profile: { select: { photoId: true } } };
+  function staffIdentity(account, organizationId) {
+    const person = account?.person;
+    return { fullName: [person?.firstName, person?.middleName, person?.lastName].filter(value => typeof value === "string" && value.trim()).map(value => value.trim()).join(" ") || "BrightWay member",
+      photoPath: person?.profile?.photoId ? `/organization-workspace/${organizationId}/staff/people/${account.id}/photo/${person.profile.photoId}` : null };
+  }
+  async function staffPhotoAsset(actorId, sessionId, organizationId, accountId, photoId) {
+    return transaction(async db => {
+      await lock(db, [actorId]); const organization = await org(db, organizationId, true);
+      await access(db, actorId, sessionId, organization, true);
+      const member = await db.organizationMembership.findFirst({ where: { organizationId, accountId }, select: { id: true } });
+      const invited = member ? null : await db.organizationInvitation.findFirst({ where: { organizationId, recipientId: accountId, state: "PENDING", expiresAt: { gt: now() } }, select: { id: true } });
+      if (!member && !invited) throw fail(404, "Staff photo is unavailable.");
+      const account = await db.account.findUnique({ where: { id: accountId }, select: { personId: true } });
+      const profile = account && await db.profile.findUnique({ where: { personId: account.personId }, select: { photoId: true } });
+      if (profile?.photoId !== photoId) throw fail(404, "Staff photo is unavailable.");
+      const asset = await db.photoAsset.findFirst({ where: { id: photoId, personId: account.personId, state: "CLAIMED" }, select: { storageKey: true } });
+      if (!asset) throw fail(404, "Staff photo is unavailable.");
+      return asset;
+    });
+  }
   async function page(db, model, where, cursor, scope, direction = "desc") {
     if (cursor) { const anchor = await db[model].findUnique({ where: { id: cursor } }); if (!anchor || Object.entries(scope).some(([k, v]) => anchor[k] !== v)) throw fail(404, "Page is unavailable."); }
     return db[model].findMany({ where, orderBy: [{ createdAt: direction }, { id: direction }], ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 21 });
@@ -147,13 +168,23 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
         const members = await page(db, "organizationMembership", memberWhere, query.memberCursor, { organizationId: id }, "asc");
         const invitations = await page(db, "organizationInvitation", inviteWhere, query.inviteCursor, { organizationId: id });
         const ids = [...new Set([...members.slice(0, 20).map(m => m.accountId), ...invitations.slice(0, 20).map(r => r.recipientId)])];
-        const users = await db.account.findMany({ where: { id: { in: ids } }, select: { id: true, username: true } }), byId = new Map(users.map(a => [a.id, a.username]));
-        const projected = members.slice(0, 20).map(m => ({ id: m.id, username: byId.get(m.accountId), role: m.role, enabled: m.enabled, version: m.version, permissions: effective(m, organization), assignedPermissions: assigned(m, organization),
+        const users = await db.account.findMany({ where: { id: { in: ids } }, select: { id: true, username: true, person: { select: personSelect } } }), byId = new Map(users.map(a => [a.id, a]));
+        const projected = members.slice(0, 20).map(m => ({ id: m.id, username: byId.get(m.accountId)?.username, ...staffIdentity(byId.get(m.accountId), id), role: m.role, enabled: m.enabled, version: m.version, permissions: effective(m, organization), assignedPermissions: assigned(m, organization),
           canManage: m.role !== "PRIMARY_ADMIN" && assigned(m, organization).every(key => actor.permissions.includes(key)), isSelf: m.accountId === actorId, joinedAt: m.createdAt }));
         await access(db, actorId, sessionId, organization, true);
         return { organizationId: id, search: query.search, memberStatus: query.memberStatus, asOf: timestamp.toISOString(), counts: { all: enabled + revoked, enabled, revoked, pending },
-          staffVersion: organization.staffVersion, members: projected, invitations: invitations.slice(0, 20).map(r => projectInvitation(r, byId.get(r.recipientId))), nextMemberCursor: members.length > 20 ? members[19].id : null, nextInviteCursor: invitations.length > 20 ? invitations[19].id : null };
+          staffVersion: organization.staffVersion, members: projected, invitations: invitations.slice(0, 20).map(r => ({ ...projectInvitation(r, byId.get(r.recipientId)?.username), ...staffIdentity(byId.get(r.recipientId), id) })), nextMemberCursor: members.length > 20 ? members[19].id : null, nextInviteCursor: invitations.length > 20 ? invitations[19].id : null };
       });
+    },
+    async photo(actorId, sessionId, organizationId, accountId, photoId) {
+      [organizationId, accountId, photoId].forEach(requestId);
+      const asset = await staffPhotoAsset(actorId, sessionId, organizationId, accountId, photoId);
+      if (!storage) throw fail(503, "Staff photos are temporarily unavailable.");
+      // Storage I/O stays outside the transaction. Recheck access and the current photo before returning bytes.
+      const bytes = await storage.get(asset.storageKey);
+      const current = await staffPhotoAsset(actorId, sessionId, organizationId, accountId, photoId);
+      if (current.storageKey !== asset.storageKey) throw fail(404, "Staff photo is unavailable.");
+      return bytes;
     },
     async invite(actorId, sessionId, id, body) {
       requestId(id); const data = parse(inviteSchema, body), account = await live(prisma, actorId, sessionId);

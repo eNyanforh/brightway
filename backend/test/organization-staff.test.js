@@ -6,10 +6,10 @@ import { organizationFixture } from "../test-support/organization-fixture.js";
 import { createOrganizationStaffService } from "../src/modules/organizations/organization-staff.service.js";
 import { createOrganizationStaffRoutes } from "../src/modules/organizations/organization-staff.routes.js";
 const MANAGE = "organization.members.manage", POSTS = "organization.posts.publish";
-async function fixture() {
+async function fixture({ storage } = {}) {
   const f = organizationFixture(), result = await f.decide(await f.report(await f.assign(await f.submit()))), owner = f.actors.owner, recipient = f.actors.other;
   f.state.mfaFactor.push({ accountId: owner.id, enabled: true, version: 1 }); Object.assign(f.state.session.find(r => r.id === owner.sessionId), { mfaVersion: 1, mfaVerifiedAt: f.now() });
-  const staff = createOrganizationStaffService({ prisma: f.db, now: f.now }), id = result.organizationId;
+  const staff = createOrganizationStaffService({ prisma: f.db, storage, now: f.now }), id = result.organizationId;
   return { ...f, staff, id, owner, recipient, context: () => staff.context(owner.id, owner.sessionId, id), invite: async (permissions = [POSTS], username = recipient.username, extra = {}) => staff.invite(owner.id, owner.sessionId, id, { expectedStaffVersion: f.state.organization[0].staffVersion, idempotencyKey: randomUUID(), username, permissions, ...extra }), accept: r => staff.respond(recipient.id, recipient.sessionId, r.id, { expectedVersion: r.version, decision: "ACCEPT" }) };
 }
 test("staff context requires live membership and verified active organization, without granting Campus or internal BrightWay roles", async () => {
@@ -190,4 +190,57 @@ test("staff invitation counts omit expired pending rows and scope recipient sear
   const expired = await f.staff.staff(f.owner.id, f.owner.sessionId, f.id);
   assert.equal(expired.counts.pending, 0); assert.equal(expired.invitations.length, 0);
   await assert.rejects(f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { inviteCursor: invite.id }), { status: 404 });
+});
+
+function seedStaffPhoto(f, actor = f.recipient) {
+  const account = f.state.account.find(a => a.id === actor.id), id = randomUUID();
+  f.state.profile.push({ id: randomUUID(), personId: account.personId, photoId: id });
+  f.state.photoAsset.push({ id, personId: account.personId, storageKey: `synthetic-private/${id}.webp`, state: "CLAIMED" });
+  return id;
+}
+test("staff identity projects full names and a scoped current-photo path without contacts or private evidence", async () => {
+  const f = await fixture(), photoId = seedStaffPhoto(f);
+  Object.assign(f.state.person.find(p => p.id === f.state.account.find(a => a.id === f.recipient.id).personId), { firstName: " Grace ", middleName: "A.", lastName: "Johnson" });
+  await f.invite(); let list = await f.staff.staff(f.owner.id, f.owner.sessionId, f.id);
+  assert.equal(list.invitations[0].fullName, "Grace A. Johnson");
+  assert.equal(list.invitations[0].photoPath, `/organization-workspace/${f.id}/staff/people/${f.recipient.id}/photo/${photoId}`);
+  await f.accept(list.invitations[0]); list = await f.staff.staff(f.owner.id, f.owner.sessionId, f.id);
+  const row = list.members.find(m => m.username === f.recipient.username);
+  assert.equal(row.fullName, "Grace A. Johnson"); assert.equal(row.photoPath.endsWith(photoId), true);
+  assert.equal(list.members.find(m => m.isSelf).photoPath, null);
+  assert(!JSON.stringify(list).includes("synthetic-private"));
+  for (const field of ["email", "phoneNumber", "birthDate", "storageKey", "personId"]) assert.equal(field in row, false);
+});
+test("staff photos require live tenant management/MFA, show only current published photos and recheck after storage", async () => {
+  let reads = 0, afterRead = () => {};
+  const f = await fixture({ storage: { async get() { reads++; afterRead(); return Buffer.from("synthetic photo bytes"); } } }), photoId = seedStaffPhoto(f);
+  const read = () => f.staff.photo(f.owner.id, f.owner.sessionId, f.id, f.recipient.id, photoId);
+  await assert.rejects(read(), { status: 404 }); assert.equal(reads, 0);
+  const invitation = await f.invite(); assert.equal((await read()).toString(), "synthetic photo bytes");
+  await assert.rejects(f.staff.photo(f.recipient.id, f.recipient.sessionId, f.id, f.recipient.id, photoId), { status: 403 });
+  await assert.rejects(f.staff.photo(f.owner.id, f.owner.sessionId, f.id, f.actors.agent.id, photoId), { status: 404 });
+  const pendingId = randomUUID(); f.state.photoAsset.push({ id: pendingId, personId: f.state.photoAsset[0].personId, state: "CLAIMED", storageKey: "UNAPPROVED" });
+  await assert.rejects(f.staff.photo(f.owner.id, f.owner.sessionId, f.id, f.recipient.id, pendingId), { status: 404 });
+  f.state.organizationInvitation[0].expiresAt = f.now(); await assert.rejects(read(), { status: 404 });
+  f.state.organizationInvitation[0].expiresAt = new Date(+f.now() + 10000); await f.accept(invitation);
+  f.state.organizationMembership.find(m => m.accountId === f.recipient.id).enabled = false;
+  assert.equal((await read()).toString(), "synthetic photo bytes"); // Managers can identify a revoked member.
+  afterRead = () => { f.state.profile[0].photoId = pendingId; }; await assert.rejects(read(), { status: 404 });
+  f.state.profile[0].photoId = photoId;
+  afterRead = () => { f.state.session.find(s => s.id === f.owner.sessionId).mfaVersion = 0; }; await assert.rejects(read(), { status: 403 });
+});
+test("staff photo HTTP keeps bytes uncached and authenticated without making the owner photo endpoint public", async () => {
+  const f = await fixture({ storage: { async get() { return Buffer.from("synthetic photo bytes"); } } }), photoId = seedStaffPhoto(f); await f.invite();
+  const app = express(); app.use(createOrganizationStaffRoutes({ staff: f.staff, sessions: { async authenticate(token) { const actor = f.actors[token]; if (!actor) throw Object.assign(Error("Sign in"), { status: 401 }); return { account: { id: actor.id }, sessionId: actor.sessionId }; } }, clientUrl: "https://brightway.test", nodeEnv: "test", limiter: (r, s, n) => n() }));
+  app.use((e, req, res, next) => { void next; res.status(e.status || 500).json({ success: false, message: e.message }); });
+  const server = app.listen(0, "127.0.0.1"); await new Promise(r => server.once("listening", r));
+  const url = `http://127.0.0.1:${server.address().port}/organization-workspace/${f.id}/staff/people/${f.recipient.id}/photo/${photoId}`;
+  try {
+    assert.equal((await fetch(url)).status, 401);
+    assert.equal((await fetch(url, { headers: { Cookie: "brightway_session=other" } })).status, 403);
+    const response = await fetch(url, { headers: { Cookie: "brightway_session=owner" } });
+    assert.equal(response.status, 200); assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(response.headers.get("content-type"), "image/webp"); assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(await response.text(), "synthetic photo bytes");
+  } finally { server.closeAllConnections(); await new Promise(r => server.close(r)); }
 });

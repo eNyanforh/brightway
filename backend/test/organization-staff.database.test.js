@@ -17,7 +17,7 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     const [owner, staff, agent, admin] = accounts;
     const r = await db.organizationRequest.create({ data: { applicantId: owner.id, assignedAgentId: agent.id, decidedById: admin.id, status: "APPROVED", version: 4, idempotencyKey: randomUUID(), inputHash: "a".repeat(64), fingerprint: marker, name: `Staff fixture ${marker}`, type: "SCHOOL", representativeRole: "Director", countryCode: "GH", region: "", city: "Accra", address: "Synthetic fixture", offersTraining: true, targetAt: new Date(+now + 72 * 3600000), decidedAt: now } }); requestIds.push(r.id);
     const organization = await db.organization.create({ data: { requestId: r.id, name: r.name, type: "SCHOOL", offersTraining: true, verifiedAt: now, memberships: { create: { accountId: owner.id, role: "PRIMARY_ADMIN" } } } }); orgIds.push(organization.id); await seedOrganizationProfile(db, organization.id, now);
-    const service = createOrganizationStaffService({ prisma: db }), context = () => service.context(owner.id, sessions[0].id, organization.id);
+    const service = createOrganizationStaffService({ prisma: db, storage: { async get() { return Buffer.from("synthetic staff photo"); } } }), context = () => service.context(owner.id, sessions[0].id, organization.id);
     const otherRequest = await db.organizationRequest.create({ data: { applicantId: staff.id, assignedAgentId: agent.id, decidedById: admin.id, status: "APPROVED", version: 4, idempotencyKey: randomUUID(), inputHash: "b".repeat(64), fingerprint: `other_${marker}`, name: `Other tenant ${marker}`, type: "COMPANY", representativeRole: "Director", countryCode: "US", region: "", city: "Synthetic", address: "Synthetic fixture", offersTraining: false, targetAt: new Date(+now + 72 * 3600000), decidedAt: now } }); requestIds.push(otherRequest.id);
     const otherOrg = await db.organization.create({ data: { requestId: otherRequest.id, name: otherRequest.name, type: "COMPANY", offersTraining: false, verifiedAt: now, memberships: { create: { accountId: staff.id, role: "PRIMARY_ADMIN" } } } }); orgIds.push(otherOrg.id); await seedOrganizationProfile(db, otherOrg.id, now);
     await assert.rejects(service.context(owner.id, sessions[0].id, otherOrg.id), { status: 403 });
@@ -46,6 +46,14 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     const responses = await Promise.allSettled([accept(), accept()]); assert.equal(responses.filter(x => x.status === "fulfilled").length, 1); assert.equal(responses.find(x => x.status === "rejected").reason.status, 409);
     const member = await db.organizationMembership.findFirst({ where: { organizationId: organization.id, accountId: staff.id } }); assert.equal(member.role, "STAFF"); assert.deepEqual(member.permissions, [POSTS]);
     assert.equal(await db.organizationStaffAudit.count({ where: { organizationId: organization.id, action: "INVITATION_ACCEPTED" } }), 1);
+    const staffPhoto = await db.photoAsset.create({ data: { personId: staff.personId, storageKey: `synthetic/staff/${marker}`, state: "CLAIMED", expiresAt: now } });
+    await db.profile.create({ data: { personId: staff.personId, photoId: staffPhoto.id } });
+    const roster = await service.staff(owner.id, sessions[0].id, organization.id), staffRow = roster.members.find(m => m.username === staff.username);
+    assert.equal(staffRow.fullName, "Synthetic staff"); assert.equal(staffRow.photoPath, `/organization-workspace/${organization.id}/staff/people/${staff.id}/photo/${staffPhoto.id}`);
+    assert.equal((await service.photo(owner.id, sessions[0].id, organization.id, staff.id, staffPhoto.id)).toString(), "synthetic staff photo");
+    await assert.rejects(service.photo(owner.id, sessions[0].id, otherOrg.id, staff.id, staffPhoto.id), { status: 403 });
+    await assert.rejects(service.photo(owner.id, sessions[0].id, organization.id, agent.id, staffPhoto.id), { status: 404 });
+
     assert.equal((await service.directory(staff.id, sessions[1].id, { tab: "invitations" })).items.length, 0);
     assert.equal((await service.directory(staff.id, sessions[1].id, { search: "staff fixture" })).items[0].id, organization.id);
     await assert.rejects(service.staff(staff.id, sessions[1].id, organization.id), { status: 403 });
@@ -83,6 +91,8 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
       await clearOrganizationProfiles(db, orgIds);
       await db.organizationStaffAudit.deleteMany({ where: { organizationId: { in: orgIds } } }); await db.organizationInvitation.deleteMany({ where: { organizationId: { in: orgIds } } });
       await db.organizationMembership.deleteMany({ where: { organizationId: { in: orgIds } } }); await db.organization.deleteMany({ where: { id: { in: orgIds } } }); await db.organizationRequest.deleteMany({ where: { id: { in: requestIds } } });
+      await db.profile.deleteMany({ where: { personId: { in: accounts.map(a => a.personId) } } });
+      await db.photoAsset.deleteMany({ where: { personId: { in: accounts.map(a => a.personId) } } });
       const ids = accounts.map(a => a.id); await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } }); await db.account.deleteMany({ where: { id: { in: ids } } }); await db.person.deleteMany({ where: { id: { in: accounts.map(a => a.personId) } } });
     } finally { await db.$disconnect(); }
   }

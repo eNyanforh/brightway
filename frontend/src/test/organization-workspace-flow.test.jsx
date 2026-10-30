@@ -65,9 +65,9 @@ it("the organization sidebar exposes only Profile, Dashboard and authorized Staf
 });
 it("staff management is a dedicated scoped destination and revoked permission clears private rows and navigation", async () => {
   let revoked = false;
-  const f = mount(base + "/staff", url => url.endsWith("/staff") ? reply({ staffVersion: 1, members: [{ id: "member", username: "private_staff", role: "STAFF", version: 1, enabled: true, permissions: [] }], invitations: [] }) : reply(revoked ? { ...context, permissions: [], workspace: { available: available.slice(0, 2), planned: [], campusActive: false } } : context));
-  await screen.findByText("@private_staff"); revoked = true; act(() => window.dispatchEvent(new Event("focus")));
-  await screen.findByRole("alert"); expect(screen.queryByText("@private_staff")).toBeNull();
+  const f = mount(base + "/staff", url => url.endsWith("/staff") ? reply({ staffVersion: 1, members: [{ id: "member", username: "private_staff", fullName: "Private Staff Member", role: "STAFF", version: 1, enabled: true, permissions: [] }], invitations: [] }) : reply(revoked ? { ...context, permissions: [], workspace: { available: available.slice(0, 2), planned: [], campusActive: false } } : context));
+  await screen.findByText("Private Staff Member"); revoked = true; act(() => window.dispatchEvent(new Event("focus")));
+  await screen.findByRole("alert"); expect(screen.queryByText("Private Staff Member")).toBeNull();
   const nav = screen.getByRole("navigation", { name: "Organization tools" }); expect(within(nav).queryByRole("link", { name: "Staff" })).toBeNull(); expect(f.fetch).toHaveBeenCalled();
 });
 it("a direct issuer review URL keeps the organization tools available and links back to staff management", async () => {
@@ -116,7 +116,7 @@ it("a direct staff URL never exposes staff controls to a member without staff-ma
   const limited = { ...context, membership: { role: "STAFF" }, permissions: ["organization.posts.publish"], workspace: { available: available.slice(0, 2), planned: planned.slice(0, 1), campusActive: false } };
   const f = mount(base + "/staff", url => url.endsWith("/staff") ? reply({ staffVersion: 1, members: [{ id: "private", username: "private_staff" }], invitations: [] }) : reply(limited));
   await screen.findByRole("heading", { name: "This tool is not available to your role" });
-  expect(screen.queryByText("@private_staff")).toBeNull();
+  expect(screen.queryByText("Private Staff Member")).toBeNull();
   expect(screen.queryByLabelText("BrightWay username")).toBeNull();
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/staff"))).toBe(false);
   expect(screen.getByRole("link", { name: "Return to your workspace" }).getAttribute("href")).toBe(base);

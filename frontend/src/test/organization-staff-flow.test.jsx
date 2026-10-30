@@ -10,7 +10,7 @@ const id = "843f9b44-7e5a-4ecb-9e62-1bc1c0844d59", inviteId = "743f9b44-7e5a-4ec
 const MANAGE = "organization.members.manage", POSTS = "organization.posts.publish", catalog = [{ key: MANAGE, label: "Manage staff" }, { key: POSTS, label: "Publish posts" }];
 const organization = { id, name: "Global school", type: "SCHOOL", offersTraining: true };
 const context = { accountId: "owner", organization, permissions: [MANAGE, POSTS], staffVersion: 1, permissionCatalog: catalog, membership: { role: "PRIMARY_ADMIN", version: 1 } };
-const staff = { staffVersion: 1, members: [{ id: "primary", username: "owner", role: "PRIMARY_ADMIN", enabled: true, version: 1, permissions: [MANAGE, POSTS] }, { id: memberId, username: "staff", role: "STAFF", enabled: true, version: 1, permissions: [POSTS] }], invitations: [] };
+const staff = { staffVersion: 1, members: [{ id: "primary", username: "owner", fullName: "Emmanuel Nyanforh", role: "PRIMARY_ADMIN", enabled: true, version: 1, permissions: [MANAGE, POSTS] }, { id: memberId, username: "staff", fullName: "Grace Johnson", role: "STAFF", enabled: true, version: 1, permissions: [POSTS] }], invitations: [] };
 const reply = (data, status = 200) => new Response(JSON.stringify(status >= 400 ? { success: false, message: data } : { success: true, data }), { status, headers: { "Content-Type": "application/json" } });
 function mount(handler, path = `/organization-workspace/${id}/staff`, actor = "owner") {
   const fetch = vi.fn(handler); vi.stubGlobal("fetch", fetch); const setActingOrganization = vi.fn();
@@ -22,7 +22,7 @@ const defaultRead = url => url.endsWith("/staff") ? reply(staff) : reply(context
 it("opens the server-authorized organization context, protects the primary administrator and switches to Personal", async () => {
   const f = mount(defaultRead); await screen.findByRole("heading", { name: "Global school", level: 1 }); await screen.findByText("Primary administrator");
   expect(f.setActingOrganization).toHaveBeenCalledWith(expect.objectContaining({ accountId: "owner", organization }));
-  expect(screen.queryByRole("button", { name: "Save permissions for @owner" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Save permissions for Emmanuel Nyanforh" })).toBeNull();
   await f.user.click(screen.getByRole("link", { name: "Personal account" })); await screen.findByText("Personal account page"); expect(f.setActingOrganization).toHaveBeenLastCalledWith(null);
 });
 it("invites by username with explicit permissions, scope version and one cookie-bound request", async () => {
@@ -47,14 +47,14 @@ it("the legacy account-picker URL redirects to My Workspace without fetching the
 });
 it("stale membership edits retain selections and require explicit reload", async () => {
   const f = mount((url, options) => options?.method === "PATCH" ? reply("Staff changed", 409) : defaultRead(url));
-  await f.user.click(await screen.findByRole("button", { name: "Manage @staff" }));
-  const button = await screen.findByRole("button", { name: "Save permissions for @staff" }), form = button.closest("form");
+  await f.user.click(await screen.findByRole("button", { name: "Manage Grace Johnson" }));
+  const button = await screen.findByRole("button", { name: "Save permissions for Grace Johnson" }), form = button.closest("form");
   await f.user.click(within(form).getByLabelText("Membership enabled")); await f.user.click(within(form).getByLabelText(/I understand this revokes/)); await f.user.click(button); await screen.findByRole("alert"); expect(within(form).getByLabelText("Membership enabled").checked).toBe(false); expect(button.disabled).toBe(true);
 });
 it("focus rechecks clear private staff immediately when management permission is removed", async () => {
   let revoked = false; const f = mount(url => url.endsWith("/staff") ? reply(staff) : reply(revoked ? { ...context, permissions: [] } : context));
-  await f.user.click(await screen.findByRole("button", { name: "Manage @staff" })); await screen.findByRole("dialog"); revoked = true; act(() => window.dispatchEvent(new Event("focus")));
-  await screen.findByRole("alert"); expect(screen.queryByText("@staff")).toBeNull(); expect(screen.queryByLabelText("BrightWay username")).toBeNull(); expect(f.fetch).toHaveBeenCalled();
+  await f.user.click(await screen.findByRole("button", { name: "Manage Grace Johnson" })); await screen.findByRole("dialog"); revoked = true; act(() => window.dispatchEvent(new Event("focus")));
+  await screen.findByRole("alert"); expect(screen.queryByText("Grace Johnson")).toBeNull(); expect(screen.queryByLabelText("BrightWay username")).toBeNull(); expect(f.fetch).toHaveBeenCalled();
 });
 it("a focus refresh during the initial staff read compares against the authorized context before React paints it", async () => {
   let revoked = false;
@@ -63,7 +63,7 @@ it("a focus refresh during the initial staff read compares against the authorize
     return reply(revoked ? { ...context, permissions: [] } : context);
   });
   await screen.findByRole("alert");
-  expect(screen.queryByText("@staff")).toBeNull(); expect(screen.queryByLabelText("BrightWay username")).toBeNull();
+  expect(screen.queryByText("Grace Johnson")).toBeNull(); expect(screen.queryByLabelText("BrightWay username")).toBeNull();
   expect(f.fetch.mock.calls.filter(([url]) => !url.endsWith("/staff"))).toHaveLength(2);
 });
 it("a foreign or revoked membership cannot display an organization workspace", async () => {
@@ -100,11 +100,11 @@ it("searches on the server and carries enabled/revoked filters into the director
     const search = query.get("search") || "", memberStatus = query.get("memberStatus") || "all";
     return reply({ ...staff, organizationId: id, search, memberStatus, counts: { all: 2, enabled: 2, revoked: 0, pending: 0 }, members: search === "missing" || memberStatus === "revoked" ? [] : staff.members });
   });
-  await screen.findByRole("button", { name: "Manage @staff" });
+  await screen.findByRole("button", { name: "Manage Grace Johnson" });
   await f.user.type(screen.getByLabelText("Search staff by username"), "@MISSING");
   await f.user.click(screen.getByRole("button", { name: "Search staff", exact: true })); await screen.findByText("No matching usernames");
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/staff?search=missing"))).toBe(true);
-  await f.user.click(screen.getByRole("button", { name: "Clear search" })); await screen.findByRole("button", { name: "Manage @staff" });
+  await f.user.click(screen.getByRole("button", { name: "Clear search" })); await screen.findByRole("button", { name: "Manage Grace Johnson" });
   await f.user.click(screen.getByRole("tab", { name: /Revoked/ })); await screen.findByText("No staff in this view");
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/staff?memberStatus=revoked"))).toBe(true);
 });
@@ -114,10 +114,10 @@ it("restores access with the revoked member's saved permissions rather than an e
     if (options?.method === "PATCH") { restored = true; return reply({}); }
     return url.endsWith("/staff") ? reply({ ...staff, members: [staff.members[0], { ...staff.members[1], enabled: restored, permissions: restored ? [POSTS] : [], assignedPermissions: [POSTS], canManage: true }] }) : reply(context);
   });
-  await f.user.click(await screen.findByRole("button", { name: "Manage @staff" }));
+  await f.user.click(await screen.findByRole("button", { name: "Manage Grace Johnson" }));
   const dialog = screen.getByRole("dialog"); await f.user.click(within(dialog).getByText(/Upcoming capabilities/));
   expect(within(dialog).getByLabelText("Publish posts").checked).toBe(true);
-  await f.user.click(within(dialog).getByLabelText("Membership enabled")); await f.user.click(within(dialog).getByRole("button", { name: "Save permissions for @staff" }));
+  await f.user.click(within(dialog).getByLabelText("Membership enabled")); await f.user.click(within(dialog).getByRole("button", { name: "Save permissions for Grace Johnson" }));
   await screen.findByText(/Saved. Organization access/);
   const call = f.fetch.mock.calls.find(([, options]) => options?.method === "PATCH"); expect(JSON.parse(call[1].body)).toMatchObject({ enabled: true, permissions: [POSTS], expectedVersion: 1, expectedStaffVersion: 1 });
 });
@@ -139,30 +139,47 @@ it("invalid invite recipients keep the editable draft and do not force a stale r
 });
 it("cancelling an invitation requires explicit confirmation and does not grant membership", async () => {
   let cancelled = false;
-  const f = mount((url, options) => options?.method === "POST" ? (cancelled = true, reply({})) : url.endsWith("/staff") ? reply({ ...staff, invitations: cancelled ? [] : [{ id: inviteId, username: "new_staff", permissions: [POSTS], state: "PENDING", version: 2, expiresAt: "2026-11-06T12:00:00Z" }] }) : reply(context));
-  await screen.findByRole("button", { name: "Manage @staff" }); await f.user.click(screen.getByRole("tab", { name: "Invitations" }));
-  await f.user.click(screen.getByRole("button", { name: "Cancel invitation for @new_staff" }));
+  const f = mount((url, options) => options?.method === "POST" ? (cancelled = true, reply({})) : url.endsWith("/staff") ? reply({ ...staff, invitations: cancelled ? [] : [{ id: inviteId, username: "new_staff", fullName: "Sarah Kamara", permissions: [POSTS], state: "PENDING", version: 2, expiresAt: "2026-11-06T12:00:00Z" }] }) : reply(context));
+  await screen.findByRole("button", { name: "Manage Grace Johnson" }); await f.user.click(screen.getByRole("tab", { name: "Invitations" }));
+  await f.user.click(screen.getByRole("button", { name: "Cancel invitation for Sarah Kamara" }));
   expect(f.fetch.mock.calls.some(([, options]) => options?.method === "POST")).toBe(false);
   await f.user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel invitation", exact: true })); await screen.findByText("No pending invitations");
   const call = f.fetch.mock.calls.find(([, options]) => options?.method === "POST"); expect(call[0]).toContain(`/invitations/${inviteId}/cancel`); expect(JSON.parse(call[1].body)).toEqual({ expectedVersion: 2, expectedStaffVersion: 1 });
 });
 it("a temporary focus failure keeps unsaved permission edits and requires explicit reconciliation", async () => {
   let failed = false; const f = mount(url => url.endsWith("/staff") && failed ? reply("Staff temporarily unavailable", 503) : defaultRead(url));
-  await f.user.click(await screen.findByRole("button", { name: "Manage @staff" }));
+  await f.user.click(await screen.findByRole("button", { name: "Manage Grace Johnson" }));
   await f.user.click(screen.getByLabelText("Membership enabled")); failed = true; act(() => window.dispatchEvent(new Event("focus")));
   await screen.findByRole("alert"); expect(screen.getByRole("dialog")).toBeTruthy(); expect(screen.getByLabelText("Membership enabled").checked).toBe(false);
-  expect(screen.getByRole("button", { name: "Save permissions for @staff" }).disabled).toBe(true);
+  expect(screen.getByRole("button", { name: "Save permissions for Grace Johnson" }).disabled).toBe(true);
 });
 it("authorization loss discards the old private editor even if a later access check recovers", async () => {
   let denied = false;
   const f = mount(url => denied ? reply("Current MFA is required", 403) : defaultRead(url));
-  await f.user.click(await screen.findByRole("button", { name: "Manage @staff" }));
+  await f.user.click(await screen.findByRole("button", { name: "Manage Grace Johnson" }));
   await f.user.click(screen.getByLabelText("Membership enabled"));
   denied = true; act(() => window.dispatchEvent(new Event("focus")));
   await screen.findByRole("alert"); expect(screen.queryByRole("dialog")).toBeNull();
   denied = false; act(() => window.dispatchEvent(new Event("focus")));
-  await screen.findByRole("button", { name: "Manage @staff" });
+  await screen.findByRole("button", { name: "Manage Grace Johnson" });
   expect(screen.queryByRole("dialog")).toBeNull();
-  await f.user.click(screen.getByRole("button", { name: "Manage @staff" }));
+  await f.user.click(screen.getByRole("button", { name: "Manage Grace Johnson" }));
   expect(screen.getByLabelText("Membership enabled").checked).toBe(true);
+});
+
+it("shows staff full names and authenticated current photos with a neutral fallback after image failure", async () => {
+  const photoPath = `/organization-workspace/${id}/staff/people/${inviteId}/photo/${memberId}`;
+  mount(url => url.endsWith("/staff") ? reply({ ...staff, members: [staff.members[0], { ...staff.members[1], fullName: "Grace A. Johnson", photoPath }] }) : reply(context));
+  const name = await screen.findByText("Grace A. Johnson"), row = name.closest("tr"), image = row.querySelector("img");
+  expect(screen.queryByText("@staff")).toBeNull(); expect(image.getAttribute("src")).toBe(`/api/v1${photoPath}`);
+  expect(image.getAttribute("alt")).toBe(""); expect(screen.getByText("Emmanuel Nyanforh").closest("tr").querySelector("img")).toBeNull();
+  fireEvent.error(image); expect(row.querySelector("img")).toBeNull(); expect(row.querySelector(".bw-staff-avatar svg")).toBeTruthy();
+  expect(row.querySelector(".bw-staff-avatar").textContent).toBe("");
+});
+it("uses invitation full names instead of usernames and never embeds an external image path", async () => {
+  const f = mount(url => url.endsWith("/staff") ? reply({ ...staff, invitations: [{ id: inviteId, username: "new_staff", fullName: "Sarah P. Kamara", photoPath: "https://untrusted.invalid/photo", permissions: [], state: "PENDING", version: 1 }] }) : reply(context));
+  await screen.findByText("Grace Johnson"); await f.user.click(screen.getByRole("tab", { name: "Invitations" }));
+  const name = screen.getByText("Sarah P. Kamara"); expect(screen.queryByText("@new_staff")).toBeNull(); expect(name.closest("li").querySelector("img")).toBeNull();
+  await f.user.click(screen.getByRole("button", { name: "Cancel invitation for Sarah P. Kamara" }));
+  expect(within(screen.getByRole("dialog")).getByText("Sarah P. Kamara")).toBeTruthy();
 });

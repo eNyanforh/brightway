@@ -50,7 +50,7 @@ router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIEN
 const mfa = createMfaService({ prisma });
 const sessions = createSessionService({ prisma, mfa });
 router.use(createOrganizationProfileRoutes({ profiles: createOrganizationProfileService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-router.use(createOrganizationStaffRoutes({ staff: createOrganizationStaffService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createOrganizationStaffRoutes({ staff: createOrganizationStaffService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createOrganizationRoutes({ organizations: createOrganizationService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createIdentityRoutes({ identity: createIdentityService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use("/auth", createMfaRoutes({ mfa, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
