@@ -141,7 +141,7 @@ it("cancelling an invitation requires explicit confirmation and does not grant m
   let cancelled = false;
   const f = mount((url, options) => options?.method === "POST" ? (cancelled = true, reply({})) : url.endsWith("/staff") ? reply({ ...staff, invitations: cancelled ? [] : [{ id: inviteId, username: "new_staff", fullName: "Sarah Kamara", permissions: [POSTS], state: "PENDING", version: 2, expiresAt: "2026-11-06T12:00:00Z" }] }) : reply(context));
   await screen.findByRole("button", { name: "Manage Grace Johnson" }); await f.user.click(screen.getByRole("tab", { name: "Invitations" }));
-  await f.user.click(screen.getByRole("button", { name: "Cancel invitation for Sarah Kamara" }));
+  await f.user.click(screen.getByRole("button", { name: "Cancel invitation for @new_staff" }));
   expect(f.fetch.mock.calls.some(([, options]) => options?.method === "POST")).toBe(false);
   await f.user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel invitation", exact: true })); await screen.findByText("No pending invitations");
   const call = f.fetch.mock.calls.find(([, options]) => options?.method === "POST"); expect(call[0]).toContain(`/invitations/${inviteId}/cancel`); expect(JSON.parse(call[1].body)).toEqual({ expectedVersion: 2, expectedStaffVersion: 1 });
@@ -176,10 +176,10 @@ it("shows staff full names and authenticated current photos with a neutral fallb
   fireEvent.error(image); expect(row.querySelector("img")).toBeNull(); expect(row.querySelector(".bw-staff-avatar svg")).toBeTruthy();
   expect(row.querySelector(".bw-staff-avatar").textContent).toBe("");
 });
-it("uses invitation full names instead of usernames and never embeds an external image path", async () => {
+it("keeps unaccepted invitations identified by username without embedding private or external photos", async () => {
   const f = mount(url => url.endsWith("/staff") ? reply({ ...staff, invitations: [{ id: inviteId, username: "new_staff", fullName: "Sarah P. Kamara", photoPath: "https://untrusted.invalid/photo", permissions: [], state: "PENDING", version: 1 }] }) : reply(context));
   await screen.findByText("Grace Johnson"); await f.user.click(screen.getByRole("tab", { name: "Invitations" }));
-  const name = screen.getByText("Sarah P. Kamara"); expect(screen.queryByText("@new_staff")).toBeNull(); expect(name.closest("li").querySelector("img")).toBeNull();
-  await f.user.click(screen.getByRole("button", { name: "Cancel invitation for Sarah P. Kamara" }));
-  expect(within(screen.getByRole("dialog")).getByText("Sarah P. Kamara")).toBeTruthy();
+  const name = screen.getByText("@new_staff"); expect(screen.queryByText("Sarah P. Kamara")).toBeNull(); expect(name.closest("li").querySelector("img")).toBeNull();
+  await f.user.click(screen.getByRole("button", { name: "Cancel invitation for @new_staff" }));
+  expect(within(screen.getByRole("dialog")).getByText("@new_staff")).toBeTruthy();
 });

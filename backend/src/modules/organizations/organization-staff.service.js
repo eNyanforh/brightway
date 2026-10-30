@@ -54,8 +54,7 @@ export function createOrganizationStaffService({ prisma, storage, now = () => ne
       await lock(db, [actorId]); const organization = await org(db, organizationId, true);
       await access(db, actorId, sessionId, organization, true);
       const member = await db.organizationMembership.findFirst({ where: { organizationId, accountId }, select: { id: true } });
-      const invited = member ? null : await db.organizationInvitation.findFirst({ where: { organizationId, recipientId: accountId, state: "PENDING", expiresAt: { gt: now() } }, select: { id: true } });
-      if (!member && !invited) throw fail(404, "Staff photo is unavailable.");
+      if (!member) throw fail(404, "Staff photo is unavailable.");
       const account = await db.account.findUnique({ where: { id: accountId }, select: { personId: true } });
       const profile = account && await db.profile.findUnique({ where: { personId: account.personId }, select: { photoId: true } });
       if (profile?.photoId !== photoId) throw fail(404, "Staff photo is unavailable.");
@@ -167,13 +166,14 @@ export function createOrganizationStaffService({ prisma, storage, now = () => ne
         const pending = await db.organizationInvitation.count({ where: inviteWhere });
         const members = await page(db, "organizationMembership", memberWhere, query.memberCursor, { organizationId: id }, "asc");
         const invitations = await page(db, "organizationInvitation", inviteWhere, query.inviteCursor, { organizationId: id });
-        const ids = [...new Set([...members.slice(0, 20).map(m => m.accountId), ...invitations.slice(0, 20).map(r => r.recipientId)])];
+        const ids = [...new Set([...members.slice(0, 20).map(m => m.accountId)])];
         const users = await db.account.findMany({ where: { id: { in: ids } }, select: { id: true, username: true, person: { select: personSelect } } }), byId = new Map(users.map(a => [a.id, a]));
+        const inviteUsers = await db.account.findMany({ where: { id: { in: invitations.slice(0, 20).map(r => r.recipientId) } }, select: { id: true, username: true } }), inviteNames = new Map(inviteUsers.map(a => [a.id, a.username]));
         const projected = members.slice(0, 20).map(m => ({ id: m.id, username: byId.get(m.accountId)?.username, ...staffIdentity(byId.get(m.accountId), id), role: m.role, enabled: m.enabled, version: m.version, permissions: effective(m, organization), assignedPermissions: assigned(m, organization),
           canManage: m.role !== "PRIMARY_ADMIN" && assigned(m, organization).every(key => actor.permissions.includes(key)), isSelf: m.accountId === actorId, joinedAt: m.createdAt }));
         await access(db, actorId, sessionId, organization, true);
         return { organizationId: id, search: query.search, memberStatus: query.memberStatus, asOf: timestamp.toISOString(), counts: { all: enabled + revoked, enabled, revoked, pending },
-          staffVersion: organization.staffVersion, members: projected, invitations: invitations.slice(0, 20).map(r => ({ ...projectInvitation(r, byId.get(r.recipientId)?.username), ...staffIdentity(byId.get(r.recipientId), id) })), nextMemberCursor: members.length > 20 ? members[19].id : null, nextInviteCursor: invitations.length > 20 ? invitations[19].id : null };
+          staffVersion: organization.staffVersion, members: projected, invitations: invitations.slice(0, 20).map(r => projectInvitation(r, inviteNames.get(r.recipientId))), nextMemberCursor: members.length > 20 ? members[19].id : null, nextInviteCursor: invitations.length > 20 ? invitations[19].id : null };
       });
     },
     async photo(actorId, sessionId, organizationId, accountId, photoId) {
