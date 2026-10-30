@@ -25,7 +25,7 @@ test("database platform statistics count accounts once, honor UTC windows, aggre
     const profile = await db.profile.create({ data: { personId: accounts[1].personId } }); profiles.push(profile.id);
     for (const [i, status] of ["SUBMITTED", "IN_REVIEW", "ACTION_REQUIRED", "VERIFIED", "FALSE_CREDENTIAL"].entries()) {
       const record = await db.educationRecord.create({ data: { profileId: profile.id, institution: "Synthetic school", qualification: "Synthetic diploma", startMonth: "2020-01", current: true, description: "", status } }); records.push(record.id);
-      reviews.push((await db.credentialReview.create({ data: { profileId: profile.id, recordId: record.id, kind: "education", revision: 1, status, issuerOrganizationId: i % 2 ? organizations[0] : null } })).id);
+      reviews.push((await db.credentialReview.create({ data: { profileId: profile.id, recordId: record.id, kind: "education", revision: 1, status, issuerOrganizationId: i % 2 ? organizations[0] : null, issuerName: i % 2 ? "Synthetic school" : null } })).id);
     }
     for (let i = 0; i < 2; i++) await db.credentialAttempt.create({ data: { reviewId: reviews[1], revision: 1, snapshot: { synthetic: true }, status: "VERIFIED", decidedAt: date } });
     const result = await service.statistics(accounts[0].id, session.id);
