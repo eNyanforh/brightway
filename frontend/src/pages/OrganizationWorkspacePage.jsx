@@ -2,6 +2,7 @@ import { organizationWorkspace } from "../../../shared/organization-workspace.mj
 import CampusSetupOverview from "../components/organizations/CampusSetupOverview";
 import OrganizationProfile from "../components/organizations/OrganizationProfile";
 import OrganizationOverview from "../components/organizations/OrganizationOverview";
+import WorkspaceIcon from "../components/workspace/WorkspaceIcon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -83,10 +84,12 @@ function Workspace({ actor, usernameLabel, id, section }) {
   const disabled = busy || stale || retrying;
   const campusAllowed = view?.membership?.role === "PRIMARY_ADMIN" && (view.organization.type === "SCHOOL" || view.organization.offersTraining);
   const sectionAllowed = !id || !view || section === "overview" || section === "profile" || (section === "staff" && view.permissions.includes(MANAGE)) || (section === "campus" && campusAllowed);
-  return <section className={`bw-org-page${section === "profile" ? " bw-org-profile-page" : ""}`} aria-label={section === "profile" ? "Organization profile" : undefined}>{section !== "profile" && <><h1>{id && view ? view.organization.name : "Organization workspace"}</h1><p><Link to="/explore">Personal account</Link>{id && <> · <Link to="/work">Back to My Workspace</Link></>} · <Link to="/security">Account security</Link></p></>}
+  return <section className={`bw-org-page${section === "profile" ? " bw-org-profile-page" : section === "overview" ? " bw-org-dashboard-page" : ""}`} aria-label={section === "profile" ? "Organization profile" : undefined}>
+    {section === "overview" && <header className="bw-dashboard-page-heading"><nav className="bw-dashboard-breadcrumb" aria-label="Workspace breadcrumb"><Link to="/work">My Workspace</Link><span aria-hidden="true">/</span><span>Organization workspace</span></nav><div className="bw-dashboard-heading-row"><div className="bw-dashboard-heading-identity"><span className="bw-dashboard-heading-icon"><WorkspaceIcon name="building" size={24} /></span><div><h1>{view?.organization.name || "Organization workspace"}</h1><p>Your organization workspace</p></div></div><div className="bw-dashboard-heading-actions"><Link className="bw-dashboard-personal-link" to="/explore">Personal account</Link><button className="bw-dashboard-refresh" type="button" disabled={busy} onClick={reload} aria-label="Reload account workspace" aria-busy={busy}><WorkspaceIcon name="refresh" size={16} /><span>{busy ? "Refreshing…" : "Refresh"}</span></button></div></div></header>}
+    {section !== "profile" && section !== "overview" && <><h1>{id && view ? view.organization.name : "Organization workspace"}</h1><p><Link to="/explore">Personal account</Link>{id && <> · <Link to="/work">Back to My Workspace</Link></>} · <Link to="/security">Account security</Link></p></>}
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}{stale && <p>Changes have been kept. Reload to discard unsaved staffing changes and get current access.</p>}
-    {section !== "profile" && <button type="button" disabled={busy} onClick={reload}>Reload account workspace</button>}
-    {!view && !error && <p role="status">Checking account access…</p>}
+    {section !== "profile" && section !== "overview" && <button type="button" disabled={busy} onClick={reload}>Reload account workspace</button>}
+    {!view && !error && (section === "overview" ? <div className="bw-dashboard-loading" role="status">Checking account access…<span aria-hidden="true" /><span aria-hidden="true" /></div> : <p role="status">Checking account access…</p>)}
 
     {id && view && !sectionAllowed && <section className="bw-org-access-denied" aria-labelledby="workspace-access-title"><h2 id="workspace-access-title">This tool is not available to your role</h2><p>Your organization membership is active, but it does not include access to this organization tool.</p><Link className="bw-org-workspace-entry" to={`/organization-workspace/${id}`}>Return to your workspace</Link></section>}
     {id && view && sectionAllowed && section === "profile" && <OrganizationProfile key={`${id}:${generation}`} organization={view.organization} role={view.membership?.role} canEdit={view.membership?.role === "PRIMARY_ADMIN" || view.permissions.includes("organization.profile.manage")} />}

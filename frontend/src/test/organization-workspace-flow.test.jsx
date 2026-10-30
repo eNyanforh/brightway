@@ -81,11 +81,35 @@ it("denied organization membership cannot leave another organization's tools or 
   expect(within(screen.getByRole("navigation", { name: "Organization tools" })).queryByRole("link")).toBeNull();
 });
 it("a publishing-only member sees their available scope and no staff, review or school-management tools", async () => {
-  mount(base, () => reply({ ...context, membership: { role: "STAFF" }, permissions: ["organization.posts.publish"], workspace: { available: available.slice(0, 2), planned: planned.slice(0, 1), campusActive: false } }));
+  const f = mount(base, () => reply({ ...context, membership: { role: "STAFF" }, permissions: ["organization.posts.publish"], workspace: { available: available.slice(0, 2), planned: planned.slice(0, 1), campusActive: false } }));
   await screen.findByRole("heading", { name: organization.name, level: 1 });
   const nav = screen.getByRole("navigation", { name: "Organization tools" }); expect(within(nav).queryByRole("link", { name: "Staff" })).toBeNull(); expect(within(nav).queryByRole("link", { name: "Credential Review" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Admissions" })).toBeNull();
   const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" }); expect(within(mobile).getAllByRole("link")).toHaveLength(3);
+  const tools = screen.getByRole("region", { name: "Your workspace tools" });
+  expect(within(tools).getAllByRole("link").map(link => link.getAttribute("href"))).toEqual([base + "/profile"]);
+  expect(screen.getByLabelText("1 available tool")).toBeTruthy();
+  expect(screen.getByText("Staff member")).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Posts & content" })).toBeNull();
+  expect(f.fetch.mock.calls.some(([url]) => /\/staff$|\/credential-reviews/.test(url))).toBe(false);
+});
+
+it("Dashboard refresh cannot duplicate a pending read and clears tool cards when membership is revoked", async () => {
+  let refresh = false, release;
+  const pending = new Promise(resolve => { release = resolve; });
+  const f = mount(base, url => url.endsWith(base) && refresh ? pending : reply(context));
+  const tools = await screen.findByRole("region", { name: "Your workspace tools" });
+  expect(within(tools).getByRole("link", { name: "Open Credential Review" }).getAttribute("href")).toBe(base + "/credentials");
+  refresh = true;
+  const button = screen.getByRole("button", { name: "Reload account workspace" });
+  await f.user.click(button); await f.user.click(button);
+  expect(button.disabled).toBe(true);
+  expect(f.fetch.mock.calls.filter(([url]) => url.endsWith(base))).toHaveLength(2);
+  await act(async () => release(reply("Active organization membership is required.", 403)));
+  await screen.findByRole("alert");
+  expect(screen.queryByRole("region", { name: "Your workspace tools" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: organization.name })).toBeNull();
+  expect(button.disabled).toBe(false);
 });
 it("a direct staff URL never exposes staff controls to a member without staff-management permission", async () => {
   const limited = { ...context, membership: { role: "STAFF" }, permissions: ["organization.posts.publish"], workspace: { available: available.slice(0, 2), planned: planned.slice(0, 1), campusActive: false } };
