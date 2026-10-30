@@ -127,7 +127,7 @@ export default function AppLayout() {
   }, [dirty, profileDraft?.busy]);
 
   return (
-    <div className="bw-app-shell">
+    <div className={`bw-app-shell${organizationMode ? " bw-org-shell" : ""}`}>
       <AppHeader
         hasWork={hasWork}
         actingOrganization={acting}

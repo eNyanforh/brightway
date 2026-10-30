@@ -3,3 +3,10 @@
 @media(max-width:700px){.bw-app-shell .bw-design-navigation-toggle{display:none}}
 
 .bw-org-campus-promo{margin-top:0}.bw-org-campus-promo .bw-design-create-org{box-sizing:border-box;text-decoration:none}.bw-org-campus-promo .bw-design-create-org[aria-current=page]{outline:2px solid #175cd3;outline-offset:3px}.bw-org-campus-promo small{display:block;margin-top:10px;color:#647087;font-size:11px;line-height:1.6}
+
+.bw-org-planned-nav{margin-top:17px;padding-top:15px;border-top:1px solid #e3eaf3}
+.bw-org-planned-heading{margin:0 12px 5px;color:#64748b;font-size:10px;font-weight:650;letter-spacing:.08em;text-transform:uppercase}
+.bw-org-planned-nav button:disabled{gap:8px;padding:11px 8px;min-width:0;font-size:13px;color:#647087;cursor:default}
+.bw-org-planned-label{flex:1;min-width:0;overflow-wrap:anywhere}
+.bw-org-planned-nav small{flex-shrink:0;border:1px solid #dce4ef;border-radius:5px;background:#edf2f8;color:#61738d;font-size:9px;line-height:1.5;padding:2px 5px;font-weight:500;white-space:nowrap}
+@media(max-width:700px){.bw-app-shell.bw-org-shell .bw-design-navigation-toggle{display:inline-flex}.bw-org-shell .bw-org-sidebar.bw-design-sidebar-open{display:block}.bw-org-shell .bw-org-planned-nav{grid-template-columns:1fr;margin-top:15px;padding:12px 10px}.bw-org-planned-nav button:disabled{font-size:13px}.bw-org-planned-nav small{font-size:10px}}
