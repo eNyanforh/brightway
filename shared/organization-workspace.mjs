@@ -18,7 +18,6 @@ export function organizationWorkspace(organization, permissions = [], role = "ST
     if (has("organization.programs.manage")) planned.push({ key: "programs", label: "Programs", sprint: 7, description: "Manage education/training offerings shown in Discover." });
     if (has("organization.admissions.review")) planned.push({ key: "admissions", label: "Admissions", sprint: 7, description: "Manage admission cycles and applicant decisions." });
   }
-  if (role === "PRIMARY_ADMIN") planned.push({ key: "analytics", label: "Analytics", description: "Understand your organization’s activity and results." });
   // Informational setup entry only: no activation, eligibility attestation or billing authority.
   const campusSetup = role === "PRIMARY_ADMIN" && (organization.type === "SCHOOL" || organization.offersTraining)
     ? { label: "Build Campus", to: `${base}/campus`, status: "COMING_SOON" } : null;

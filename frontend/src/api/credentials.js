@@ -44,7 +44,10 @@ export const credentialsApi = {
 function reviewerApi(organizationId) {
   const path = organizationId ? `/organization-workspace/${encodeURIComponent(organizationId)}/credential-reviews` : "/admin/credentials";
   return {
-    queue: (cursor, signal) => request(`${path}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`, { signal }),
+    queue: (cursor, signal, filters = {}) => {
+      const query = new URLSearchParams({ ...filters, ...(cursor ? { cursor } : {}) }).toString();
+      return request(`${path}${query ? `?${query}` : ""}`, { signal });
+    },
     detail: (id, signal) => request(`${path}/${encodeURIComponent(id)}`, { signal }),
     assign: (id, expectedVersion) => request(`${path}/${encodeURIComponent(id)}/assign`, { body: { expectedVersion } }),
     decide: (id, body) => request(`${path}/${encodeURIComponent(id)}/decision`, { body }),

@@ -1,3 +1,4 @@
+import { dashboardFixture } from "./fixtures/organization-dashboard";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -22,7 +23,7 @@ const context = { accountId: "owner", organization, permissions: [MANAGE, REVIEW
 const profile = { version: 1, photo: null, location: {}, skills: [], interests: [] };
 const reply = (data, status = 200) => new Response(JSON.stringify(status < 400 ? { success: true, data } : { success: false, message: data }), { status, headers: { "Content-Type": "application/json" } });
 function mount(path = base, handler = () => reply(context)) {
-  const fetch = vi.fn((url, options) => url.endsWith("/profile/me") ? reply({ profile }) : handler(url, options)); vi.stubGlobal("fetch", fetch);
+  const fetch = vi.fn((url, options) => url.endsWith("/profile/me") ? reply({ profile }) : url.includes("/dashboard?") ? reply(dashboardFixture(id, Number(new URL(url, "http://localhost").searchParams.get("days")), "permission_required")) : handler(url, options)); vi.stubGlobal("fetch", fetch);
   render(<AuthContext.Provider value={{ account: { id: "owner", username: "owner", person: { firstName: "Test", lastName: "Owner" } } }}><MemoryRouter initialEntries={[path]}><Routes><Route element={<AppLayout />}>
     <Route path="/work" element={<WorkPage />} />
     <Route path="/organizations/new" element={<OrganizationRequestsPage />} />
@@ -86,20 +87,19 @@ it("a publishing-only member sees their available scope and no staff, review or 
   const nav = screen.getByRole("navigation", { name: "Organization tools" }); expect(within(nav).queryByRole("link", { name: "Staff" })).toBeNull(); expect(within(nav).queryByRole("link", { name: "Credential Review" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Admissions" })).toBeNull();
   const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" }); expect(within(mobile).getAllByRole("link")).toHaveLength(3);
-  const tools = screen.getByRole("region", { name: "Your workspace tools" });
-  expect(within(tools).getAllByRole("link").map(link => link.getAttribute("href"))).toEqual([base + "/profile"]);
-  expect(screen.getByLabelText("1 available tool")).toBeTruthy();
+  await screen.findByRole("heading", { name: "Analytics access is limited" });
+  expect(screen.queryByRole("link", { name: "Open Staff" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Open Credential Review" })).toBeNull();
   expect(screen.getByText("Staff member")).toBeTruthy();
   expect(screen.queryByRole("heading", { name: "Posts & content" })).toBeNull();
   expect(f.fetch.mock.calls.some(([url]) => /\/staff$|\/credential-reviews/.test(url))).toBe(false);
 });
 
-it("Dashboard refresh cannot duplicate a pending read and clears tool cards when membership is revoked", async () => {
+it("Dashboard refresh cannot duplicate a pending read and clears analytics when membership is revoked", async () => {
   let refresh = false, release;
   const pending = new Promise(resolve => { release = resolve; });
   const f = mount(base, url => url.endsWith(base) && refresh ? pending : reply(context));
-  const tools = await screen.findByRole("region", { name: "Your workspace tools" });
-  expect(within(tools).getByRole("link", { name: "Open Credential Review" }).getAttribute("href")).toBe(base + "/credentials");
+  await screen.findByRole("heading", { name: "Analytics access is limited" });
   refresh = true;
   const button = screen.getByRole("button", { name: "Reload account workspace" });
   await f.user.click(button); await f.user.click(button);
@@ -107,7 +107,7 @@ it("Dashboard refresh cannot duplicate a pending read and clears tool cards when
   expect(f.fetch.mock.calls.filter(([url]) => url.endsWith(base))).toHaveLength(2);
   await act(async () => release(reply("Active organization membership is required.", 403)));
   await screen.findByRole("alert");
-  expect(screen.queryByRole("region", { name: "Your workspace tools" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Analytics access is limited" })).toBeNull();
   expect(screen.queryByRole("heading", { name: organization.name })).toBeNull();
   expect(button.disabled).toBe(false);
 });
@@ -187,4 +187,16 @@ it("a denied organization context cannot load the internal Profile or leave anot
 it("a mismatched public-profile response cannot populate the selected organization profile", async () => {
   mount(base + "/profile", url => url.endsWith(`/organizations/${id}`) ? reply({ id: "foreign", name: "Foreign organization", locations: [] }) : reply(context));
   await screen.findByRole("alert"); expect(screen.queryByRole("heading", { name: "Foreign organization" })).toBeNull();
+});
+
+it("Dashboard attention links open a server-filtered issuer queue and keep that filter on reload", async () => {
+  const f = mount(base + "/credentials?filter=unassigned", url => url.includes("/credential-reviews") ? reply({ reviews: [], nextCursor: null, organization, workspace: context.workspace }) : reply(context));
+  await screen.findByText("Showing: Unassigned submissions.");
+  await screen.findByText("No credential submissions match this view.");
+  expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/credential-reviews?filter=unassigned"))).toBe(true);
+  await f.user.click(screen.getByRole("button", { name: "Reload reviews" }));
+  expect(f.fetch.mock.calls.filter(([url]) => url.endsWith("/credential-reviews?filter=unassigned")).length).toBeGreaterThan(1);
+  await f.user.click(screen.getByRole("button", { name: "Clear review filter" }));
+  expect(screen.queryByText("Showing: Unassigned submissions.")).toBeNull();
+  expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/credential-reviews"))).toBe(true);
 });

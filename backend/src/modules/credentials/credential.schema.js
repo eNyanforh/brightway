@@ -14,3 +14,9 @@ export const decisionSchema = z.strictObject({
   status: z.enum(["VERIFIED", "ACTION_REQUIRED", "UNABLE_TO_VERIFY", "FALSE_CREDENTIAL"]),
   note: z.string().trim().min(10).max(2000),
 });
+
+export const reviewQueueQuerySchema = z.strictObject({
+  cursor: z.uuid().optional(),
+  status: z.enum(["SUBMITTED", "IN_REVIEW", "ACTION_REQUIRED", "VERIFIED", "UNABLE_TO_VERIFY", "FALSE_CREDENTIAL"]).optional(),
+  filter: z.enum(["unassigned", "past_target"]).optional(),
+}).refine(value => !(value.status && value.filter), "Choose one queue filter.");

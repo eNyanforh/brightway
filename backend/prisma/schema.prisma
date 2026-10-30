@@ -343,6 +343,7 @@ model CredentialAttempt {
   decidedAt  DateTime?
   evidence   CredentialEvidence[]
   @@index([reviewId, createdAt, id])
+  @@index([issuerOrganizationId, decidedAt, reviewId], map: "CredentialAttempt_issuer_decided_review_idx")
 }
 
 model CredentialEvidence {

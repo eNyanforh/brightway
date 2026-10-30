@@ -1,3 +1,4 @@
+import { dashboardQuerySchema, dashboardPeriod, readTeamStatistics, readReviewStatistics } from "./organization-dashboard.js";
 import { requireOrganizationProfile, organizationProfileReady } from "./organization-profile.schema.js";
 import { organizationWorkspace } from "../../../../shared/organization-workspace.mjs";
 import { randomUUID } from "node:crypto";
@@ -30,7 +31,7 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
     if (!allowSetup) requireOrganizationProfile(organization);
     const permissions = effective(membership, organization);
     if (manage) { if (!account.emailVerifiedAt || !permissions.includes(MANAGE)) throw fail(403, "Staff-management permission is required."); await assertMfaSession(db, actorId, sessionId, now()); }
-    return { membership, permissions };
+    return { membership, permissions, account };
   }
   async function audit(db, organizationId, actorId, action, entityId, data) { await db.organizationStaffAudit.create({ data: { organizationId, actorId, action, entityId, data } }); }
   async function bump(db, organization, expected) {
@@ -93,6 +94,40 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
       requestId(id); return transaction(async db => {
         await lock(db, [actorId]); const organization = await org(db, id, true), actor = await access(db, actorId, sessionId, organization, false, true);
         return { accountId: actorId, organization: summary(organization), membership: { id: actor.membership.id, role: actor.membership.role, version: actor.membership.version }, permissions: actor.permissions, setupRequired: !organizationProfileReady(organization), workspace: organizationProfileReady(organization) ? organizationWorkspace(organization, actor.permissions, actor.membership.role) : { available: [], planned: [], campusActive: false, campusSetup: null }, staffVersion: organization.staffVersion, permissionCatalog: catalog(organization).map(key => ({ key, label: PERMISSIONS[key] })) };
+      });
+    },
+    async dashboard(actorId, sessionId, id, supplied = {}) {
+      requestId(id); const { days } = parse(dashboardQuerySchema, supplied);
+      return transaction(async db => {
+        // Same account → organization lock order as staffing/review mutations. No external I/O.
+        await lock(db, [actorId]);
+        const organization = await org(db, id, true);
+        const actor = await access(db, actorId, sessionId, organization);
+        const account = actor.account, timestamp = now();
+        const period = dashboardPeriod(Number(days), timestamp);
+        let assurance = account.emailVerifiedAt ? "allowed" : "email_required";
+        if (assurance === "allowed") {
+          try { await assertMfaSession(db, actorId, sessionId, timestamp); }
+          catch (error) { if (error.status !== 403) throw error; assurance = "mfa_required"; }
+        }
+        const kinds = ["education", "experience"].filter(kind => actor.permissions.includes(`organization.credentials.${kind}.review`));
+        const teamAccess = actor.permissions.includes(MANAGE) ? assurance : "permission_required";
+        const reviewAccess = kinds.length ? assurance : "permission_required";
+        const team = { access: teamAccess }, reviews = { access: reviewAccess };
+        // Denied blocks contain no totals; a missing permission is never a zero metric.
+        if (teamAccess === "allowed") team.data = await readTeamStatistics(db, id, timestamp);
+        if (reviewAccess === "allowed") {
+          reviews.kinds = kinds;
+          reviews.data = await readReviewStatistics(db, { organizationId: id, personId: account.personId, kinds, period, timestamp });
+        }
+        // Account and organization rows stay locked throughout the aggregate reads.
+        // Recheck membership plus the live second-factor session before returning private counts.
+        const finalMember = await db.organizationMembership.findFirst({ where: { organizationId: id, accountId: actorId, enabled: true } });
+        const finalPermissions = effective(finalMember, organization);
+        if (!finalMember || (teamAccess === "allowed" && !finalPermissions.includes(MANAGE)) ||
+            (reviewAccess === "allowed" && kinds.some(kind => !finalPermissions.includes(`organization.credentials.${kind}.review`)))) throw fail(403, "Dashboard permission changed. Reload access.");
+        if (assurance === "allowed") await assertMfaSession(db, actorId, sessionId, now());
+        return { organizationId: id, asOf: timestamp.toISOString(), period, team, reviews };
       });
     },
     async staff(actorId, sessionId, id, supplied = {}) {

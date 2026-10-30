@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useOutletContext, useParams } from "react-router-dom";
+import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { credentialsApi } from "../api/credentials";
 import { CredentialTimeline } from "../components/profile/CredentialTimeline";
@@ -10,7 +10,11 @@ export default function CredentialReviewsPage() {
   return <ReviewWorkspace key={`${account?.id}:${organizationId || "brightway"}`} accountId={account?.id} organizationId={organizationId} />;
 }
 function ReviewWorkspace({ accountId, organizationId }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusFilter = organizationId ? searchParams.get("status") : null, attentionFilter = organizationId ? searchParams.get("filter") : null;
+  const filters = useMemo(() => ({ ...(statusFilter ? { status: statusFilter } : {}), ...(attentionFilter ? { filter: attentionFilter } : {}) }), [statusFilter, attentionFilter]);
   const api = useMemo(() => credentialsApi.inOrganization(organizationId), [organizationId]);
+  const readQueue = useCallback((cursor, signal) => api.queue(cursor, signal, filters), [api, filters]);
   const setActing = useOutletContext()?.setActingOrganization;
   const [queue, setQueue] = useState(null), [detail, setDetail] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false), [note, setNote] = useState(""), [status, setStatus] = useState("ACTION_REQUIRED");
   const locked = useRef(false), lifetime = useRef(null), selected = useRef(null);
@@ -24,7 +28,7 @@ function ReviewWorkspace({ accountId, organizationId }) {
       if (locked.current) return;
       current.controller?.abort(); const controller = new AbortController(); current.controller = controller;
       try {
-        const next = await api.queue(null, controller.signal);
+        const next = await readQueue(null, controller.signal);
         if (controller.signal.aborted || lifetime.current !== current) return;
         setQueue(next); setError(null);
         if (organizationId && next.organization) setActing?.({ accountId, organization: next.organization, workspace: next.workspace });
@@ -38,7 +42,7 @@ function ReviewWorkspace({ accountId, organizationId }) {
     }
     void load(); const focus = () => void load(true); window.addEventListener("focus", focus);
     return () => { current.controller?.abort(); if (lifetime.current === current) lifetime.current = null; setActing?.(null); window.removeEventListener("focus", focus); };
-  }, [accountId, organizationId, api, setActing, failure]);
+  }, [accountId, organizationId, api, readQueue, setActing, failure]);
   async function action(fn) {
     if (locked.current) return;
     locked.current = true; const current = lifetime.current; current?.controller?.abort(); setBusy(true); setError(null);
@@ -53,29 +57,30 @@ function ReviewWorkspace({ accountId, organizationId }) {
     <Link to={organizationId ? `/organization-workspace/${organizationId}` : "/profile"}>{organizationId ? "Back to organization workspace" : "Back to profile"}</Link>
     <h1>{queue?.organization ? `${queue.organization.name} — credential reviews` : "Credential review workspace"}</h1>
     <p>{organizationId ? "Only claims explicitly submitted to this organization are available here." : "BrightWay reviews claims submitted for unlisted issuers. Listed issuers use their own organization workspace."} These decisions do not grant individual Verified status.</p>
+    {(statusFilter || attentionFilter) && <div className="bw-review-filter-note"><p>Showing: {statusFilter ? credentialLabels[statusFilter] || "Requested filter" : attentionFilter === "unassigned" ? "Unassigned submissions" : attentionFilter === "past_target" ? "Open reviews past the seven-day target" : "Requested filter"}.</p><button type="button" disabled={busy || !!note.trim()} onClick={() => { selected.current = null; setDetail(null); setSearchParams({}); }}>Clear review filter</button>{note.trim() && <small>Save or clear your unsaved decision reason before changing the filter.</small>}</div>}
     {error && <p role="alert">{error.message}</p>}
     {error?.status === 403 && <Link to="/security">Open Account security</Link>}
     {!queue && !error && <p role="status">Checking reviewer access…</p>}
-    <button type="button" disabled={busy} onClick={() => action(async (valid, show) => { const next = await api.queue(); const latest = review ? await api.detail(review.id) : null; if (valid()) { setQueue(next); if (latest) show(latest); setNote(""); } })}>Reload reviews</button>
+    <button type="button" disabled={busy} onClick={() => action(async (valid, show) => { const next = await readQueue(); const latest = review ? await api.detail(review.id) : null; if (valid()) { setQueue(next); if (latest) show(latest); setNote(""); } })}>Reload reviews</button>
     {queue && <>
-      {!queue.reviews.length && <p>No credential submissions yet.</p>}
+      {!queue.reviews.length && <p>No credential submissions match this view.</p>}
       <ul className="bw-review-queue">{queue.reviews.map((item) => <li key={item.id}>
         <button type="button" disabled={busy} onClick={() => open(item.id)}>{item.profile.person.firstName} {item.profile.person.lastName} · {item.kind} · {credentialLabels[item.status]}{item.overdue ? " · Past review target" : ""}</button>
       </li>)}</ul>
-      {queue.nextCursor && <button type="button" disabled={busy} onClick={() => action(async valid => { const next = await api.queue(queue.nextCursor); if (valid()) setQueue(next); })}>Next page</button>}
+      {queue.nextCursor && <button type="button" disabled={busy} onClick={() => action(async valid => { const next = await readQueue(queue.nextCursor); if (valid()) setQueue(next); })}>Next page</button>}
     </>}
     {review && <div>
       <h2>Review for @{detail.username}</h2>
       <p>Reviewing issuer: {review.issuerName || "BrightWay (unlisted issuer)"}</p>
       <p>{credentialLabels[review.status]} · Revision {review.revision}</p>
       {review.attempts.length > 0 && <dl>{Object.entries(review.attempts.at(-1).snapshot).filter(([key]) => !["id", "revision", "status"].includes(key)).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value === null ? "—" : String(value)}</dd></div>)}</dl>}
-      {(review.status === "SUBMITTED" || detail.canReassign) && <button type="button" className="bw-profile-button" disabled={busy || error?.status === 409} onClick={() => action(async (valid, show) => { await api.assign(review.id, review.version); const next = await api.detail(review.id), list = await api.queue(); if (valid()) { show(next); setQueue(list); } })}>{detail.canReassign ? "Reassign withdrawn review to me" : "Assign to me and start review"}</button>}
+      {(review.status === "SUBMITTED" || detail.canReassign) && <button type="button" className="bw-profile-button" disabled={busy || error?.status === 409} onClick={() => action(async (valid, show) => { await api.assign(review.id, review.version); const next = await api.detail(review.id), list = await readQueue(); if (valid()) { show(next); setQueue(list); } })}>{detail.canReassign ? "Reassign withdrawn review to me" : "Assign to me and start review"}</button>}
       {review.status === "IN_REVIEW" && review.reviewerId === accountId && <form onSubmit={(event) => {
         event.preventDefault();
         if (error?.status === 409) return;
         action(async (valid, show) => {
           await api.decide(review.id, { expectedVersion: review.version, revision: review.revision, status, note });
-          const next = await api.detail(review.id), list = await api.queue(); if (valid()) { show(next); setQueue(list); setNote(""); }
+          const next = await api.detail(review.id), list = await readQueue(); if (valid()) { show(next); setQueue(list); setNote(""); }
         });
       }}><fieldset disabled={busy}>
         <label htmlFor="credential-decision">Decision</label>

@@ -4,7 +4,7 @@ import { Router, raw } from "express";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import { createRequireAuth, createSessionCookieConfig, requireTrustedOrigin } from "../auth/session.http.js";
-import { kindSchema, submitSchema, assignSchema, decisionSchema } from "./credential.schema.js";
+import { kindSchema, submitSchema, assignSchema, decisionSchema, reviewQueueQuerySchema } from "./credential.schema.js";
 export function createCredentialRoutes({ credentials, sessions, clientUrl, nodeEnv, limiter }) {
   const router = Router();
   const auth = createRequireAuth({ sessions, cookieName: createSessionCookieConfig(nodeEnv).name });
@@ -48,9 +48,9 @@ export function createCredentialRoutes({ credentials, sessions, clientUrl, nodeE
     next();
   });
   router.get(orgReview, handle(async (req, res) => {
-    const paging = z.strictObject({ cursor: z.uuid().optional() }).safeParse(req.query);
+    const paging = reviewQueueQuerySchema.safeParse(req.query);
     if (!paging.success) return res.status(400).json({ success: false, message: "Invalid queue page." });
-    json(res, await credentials.queue(actor(req), paging.data.cursor, req.auth.sessionId, req.params.organizationId));
+    json(res, await credentials.queue(actor(req), paging.data.cursor, req.auth.sessionId, req.params.organizationId, paging.data));
   }));
   const reviewId = (req, res, next) => { if (!z.uuid().safeParse(req.params.id).success) return res.status(404).json({ success: false, message: "Review not found." }); next(); };
   router.get(orgReview + "/:id", reviewId, handle(async (req, res) => json(res, await credentials.detail(actor(req), req.params.id, req.auth.sessionId, req.params.organizationId))));
