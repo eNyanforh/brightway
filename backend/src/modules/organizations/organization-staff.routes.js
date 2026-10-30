@@ -12,6 +12,13 @@ export function createOrganizationStaffRoutes({ staff, sessions, clientUrl, node
   const analyticsLimits = limiter ?? rateLimit({ windowMs: 60000, limit: 30, standardHeaders: "draft-8", legacyHeaders: false, keyGenerator: req => req.auth.account.id, message: { success: false, message: "Dashboard refresh limit reached. Wait a minute and retry." } });
   router.get("/organization-workspace/:orgId/dashboard", analyticsLimits, handle((r, a, s) => staff.dashboard(a, s, r.params.orgId, r.query)));
   router.get("/organization-workspace/:orgId/staff", handle((r, a, s) => staff.staff(a, s, r.params.orgId, r.query)));
+  const photoLimits = limiter ?? rateLimit({ windowMs: 60000, limit: 150, standardHeaders: "draft-8", legacyHeaders: false, keyGenerator: req => req.auth.account.id });
+  router.get("/organization-workspace/:orgId/staff/people/:accountId/photo/:photoId", photoLimits, async (req, res, next) => {
+    try {
+      const bytes = await staff.photo(req.auth.account.id, req.auth.sessionId, req.params.orgId, req.params.accountId, req.params.photoId);
+      res.set({ "Content-Type": "image/webp", "X-Content-Type-Options": "nosniff", "Content-Disposition": 'inline; filename="staff-photo.webp"' }).send(bytes);
+    } catch (e) { next(e.status >= 400 && e.status <= 599 ? e : Object.assign(Error("Staff photos are temporarily unavailable."), { status: 503 })); }
+  });
   router.post("/organization-workspace/:orgId/invitations", origin, limits, handle((r, a, s) => staff.invite(a, s, r.params.orgId, r.body)));
   router.post("/organization-workspace/:orgId/invitations/:id/cancel", origin, limits, handle((r, a, s) => staff.cancel(a, s, r.params.orgId, r.params.id, r.body)));
   router.patch("/organization-workspace/:orgId/members/:id", origin, limits, handle((r, a, s) => staff.change(a, s, r.params.orgId, r.params.id, r.body)));

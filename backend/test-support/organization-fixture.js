@@ -3,11 +3,12 @@ import { createOrganizationService } from "../src/modules/organizations/organiza
 const clone = v => structuredClone(v);
 export function organizationFixture({ ready = true } = {}) {
   let date = new Date("2026-10-27T12:00:00Z"), auditFails = false, auditHook;
-  const state = Object.fromEntries(["account", "session", "mfaFactor", "organizationOperator", "organizationRequest", "organizationFinding", "organizationFindingArchive", "organizationRequestAudit", "organizationRequestRevision", "organization", "organizationOperatingLocation", "organizationMembership", "organizationInvitation", "organizationStaffAudit", "organizationPhoto"].map(k => [k, []]));
+  const state = Object.fromEntries(["person", "profile", "photoAsset", "account", "session", "mfaFactor", "organizationOperator", "organizationRequest", "organizationFinding", "organizationFindingArchive", "organizationRequestAudit", "organizationRequestRevision", "organization", "organizationOperatingLocation", "organizationMembership", "organizationInvitation", "organizationStaffAudit", "organizationPhoto"].map(k => [k, []]));
   const actors = {};
   for (const label of ["owner", "agent", "approver", "other"]) {
     const id = randomUUID(), sessionId = randomUUID(); actors[label] = { id, sessionId, username: `${label}_fixture` };
     state.account.push({ id, username: `${label}_fixture`, emailVerifiedAt: date, status: "ACTIVE", personId: randomUUID(), identityRevision: 0, platformRole: "MEMBER" });
+    state.person.push({ id: state.account.at(-1).personId, firstName: "Synthetic", middleName: null, lastName: label });
     state.session.push({ id: sessionId, accountId: id, expiresAt: new Date(+date + 7 * 86400000), mfaVerifiedAt: ["agent", "approver"].includes(label) ? date : null, mfaVersion: ["agent", "approver"].includes(label) ? 1 : 0 });
     if (["agent", "approver"].includes(label)) {
       state.mfaFactor.push({ accountId: id, enabled: true, version: 1 });
@@ -35,6 +36,8 @@ export function organizationFixture({ ready = true } = {}) {
   }
   function project(row, select) {
     if (!row) return null;
+    if (row.personId && state.account.some(r => r.id === row.id)) row = { ...row, person: state.person.find(p => p.id === row.personId) };
+    if (state.person.some(p => p.id === row.id)) row = { ...row, profile: state.profile.find(p => p.personId === row.id) };
     if (row.requestId && state.organization.some(r => r.id === row.id)) row = { ...row, locations: state.organizationOperatingLocation.filter(r => r.organizationId === row.id) };
     if (row.organizationId) row = { ...row, organization: state.organization.find(r => r.id === row.organizationId) };
     if (!select) return clone(row);
