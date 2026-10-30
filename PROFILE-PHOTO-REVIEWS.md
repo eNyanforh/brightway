@@ -92,7 +92,7 @@ The review flag is server-enforced even if someone changes the page or directly 
 If the reviewer workspace returns 403, confirm the MFA session and existing dedicated identity permission. The established operator command from the project root remains:
 
 ```bash
-node backend/scripts/set-identity-reviewer.js nyeswa001 grant
+node backend/scripts/superadmin.js staff nyeswa001 identity-reviewer grant --by superadmin_username --reason "Assign protected identity review duties."
 ```
 
 ## Cleanup and production operations
@@ -110,3 +110,5 @@ A review left assigned to a revoked reviewer stays protected. The owner can canc
 ## Evidence and limits
 
 See `VALIDATION-PHOTO-REVIEWS.md` and `SPRINT-1-ACCEPTANCE.md`. Mocked service/HTTP/UI tests and simulated-API Chromium checks are distinct from real PostgreSQL/R2 acceptance. The new migration and real-database integration case have not been executed in this workspace. Your prior 14 passing database cases do not prove this new case passed. Full Sprint 1 acceptance and deployment remain open until the remaining acceptance evidence is recorded.
+
+Staff grants now require a named Super Admin, password and fresh MFA through the terminal. See [MANAGEMENT-ADMIN.md](MANAGEMENT-ADMIN.md) for initial bootstrap, target prerequisites and audit controls.

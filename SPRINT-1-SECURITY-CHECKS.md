@@ -20,7 +20,7 @@ Record observed statuses and pass/fail for the whole sequence. This browser acce
 Keep the reviewer workspace open in its own browser session. From the project root, revoke the dedicated identity permission:
 
 ```bash
-node backend/scripts/set-identity-reviewer.js nyeswa001 revoke
+node backend/scripts/superadmin.js staff nyeswa001 identity-reviewer revoke --by superadmin_username --reason "Verify identity reviewer access revocation."
 ```
 
 Return to the workspace and refresh/reload a private image or attempt a pending decision. Expected: the server denies access, private data clears when access is rechecked, and no decision is saved. A previously downloaded image cannot be recalled from the viewer's memory; judge new requests and the app's recheck behavior.
@@ -28,7 +28,7 @@ Return to the workspace and refresh/reload a private image or attempt a pending 
 Restore the test permission afterward:
 
 ```bash
-node backend/scripts/set-identity-reviewer.js nyeswa001 grant
+node backend/scripts/superadmin.js staff nyeswa001 identity-reviewer grant --by superadmin_username --reason "Restore authorized identity review duties."
 ```
 
 Credential-review permission is independent and is preserved by these commands. Granting permission does not bypass MFA. Do not revoke the only operator's unrelated access or paste passwords/cookies into logs.
@@ -61,3 +61,5 @@ It changes due records and deletes due objects in the configured application env
 ## Record
 
 For each case keep: date, `git rev-parse --short HEAD`, migration status, applicant/reviewer labels, expected result, observed HTTP/UI result and pass/fail. Exclude private documents, tokens, codes, passwords and full connection URLs. These results complete security acceptance; the deployment pause remains until G1 is explicitly accepted.
+
+Staff grants now require a named Super Admin, password and fresh MFA through the terminal. See [MANAGEMENT-ADMIN.md](MANAGEMENT-ADMIN.md) for initial bootstrap, target prerequisites and audit controls.

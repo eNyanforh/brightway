@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { profilePhotoReviewsApi as api } from "../api/profile-photo-reviews";
 import { identityDate } from "./manual-identity-format";
 import "./manual-identity.css";
 
 export default function ProfilePhotoReviewsPage() {
+  const management = useOutletContext()?.management;
   const { account } = useAuth();
   const [view, setView] = useState(null), [detail, setDetail] = useState(null), [images, setImages] = useState(null);
   const [error, setError] = useState(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
@@ -77,7 +78,7 @@ export default function ProfilePhotoReviewsPage() {
   const stateLabel = { PENDING: "Waiting for review", IN_REVIEW: "In review", APPROVED: "Approved", DECLINED: "Declined", SUPERSEDED: "Replaced by a newer request", CANCELLED: "Cancelled" };
   const canDecide = visible?.state === "IN_REVIEW" && imagesAvailable && !visible.stale && !reloadRequired && images?.actor === actor && images?.id === visible.id;
   return <section className="bw-profile-card bw-identity">
-    <Link to="/admin/manual-identity">Identity review workspace</Link><h1>Profile photo reviews</h1>
+    <Link to={management ? "/superadmin/identity" : "/admin/manual-identity"}>Identity review workspace</Link><h1>Profile photo reviews</h1>
     <p>Compare the current portrait and replacement. Confirm that the replacement is an appropriate photo of the same person. You cannot review your own photo.</p>
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
     <button type="button" disabled={busy} onClick={reload}>Reload photo reviews</button>

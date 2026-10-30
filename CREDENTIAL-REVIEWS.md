@@ -61,7 +61,7 @@ Replace reviewer_username with the existing lowercase username. From the project
 
 ```bash
 cd backend
-node scripts/set-credential-reviewer.js reviewer_username grant
+node scripts/superadmin.js staff reviewer_username credential-reviewer grant --by superadmin_username --reason "Assign authorized credential review duties."
 cd ..
 ```
 
@@ -71,7 +71,7 @@ To revoke access:
 
 ```bash
 cd backend
-node scripts/set-credential-reviewer.js reviewer_username revoke
+node scripts/superadmin.js staff reviewer_username credential-reviewer revoke --by superadmin_username --reason "Remove credential review responsibility."
 cd ..
 ```
 
@@ -117,3 +117,5 @@ No remote migration, GitHub push, deployment, or live reviewer grant was perform
 ## Issuer routing update — 28 October 2026
 
 The Sprint 3 integration adds explicit verified-organization issuer selection, per-kind organization reviewer permissions and scoped review/evidence authorization. Existing and unlisted reviews retain authorized BrightWay review. Consult [SPRINT-3-ISSUER-REVIEWS.md](SPRINT-3-ISSUER-REVIEWS.md) for current routing, migration, limitations and application acceptance; earlier implementation evidence above is historical. No automatic name matching or cross-issuer transfer is performed.
+
+Staff grants now require a named Super Admin, password and fresh MFA through the terminal. See [MANAGEMENT-ADMIN.md](MANAGEMENT-ADMIN.md) for initial bootstrap, target prerequisites and audit controls.

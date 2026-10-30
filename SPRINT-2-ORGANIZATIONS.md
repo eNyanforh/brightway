@@ -63,8 +63,8 @@ Use **three distinct accounts**: the applicant, the investigating Agent and the 
 The following usernames are placeholders; substitute the exact existing usernames. Run from the repository root on the trusted development machine after migration:
 
 ```bash
-node backend/scripts/set-organization-operator.js agent_username agent grant
-node backend/scripts/set-organization-operator.js approver_username approver grant
+node backend/scripts/superadmin.js staff agent_username organization-agent grant --by superadmin_username --reason "Assign organization investigation duties."
+node backend/scripts/superadmin.js staff approver_username organization-approver grant --by superadmin_username --reason "Assign organization approval duties."
 ```
 
 This narrow server-operator command does not create a general Super Admin, bypass MFA or grant credential/identity review. Revoke the same capability by replacing `grant` with `revoke`. Permission changes are audited. Do not grant your applicant all roles to bypass separation of duties.
@@ -119,3 +119,5 @@ This new recovery journey still needs owner-reported acceptance after migration.
 After the recovery fix was supplied, Emmanuel reported that it worked as expected. He subsequently confirmed an NGO outside Liberia with training enabled, and a Company with training disabled, both worked as expected. Treat these as owner reports, not independently observed browser/network/database traces. Preserve them alongside the earlier organization checks.
 
 The primary-administrator handoff and setup-assistance privacy instructions were followed by requests to proceed, without a separate explicit per-check outcome or local SHA. Do not silently turn those instructions into acceptance evidence. The owner requested proceeding with Sprint 3; see SPRINT-3-STAFF.md for the first staffing/context slice and its distinct acceptance checks. G2 and G3 are not automatically passed by this handoff. Deployment remains paused unless the owner deliberately resumes it after the agreed gate.
+
+Staff grants now require a named Super Admin, password and fresh MFA through the terminal. See [MANAGEMENT-ADMIN.md](MANAGEMENT-ADMIN.md) for initial bootstrap, target prerequisites and audit controls.

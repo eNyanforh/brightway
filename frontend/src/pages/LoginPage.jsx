@@ -8,11 +8,13 @@ import {
 
 import { authApi } from "../api/auth";
 import { useAuth } from "../auth/useAuth";
+import SuperadminAuthFrame from "../components/auth/SuperadminAuthFrame";
+import { authDestination } from "../auth/auth-destination";
 import AuthForm from "../components/auth/AuthForm";
 import PasswordField from "../components/auth/PasswordField";
 
-export default function LoginPage() {
-  const { login, verifyMfaLogin } = useAuth();
+export default function LoginPage({ management = false }) {
+  const { login, verifyMfaLogin, status, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -52,17 +54,7 @@ export default function LoginPage() {
 
       const requested = location.state?.from?.pathname;
 
-      const destination = [
-        "/profile",
-        "/security",
-        "/admin/credentials",
-        "/explore",
-        "/network",
-        "/opportunities",
-        "/learning",
-      ].includes(requested)
-        ? requested
-        : "/explore";
+      const destination = management ? "/superadmin" : authDestination(requested);
 
       navigate(destination, { replace: true });
     } catch (failure) {
@@ -73,14 +65,16 @@ export default function LoginPage() {
     }
   }
 
+  const Frame = management ? SuperadminAuthFrame : AuthForm;
+  const signedIn = management && status === "authenticated" && !mfaRequired;
   return (
-    <AuthForm
-      title={mfaRequired ? "Verify your sign-in" : "Log in to BrightWay"}
-      description="Continue learning, connecting, and finding opportunities."
-      onSubmit={submit}
+    <Frame
+      title={mfaRequired ? "Verify your sign-in" : management ? "Management sign-in" : "Log in to BrightWay"}
+      description={management ? "Use your assigned account. Password and multi-factor authentication are required." : "Continue learning, connecting, and finding opportunities."}
+      onSubmit={signedIn ? (event) => { event.preventDefault(); navigate("/superadmin", { replace: true }); } : submit}
       busy={busy}
       error={error}
-      footer={
+      footer={management ? null :
         <>
           New to BrightWay?{" "}
           <Link
@@ -98,7 +92,7 @@ export default function LoginPage() {
         </p>
       )}
 
-      {!mfaRequired && <>
+      {signedIn ? <div className="bw-superadmin-signed-in"><p>You are already signed in. Continue to check your current management permission.</p><button type="button" disabled={busy} onClick={async () => { if (locked.current) return; locked.current = true; setBusy(true); try { await logout(); setPassword(""); setCode(""); setError(""); } catch (failure) { setError(failure.message); } finally { locked.current = false; setBusy(false); } }}>Use another account</button></div> : !mfaRequired && <>
       <div className="auth-field">
         <label htmlFor="login-identifier">
           Username or email
@@ -133,8 +127,8 @@ export default function LoginPage() {
         type="submit"
         disabled={busy}
       >
-        {busy ? "Checking…" : mfaRequired ? "Verify and log in" : "Log in"}
+        {busy ? "Checking…" : signedIn ? "Continue to Management" : mfaRequired ? "Verify and log in" : management ? "Continue securely" : "Log in"}
       </button>
-    </AuthForm>
+    </Frame>
   );
 }

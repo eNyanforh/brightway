@@ -38,6 +38,8 @@ import LearningPage from "../pages/LearningPage";
 export default function AppRoutes() {
   return (
     <Routes>
+      <Route path="/superadmin/login" element={<LoginPage management />} />
+      <Route path="/management" element={<Navigate to="/superadmin" replace />} />
       <Route element={<PublicLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/partners" element={<PartnersPage />} />
@@ -54,7 +56,13 @@ export default function AppRoutes() {
 
       <Route element={<AuthGate />}>
         <Route element={<AppLayout />}>
-          <Route path="/management" element={<Suspense fallback={<p role="status">Loading BrightWay management…</p>}><ManagementPage /></Suspense>} />
+          <Route path="/superadmin" element={<Suspense fallback={<p role="status">Loading BrightWay management…</p>}><ManagementPage /></Suspense>}>
+            <Route path="credentials" element={<Suspense fallback={<p role="status">Loading credential reviews…</p>}><CredentialReviewsPage /></Suspense>} />
+            <Route path="identity" element={<ManualIdentityReviewsPage />} />
+            <Route path="photos" element={<ProfilePhotoReviewsPage />} />
+            <Route path="names" element={<NameChangeReviewsPage />} />
+            <Route path="organizations" element={<OrganizationReviewPage />} />
+          </Route>
           <Route path="/organization-workspace" element={<Navigate to="/work" replace />} />
           <Route path="/organization-workspace/:organizationId/credentials" element={<Suspense fallback={<p role="status">Loading organization workspace…</p>}><OrganizationSetupGate><CredentialReviewsPage /></OrganizationSetupGate></Suspense>} />
           <Route path="/organization-workspace/:id/profile" element={<WorkspaceRoute section="profile" />} />

@@ -12,12 +12,12 @@ const context = { allowed: true, accountId: "admin", username: "management_admin
 const response = (data, status = 200) => new Response(JSON.stringify(status < 400 ? { success: true, data } : { success: false, message: data }), { status, headers: { "Content-Type": "application/json" } });
 function mount(handler, menu = false) {
   const fetch = vi.fn(handler); vi.stubGlobal("fetch", fetch);
-  const tree = id => <AuthContext.Provider value={{ account: { id, username: "management_admin", person: { firstName: "Emmanuel", lastName: "Nyanforh" } }, logout: vi.fn() }}><MemoryRouter initialEntries={[menu ? "/profile" : "/management"]}><Routes><Route path="/profile" element={<HeaderProfileMenu hasWork={false} />} /><Route path="/management" element={<ManagementPage />} /></Routes></MemoryRouter></AuthContext.Provider>;
+  const tree = id => <AuthContext.Provider value={{ account: { id, username: "management_admin", person: { firstName: "Emmanuel", lastName: "Nyanforh" } }, logout: vi.fn() }}><MemoryRouter initialEntries={[menu ? "/profile" : "/superadmin"]}><Routes><Route path="/profile" element={<HeaderProfileMenu hasWork={false} />} /><Route path="/superadmin" element={<ManagementPage />} /></Routes></MemoryRouter></AuthContext.Provider>;
   const view = render(tree("admin")); return { fetch, user: userEvent.setup(), changeAccount: id => view.rerender(tree(id)) };
 }
 it("management displays verified server context and only links to separately authorized operational workspaces", async () => {
   const f = mount(() => response(context)); await screen.findByRole("heading", { name: "Welcome, Emmanuel Nyanforh" });
-  expect(screen.getByRole("link", { name: "Open workspace" }).getAttribute("href")).toBe("/admin/manual-identity"); expect(screen.queryByRole("link", { name: /credential reviews/i })).toBeNull();
+  expect(screen.getByRole("link", { name: "Open workspace" }).getAttribute("href")).toBe("/superadmin/identity"); expect(screen.queryByRole("link", { name: /credential reviews/i })).toBeNull();
   const card = screen.getByRole("heading", { name: "Credential reviews" }).closest("article"); expect(within(card).getByText("Separate permission required")).toBeTruthy(); expect(within(card).queryByRole("link")).toBeNull();
   expect(screen.getByText("Establish dedicated management access.")).toBeTruthy(); expect(f.fetch.mock.calls[0]).toMatchObject(["/api/v1/management", { credentials: "include", cache: "no-store" }]);
 });
@@ -54,7 +54,7 @@ it("a temporary access-discovery failure never exposes a management entry", asyn
 it("the management shell shows only granted operational navigation and clears it after permission withdrawal", async () => {
   let denied = false;
   vi.stubGlobal("fetch", vi.fn(async url => url.endsWith("/profile/me") ? response({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } }) : url.endsWith("/work/access") ? response({ hasWork: false }) : denied ? response("Management permission withdrawn", 403) : response(context)));
-  render(<AuthContext.Provider value={{ account: { id: "admin", username: "management_admin", person: { firstName: "Emmanuel", lastName: "Nyanforh" } } }}><MemoryRouter initialEntries={["/management"]}><Routes><Route element={<AppLayout />}><Route path="/management" element={<ManagementPage />} /></Route></Routes></MemoryRouter></AuthContext.Provider>);
+  render(<AuthContext.Provider value={{ account: { id: "admin", username: "management_admin", person: { firstName: "Emmanuel", lastName: "Nyanforh" } } }}><MemoryRouter initialEntries={["/superadmin"]}><Routes><Route element={<AppLayout />}><Route path="/superadmin" element={<ManagementPage />} /></Route></Routes></MemoryRouter></AuthContext.Provider>);
   const nav = await screen.findByRole("navigation", { name: "Management tools" });
   expect(within(nav).getAllByRole("link").map(link => link.textContent)).toEqual(["Overview", "Identity reviews"]); expect(screen.queryByRole("navigation", { name: "Main navigation" })).toBeNull();
   expect(document.querySelector(".bw-design-personal").textContent).toContain("BrightWay Management");
