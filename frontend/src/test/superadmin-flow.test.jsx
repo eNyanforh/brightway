@@ -64,7 +64,7 @@ it("an unassigned operational deep link stays gated before its component can fet
 it("assigned operations retain the management shell and disappear after management revocation", async () => {
   let denied = false;
   const f = mount("/superadmin/identity", url => url.endsWith("/management") ? denied ? reply("Management revoked", 403) : reply(management) : reply({ requests: [] }), true);
-  await screen.findByRole("heading", { name: "Identity review workspace" }); expect(document.querySelector(".bw-management-shell")).toBeTruthy(); expect(screen.getByRole("navigation", { name: "Management tools" })).toBeTruthy();
+  await screen.findByRole("heading", { name: "Identity review workspace" }); expect(document.querySelector(".bw-management-shell")).toBeTruthy(); expect(screen.getByRole("navigation", { name: "Management tools" })).toBeTruthy(); expect(screen.getByRole("link", { name: "Identity reviews", exact: true }).getAttribute("aria-current")).toBe("page");
   denied = true; act(() => window.dispatchEvent(new Event("focus"))); await waitFor(() => expect(screen.queryByRole("heading", { name: "Identity review workspace" })).toBeNull()); await screen.findByRole("alert"); expect(screen.queryByRole("navigation", { name: "Management tools" })).toBeNull();
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/management"))).toBe(true);
 });

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { managementFixture } from "../test-support/management-fixture.js";
 import { mfaFixture } from "../test-support/mfa-fixture.js";
@@ -71,7 +72,7 @@ test("terminal authentication uses actual MFA, persists wrong-code attempts and 
 });
 test("retired direct-grant commands fail closed without importing database configuration", () => {
   for (const file of ["set-management-admin", "set-credential-reviewer", "set-identity-reviewer", "set-organization-operator"]) {
-    const result = spawnSync(process.execPath, [new URL(`../scripts/${file}.js`, import.meta.url).pathname, "target", "grant"], { encoding: "utf8", env: { ...process.env, DATABASE_URL: "", DIRECT_URL: "" } });
+    const result = spawnSync(process.execPath, [fileURLToPath(new URL(`../scripts/${file}.js`, import.meta.url)), "target", "grant"], { encoding: "utf8", env: { ...process.env, DATABASE_URL: "", DIRECT_URL: "" } });
     assert.equal(result.status, 1); assert.match(result.stderr, /retired/); assert(!result.stderr.includes("Prisma"));
   }
 });
