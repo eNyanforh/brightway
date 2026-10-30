@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { readOrganizationDashboard } from "../../api/organization-dashboard";
 import WorkspaceIcon from "../workspace/WorkspaceIcon";
@@ -21,23 +21,29 @@ function Metric({ label, value, caption, access, icon, tone = "blue" }) {
 }
 
 function Trend({ reviews, period }) {
+  const chart = useRef(null), [width, setWidth] = useState(630);
+  const activity = reviews.newClaims + reviews.completedClaims > 0;
+  useEffect(() => {
+    if (!activity || typeof ResizeObserver !== "function" || !chart.current) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(Math.max(220, Math.round(entry.contentRect.width))));
+    observer.observe(chart.current); return () => observer.disconnect();
+  }, [activity]);
   const points = reviews.trend, peak = Math.max(4, Math.ceil(Math.max(...points.flatMap(p => [p.submissions, p.decisions])) / 4) * 4);
-  const x = index => 45 + (index / Math.max(1, points.length - 1)) * 550;
+  const x = index => 45 + (index / Math.max(1, points.length - 1)) * (width - 65);
   const y = value => 174 - (value / peak) * 145;
   const path = field => points.map((point, index) => `${index ? "L" : "M"}${x(index)},${y(point[field])}`).join(" ");
-  const activity = reviews.newClaims + reviews.completedClaims > 0;
   return <section className="bw-analytics-panel bw-analytics-trend" aria-labelledby="dashboard-trend-title">
     <header className="bw-analytics-panel-heading"><div><h3 id="dashboard-trend-title">Review activity</h3><p>New claims and completed claims · {period.bucketDays === 7 ? "7-day buckets" : "Daily"} · UTC</p></div><span className="bw-analytics-period-tag">{period.days} days</span></header>
     <div className="bw-analytics-trend-totals"><div><span className="bw-analytics-legend bw-analytics-legend-blue">New claims</span><strong>{number(reviews.newClaims)}</strong></div><div><span className="bw-analytics-legend bw-analytics-legend-teal">Completed claims</span><strong>{number(reviews.completedClaims)}</strong></div></div>
-    {activity ? <div className="bw-analytics-chart"><svg viewBox="0 0 630 215" role="img" aria-label={`Review activity for the last ${period.days} days. ${reviews.newClaims} new claims and ${reviews.completedClaims} completed claims. Exact values are available in View chart data.`}>
-      {[0, 1, 2, 3, 4].map(tick => <g key={tick}><line x1="45" x2="595" y1={y(peak * tick / 4)} y2={y(peak * tick / 4)} className="bw-analytics-gridline" /><text x="32" y={y(peak * tick / 4) + 4} textAnchor="end">{number(peak * tick / 4)}</text></g>)}
+    {activity ? <div ref={chart} className="bw-analytics-chart"><svg viewBox={`0 0 ${width} 215`} role="img" aria-label={`Review activity for the last ${period.days} days. ${reviews.newClaims} new claims and ${reviews.completedClaims} completed claims. Exact values are available in View chart data.`}>
+      {[0, 1, 2, 3, 4].map(tick => <g key={tick}><line x1="45" x2={width - 20} y1={y(peak * tick / 4)} y2={y(peak * tick / 4)} className="bw-analytics-gridline" /><text x="32" y={y(peak * tick / 4) + 4} textAnchor="end">{number(peak * tick / 4)}</text></g>)}
       <path d={path("submissions")} className="bw-analytics-line bw-analytics-line-blue" />
       <path d={path("decisions")} className="bw-analytics-line bw-analytics-line-teal" />
       {points.map((point, index) => <g key={point.date}><circle cx={x(index)} cy={y(point.submissions)} r="3" className="bw-analytics-dot-blue"><title>{dateLabel(point.date)}: {point.submissions} new claims</title></circle><rect x={x(index) - 2.5} y={y(point.decisions) - 2.5} width="5" height="5" rx="1" className="bw-analytics-dot-teal"><title>{dateLabel(point.date)}: {point.decisions} completed claims</title></rect></g>)}
       {[0, Math.floor((points.length - 1) / 2), points.length - 1].map(index => <text key={index} x={x(index)} y="202" textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}>{dateLabel(points[index].date)}</text>)}
     </svg></div> : <div className="bw-analytics-chart-empty"><WorkspaceIcon name="clock" size={27} /><strong>No review activity in this period</strong><p>New submissions and final decisions will appear here.</p></div>}
     <details className="bw-analytics-chart-data"><summary>View chart data</summary><div><table><caption>Review activity · UTC · {period.bucketDays === 7 ? "Bucket starting on" : "Date"}</caption><thead><tr><th scope="col">Date</th><th scope="col">New claims</th><th scope="col">Completed claims</th></tr></thead><tbody>{points.map(point => <tr key={point.date}><th scope="row">{dateLabel(point.date)}</th><td>{number(point.submissions)}</td><td>{number(point.decisions)}</td></tr>)}</tbody></table></div></details>
-    <p className="bw-analytics-footnote">Each claim is counted once per period. Repeat final decisions use the latest decision in the period; corrections do not create a new claim. These are different cohorts, not a conversion rate.</p>
+    <p className="bw-analytics-footnote">Completed claims had a final decision in this period; later corrections can reopen them. Each claim counts once per period, using its latest final decision. New claims and completions are different cohorts, not a conversion rate.</p>
   </section>;
 }
 
@@ -45,7 +51,7 @@ function Attention({ data, organizationId }) {
   const review = data.reviews.access === "allowed" ? data.reviews.data : null, team = data.team.access === "allowed" ? data.team.data : null;
   const base = `/organization-workspace/${organizationId}`;
   const items = [
-    ...(review ? [{ label: "Unassigned submissions", value: review.unassigned, caption: "Waiting for a reviewer", icon: "mail", to: `${base}/credentials?filter=unassigned` }, { label: "Past review target", value: review.pastTarget, caption: "Open longer than seven days", icon: "clock", to: `${base}/credentials?filter=past_target` }] : []),
+    ...(review ? [{ label: "Unassigned submissions", value: review.unassigned, caption: "Waiting for a reviewer", icon: "mail", to: `${base}/credentials?filter=unassigned` }, { label: "Past review target", value: review.pastTarget, caption: "Open at least seven days", icon: "clock", to: `${base}/credentials?filter=past_target` }] : []),
     ...(team ? [{ label: "Invitations expiring soon", value: team.expiringInvitations, caption: "Within the next two days", icon: "alert", to: `${base}/staff` }] : []),
   ];
   return <section className="bw-analytics-panel bw-analytics-attention" aria-labelledby="dashboard-attention-title"><header className="bw-analytics-panel-heading"><div><h3 id="dashboard-attention-title">Needs attention</h3><p>Current items in your access</p></div><WorkspaceIcon name="alert" size={19} /></header>
