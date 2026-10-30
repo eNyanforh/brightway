@@ -11,6 +11,7 @@ export function createManagementRoutes({ management, sessions, nodeEnv, limiter 
     catch (error) { next(error.status >= 400 && error.status <= 599 ? error : Object.assign(Error("BrightWay management is temporarily unavailable."), { status: 503 })); }
   };
   router.get("/management/access", handle((a, s) => management.access(a, s)));
+  router.get("/management/statistics", requireMfa, handle((a, s) => management.statistics(a, s)));
   router.get("/management", requireMfa, handle((a, s) => management.context(a, s)));
   return router;
 }
