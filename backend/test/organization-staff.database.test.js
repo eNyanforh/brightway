@@ -60,6 +60,22 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     assert.equal(await db.organizationMembership.count({ where: { organizationId: organization.id, accountId: agent.id } }), 0);
     const primary = await db.organizationMembership.findFirst({ where: { organizationId: organization.id, role: "PRIMARY_ADMIN" } });
     await assert.rejects(service.change(owner.id, sessions[0].id, organization.id, primary.id, { expectedStaffVersion: (await context()).staffVersion, expectedVersion: 1, permissions: [], enabled: false }), { status: 409 });
+    // Directory search/counts use database predicates, not the first loaded page.
+    await db.organizationMembership.update({ where: { id: member.id }, data: { permissions: [POSTS], enabled: false } });
+    const revoked = await service.staff(owner.id, sessions[0].id, organization.id, { search: `@${staff.username.toUpperCase()}`, memberStatus: "revoked" });
+    assert.equal(revoked.members.length, 1); assert.deepEqual(revoked.members[0].permissions, []); assert.deepEqual(revoked.members[0].assignedPermissions, [POSTS]);
+    assert.equal(revoked.members[0].canManage, true); assert.equal(revoked.counts.revoked, 1); assert.equal(revoked.counts.enabled, 0);
+    await assert.rejects(service.staff(owner.id, sessions[0].id, organization.id, { memberCursor: primary.id, memberStatus: "revoked" }), { status: 404 });
+    assert.equal((await service.staff(owner.id, sessions[0].id, organization.id, { search: "%" })).members.length, 0);
+    await db.account.update({ where: { id: owner.id }, data: { username: `plain${marker.replaceAll("-", "").slice(0, 12)}` } });
+    const underscore = await service.staff(owner.id, sessions[0].id, organization.id, { search: "_" });
+    assert.deepEqual(underscore.members.map(m => m.username), [staff.username]);
+    await db.organizationInvitation.update({ where: { id: delegatedInvite.id }, data: { expiresAt: new Date(0) } });
+    const directory = await service.staff(owner.id, sessions[0].id, organization.id); assert.deepEqual(directory.counts, { all: 2, enabled: 1, revoked: 1, pending: 0 });
+    assert.equal(directory.invitations.length, 0);
+    const restored = await db.organizationMembership.findUnique({ where: { id: member.id } });
+    await service.change(owner.id, sessions[0].id, organization.id, member.id, { expectedStaffVersion: (await context()).staffVersion, expectedVersion: restored.version, permissions: revoked.members[0].assignedPermissions, enabled: true });
+    assert.deepEqual((await service.context(staff.id, sessions[1].id, organization.id)).permissions, [POSTS]);
     await db.organization.update({ where: { id: organization.id }, data: { status: "SUSPENDED" } }); await assert.rejects(context(), { status: 404 });
     assert.equal((await db.account.findUnique({ where: { id: staff.id } })).platformRole, "MEMBER");
   } finally {

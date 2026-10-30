@@ -1,5 +1,5 @@
 import { dashboardFixture } from "./fixtures/organization-dashboard";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { expect, it, vi } from "vitest";
@@ -74,6 +74,7 @@ it("a direct issuer review URL keeps the organization tools available and links 
   const f = mount(base + "/credentials", url => url.includes("/credential-reviews") ? reply({ reviews: [], nextCursor: null, organization, workspace: context.workspace }) : url.endsWith("/staff") ? reply({ staffVersion: 1, members: [], invitations: [] }) : reply(context));
   await screen.findByRole("heading", { name: /Verified Test School — credential reviews/ });
   const nav = screen.getByRole("navigation", { name: "Organization tools" }); await f.user.click(within(nav).getByRole("link", { name: "Staff" }));
+  const invite = await screen.findByRole("button", { name: "Invite staff", exact: true }); await waitFor(() => expect(invite.disabled).toBe(false)); await f.user.click(invite);
   await screen.findByLabelText("BrightWay username"); expect(document.querySelector(".bw-design-personal").textContent).toContain(organization.name);
 });
 it("denied organization membership cannot leave another organization's tools or name in the workspace", async () => {

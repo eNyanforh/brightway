@@ -153,3 +153,41 @@ test("workspace history stays owner-only and query injection or dead sessions ar
   for (const supplied of [{ accountId: f.owner.id }, { tab: "all" }, { search: "a".repeat(161) }, { search: ["a", "b"] }, { cursor: "bad" }]) await assert.rejects(f.staff.directory(f.owner.id, f.owner.sessionId, supplied), { status: 400 });
   await assert.rejects(f.staff.directory(f.owner.id, "foreign-session"), { status: 401 });
 });
+
+test("staff search covers the entire tenant roster, literal usernames and filter-bound cursors", async () => {
+  const f = await fixture();
+  for (let i = 0; i < 24; i++) {
+    const accountId = randomUUID(); f.state.account.push({ id: accountId, username: `team_${String(i).padStart(2, "0")}`, status: "ACTIVE" });
+    await f.db.organizationMembership.create({ data: { organizationId: f.id, accountId, role: "STAFF", enabled: i < 22, permissions: [POSTS] } });
+  }
+  const first = await f.staff.staff(f.owner.id, f.owner.sessionId, f.id); assert.equal(first.members.length, 20);
+  assert.deepEqual(first.counts, { all: 25, enabled: 23, revoked: 2, pending: 0 });
+  const found = await f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { search: "@TEAM_23", memberStatus: "revoked" });
+  assert.equal(found.members.length, 1); assert.equal(found.members[0].username, "team_23");
+  assert.deepEqual(found.members[0].permissions, []); assert.deepEqual(found.members[0].assignedPermissions, [POSTS]);
+  assert.equal(found.members[0].canManage, true); assert.equal(found.search, "team_23");
+  assert.equal((await f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { search: "%" })).members.length, 0);
+  await assert.rejects(f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { search: "team_23", memberCursor: first.nextMemberCursor }), { status: 404 });
+  for (const query of [{ memberStatus: "suspended" }, { search: "x\u0000" }, { accountId: f.owner.id }, { search: "x".repeat(101) }]) await assert.rejects(f.staff.staff(f.owner.id, f.owner.sessionId, f.id, query), { status: 400 });
+});
+test("revoked grants remain inspectable and only an authorized manager can restore them", async () => {
+  const f = await fixture(); await f.accept(await f.invite([POSTS]));
+  const member = f.state.organizationMembership.find(m => m.accountId === f.recipient.id); member.enabled = false;
+  const page = await f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { memberStatus: "revoked" });
+  assert.deepEqual(page.members[0].assignedPermissions, [POSTS]); assert.deepEqual(page.members[0].permissions, []);
+  f.state.organizationMembership.push({ id: randomUUID(), organizationId: f.id, accountId: f.actors.agent.id, role: "STAFF", enabled: true, permissions: [MANAGE], version: 1 });
+  const delegated = await f.staff.staff(f.actors.agent.id, f.actors.agent.sessionId, f.id);
+  assert.equal(delegated.members.find(m => m.id === member.id).canManage, false);
+  await assert.rejects(f.staff.change(f.actors.agent.id, f.actors.agent.sessionId, f.id, member.id, { expectedStaffVersion: 3, expectedVersion: member.version, enabled: true, permissions: [] }), { status: 403 });
+  await f.staff.change(f.owner.id, f.owner.sessionId, f.id, member.id, { expectedStaffVersion: 3, expectedVersion: member.version, enabled: true, permissions: [POSTS] });
+  assert.deepEqual((await f.staff.context(f.recipient.id, f.recipient.sessionId, f.id)).permissions, [POSTS]);
+});
+test("staff invitation counts omit expired pending rows and scope recipient searches", async () => {
+  const f = await fixture(), invite = await f.invite();
+  const data = await f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { search: f.recipient.username });
+  assert.equal(data.members.length, 0); assert.equal(data.counts.pending, 1); assert.equal(data.invitations[0].id, invite.id);
+  f.state.organizationInvitation.find(r => r.id === invite.id).expiresAt = f.now();
+  const expired = await f.staff.staff(f.owner.id, f.owner.sessionId, f.id);
+  assert.equal(expired.counts.pending, 0); assert.equal(expired.invitations.length, 0);
+  await assert.rejects(f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { inviteCursor: invite.id }), { status: 404 });
+});

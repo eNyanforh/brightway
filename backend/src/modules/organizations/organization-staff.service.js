@@ -4,7 +4,7 @@ import { organizationWorkspace } from "../../../../shared/organization-workspace
 import { randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { digest, failure as fail, parse, requestId } from "./organization.schema.js";
-import { PERMISSIONS, workspaceDirectorySchema, organizationPermissionKeys, inviteSchema, changeMemberSchema, cancelInviteSchema, respondInviteSchema, listStaffSchema } from "./organization-staff.schema.js";
+import { PERMISSIONS, workspaceDirectorySchema, organizationPermissionKeys, inviteSchema, changeMemberSchema, cancelInviteSchema, respondInviteSchema, listStaffSchema, staffListQuerySchema } from "./organization-staff.schema.js";
 const MANAGE = "organization.members.manage", conflict = () => fail(409, "Organization staffing changed. Reload before continuing.");
 export function createOrganizationStaffService({ prisma, now = () => new Date() }) {
   async function transaction(work) { try { return await prisma.$transaction(work); } catch (e) { if (["P2002", "P2034"].includes(e.code)) throw conflict(); throw e; } }
@@ -23,7 +23,8 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
     return result;
   }
   const catalog = organizationPermissionKeys;
-  const effective = (membership, organization) => membership?.enabled ? (membership.role === "PRIMARY_ADMIN" ? catalog(organization) : (membership.permissions ?? []).filter(p => catalog(organization).includes(p))) : [];
+  const assigned = (membership, organization) => membership?.role === "PRIMARY_ADMIN" ? catalog(organization) : (membership?.permissions ?? []).filter(p => catalog(organization).includes(p));
+  const effective = (membership, organization) => membership?.enabled ? assigned(membership, organization) : [];
   async function access(db, actorId, sessionId, organization, manage = false, allowSetup = false) {
     const account = await live(db, actorId, sessionId);
     const membership = await db.organizationMembership.findFirst({ where: { organizationId: organization.id, accountId: actorId, enabled: true } });
@@ -131,14 +132,27 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
       });
     },
     async staff(actorId, sessionId, id, supplied = {}) {
-      const paging = parse(listStaffSchema, supplied); requestId(id); return transaction(async db => {
-        await lock(db, [actorId]); const organization = await org(db, id, true); await access(db, actorId, sessionId, organization, true);
-        const members = await page(db, "organizationMembership", { organizationId: id }, paging.memberCursor, { organizationId: id }, "asc");
-        const invitations = await page(db, "organizationInvitation", { organizationId: id, state: "PENDING" }, paging.inviteCursor, { organizationId: id });
+      const query = parse(staffListQuerySchema, supplied); requestId(id); return transaction(async db => {
+        await lock(db, [actorId]); const organization = await org(db, id, true), actor = await access(db, actorId, sessionId, organization, true);
+        const literalSearch = query.search.replace(/[\\%_]/g, character => `\\${character}`);
+        const timestamp = now(), name = query.search ? { username: { contains: literalSearch, mode: "insensitive" } } : undefined;
+        const base = { organizationId: id, ...(name ? { account: name } : {}) };
+        const memberWhere = { ...base, ...(query.memberStatus === "all" ? {} : { enabled: query.memberStatus === "enabled" }) };
+        const inviteWhere = { organizationId: id, state: "PENDING", expiresAt: { gt: timestamp }, ...(name ? { recipient: name } : {}) };
+        if (query.memberCursor && !await db.organizationMembership.findFirst({ where: { ...memberWhere, id: query.memberCursor }, select: { id: true } })) throw fail(404, "Staff page is unavailable for this filter.");
+        if (query.inviteCursor && !await db.organizationInvitation.findFirst({ where: { ...inviteWhere, id: query.inviteCursor }, select: { id: true } })) throw fail(404, "Invitation page is unavailable for this filter.");
+        const grouped = await db.organizationMembership.groupBy({ by: ["enabled"], where: base, _count: true });
+        const enabled = grouped.find(row => row.enabled)?._count ?? 0, revoked = grouped.find(row => !row.enabled)?._count ?? 0;
+        const pending = await db.organizationInvitation.count({ where: inviteWhere });
+        const members = await page(db, "organizationMembership", memberWhere, query.memberCursor, { organizationId: id }, "asc");
+        const invitations = await page(db, "organizationInvitation", inviteWhere, query.inviteCursor, { organizationId: id });
         const ids = [...new Set([...members.slice(0, 20).map(m => m.accountId), ...invitations.slice(0, 20).map(r => r.recipientId)])];
         const users = await db.account.findMany({ where: { id: { in: ids } }, select: { id: true, username: true } }), byId = new Map(users.map(a => [a.id, a.username]));
-        const projected = members.slice(0, 20).map(m => ({ id: m.id, username: byId.get(m.accountId), role: m.role, enabled: m.enabled, version: m.version, permissions: effective(m, organization) }));
-        return { staffVersion: organization.staffVersion, members: projected, invitations: invitations.slice(0, 20).map(r => projectInvitation(r, byId.get(r.recipientId))), nextMemberCursor: members.length > 20 ? members[19].id : null, nextInviteCursor: invitations.length > 20 ? invitations[19].id : null };
+        const projected = members.slice(0, 20).map(m => ({ id: m.id, username: byId.get(m.accountId), role: m.role, enabled: m.enabled, version: m.version, permissions: effective(m, organization), assignedPermissions: assigned(m, organization),
+          canManage: m.role !== "PRIMARY_ADMIN" && assigned(m, organization).every(key => actor.permissions.includes(key)), isSelf: m.accountId === actorId, joinedAt: m.createdAt }));
+        await access(db, actorId, sessionId, organization, true);
+        return { organizationId: id, search: query.search, memberStatus: query.memberStatus, asOf: timestamp.toISOString(), counts: { all: enabled + revoked, enabled, revoked, pending },
+          staffVersion: organization.staffVersion, members: projected, invitations: invitations.slice(0, 20).map(r => projectInvitation(r, byId.get(r.recipientId))), nextMemberCursor: members.length > 20 ? members[19].id : null, nextInviteCursor: invitations.length > 20 ? invitations[19].id : null };
       });
     },
     async invite(actorId, sessionId, id, body) {
@@ -201,7 +215,7 @@ export function createOrganizationStaffService({ prisma, now = () => new Date() 
         if (!target || target.organizationId !== id) throw fail(404, "Membership not found.");
         if (target.role === "PRIMARY_ADMIN") throw fail(409, "The primary administrator cannot be removed or changed here.");
         grantable(data.permissions, actor, organization);
-        if (!effective(target, organization).every(p => actor.permissions.includes(p))) throw fail(403, "You cannot manage a member with permissions outside your own authority.");
+        if (!assigned(target, organization).every(p => actor.permissions.includes(p))) throw fail(403, "You cannot manage a member with permissions outside your own authority.");
         await bump(db, organization, data.expectedStaffVersion);
         if ((await db.organizationMembership.updateMany({ where: { id: membershipId, organizationId: id, version: data.expectedVersion }, data: { enabled: data.enabled, permissions: data.permissions, version: { increment: 1 } } })).count !== 1) throw conflict();
         await audit(db, id, actorId, "MEMBER_CHANGED", membershipId, { before: { enabled: target.enabled, permissions: target.permissions }, after: { enabled: data.enabled, permissions: data.permissions } });
