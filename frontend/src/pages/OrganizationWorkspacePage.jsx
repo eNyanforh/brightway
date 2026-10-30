@@ -47,7 +47,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
         } }
       } else if (id) setStaff(null);
       if (!preserve) { setStale(false); changeEditorDirty(false); setGeneration(g => g + 1); }
-    } catch (e) { if (life.current !== current || signal.aborted || e.name === "AbortError") return; setError(e); if ([401, 403, 404].includes(e.status)) { currentView.current = null; setView(null); setStaff(null); setActing?.(null); setUsername(""); setPermissions([]); inviteRetry.current = null; setRetrying(false); } }
+    } catch (e) { if (life.current !== current || signal.aborted || e.name === "AbortError") return; setError(e); if ([401, 403, 404].includes(e.status)) { currentView.current = null; setView(null); setStaff(null); setActing?.(null); setUsername(""); setPermissions([]); inviteRetry.current = null; setRetrying(false); changeEditorDirty(false); setGeneration(g => g + 1); } }
   }, [actor, id, section, setActing, changeEditorDirty]);
   useEffect(() => {
     const current = { actor, id, controller: null }; life.current = current;
@@ -69,7 +69,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
       if (life.current !== current) return; setError(e);
       if (invitation && (!e.status || e.status >= 500)) setRetrying(true);
       else { inviteRetry.current = null; setRetrying(false); if (e.status === 409 || !invitation) setStale(true); }
-      if ([401, 403, 404].includes(e.status)) { currentView.current = null; setView(null); setStaff(null); setActing?.(null); setUsername(""); setPermissions([]); }
+      if ([401, 403, 404].includes(e.status)) { currentView.current = null; setView(null); setStaff(null); setActing?.(null); setUsername(""); setPermissions([]); inviteRetry.current = null; setRetrying(false); changeEditorDirty(false); setGeneration(g => g + 1); }
     } finally { if (life.current === current) { lock.current = false; setBusy(false); } }
   }
   function reload() { if (lock.current) return; if ((editorDirtyRef.current || username || permissions.length) && !window.confirm("Reload the staff list and discard unsaved changes? No new invitation will be sent.")) return; inviteRetry.current = null; setRetrying(false); setUsername(""); setPermissions([]); void action(async () => {}, false, ""); }
@@ -91,7 +91,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
       const key = kind === "member" ? "members" : "invitations", cursor = kind === "member" ? "nextMemberCursor" : "nextInviteCursor";
       const merge = old => ({ ...old, counts: next.counts || old.counts, [key]: [...new Map([...old[key], ...next[key]].map(row => [row.id, row])).values()], [cursor]: next[cursor] });
       setStaff(merge);
-    } catch (e) { if (life.current === current) { setError(e); if ([401, 403, 404].includes(e.status)) { setStaff(null); currentView.current = null; setView(null); setActing?.(null); } } }
+    } catch (e) { if (life.current === current) { setError(e); if ([401, 403, 404].includes(e.status)) { setStaff(null); currentView.current = null; setView(null); setActing?.(null); setUsername(""); setPermissions([]); inviteRetry.current = null; setRetrying(false); changeEditorDirty(false); setGeneration(g => g + 1); } } }
     finally { if (life.current === current) { lock.current = false; setBusy(false); } }
   }
   const campusAllowed = view?.membership?.role === "PRIMARY_ADMIN" && (view.organization.type === "SCHOOL" || view.organization.offersTraining);

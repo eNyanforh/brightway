@@ -153,3 +153,16 @@ it("a temporary focus failure keeps unsaved permission edits and requires explic
   await screen.findByRole("alert"); expect(screen.getByRole("dialog")).toBeTruthy(); expect(screen.getByLabelText("Membership enabled").checked).toBe(false);
   expect(screen.getByRole("button", { name: "Save permissions for @staff" }).disabled).toBe(true);
 });
+it("authorization loss discards the old private editor even if a later access check recovers", async () => {
+  let denied = false;
+  const f = mount(url => denied ? reply("Current MFA is required", 403) : defaultRead(url));
+  await f.user.click(await screen.findByRole("button", { name: "Manage @staff" }));
+  await f.user.click(screen.getByLabelText("Membership enabled"));
+  denied = true; act(() => window.dispatchEvent(new Event("focus")));
+  await screen.findByRole("alert"); expect(screen.queryByRole("dialog")).toBeNull();
+  denied = false; act(() => window.dispatchEvent(new Event("focus")));
+  await screen.findByRole("button", { name: "Manage @staff" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await f.user.click(screen.getByRole("button", { name: "Manage @staff" }));
+  expect(screen.getByLabelText("Membership enabled").checked).toBe(true);
+});
