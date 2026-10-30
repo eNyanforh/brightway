@@ -10,6 +10,7 @@ import { useAuth } from "../auth/useAuth";
 
 import AppHeader from "../components/layout/AppHeader";
 import OrganizationNavigation from "../components/layout/OrganizationNavigation";
+import ManagementNavigation from "../components/layout/ManagementNavigation";
 import AppSidebar from "../components/layout/AppSidebar";
 import MobileNavigation from "../components/layout/MobileNavigation";
 
@@ -39,6 +40,9 @@ export default function AppLayout() {
     return () => { controller?.abort(); window.removeEventListener("focus", load); };
   }, [account?.id]);
   const [actingOrganization, setActingOrganization] = useState(null);
+  const [managementWorkspace, setManagementWorkspace] = useState(null);
+  const managementMode = pathname === "/management";
+  const management = managementMode && managementWorkspace?.accountId === account?.id ? managementWorkspace : null;
   const organizationMode = /^\/organization-workspace\/[^/]+(?:\/|$)/.test(pathname);
   const organizationBase = `/organization-workspace/${actingOrganization?.organization.id}`;
   const activeOrganization = actingOrganization?.accountId === account?.id && (pathname === organizationBase || pathname.startsWith(organizationBase + "/")) ? actingOrganization : null;
@@ -127,10 +131,11 @@ export default function AppLayout() {
   }, [dirty, profileDraft?.busy]);
 
   return (
-    <div className={`bw-app-shell${organizationMode ? " bw-org-shell" : ""}`}>
+    <div className={`bw-app-shell${organizationMode ? " bw-org-shell" : managementMode ? " bw-management-shell" : ""}`}>
       <AppHeader
         hasWork={hasWork}
         actingOrganization={acting}
+        workspaceLabel={managementMode ? "BrightWay Management" : undefined}
         photoId={profileDraft?.profile.photo?.id}
         unsaved={dirty}
         profileBusy={profileDraft?.busy}
@@ -143,7 +148,7 @@ export default function AppLayout() {
       />
 
       <div className="bw-design-layout">
-        {organizationMode ? <OrganizationNavigation acting={activeOrganization} id={navigationId} open={navigationOpen} onNavigate={() => setNavigationOpen(false)} /> : <AppSidebar
+        {managementMode ? <ManagementNavigation management={management} id={navigationId} open={navigationOpen} onNavigate={() => setNavigationOpen(false)} /> : organizationMode ? <OrganizationNavigation acting={activeOrganization} id={navigationId} open={navigationOpen} onNavigate={() => setNavigationOpen(false)} /> : <AppSidebar
           hasWork={hasWork}
           id={navigationId}
           open={navigationOpen}
@@ -155,6 +160,7 @@ export default function AppLayout() {
             context={{
               onOrganizationSubmitted,
               setActingOrganization,
+              setManagementWorkspace,
               profileDraft,
               setProfileDraft,
               profileError,
@@ -165,7 +171,7 @@ export default function AppLayout() {
         </main>
       </div>
 
-      {organizationMode ? <OrganizationNavigation acting={activeOrganization} mobile onNavigate={() => setNavigationOpen(false)} /> : <MobileNavigation
+      {managementMode ? <ManagementNavigation management={management} mobile onNavigate={() => setNavigationOpen(false)} /> : organizationMode ? <OrganizationNavigation acting={activeOrganization} mobile onNavigate={() => setNavigationOpen(false)} /> : <MobileNavigation
         onNavigate={() => setNavigationOpen(false)}
       />}
     </div>

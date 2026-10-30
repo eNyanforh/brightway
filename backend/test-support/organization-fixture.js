@@ -3,7 +3,7 @@ import { createOrganizationService } from "../src/modules/organizations/organiza
 const clone = v => structuredClone(v);
 export function organizationFixture({ ready = true } = {}) {
   let date = new Date("2026-10-27T12:00:00Z"), auditFails = false, auditHook;
-  const state = Object.fromEntries(["person", "profile", "photoAsset", "account", "session", "mfaFactor", "organizationOperator", "organizationRequest", "organizationFinding", "organizationFindingArchive", "organizationRequestAudit", "organizationRequestRevision", "organization", "organizationOperatingLocation", "organizationMembership", "organizationInvitation", "organizationStaffAudit", "organizationPhoto"].map(k => [k, []]));
+  const state = Object.fromEntries(["managementAdministrator", "managementAdministratorAudit", "person", "profile", "photoAsset", "account", "session", "mfaFactor", "organizationOperator", "organizationRequest", "organizationFinding", "organizationFindingArchive", "organizationRequestAudit", "organizationRequestRevision", "organization", "organizationOperatingLocation", "organizationMembership", "organizationInvitation", "organizationStaffAudit", "organizationPhoto"].map(k => [k, []]));
   const actors = {};
   for (const label of ["owner", "agent", "approver", "other"]) {
     const id = randomUUID(), sessionId = randomUUID(); actors[label] = { id, sessionId, username: `${label}_fixture` };

@@ -1,0 +1,11 @@
+import { Link, NavLink } from "react-router-dom";
+import NavigationIcon from "./NavigationIcon";
+import "./management-navigation.css";
+export default function ManagementNavigation({ management, mobile = false, id, open, onNavigate }) {
+  const allowed = management?.allowed === true, tools = allowed ? management.tools.filter(tool => tool.allowed) : [];
+  if (mobile) return <nav className="bw-mobile-navigation bw-management-mobile" aria-label="Mobile management navigation">{allowed && <NavLink end to="/management" onClick={onNavigate}><NavigationIcon name="work" /><span>Management</span></NavLink>}<Link to="/security" onClick={onNavigate}><NavigationIcon name="security" /><span>Security</span></Link><Link to="/explore" onClick={onNavigate}><NavigationIcon name="explore" /><span>Personal</span></Link></nav>;
+  return <aside id={id} className={`bw-design-sidebar bw-management-sidebar${open ? " bw-design-sidebar-open" : ""}`} aria-label="Management navigation"><div className="bw-management-nav-heading"><span>BRIGHTWAY INTERNAL</span><h2>Management</h2><p>{allowed ? "Management administrator" : "Checking management access"}</p></div>
+    {allowed && <><nav className="bw-design-sidebar-nav" aria-label="Management tools"><NavLink end to="/management" onClick={onNavigate} className={({ isActive }) => isActive ? "bw-design-sidebar-active" : ""}><NavigationIcon name="explore" active /><span>Overview</span></NavLink>{tools.map(tool => <Link key={tool.key} to={tool.to} onClick={onNavigate}><NavigationIcon name={tool.key === "organizations" ? "work" : "learning"} /><span>{tool.label}</span></Link>)}</nav><div className="bw-design-sidebar-divider" /><nav className="bw-design-sidebar-nav bw-management-planned" aria-label="Planned management tools"><p>Coming soon</p>{["Team access", "Support", "Billing", "Moderation"].map(label => <button key={label} type="button" disabled><NavigationIcon name="work" /><span>{label}</span><small>Soon</small></button>)}</nav></>}
+    <div className="bw-design-sidebar-divider" /><nav className="bw-design-sidebar-nav" aria-label="Management account actions"><Link to="/security" onClick={onNavigate}><NavigationIcon name="security" /><span>Account security</span></Link><Link to="/explore" onClick={onNavigate}><NavigationIcon name="explore" /><span>Return to Personal</span></Link></nav>
+  </aside>;
+}

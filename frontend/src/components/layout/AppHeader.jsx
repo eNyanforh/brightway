@@ -5,6 +5,7 @@ import "./app-header.css";
 
 export default function AppHeader({
   actingOrganization,
+  workspaceLabel,
   hasWork,
   photoId,
   unsaved,
@@ -52,7 +53,7 @@ export default function AppHeader({
         <div className="bw-design-account">
           <span className="bw-design-personal">
             <span />
-            {actingOrganization?.name || "Personal account"}
+            {actingOrganization?.name || workspaceLabel || "Personal account"}
           </span>
 
           <button

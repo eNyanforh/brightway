@@ -4,6 +4,7 @@ import styled from "styled-components";
 
 import { useAuth } from "../../auth/useAuth";
 import ProfilePicture from "../profile/ProfilePicture";
+import ManagementEntry from "./ManagementEntry";
 
 export default function HeaderProfileMenu({
   photoId,
@@ -138,6 +139,8 @@ export default function HeaderProfileMenu({
           </Action>
 
           {hasWork && <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/work"); }}>My Workspace</Action>}
+
+          <ManagementEntry disabled={busy || profileBusy} onOpen={() => { setOpen(false); navigate("/management"); }} />
 
           <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/security"); }}>Account security</Action>
 

@@ -71,6 +71,7 @@ test("invalid and privileged inputs are rejected before persistence", async () =
       { ...input, status: "ACTIVE" },
       { ...input, role: "ADMIN" },
       { ...input, platformRole: "CREDENTIAL_REVIEWER" },
+      { ...input, managementAdministrator: { enabled: true } },
       { ...input, emailVerifiedAt: "2026-10-17T02:00:00Z" },
       { ...input, emailVerified: true },
       null,
