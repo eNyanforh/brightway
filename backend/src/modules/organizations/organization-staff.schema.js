@@ -25,3 +25,9 @@ export const workspaceDirectorySchema = z.strictObject({
 export const listStaffSchema = z.strictObject({ memberCursor: z.uuid().optional(), inviteCursor: z.uuid().optional() });
 
 export const organizationPermissionKeys = organization => permissionKeys.filter(p => organization.offersTraining || !["organization.programs.manage", "organization.admissions.review", "organization.credentials.education.review"].includes(p));
+
+export const staffListQuerySchema = z.strictObject({
+  memberCursor: z.uuid().optional(), inviteCursor: z.uuid().optional(),
+  search: z.string().trim().max(100).refine(value => !/[\u0000-\u001f\u007f]/.test(value)).transform(value => value.replace(/^@/, "").toLowerCase()).default(""),
+  memberStatus: z.enum(["all", "enabled", "revoked"]).default("all"),
+});

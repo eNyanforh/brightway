@@ -104,3 +104,7 @@ Acceptance on the application: use Manage on an incomplete approved organization
 ## Dashboard analytics — 30 October 2026
 
 The analytical Dashboard supersedes the earlier tool-card design. It shows current enabled members, pending invitations and open reviews, plus distinct claims receiving final decisions in the last 7/30/90 days. Real submission/decision trends, current workload, outcomes and attention counts come from a private aggregate endpoint. Scope, MFA, unique-claim counting, UTC boundaries, the new index migration and application acceptance are documented in [ORGANIZATION-DASHBOARD.md](ORGANIZATION-DASHBOARD.md). Tool navigation remains in the sidebar; Campus remains informational and deployment is paused through Sprint 2 acceptance.
+
+## Staff directory — 30 October 2026
+
+Staff management now uses a server-searched roster, All staff/Enabled/Revoked/Invitations categories, scoped permissions and native action dialogs instead of every member's form expanded inline. Saved grants remain visible after revocation and restoration cannot exceed the manager's authority. Explicit confirmation, pending-write locks, invitation idempotency and stale-draft reconciliation remain. See [ORGANIZATION-STAFF.md](ORGANIZATION-STAFF.md) for API/filter definitions, protections, application checks and update instructions. This change adds no migration or dependency; deployment remains paused.

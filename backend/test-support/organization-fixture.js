@@ -17,6 +17,8 @@ export function organizationFixture({ ready = true } = {}) {
   function matches(row, where = {}) {
     return Object.entries(where).every(([key, value]) => {
       if (value === undefined) return true;
+      if (key === "account") return matches(state.account.find(r => r.id === row.accountId) ?? {}, value);
+      if (key === "recipient") return matches(state.account.find(r => r.id === row.recipientId) ?? {}, value);
       if (key === "organization") return matches(state.organization.find(r => r.id === row.organizationId) ?? {}, value);
       if (key === "request") return matches(state.organizationRequest.find(r => r.id === row.requestId) ?? {}, value);
       if (key === "AND") return value.every(w => matches(row, w));
@@ -24,7 +26,7 @@ export function organizationFixture({ ready = true } = {}) {
       if (key === "applicantId_idempotencyKey") return matches(row, value);
       if (value instanceof Date) return +row[key] === +value;
       if (value && typeof value === "object") {
-        if ("contains" in value) return String(row[key] ?? "").toLowerCase().includes(value.contains.toLowerCase());
+        if ("contains" in value) return String(row[key] ?? "").toLowerCase().includes(value.contains.toLowerCase().replace(/\\([\\%_])/g, "$1"));
         if ("in" in value) return value.in.includes(row[key]); if ("not" in value) return row[key] !== value.not;
         if ("gt" in value) return row[key] > value.gt; if ("gte" in value) return row[key] >= value.gte;
       }
@@ -52,6 +54,11 @@ export function organizationFixture({ ready = true } = {}) {
         return rows.slice(0, take).map(r => project(r, select));
       },
       async count({ where }) { return state[model].filter(r => matches(r, where)).length; },
+      async groupBy({ by, where }) {
+        const groups = new Map();
+        for (const row of state[model].filter(r => matches(r, where))) { const key = JSON.stringify(by.map(k => row[k])); if (!groups.has(key)) groups.set(key, { ...Object.fromEntries(by.map(k => [k, row[k]])), _count: 0 }); groups.get(key)._count++; }
+        return [...groups.values()].map(clone);
+      },
       async create({ data }) {
         if (["organizationRequestAudit", "organizationStaffAudit"].includes(model)) { if (auditFails) throw Error("Audit failed"); if (auditHook) await auditHook(data); }
         const value = { id: randomUUID(), createdAt: date, updatedAt: date,
