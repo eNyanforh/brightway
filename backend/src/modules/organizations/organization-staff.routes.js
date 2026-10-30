@@ -9,6 +9,8 @@ export function createOrganizationStaffRoutes({ staff, sessions, clientUrl, node
   router.get("/my-workspace", handle((r, a, s) => staff.directory(a, s, r.query)));
   router.get("/organization-workspace", handle((r, a, s) => staff.home(a, s, r.query)));
   router.get("/organization-workspace/:orgId", handle((r, a, s) => staff.context(a, s, r.params.orgId)));
+  const analyticsLimits = limiter ?? rateLimit({ windowMs: 60000, limit: 30, standardHeaders: "draft-8", legacyHeaders: false, keyGenerator: req => req.auth.account.id, message: { success: false, message: "Dashboard refresh limit reached. Wait a minute and retry." } });
+  router.get("/organization-workspace/:orgId/dashboard", analyticsLimits, handle((r, a, s) => staff.dashboard(a, s, r.params.orgId, r.query)));
   router.get("/organization-workspace/:orgId/staff", handle((r, a, s) => staff.staff(a, s, r.params.orgId, r.query)));
   router.post("/organization-workspace/:orgId/invitations", origin, limits, handle((r, a, s) => staff.invite(a, s, r.params.orgId, r.body)));
   router.post("/organization-workspace/:orgId/invitations/:id/cancel", origin, limits, handle((r, a, s) => staff.cancel(a, s, r.params.orgId, r.params.id, r.body)));

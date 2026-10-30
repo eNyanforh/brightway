@@ -14,7 +14,7 @@ test("approved primary administrator receives scoped ready tools and honest plan
   assert.deepEqual(c.workspace.available.map(m => m.key), ["profile", "dashboard", "staff", "credentials"]);
   assert.deepEqual(c.workspace.available.map(m => m.label), ["Profile", "Dashboard", "Staff", "Credential Review"]);
   assert(c.workspace.available.filter(m => !m.external).every(m => m.to.startsWith(`/organization-workspace/${f.orgId}`)));
-  assert.deepEqual(c.workspace.planned.map(m => m.key), ["posts", "opportunities", "applications", "programs", "admissions", "analytics"]);
+  assert.deepEqual(c.workspace.planned.map(m => m.key), ["posts", "opportunities", "applications", "programs", "admissions"]);
   assert(c.workspace.planned.every(m => !m.to)); assert.equal(c.workspace.campusActive, false);
   assert.equal(c.workspace.campusSetup.to, `/organization-workspace/${f.orgId}/campus`); assert.equal(c.workspace.campusSetup.status, "COMING_SOON");
   // Browsing one's workspace never bypasses MFA for privileged tool actions.

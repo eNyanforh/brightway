@@ -13,6 +13,7 @@ export const staffApi = {
   directory: (signal, filters) => request("/my-workspace" + query(filters), "GET", undefined, signal),
   home: (signal, paging) => request("/organization-workspace" + query(paging), "GET", undefined, signal),
   context: (id, signal) => request(`/organization-workspace/${encodeURIComponent(id)}`, "GET", undefined, signal),
+  dashboard: (id, days, signal) => request(`/organization-workspace/${encodeURIComponent(id)}/dashboard?${new URLSearchParams({ days })}`, "GET", undefined, signal),
   staff: (id, signal, paging) => request(`/organization-workspace/${encodeURIComponent(id)}/staff${query(paging)}`, "GET", undefined, signal),
   invite: (id, body) => request(`/organization-workspace/${encodeURIComponent(id)}/invitations`, "POST", body),
   respond: (id, body) => request(`/organization-invitations/${encodeURIComponent(id)}/respond`, "POST", body),

@@ -1,3 +1,4 @@
+import { reviewQueueQuerySchema } from "./credential.schema.js";
 import { organizationWorkspace } from "../../../../shared/organization-workspace.mjs";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { authorizeCredentialReviewer, credentialReviewerScope, credentialIssuer, requireReviewScope, reviewerStillAuthorized, lockCredentialActors } from "./credential-issuer.js";
@@ -166,9 +167,15 @@ export function createCredentialService({ prisma, storage, process = processEvid
         return { profile: profileView(await tx.profile.findUnique({ where: { personId }, select: ownerProfileSelect })) };
       });
     },
-    async queue(actorId, cursor, sessionId, organizationId) {
+    async queue(actorId, cursor, sessionId, organizationId, filters = {}) {
+      const parsed = reviewQueueQuerySchema.safeParse({ ...filters, ...(cursor ? { cursor } : {}) });
+      if (!parsed.success) throw failure(400, "Invalid review queue filter.");
+      const query = parsed.data;
       const scope = await authorizeCredentialReviewer(prisma, actorId, sessionId, organizationId, now());
       const where = { issuerOrganizationId: scope.organization?.id ?? null, kind: { in: scope.kinds }, profile: { personId: { not: scope.account.personId } } };
+      if (query.status) where.status = query.status;
+      if (query.filter === "unassigned") Object.assign(where, { status: "SUBMITTED", reviewerId: null, initialSubmittedAt: { lte: now() } });
+      if (query.filter === "past_target") Object.assign(where, { status: { in: ["SUBMITTED", "IN_REVIEW"] }, initialSubmittedAt: { lte: new Date(+now() - 7 * DAY) } });
       if (cursor && !await prisma.credentialReview.findFirst({ where: { ...where, id: cursor }, select: { id: true } })) throw failure(404, "Queue page not found.");
       const reviews = await prisma.credentialReview.findMany({ where,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 31,

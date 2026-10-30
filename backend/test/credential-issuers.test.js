@@ -129,3 +129,17 @@ test("issuer HTTP requires session, MFA and trusted Origin and rejects forged sc
   assert.equal((await fetch(base + `/${review.id}/assign`, { method: "POST", headers, body: JSON.stringify({ expectedVersion: 1, organizationId: f.foreign.id }) })).status, 400);
   assert.equal((await fetch(base + `/${review.id}/assign`, { method: "POST", headers, body: JSON.stringify({ expectedVersion: 1 }) })).status, 200);
 });
+
+test("Dashboard queue filters preserve issuer/kind/self boundaries and reject mismatched cursors or injected filters", async () => {
+  const f = fixture(), { review } = await f.submit();
+  review.initialSubmittedAt = new Date(+f.now() - 8 * 86400000);
+  const assigned = { ...review, id: randomUUID(), recordId: randomUUID(), status: "IN_REVIEW", reviewerId: f.otherId, initialSubmittedAt: f.now() };
+  const correction = { ...review, id: randomUUID(), recordId: randomUUID(), status: "ACTION_REQUIRED" };
+  f.state.credentialReview.push(assigned, correction, { ...review, id: randomUUID(), recordId: randomUUID(), issuerOrganizationId: f.foreign.id }, { ...review, id: randomUUID(), recordId: randomUUID(), kind: "experience" });
+  const queue = filters => f.service.queue(f.otherId, null, f.session, f.org.id, filters);
+  assert.deepEqual((await queue({ filter: "unassigned" })).reviews.map(r => r.id), [review.id]);
+  assert.deepEqual((await queue({ filter: "past_target" })).reviews.map(r => r.id), [review.id]);
+  assert.deepEqual((await queue({ status: "ACTION_REQUIRED" })).reviews.map(r => r.id), [correction.id]);
+  await assert.rejects(f.service.queue(f.otherId, correction.id, f.session, f.org.id, { filter: "unassigned" }), { status: 404 });
+  for (const filters of [{ filter: "all-data" }, { filter: "unassigned", status: "VERIFIED" }, { ownerId: f.ownerId }]) await assert.rejects(queue(filters), { status: 400 });
+});
