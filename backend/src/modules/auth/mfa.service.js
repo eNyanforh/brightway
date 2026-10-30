@@ -4,7 +4,7 @@ import { verifyPassword } from "./password.js";
 import { publicAccountSelect } from "./registration.service.js";
 const error = (status, message) => Object.assign(new Error(message), { status });
 const denied = () => error(401, "Invalid, used or expired authentication code. Use a fresh app or backup code. After five failed checks, wait five minutes and sign in again.");
-export function createMfaService({ prisma, key = process.env.MFA_ENCRYPTION_KEY, now = () => new Date(), verify = verifyPassword } = {}) {
+export function createMfaService({ prisma, key = process.env.MFA_ENCRYPTION_KEY, now = () => new Date(), verify = verifyPassword, sessionLifetimeMs = 604800000 } = {}) {
   const box = secretBox(key);
   async function lockAccount(tx, accountId, passwordHash) {
     const changed = await tx.account.updateMany({ where: { id: accountId, status: "ACTIVE", ...(passwordHash ? { passwordHash } : {}) }, data: { status: "ACTIVE" } });
@@ -120,7 +120,7 @@ export function createMfaService({ prisma, key = process.env.MFA_ENCRYPTION_KEY,
         await tx.mfaLoginChallenge.updateMany({ where: { tokenHash }, data: { attempts: { increment: 1 } } });
         const method = await proof(tx, factor, code); if (!method) return null;
         await tx.mfaLoginChallenge.updateMany({ where: { tokenHash }, data: { consumedAt: now() } });
-        const sessionToken = randomBytes(32).toString("hex"), expiresAt = new Date(+now() + 604800000);
+        const sessionToken = randomBytes(32).toString("hex"), expiresAt = new Date(+now() + sessionLifetimeMs);
         await tx.session.create({ data: { tokenHash: fingerprint(sessionToken), accountId: account.id, expiresAt, mfaVersion: factor.version, mfaVerifiedAt: now() } });
         await tx.account.updateMany({ where: { id: account.id }, data: { lastLoginAt: now() } });
         await audit(tx, account.id, "LOGIN_VERIFIED", method);

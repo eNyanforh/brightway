@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { nameChangesApi as api } from "../api/name-changes";
 import { identityDate, imageLabels } from "./manual-identity-format";
 import "./manual-identity.css";
 
 export default function NameChangeReviewsPage() {
+  const management = useOutletContext()?.management;
   const { account } = useAuth(), actor = account?.id;
   const [view, setView] = useState(null), [detail, setDetail] = useState(null), [images, setImages] = useState(null), [feedback, setFeedback] = useState(null);
   const [error, setError] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [reloadRequired, setReloadRequired] = useState(false);
@@ -52,7 +53,7 @@ export default function NameChangeReviewsPage() {
   const imageReady = images?.actor === actor && images.requestId === requestId && images.values.length === 3;
   const canDecide = visible?.state === "IN_REVIEW" && available && imageReady && !reloadRequired && !visible.stale;
   return <section className="bw-profile-card bw-identity">
-    <Link to="/admin/manual-identity">Identity review workspace</Link><h1>Name-correction reviews</h1>
+    <Link to={management ? "/superadmin/identity" : "/admin/manual-identity"}>Identity review workspace</Link><h1>Name-correction reviews</h1>
     <p>Compare the current approved portrait, fresh government-issued ID and selfie to confirm the same person and proposed name. Only an assigned identity reviewer with MFA can decide. You cannot review your own request.</p>
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
     <button type="button" disabled={busy} onClick={() => action(reload)}>Reload name reviews</button>

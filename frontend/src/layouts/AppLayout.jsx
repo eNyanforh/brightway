@@ -22,6 +22,7 @@ import {
 } from "../pages/profile-form";
 
 import "./app-shell.css";
+import "../pages/superadmin.css";
 
 export default function AppLayout() {
   const { pathname } = useLocation(), { account } = useAuth();
@@ -41,7 +42,7 @@ export default function AppLayout() {
   }, [account?.id]);
   const [actingOrganization, setActingOrganization] = useState(null);
   const [managementWorkspace, setManagementWorkspace] = useState(null);
-  const managementMode = pathname === "/management";
+  const managementMode = pathname === "/superadmin" || pathname.startsWith("/superadmin/");
   const management = managementMode && managementWorkspace?.accountId === account?.id ? managementWorkspace : null;
   const organizationMode = /^\/organization-workspace\/[^/]+(?:\/|$)/.test(pathname);
   const organizationBase = `/organization-workspace/${actingOrganization?.organization.id}`;

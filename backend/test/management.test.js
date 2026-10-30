@@ -10,7 +10,7 @@ test("management provisioning requires a verified active MFA account and rejects
     const f = managementFixture(); change(f); await assert.rejects(f.grant(), { status: 403 }); assert.equal(f.state.managementAdministrator.length, 0);
   }
   const f = managementFixture();
-  await assert.rejects(f.provision({ username: "not_registered", action: "grant", reason: "Establish management access." }), { status: 404 });
+  await assert.rejects(f.provision({ username: "not_registered", action: "grant", reason: "Establish management access." }, { accountId: f.actors.owner.id, sessionId: f.actors.owner.sessionId }), { status: 404 });
   for (const extra of [{ enabled: true }, { force: true }, { platformRole: "SUPER_ADMIN" }]) await assert.rejects(f.provision({ username: f.actors.owner.username, action: "grant", reason: "Establish management access.", ...extra }), { status: 400 });
 });
 test("granting management is audited, retry-safe and preserves separately assigned reviewer/operator roles", async () => {
@@ -19,7 +19,7 @@ test("granting management is audited, retry-safe and preserves separately assign
   const first = await f.grant(), grantedAt = f.state.managementAdministrator[0].grantedAt; f.advance(1000); const again = await f.grant();
   assert.equal(first.changed, true); assert.equal(again.changed, false); assert.equal(f.state.managementAdministratorAudit.length, 1); assert.equal(+f.state.managementAdministrator[0].grantedAt, +grantedAt);
   assert.equal(f.state.account[0].platformRole, "CREDENTIAL_REVIEWER"); assert.equal(f.state.organizationOperator.some(r => r.accountId === actor.id), false);
-  assert.equal(f.state.managementAdministratorAudit[0].actorSource, "SERVER_OPERATOR_CLI"); assert.equal(f.state.managementAdministratorAudit[0].toEnabled, true);
+  assert.equal(f.state.managementAdministratorAudit[0].actorSource, "FIRST_SUPERADMIN_BOOTSTRAP"); assert.equal(f.state.managementAdministratorAudit[0].toEnabled, true);
 });
 test("pre-grant sessions, stale factor versions and future/expired MFA cannot open management", async () => {
   const f = managementFixture(), a = f.actors.owner; f.advance(1000); await f.grant();
@@ -33,6 +33,7 @@ test("last-eligible-admin protection serializes concurrent revocations and disab
   const f = managementFixture(); await f.grant(); await assert.rejects(f.revoke(f.actors.owner), { status: 409 }); await f.grant(f.actors.other);
   f.state.account.find(a => a.id === f.actors.other.id).status = "SUSPENDED"; await assert.rejects(f.revoke(f.actors.owner), { status: 409 });
   f.state.account.find(a => a.id === f.actors.other.id).status = "ACTIVE";
+  f.signIn(f.actors.owner); f.signIn(f.actors.other);
   const results = await Promise.allSettled([f.revoke(f.actors.owner), f.revoke(f.actors.other)]);
   assert.equal(results.filter(r => r.status === "fulfilled").length, 1); assert.equal(results.find(r => r.status === "rejected").reason.status, 409); assert.equal(f.state.managementAdministrator.filter(r => r.enabled).length, 1);
 });
@@ -41,7 +42,7 @@ test("management context is private, own-account scoped and never invents operat
   const owner = f.actors.owner;
   f.db.manualIdentityReviewer = { findUnique: async () => null };
   const data = await f.management.context(owner.id, owner.sessionId);
-  assert.equal(data.accountId, owner.id); assert.equal(data.role.label, "Management administrator"); assert.equal(data.tools.some(tool => tool.allowed), false);
+  assert.equal(data.accountId, owner.id); assert.equal(data.role.label, "Super Admin"); assert.equal(data.tools.some(tool => tool.allowed), false);
   assert.equal(data.audits.length, 1); for (const secret of ["encryptedSecret", "passwordHash", "recoveryHashes", "storageKey", "emailVerifiedAt"]) assert(!JSON.stringify(data).includes(secret));
   assert.deepEqual(await f.management.access(f.actors.other.id, f.actors.other.sessionId), { allowed: false });
   f.state.account[0].platformRole = "CREDENTIAL_REVIEWER"; f.db.manualIdentityReviewer = { findUnique: async () => ({ enabled: true }) }; f.state.organizationOperator.push({ accountId: owner.id, agentEnabled: true, approverEnabled: false });

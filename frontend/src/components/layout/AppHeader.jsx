@@ -20,8 +20,8 @@ export default function AppHeader({
       <div className="bw-design-header-inner">
         <Link
           className="bw-design-brand"
-          to="/explore"
-          aria-label="BrightWay, go to Explore"
+          to={workspaceLabel ? "/superadmin" : "/explore"}
+          aria-label={workspaceLabel ? "BrightWay, go to Management" : "BrightWay, go to Explore"}
         >
           <span className="bw-design-brand-mark">
             b<span>↗</span>

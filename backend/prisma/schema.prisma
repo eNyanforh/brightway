@@ -39,7 +39,8 @@ enum PersonGender {
 
 model Account {
   managementAdministrator ManagementAdministrator?
-  managementAdministratorAudits ManagementAdministratorAudit[]
+  managementAdministratorAudits ManagementAdministratorAudit[] @relation("ManagementAuditTarget")
+  managementActions ManagementAdministratorAudit[] @relation("ManagementAuditActor")
   organizationOperator OrganizationOperator?
   organizationRoleAudits OrganizationOperatorAudit[]
   organizationRequests OrganizationRequest[] @relation("OrganizationApplicant")
@@ -298,6 +299,7 @@ model ManagementAdministrator {
   accountId String @id
   account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
   enabled Boolean @default(false)
+  isSuperAdmin Boolean @default(false)
   version Int @default(1)
   grantedAt DateTime?
   createdAt DateTime @default(now())
@@ -308,7 +310,12 @@ model ManagementAdministrator {
 model ManagementAdministratorAudit {
   id String @id @default(uuid())
   targetAccountId String
-  targetAccount Account @relation(fields: [targetAccountId], references: [id], onDelete: Restrict)
+  targetAccount Account @relation("ManagementAuditTarget", fields: [targetAccountId], references: [id], onDelete: Restrict)
+  actorAccountId String?
+  actorAccount Account? @relation("ManagementAuditActor", fields: [actorAccountId], references: [id], onDelete: Restrict)
+  capability String @default("superadmin") @db.VarChar(40)
+  capabilityEnabled Boolean?
+  toSuperAdmin Boolean @default(false)
   actorSource String
   fromEnabled Boolean
   toEnabled Boolean

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { manualIdentityApi as api } from "../api/manual-identity";
 import ManualIdentityHistory from "../components/profile/ManualIdentityHistory";
 import { identityDate, identityLabels } from "./manual-identity-format";
 import "./manual-identity.css";
 export default function ManualIdentityReviewsPage() {
+  const management = useOutletContext()?.management;
   const { account } = useAuth();
   const [queue, setQueue] = useState(null), [detail, setDetail] = useState(null), [busy, setBusy] = useState(false);
   const [error, setError] = useState(null), [status, setStatus] = useState("ACTION_REQUIRED"), [note, setNote] = useState("");
@@ -32,7 +33,7 @@ export default function ManualIdentityReviewsPage() {
       setQueue(nextQueue); setDetail(nextDetail); setReloadRequired(false); });
   }
   return <section className="bw-profile-card bw-identity">
-    <Link to="/manual-identity">Back to identity verification</Link>{" "}<Link to="/admin/profile-photos">Profile photo reviews</Link><h1>Identity review workspace</h1>
+    <Link to={management ? "/superadmin" : "/manual-identity"}>{management ? "Back to Management" : "Back to identity verification"}</Link>{" "}<Link to={management ? "/superadmin/photos" : "/admin/profile-photos"}>Profile photo reviews</Link><h1>Identity review workspace</h1>
     <p>Only authorized BrightWay reviewers with two-factor authentication may use this workspace. You cannot review your own request. Review within five working days.</p>
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
     {[401, 403].includes(error?.status) && <p><Link to="/security">Open Account security</Link>. An active identity-review permission is also required. Sign in with your authenticator or backup code if prompted.</p>}

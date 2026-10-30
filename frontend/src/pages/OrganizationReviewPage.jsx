@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { organizationsApi as api } from "../api/organizations";
 import { identityDate } from "./manual-identity-format";
@@ -11,6 +11,7 @@ export default function OrganizationReviewPage() {
   return <OrganizationReview key={account?.id || "anonymous"} actor={account?.id} />;
 }
 function OrganizationReview({ actor }) {
+  const management = useOutletContext()?.management;
   const [view, setView] = useState(null), [detail, setDetail] = useState(null), [report, setReport] = useState(empty), [agent, setAgent] = useState(""), [decision, setDecision] = useState("REJECT"), [reason, setReason] = useState("");
   const [error, setError] = useState(null), [busy, setBusy] = useState(false), [stale, setStale] = useState(false), [notice, setNotice] = useState("");
   const life = useRef(null), lock = useRef(false), selectedRef = useRef(null);
@@ -51,7 +52,7 @@ function OrganizationReview({ actor }) {
     setStale(true); setDetail(null); setReport(empty); setReason(""); setNotice("Saved. Reload the organization queue for current status.");
     const queue = await api.queue(); if (life.current === current) { setView({ actor, data: queue }); setStale(false); }
   }
-  return <section className="bw-org-page"><h1>Organization review workspace</h1><p><Link to="/organizations/new">My organization requests</Link> · <Link to="/security">Account security</Link></p>
+  return <section className="bw-org-page"><h1>Organization review workspace</h1><p><Link to={management ? "/superadmin" : "/organizations/new"}>{management ? "Back to Management" : "My organization requests"}</Link> · <Link to="/security">Account security</Link></p>
     <p>Agents investigate assigned requests. A separate authorized approver makes the final decision. All review actions require two-factor authentication.</p>
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}{stale && <p>Reload before continuing. Unsubmitted feedback stays here while you still have access.</p>}
     <button type="button" disabled={busy} onClick={reload}>Reload organization queue</button>
