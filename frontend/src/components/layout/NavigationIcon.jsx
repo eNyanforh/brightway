@@ -71,6 +71,10 @@ export default function NavigationIcon({
       shape = <><path d="M8 5H4v16h16V5h-4M8 3h8v4H8z" /><path d="m8 14 3 3 5-6" /></>;
       break;
 
+    case "security":
+      shape = <><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z" /><path d="m8 12 3 3 5-6" /></>;
+      break;
+
     case "admissions":
       shape = <><circle cx="9" cy="7" r="4" /><path d="M2 21v-3a7 7 0 0 1 11-5M15 17h7m-3-3 3 3-3 3" /></>;
       break;

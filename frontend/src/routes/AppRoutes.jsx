@@ -3,6 +3,7 @@ const OrganizationSetupGate = lazy(() => import("../components/organizations/Org
 const OrganizationWorkspacePage = lazy(() => import("../pages/OrganizationWorkspacePage"));
 function WorkspaceRoute({ section }) { return <Suspense fallback={<p role="status">Loading organization workspace…</p>}><OrganizationSetupGate><OrganizationWorkspacePage section={section} /></OrganizationSetupGate></Suspense>; }
 const WorkPage = lazy(() => import("../pages/WorkPage"));
+const ManagementPage = lazy(() => import("../pages/ManagementPage"));
 import OrganizationRequestsPage from "../pages/OrganizationRequestsPage";
 import OrganizationReviewPage from "../pages/OrganizationReviewPage";
 import OrganizationPage from "../pages/OrganizationPage";
@@ -53,6 +54,7 @@ export default function AppRoutes() {
 
       <Route element={<AuthGate />}>
         <Route element={<AppLayout />}>
+          <Route path="/management" element={<Suspense fallback={<p role="status">Loading BrightWay management…</p>}><ManagementPage /></Suspense>} />
           <Route path="/organization-workspace" element={<Navigate to="/work" replace />} />
           <Route path="/organization-workspace/:organizationId/credentials" element={<Suspense fallback={<p role="status">Loading organization workspace…</p>}><OrganizationSetupGate><CredentialReviewsPage /></OrganizationSetupGate></Suspense>} />
           <Route path="/organization-workspace/:id/profile" element={<WorkspaceRoute section="profile" />} />
