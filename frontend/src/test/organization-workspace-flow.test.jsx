@@ -72,7 +72,7 @@ it("staff management is a dedicated scoped destination and revoked permission cl
 });
 it("a direct issuer review URL keeps the organization tools available and links back to staff management", async () => {
   const f = mount(base + "/credentials", url => url.includes("/credential-reviews") ? reply({ reviews: [], nextCursor: null, organization, workspace: context.workspace }) : url.endsWith("/staff") ? reply({ staffVersion: 1, members: [], invitations: [] }) : reply(context));
-  await screen.findByRole("heading", { name: /Verified Test School — credential reviews/ });
+  await screen.findByRole("heading", { name: "Credential Review", level: 1 });
   const nav = screen.getByRole("navigation", { name: "Organization tools" }); await f.user.click(within(nav).getByRole("link", { name: "Staff" }));
   const invite = await screen.findByRole("button", { name: "Invite staff", exact: true }); await waitFor(() => expect(invite.disabled).toBe(false)); await f.user.click(invite);
   await screen.findByLabelText("BrightWay username"); expect(document.querySelector(".bw-design-personal").textContent).toContain(organization.name);

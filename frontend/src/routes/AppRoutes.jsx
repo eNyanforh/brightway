@@ -15,7 +15,7 @@ import AccountSecurityPage from "../pages/AccountSecurityPage";
 import PasswordRecoveryPage from "../pages/PasswordRecoveryPage";
 import MyCredentialReviewsPage from "../pages/MyCredentialReviewsPage";
 import CredentialPage from "../pages/CredentialPage";
-import CredentialReviewsPage from "../pages/CredentialReviewsPage";
+const CredentialReviewsPage = lazy(() => import("../pages/CredentialReviewsPage"));
 import { Navigate, Routes, Route } from "react-router-dom";
 
 import PublicLayout from "../layouts/PublicLayout";
@@ -65,7 +65,7 @@ export default function AppRoutes() {
           <Route path="/admin/organizations" element={<OrganizationReviewPage />} />
           <Route path="/credentials" element={<MyCredentialReviewsPage />} />
           <Route path="/credentials/:kind/:recordId" element={<CredentialPage />} />
-          <Route path="/admin/credentials" element={<CredentialReviewsPage />} />
+          <Route path="/admin/credentials" element={<Suspense fallback={<p role="status">Loading credential reviews…</p>}><CredentialReviewsPage /></Suspense>} />
           <Route path="/manual-identity" element={<ManualIdentityPage />} />
           <Route path="/manual-identity/name-change" element={<NameChangePage />} />
           <Route path="/admin/manual-identity" element={<ManualIdentityReviewsPage />} />
