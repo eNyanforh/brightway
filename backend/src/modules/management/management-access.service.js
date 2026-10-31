@@ -1,3 +1,4 @@
+import { readPlatformStatistics } from "./management-statistics.js";
 import { z } from "zod";
 import { assertMfaSession } from "../auth/mfa.service.js";
 const fail = (status, message) => Object.assign(new Error(message), { status });
@@ -6,7 +7,7 @@ export const managementGrantSchema = z.strictObject({ username: z.string().trim(
 
 export { createManagementProvisioning, createManagementBootstrap, createStaffProvisioning } from "./staff-provisioning.service.js";
 
-export function createManagementService({ prisma, now = () => new Date() }) {
+export function createManagementService({ prisma, now = () => new Date(), readStatistics = readPlatformStatistics }) {
   async function authorize(db, accountId, sessionId) {
     if (typeof accountId !== "string" || !accountId || typeof sessionId !== "string" || !sessionId.trim()) throw denied();
     const timestamp = now();
@@ -41,5 +42,14 @@ export function createManagementService({ prisma, now = () => new Date() }) {
   return {
     async access(accountId, sessionId) { try { return await read(accountId, sessionId, false); } catch (error) { if ([401, 403].includes(error.status)) return { allowed: false }; throw error; } },
     context: (accountId, sessionId) => read(accountId, sessionId, true),
+    statistics: (accountId, sessionId) => prisma.$transaction(async tx => {
+      if (typeof accountId !== "string" || !accountId || (await tx.account.updateMany({ where: { id: accountId, status: "ACTIVE" }, data: { identityRevision: { increment: 0 } } })).count !== 1) throw denied();
+      const { role } = await authorize(tx, accountId, sessionId);
+      if (role.isSuperAdmin !== true) throw fail(403, "Super Admin permission is required for platform statistics.");
+      const snapshot = await readStatistics(tx, now());
+      const current = await authorize(tx, accountId, sessionId);
+      if (current.role.isSuperAdmin !== true || current.role.version !== role.version) throw denied();
+      return { ...snapshot, accountId };
+    }),
   };
 }

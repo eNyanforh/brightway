@@ -8,4 +8,4 @@ async function request(path, signal) {
   if (!response.ok || result.success !== true) throw new ApiError(result.message || "Management access is unavailable.", response.status);
   return result.data;
 }
-export const managementApi = { access: signal => request("/management/access", signal), context: signal => request("/management", signal) };
+export const managementApi = { access: signal => request("/management/access", signal), context: signal => request("/management", signal), statistics: signal => request("/management/statistics", signal) };
