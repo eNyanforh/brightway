@@ -84,7 +84,7 @@ export default function AuthProvider({ children }) {
     return task;
   }, []);
 
-  const refresh = useCallback(async (force = false) => {
+  const refresh = useCallback(async (force = true) => {
     if (mutation.current) return;
     if (!force && Date.now() - lastSessionCheck.current < 30_000) return;
     await checkSession(undefined, true);
@@ -105,7 +105,7 @@ export default function AuthProvider({ children }) {
 
   useEffect(() => {
     const onFocus = () => {
-      void refresh();
+      void refresh(false);
     };
 
     window.addEventListener("focus", onFocus);
