@@ -28,17 +28,22 @@ export default function AppLayout() {
   const { pathname } = useLocation(), { account } = useAuth();
   const [workAccess, setWorkAccess] = useState(null);
   const workGeneration = useRef(0);
+  const lastWorkCheck = useRef(0);
   const hasWork = workAccess?.accountId === account?.id && workAccess.hasWork;
   const onOrganizationSubmitted = useCallback(() => { workGeneration.current++; setWorkAccess({ accountId: account?.id, hasWork: true }); }, [account?.id]);
   useEffect(() => {
     let controller;
-    const load = () => {
+    const load = (force = false) => {
+      if (!force && Date.now() - lastWorkCheck.current < 30_000) return;
+      lastWorkCheck.current = Date.now();
       controller?.abort(); controller = new AbortController(); const signal = controller.signal, generation = workGeneration.current;
       if (!account?.id) return;
       organizationsApi.workAccess(signal).then(result => { if (!signal.aborted && generation === workGeneration.current) setWorkAccess({ accountId: account.id, hasWork: result.hasWork === true }); }).catch(error => { if (!signal.aborted && [401, 403].includes(error.status)) setWorkAccess(null); });
     };
-    load(); window.addEventListener("focus", load);
-    return () => { controller?.abort(); window.removeEventListener("focus", load); };
+    load(true);
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => { controller?.abort(); window.removeEventListener("focus", onFocus); };
   }, [account?.id]);
   const [actingOrganization, setActingOrganization] = useState(null);
   const [managementWorkspace, setManagementWorkspace] = useState(null);
