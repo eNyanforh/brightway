@@ -18,6 +18,7 @@ export default function AuthProvider({ children }) {
   const version = useRef(0);
   const mutation = useRef(false);
   const pendingCheck = useRef(null);
+  const lastSessionCheck = useRef(0);
 
   const checkSession = useCallback((signal, background = false) => {
     if (mutation.current) return;
@@ -27,6 +28,7 @@ export default function AuthProvider({ children }) {
     }
 
     const current = ++version.current;
+    lastSessionCheck.current = Date.now();
 
     const task = authApi
       .me(signal)
@@ -82,8 +84,9 @@ export default function AuthProvider({ children }) {
     return task;
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force = false) => {
     if (mutation.current) return;
+    if (!force && Date.now() - lastSessionCheck.current < 30_000) return;
     await checkSession(undefined, true);
   }, [checkSession]);
 
@@ -95,6 +98,7 @@ export default function AuthProvider({ children }) {
     return () => {
       controller.abort();
       pendingCheck.current = null;
+      lastSessionCheck.current = 0;
       version.current += 1;
     };
   }, [checkSession]);
