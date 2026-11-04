@@ -39,3 +39,17 @@ Owner acceptance still includes actual management bootstrap/email/MFA/recovery,
 issuer and management decisions using test accounts in the application, private
 storage delivery, and mobile-device/assistive-technology checks. Browser fixture
 success must not be described as production acceptance or actual latency evidence.
+
+## Management design coverage
+
+`management-design.spec.mjs` adds two scenarios per viewport (12 total browser cases
+across the suite): every implemented management page with synthetic server data,
+queue selection and pre-assignment decision restrictions, mobile menu Escape/focus
+return and destination closing, backup-code dismissal and conflict submission.
+Screenshots for the overview, four review desks, credentials and security are
+attached to the Playwright report using synthetic identities only. No real
+credentials, evidence, email delivery or application database is used.
+
+The redesign is frontend-only. It requires no schema migration or new environment
+variables. Backend authority, evidence authorization, stale-write protection and
+MFA requirements continue to apply to every protected operation.

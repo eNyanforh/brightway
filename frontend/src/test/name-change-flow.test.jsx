@@ -95,7 +95,7 @@ function reviewerFixture() {
   return { user: userEvent.setup(), fetchMock, revoke() { allowed = false; } };
 }
 async function assign(user) {
-  await user.click(await screen.findByRole("button", { name: /Name request/ }));
+  await user.click(await screen.findByRole("button", { name: /Name correction #/ }));
   expect(screen.queryByRole("heading", { name: "Proposed name" })).toBeNull();
   await user.click(screen.getByRole("button", { name: "Assign name correction to me" }));
   await screen.findByAltText("Private Government-issued ID for name correction");

@@ -54,7 +54,7 @@ it("the management shell shows only granted operational navigation and clears it
   const nav = await screen.findByRole("navigation", { name: "Management tools" });
   expect(within(nav).getAllByRole("link").map(link => link.textContent)).toEqual(["Overview", "Identity reviews"]); expect(screen.queryByRole("navigation", { name: "Main navigation" })).toBeNull();
   expect(document.querySelector(".bw-management-shell").textContent).toContain("BrightWay Management");
-  const future = screen.getByRole("navigation", { name: "Planned management tools" }); expect(within(future).getAllByRole("button").every(button => button.disabled)).toBe(true);
+  expect(screen.queryByRole("navigation", { name: "Planned management tools" })).toBeNull();
   expect(within(screen.getByRole("navigation", { name: "Mobile management navigation" })).getAllByRole("link")).toHaveLength(2);
   denied = true; act(() => window.dispatchEvent(new Event("focus"))); await screen.findByRole("alert"); expect(screen.queryByRole("navigation", { name: "Management tools" })).toBeNull(); expect(screen.queryByRole("link", { name: "Open workspace" })).toBeNull();
 });
