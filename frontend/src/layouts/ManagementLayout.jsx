@@ -1,3 +1,6 @@
+import { managementApi } from "../api/management";
+import { validManagementContext } from "../components/layout/management-paths";
+import { subscribeFocus } from "../auth/focus-refresh";
 import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useManagement } from "../auth/management-context";
@@ -14,7 +17,21 @@ export default function ManagementLayout() {
     const close = event => { if (event.key === "Escape") { setOpen(false); menuButton.current?.focus(); } };
     window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close);
   }, [open]);
-  const section = { credentials: "Credential reviews", identity: "Identity reviews", photos: "Photo reviews", names: "Name corrections", organizations: "Organization reviews", security: "Account security" }[pathname.split("/")[2]] || "Overview";
+  useEffect(() => {
+    if (pathname !== "/superadmin/security") return;
+    let disposed = false, pending = false, controller;
+    async function load() {
+      if (pending) return; pending = true; controller = new AbortController();
+      try {
+        const next = await managementApi.context(controller.signal);
+        if (!disposed) { if (!validManagementContext(next,staff.id)) throw Error("Management navigation could not be verified."); setWorkspace(next); }
+      } catch (failure) { if (!disposed && failure.name !== "AbortError") { if ([401,403,404].includes(failure.status)) setWorkspace(null); } }
+      finally { pending = false; }
+    }
+    void load(); const off = subscribeFocus(load);
+    return () => { disposed = true; controller?.abort(); off(); };
+  },[pathname,staff.id]);
+  const section = { users: "Users", directory: "Organization oversight", team: "Team access", support: "Support", reports: "Reports", audit: "Audit log", operations: "Operations", credentials: "Credential reviews", identity: "Identity reviews", photos: "Photo reviews", names: "Name corrections", organizations: "Organization reviews", security: "Account security" }[pathname.split("/")[2]] || "Overview";
   const visibleWorkspace = workspace?.staffId === staff.id ? workspace : null;
   return <div className="bw-app-shell bw-management-shell">
     <a className="bw-mgmt-skip" href="#management-content">Skip to content</a>

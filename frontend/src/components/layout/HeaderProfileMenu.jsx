@@ -141,6 +141,8 @@ export default function HeaderProfileMenu({
 
 
           <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/security"); }}>Account security</Action>
+          <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/help"); }}>Help & support</Action>
+          <Action type="button" disabled={busy || profileBusy} onClick={() => { setOpen(false); navigate("/help/reports"); }}>My reports</Action>
 
           <Action
             type="button"

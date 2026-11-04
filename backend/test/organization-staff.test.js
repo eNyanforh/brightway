@@ -167,7 +167,11 @@ test("staff search covers the entire tenant roster, literal usernames and filter
   assert.deepEqual(found.members[0].permissions, []); assert.deepEqual(found.members[0].assignedPermissions, [POSTS]);
   assert.equal(found.members[0].canManage, true); assert.equal(found.search, "team_23");
   assert.equal((await f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { search: "%" })).members.length, 0);
-  await assert.rejects(f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { search: "team_23", memberCursor: first.nextMemberCursor }), { status: 404 });
+  const cursorMember = f.state.organizationMembership.find(row => row.id === first.nextMemberCursor);
+  const cursorUsername = f.state.account.find(row => row.id === cursorMember.accountId)?.username;
+  // Membership creation timestamps can tie; UUID ordering may put team_23 at the cursor.
+  const excludedSearch = cursorUsername === "team_23" ? "team_22" : "team_23";
+  await assert.rejects(f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { search: excludedSearch, memberCursor: first.nextMemberCursor }), { status: 404 });
   for (const query of [{ memberStatus: "suspended" }, { search: "x\u0000" }, { accountId: f.owner.id }, { search: "x".repeat(101) }]) await assert.rejects(f.staff.staff(f.owner.id, f.owner.sessionId, f.id, query), { status: 400 });
 });
 test("revoked grants remain inspectable and only an authorized manager can restore them", async () => {

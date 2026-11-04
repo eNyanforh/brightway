@@ -1,4 +1,11 @@
 export const managementPaths = {
+  "/management/users": "/superadmin/users",
+  "/management/organizations": "/superadmin/directory",
+  "/management/team": "/superadmin/team",
+  "/management/support": "/superadmin/support",
+  "/management/reports": "/superadmin/reports",
+  "/management/audit": "/superadmin/audit",
+  "/management/operations": "/superadmin/operations",
   "/admin/credentials": "/superadmin/credentials",
   "/admin/manual-identity": "/superadmin/identity",
   "/admin/profile-photos": "/superadmin/photos",
@@ -6,3 +13,7 @@ export const managementPaths = {
   "/admin/organizations": "/superadmin/organizations",
 };
 export const managementPath = path => managementPaths[path] || path;
+
+export function validManagementContext(data, staffId) {
+  return data?.allowed === true && data.staffId === staffId && !!data.role && Array.isArray(data.tools) && Array.isArray(data.audits) && data.tools.every(tool => typeof tool.allowed === "boolean" && Object.hasOwn(managementPaths,tool.to));
+}

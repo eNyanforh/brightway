@@ -65,6 +65,23 @@ export function createManagementAuth({ prisma, key = process.env.MANAGEMENT_MFA_
     return row;
   }
   return {
+    async stepUp(id, sessionId, input) {
+      const parsed = z.strictObject({ password: z.string().min(1).max(128), code: z.string().trim().min(1).max(32) }).safeParse(input);
+      if (!parsed.success) throw fail(400, "Provide your management password and a fresh MFA code.");
+      const candidate = await assertManagementSession(prisma, id, sessionId, now());
+      const correct = await verify(parsed.data.password, candidate.passwordHash);
+      const result = await prisma.$transaction(async tx => {
+        const staff = await lock(tx, id); await assertManagementSession(tx, id, sessionId, now());
+        if (staff.passwordHash !== candidate.passwordHash || staff.version !== candidate.version) throw fail(403, "Management access changed. Sign in again.");
+        if (exhausted(staff)) return false;
+        if (!correct) { await resultBudget(tx, staff, false); return false; }
+        if (!await proof(tx, staff, parsed.data.code)) return false;
+        if ((await tx.managementSession.updateMany({ where: { id: sessionId, staffId: id, staffVersion: staff.version }, data: { mfaVerifiedAt: now() } })).count !== 1) throw invalid();
+        await audit(tx, id, "STEP_UP_VERIFIED"); return true;
+      });
+      if (!result) throw fail(400, "Management password or MFA code was rejected. Use a fresh code; repeated failures require a five-minute wait.");
+      return { verified: true, verifiedAt: now(), validForSeconds: 300 };
+    },
     async declareConflict(id, sessionId, input) {
       const parsed = z.strictObject({ username: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,30}$/), reason: z.string().trim().min(10).max(500) }).safeParse(input);
       if (!parsed.success) throw fail(400, "Provide the related personal username and a clear conflict reason.");

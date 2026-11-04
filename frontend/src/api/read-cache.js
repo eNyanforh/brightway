@@ -49,6 +49,9 @@ export function resourceFetch(url, options = {}, realm = "personal") {
     entry = { controller, consumers: 0, done: false, at: 0 };
     const current = entry;
     current.promise = Promise.resolve(fetch(url, { ...options, signal: controller.signal })).then(response => {
+      // Headers have arrived. Detaching the last consumer must not abort the
+      // response body, including an error body that the API client still reads.
+      current.done = true;
       if ([401, 403].includes(response.status)) { current.done = true; invalidateReads(realm, current); return response; }
       if (!response.ok || epoch !== store.epoch) { if (store.entries.get(key) === current) store.entries.delete(key); }
       else { current.done = true; current.at = Date.now(); }

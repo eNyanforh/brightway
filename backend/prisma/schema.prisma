@@ -38,6 +38,9 @@ enum PersonGender {
 }
 
 model Account {
+  accessVersion Int @default(0)
+  managementCases ManagementCase[]
+  caseMessages ManagementCaseMessage[]
   reviewPrincipal ReviewPrincipal?
   managementAdministrator ManagementAdministrator?
   managementAdministratorAudits ManagementAdministratorAudit[] @relation("ManagementAuditTarget")
@@ -888,6 +891,7 @@ model OrganizationRequestAudit {
   @@index([requestId, createdAt, id])
 }
 model Organization {
+  accessVersion Int @default(0)
   username String? @unique @db.VarChar(30)
   profileVersion Int @default(0)
   profileSetupStep Int @default(1)
@@ -1029,6 +1033,10 @@ model ReviewPrincipal {
 }
 
 model ManagementStaff {
+  operations ManagementAction[]
+  createdCases ManagementCase[] @relation("CaseCreatedBy")
+  assignedCases ManagementCase[] @relation("CaseAssignedTo")
+  caseMessages ManagementCaseMessage[]
   id String @id
   username String @unique @db.VarChar(30)
   fullName String @db.VarChar(160)
@@ -1094,4 +1102,82 @@ model ManagementConflict {
   reason String @db.VarChar(500)
   createdAt DateTime @default(now())
   @@id([staffId, accountId])
+}
+
+// Management operations are separate from credential/identity trust decisions.
+model ManagementAction {
+  id String @id @default(uuid())
+  actorId String
+  actor ManagementStaff @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  requestKey String @db.VarChar(36)
+  requestHash String @db.VarChar(64)
+  action String @db.VarChar(60)
+  targetType String @db.VarChar(30)
+  targetId String
+  reason String @db.VarChar(1000)
+  result Json
+  createdAt DateTime @default(now())
+  @@unique([actorId, requestKey])
+  @@index([createdAt, id])
+  @@index([targetType, targetId, createdAt])
+}
+
+enum ManagementCaseKind {
+  SUPPORT
+  REPORT
+}
+enum ManagementCaseStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_USER
+  RESOLVED
+  DISMISSED
+}
+enum ManagementCasePriority {
+  NORMAL
+  HIGH
+  URGENT
+}
+model ManagementCase {
+  id String @id @default(uuid())
+  kind ManagementCaseKind
+  subject String @db.VarChar(160)
+  status ManagementCaseStatus @default(OPEN)
+  priority ManagementCasePriority @default(NORMAL)
+  version Int @default(1)
+  creatorKey String
+  idempotencyKey String @db.VarChar(36)
+  requestHash String @db.VarChar(64)
+  creatorAccountId String?
+  creatorAccount Account? @relation(fields: [creatorAccountId], references: [id], onDelete: Restrict)
+  createdByStaffId String?
+  createdByStaff ManagementStaff? @relation("CaseCreatedBy", fields: [createdByStaffId], references: [id], onDelete: Restrict)
+  assignedStaffId String?
+  assignedStaff ManagementStaff? @relation("CaseAssignedTo", fields: [assignedStaffId], references: [id], onDelete: Restrict)
+  targetType String? @db.VarChar(30)
+  targetId String?
+  closedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messages ManagementCaseMessage[]
+  @@unique([creatorKey, idempotencyKey])
+  @@index([kind, status, createdAt, id])
+  @@index([creatorAccountId, createdAt, id])
+  @@index([assignedStaffId, status])
+}
+model ManagementCaseMessage {
+  id String @id @default(uuid())
+  caseId String
+  case ManagementCase @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  authorKey String
+  idempotencyKey String @db.VarChar(36)
+  authorAccountId String?
+  authorAccount Account? @relation(fields: [authorAccountId], references: [id], onDelete: Restrict)
+  authorStaffId String?
+  authorStaff ManagementStaff? @relation(fields: [authorStaffId], references: [id], onDelete: Restrict)
+  internal Boolean @default(false)
+  body String @db.VarChar(4000)
+  createdAt DateTime @default(now())
+  @@unique([caseId, authorKey, idempotencyKey])
+  @@index([caseId, createdAt, id])
 }

@@ -30,7 +30,7 @@ checks, not end-to-end acceptance of real credentials or provider delivery.
 Organization navigation also stays mounted during delayed tab access checks,
 then clears on confirmed membership denial. This runs in both viewport projects.
 
-GitHub workflow `Management browser acceptance` runs the eight cases on PRs. Reports
+GitHub workflow `Management browser acceptance` runs all 18 cases on PRs. Reports
 and failure screenshots/traces are retained for seven days as CI artifacts.
 `frontend/playwright-report/` and `frontend/test-results/` are ignored by Git.
 The existing Vitest suite remains separate under `frontend/src/test`.
@@ -42,14 +42,25 @@ success must not be described as production acceptance or actual latency evidenc
 
 ## Management design coverage
 
-`management-design.spec.mjs` adds two scenarios per viewport (12 total browser cases
-across the suite): every implemented management page with synthetic server data,
+`management-design.spec.mjs` adds two scenarios per viewport: every implemented management page with synthetic server data,
 queue selection and pre-assignment decision restrictions, mobile menu Escape/focus
 return and destination closing, backup-code dismissal and conflict submission.
 Screenshots for the overview, four review desks, credentials and security are
 attached to the Playwright report using synthetic identities only. No real
 credentials, evidence, email delivery or application database is used.
 
-The redesign is frontend-only. It requires no schema migration or new environment
-variables. Backend authority, evidence authorization, stale-write protection and
+The styling-only redesign requires no schema migration. The operational tools
+below require the additive migration documented in MANAGEMENT-TOOLS.md. Backend authority, evidence authorization, stale-write protection and
 MFA requirements continue to apply to every protected operation.
+
+## Operational tools coverage
+
+`management-operations.spec.mjs` adds three scenarios per viewport (18 browser cases
+in the full suite). It visits Users, Organization oversight, Team access, Support,
+Reports, Audit log and Operations, then checks password/MFA-confirmed versioned
+access changes and assignment-gated case replies. A management internal note is
+absent after navigating to the requester's personal Help page. Temporary case-read
+failures preserve the unsent message and disable writes; confirmed denial removes
+the private case and draft. These responses
+and identities are synthetic. The PostgreSQL suite independently checks the real
+service projections and transactions; the browser fixture is not a live API test.

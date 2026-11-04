@@ -1,0 +1,69 @@
+import { Link, useOutletContext } from "react-router-dom";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useManagement } from "../auth/management-context";
+import { useAuth } from "../auth/useAuth";
+import { managementToolsApi } from "../api/management-tools";
+import { useManagementResource } from "../components/management/useManagementResource";
+import ManagementPageHeader from "../components/management/ManagementPageHeader";
+import ManagementActionDialog from "../components/management/ManagementActionDialog";
+import { ManagementQueue,ManagementQueueRow,ManagementReviewPlaceholder } from "../components/management/ManagementQueue";
+import "./management-tools.css";
+const statuses = ["OPEN","IN_PROGRESS","WAITING_FOR_USER","RESOLVED","DISMISSED"];
+const label = value => value?.replaceAll("_"," ") || "";
+const date = value => new Date(value).toLocaleString("en",{ dateStyle:"medium",timeStyle:"short",timeZone:"UTC" }) + " UTC";
+export default function ManagementCasesPage({ kind = "SUPPORT", personal = false }) {
+  const { staff } = useManagement(), { account } = useAuth(), actor = personal ? account : staff;
+  return <Cases key={`${personal}:${actor.id}:${kind}`} kind={kind} personal={personal} actor={actor} />;
+}
+function Cases({ kind,personal,actor }) {
+  const management = useOutletContext()?.management;
+  const api = useMemo(() => managementToolsApi.cases(personal),[personal]);
+  const [status,setStatus] = useState(""),[q,setQ] = useState(""),[query,setQuery] = useState({ q:"",status:"" }),[cursors,setCursors] = useState([null]),[selected,setSelected] = useState(null),[messageCursor,setMessageCursor] = useState(null);
+  const [body,setBody] = useState(""),[internal,setInternal] = useState(false),[notice,setNotice] = useState(""),[error,setError] = useState(null),[busy,setBusy] = useState(false),[stale,setStale] = useState(false),[create,setCreate] = useState(false),[action,setAction] = useState(null);
+  const [nextStatus,setNextStatus] = useState("OPEN"),[priority,setPriority] = useState("NORMAL"),lock = useRef(false),messageKey = useRef(null);
+  const denied = useCallback(() => { setBody(""); setAction(null); setSelected(null); messageKey.current = null; },[]);
+  const cursor = cursors.at(-1),fetchList = useCallback(signal => api.list({ kind,...query,cursor },signal),[api,kind,query,cursor]);
+  const list = useManagementResource(JSON.stringify([personal,actor.id,kind,query,cursor]),fetchList,denied);
+  const fetchDetail = useCallback(signal => selected ? api.detail(selected,messageCursor,signal) : Promise.resolve(null),[api,selected,messageCursor]);
+  const detail = useManagementResource(`${personal}:${actor.id}:${selected}:${messageCursor}`,fetchDetail,denied),row = detail.data;
+  const canReply = row && !["RESOLVED","DISMISSED"].includes(row.status) && (personal || row.assignedStaffId === actor.id);
+  const uncertain = stale || !!detail.error || detail.loading || list.loading || busy;
+  function discard() { return !body.trim() || window.confirm("Discard the unsent case message?"); }
+  function select(id) { if (busy || !discard()) return; setSelected(id); setMessageCursor(null); setBody(""); setError(null); setNotice(""); setStale(false); messageKey.current = null; }
+  async function reload() { if (busy) return; await Promise.all([list.refresh(),detail.refresh()]); setStale(false); }
+  function start(value,extra = {}) { setAction({ action:value, ...extra, expectedVersion:row.version, requestKey:crypto.randomUUID() }); }
+  const title = personal ? kind === "REPORT" ? "My reports" : "Help & support" : kind === "REPORT" ? "Reports & moderation" : "Support workspace";
+  return <section className={`bw-mgmt-tools-page${personal ? " bw-personal-support" : ""}`}>
+    <ManagementPageHeader eyebrow={personal ? "BRIGHTWAY / HELP" : "CASEWORK / OPERATIONS"} title={title} description={personal ? "Ask for help and follow your case. Your conversation is private to you and authorized BrightWay staff." : kind === "REPORT" ? "Investigate reports fairly. Assignment and conflict checks apply before case actions." : "A shared queue, a clear owner and a complete conversation for every support case."} action={<button type="button" disabled={busy || list.loading} onClick={reload}>Refresh cases</button>} />
+    {(error || list.error || detail.error) && <p role="alert">{(error || list.error || detail.error).message}{stale && " Reload the saved case before another write. Your message is kept."}</p>}{notice && <p className="bw-mgmt-notice" role="status">{notice}</p>}
+    <form className="bw-mgmt-toolbar" onSubmit={e => { e.preventDefault(); if (!discard()) return; setQuery({ q,status }); setCursors([null]); select(null); }}><label>Search case subjects<input maxLength={100} value={q} onChange={e => setQ(e.target.value)} /></label><label>Case status<select value={status} onChange={e => setStatus(e.target.value)}><option value="">All statuses</option>{statuses.map(value => <option key={value} value={value}>{label(value)}</option>)}</select></label><button disabled={list.loading || busy}>Apply filters</button><button type="button" disabled={busy} onClick={() => setCreate(previous => !previous)}>{create ? "Close new case" : personal ? "Start a new case" : "New internal case"}</button></form>
+    {create && <CaseCreateForm api={api} kind={kind} personal={personal} onDone={async result => { setCreate(false); select(result.id); await list.refresh(); }} />}
+    <div className="bw-mgmt-review-desk"><div><ManagementQueue title={personal ? "Your cases" : "Case queue"} count={list.data?.items.length || 0}>
+      {list.loading && <p role="status">{list.data ? "Refreshing cases…" : "Loading cases…"}</p>}{!list.loading && !list.data?.items.length && <p>No cases match this view.</p>}
+      <ul>{list.data?.items.map(item => <ManagementQueueRow key={item.id} title={item.subject} reference={`#${item.id.slice(0,8)}`} status={label(item.status)} meta={`${item.priority} · ${date(item.createdAt)}`} selected={selected === item.id} disabled={busy} icon={kind === "REPORT" ? "alert" : "mail"} onClick={() => select(item.id)} />)}</ul>
+      <footer className="bw-mgmt-pager"><button type="button" disabled={list.loading || busy || cursors.length === 1} onClick={() => { if (discard()) { setCursors(old => old.slice(0,-1)); select(null); } }}>Previous page</button><button type="button" disabled={list.loading || busy || !list.data?.nextCursor} onClick={() => { if (discard()) { setCursors(old => [...old,list.data.nextCursor]); select(null); } }}>Next page</button></footer>
+    </ManagementQueue></div><section className="bw-mgmt-case-detail" aria-label="Selected case">
+      {selected && detail.loading && <p role="status">{row ? "Refreshing case…" : "Loading case…"}</p>}
+      {row ? <article className="bw-mgmt-tool-card"><span className="bw-mgmt-card-eyebrow">CASE #{row.id.slice(0,8)}</span><h2>{row.subject}</h2><div className="bw-mgmt-record-state"><span className="bw-mgmt-tag">{label(row.status)}</span><span className="bw-mgmt-tag">{row.priority}</span><small>Version {row.version}</small></div>
+        {!personal && <><p>{row.assignedStaffId === actor.id ? "Assigned to you" : row.assignedStaffId ? "Assigned to another staff member" : "Unassigned"}{row.targetType && ` · ${row.targetType} ${row.targetId}`}</p>{row.targetId && management?.tools.some(tool => tool.allowed && tool.key === (row.targetType === "ACCOUNT" ? "users" : "directory")) && <Link to={`/superadmin/${row.targetType === "ACCOUNT" ? "users" : "directory"}?q=${encodeURIComponent(row.targetId)}`}>Open reported access record</Link>}<div className="bw-mgmt-record-actions"><button type="button" disabled={uncertain || !!row.assignedStaffId || ["RESOLVED","DISMISSED"].includes(row.status)} onClick={() => start("ASSIGN_SELF")}>Assign case to me</button><button type="button" disabled={uncertain || !row.assignedStaffId || row.assignedStaffId !== actor.id && !actor.isSuperAdmin || ["RESOLVED","DISMISSED"].includes(row.status)} onClick={() => start("RELEASE")}>Release assignment</button></div>
+        {row.assignedStaffId === actor.id && <div className="bw-mgmt-case-controls"><label>New case status<select value={nextStatus} onChange={e => setNextStatus(e.target.value)}>{statuses.filter(value => row.creatorAccountId || value !== "WAITING_FOR_USER").map(value => <option key={value} value={value}>{label(value)}</option>)}</select></label><button type="button" disabled={uncertain || nextStatus === row.status} onClick={() => start("STATUS",{ status:nextStatus })}>Update status</button><label>Priority<select value={priority} onChange={e => setPriority(e.target.value)}>{["NORMAL","HIGH","URGENT"].map(value => <option key={value}>{value}</option>)}</select></label><button type="button" disabled={uncertain || priority === row.priority} onClick={() => start("PRIORITY",{ priority })}>Set priority</button></div>}</>}
+        <h3>Conversation</h3>{detail.data.nextMessageCursor && <button type="button" disabled={busy || detail.loading} onClick={() => setMessageCursor(detail.data.nextMessageCursor)}>View older messages</button>}{messageCursor && <button type="button" disabled={busy} onClick={() => setMessageCursor(null)}>Latest messages</button>}
+        <ol className="bw-mgmt-thread">{row.messages.map(message => <li key={message.id} className={message.internal ? "is-internal" : ""}><header><strong>{personal ? message.author : message.authorStaff?.fullName || (message.authorStaffId ? "Management staff" : "Requester")}</strong><small>{date(message.createdAt)}</small>{message.internal && <span className="bw-mgmt-tag">Internal note</span>}</header><p>{message.body}</p></li>)}</ol>
+        {canReply ? <form className="bw-mgmt-reply" onSubmit={async e => { e.preventDefault(); if (lock.current || uncertain) return; lock.current = true; setBusy(true); setError(null); messageKey.current ||= crypto.randomUUID();
+          try { await api.message(row.id,{ expectedVersion:row.version,body,internal:personal ? false : !row.creatorAccountId || internal,requestKey:messageKey.current }); setBody(""); messageKey.current = null; setNotice("Message saved."); await Promise.all([list.refresh(),detail.refresh()]); }
+          catch (failure) { setError(failure); setStale(true); if ([401,403,404].includes(failure.status)) { denied(); list.clear(failure); detail.clear(failure); } }
+          finally { lock.current = false; setBusy(false); }
+        }}><label htmlFor="case-message-body">{personal ? "Your reply" : !row.creatorAccountId || internal ? "Private internal note" : "Reply to requester"}</label><textarea id="case-message-body" required minLength={2} maxLength={4000} value={body} onChange={e => { setBody(e.target.value); messageKey.current = null; }} disabled={busy} />{!personal && row.creatorAccountId && <label className="bw-mgmt-checkbox"><input type="checkbox" checked={internal} onChange={e => setInternal(e.target.checked)} disabled={busy} />Internal note · visible only to authorized management staff</label>}<button disabled={uncertain}>{busy ? "Saving…" : "Send message"}</button></form> : <p>{personal ? "This case is closed. Start a new case if you still need help." : "Assign an open case to yourself before replying."}</p>}
+      </article> : !selected && <ManagementReviewPlaceholder title="One case. A clear next step." description="Select a case to read its conversation and continue from its saved status." />}
+    </section></div>
+    {action && <ManagementActionDialog title={label(action.action)} description={action.action === "STATUS" && row.creatorAccountId ? "Your reason will also be visible to the requester as case feedback." : "This change records your identity and reason in the audit log."} onClose={() => { setAction(null); void reload(); }} onConfirm={async reason => { await api.action(row.id,{ ...action,reason }); setAction(null); setNotice("Case action saved."); await Promise.all([list.refresh(),detail.refresh()]); }} />}
+  </section>;
+}
+function CaseCreateForm({ api,kind,personal,onDone }) {
+  const [subject,setSubject] = useState(""),[body,setBody] = useState(""),[targetType,setTargetType] = useState("ACCOUNT"),[targetUsername,setTargetUsername] = useState(""),[error,setError] = useState(null),[busy,setBusy] = useState(false),lock = useRef(false),key = useRef(null);
+  return <form className="bw-mgmt-tool-card bw-mgmt-case-create" onSubmit={async e => { e.preventDefault(); if (lock.current) return; lock.current = true; setBusy(true); setError(null); key.current ||= crypto.randomUUID(); try { await onDone(await api.create({ kind,subject,body,requestKey:key.current,...(kind === "REPORT" ? { targetType,targetUsername } : {}) })); } catch (failure) { setError(failure); } finally { lock.current = false; setBusy(false); } }}><h2>{kind === "REPORT" ? "Report an account or organization" : personal ? "How can BrightWay help?" : "Create an internal support case"}</h2>{error && <p role="alert">{error.message}</p>}<fieldset disabled={busy}>
+    <label>Case subject<input required minLength={5} maxLength={160} value={subject} onChange={e => { setSubject(e.target.value); key.current = null; }} /></label>
+    {kind === "REPORT" && <><label>Report concerns<select value={targetType} onChange={e => { setTargetType(e.target.value); key.current = null; }}><option value="ACCOUNT">An account</option><option value="ORGANIZATION">An organization</option></select></label><label>Reported username<input required pattern="[a-zA-Z0-9_]{3,30}" maxLength={30} value={targetUsername} onChange={e => { setTargetUsername(e.target.value); key.current = null; }} /></label></>}
+    <label>Describe what happened<textarea required minLength={10} maxLength={4000} value={body} onChange={e => { setBody(e.target.value); key.current = null; }} /></label><button>{busy ? "Submitting…" : "Submit case"}</button>
+  </fieldset></form>;
+}

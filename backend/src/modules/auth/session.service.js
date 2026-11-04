@@ -48,6 +48,7 @@ export function createSessionService({
         select: {
           id: true,
           passwordHash: true,
+          accessVersion: true,
           status: true,
         },
       });
@@ -82,6 +83,7 @@ export function createSessionService({
               id: candidate.id,
               status: "ACTIVE",
               passwordHash: candidate.passwordHash,
+              ...(candidate.accessVersion !== undefined ? { accessVersion: candidate.accessVersion } : {}),
             },
             data: { status: "ACTIVE" },
           });

@@ -218,3 +218,6 @@
 /* Outrank legacy page CSS even when a review page's stylesheet loads later. */
 .bw-management-shell .bw-management h1,.bw-management-shell .bw-management h2,.bw-management-shell .bw-management h3,.bw-management-shell .bw-management h4 { color:var(--sa-text); }
 .bw-management-shell .bw-mgmt-review-page form,.bw-management-shell .bw-mgmt-review-page article article { background:#0e1a2b; border-color:#344c6b; color:var(--sa-muted); }
+
+.bw-management-shell .bw-design-sidebar { max-height:calc(100svh - 120px); overflow-y:auto; scrollbar-width:thin; scrollbar-color:#385271 transparent; }
+.bw-management-shell .bw-mgmt-sidebar-section { margin:22px 12px 8px; font:9px ui-monospace,monospace; letter-spacing:.1em; color:#99b3d4; }

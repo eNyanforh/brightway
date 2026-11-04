@@ -1,4 +1,5 @@
 import { assertManagementSession, lockReviewActors, permits } from "./management-authority.js";
+import { managementToolCatalog } from "./management-operations.schema.js";
 import { readPlatformStatistics } from "./management-statistics.js";
 const fail = () => Object.assign(Error("Current BrightWay management access is required."), { status: 403 });
 export function createManagementService({ prisma, now = () => new Date(), readStatistics = readPlatformStatistics }) {
@@ -20,6 +21,7 @@ export function createManagementService({ prisma, now = () => new Date(), readSt
           ["photos", "Profile photo reviews", "Review protected profile photo replacements.", "/admin/profile-photos", "identity-reviewer"],
           ["names", "Name-correction reviews", "Review supported identity name corrections.", "/admin/name-changes", "identity-reviewer"],
           ["organizations", "Organization verification", "Investigate or approve within the separation-of-duties rules.", "/admin/organizations", "organization-agent"],
+          ...managementToolCatalog,
         ].map(([key, label, description, to, permission]) => ({ key, label, description, to, allowed: permits(staff, permission) || key === "organizations" && permits(staff, "organization-approver") }));
         const audits = await tx.managementStaffAudit.findMany({ where: { targetStaffId: id }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 10, select: { id: true, actorId: true, action: true, reason: true, createdAt: true } });
         const final = await assertManagementSession(tx, id, sessionId, now()); if (staff.version !== final.version) throw fail();

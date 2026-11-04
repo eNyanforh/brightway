@@ -70,7 +70,10 @@ session is removed even after failure. New staff complete their own email/MFA
 enrollment in the browser.
 
 Supported capabilities: `credential-reviewer`, `identity-reviewer`,
-`organization-agent`, `organization-approver`, and `superadmin`.
+`organization-agent`, `organization-approver`, `user-manager`, `organization-manager`,
+`staff-reader`, `support-agent`, `moderation-agent`, `audit-reader`,
+`operations-reader`, and `superadmin`. See [MANAGEMENT-TOOLS.md](MANAGEMENT-TOOLS.md)
+for the operational permission boundaries and additive migration.
 Super Admin implicitly receives **every implemented** management permission.
 `access revoke` disables an internal identity. Permission changes increment the
 staff version and invalidate its sessions and outstanding challenges. The last
