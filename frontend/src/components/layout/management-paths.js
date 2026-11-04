@@ -13,3 +13,7 @@ export const managementPaths = {
   "/admin/organizations": "/superadmin/organizations",
 };
 export const managementPath = path => managementPaths[path] || path;
+
+export function validManagementContext(data, staffId) {
+  return data?.allowed === true && data.staffId === staffId && !!data.role && Array.isArray(data.tools) && Array.isArray(data.audits) && data.tools.every(tool => typeof tool.allowed === "boolean" && Object.hasOwn(managementPaths,tool.to));
+}

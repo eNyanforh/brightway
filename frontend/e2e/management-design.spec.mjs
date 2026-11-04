@@ -74,6 +74,9 @@ test("every management page has a responsive review layout with current selectio
       await expect(item).toHaveAttribute("aria-pressed", "true"); await expect(page.getByRole("button", { name: detail, exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: /^Save .* decision$/ })).toHaveCount(0);
     }
+    if (path === "/superadmin/security") {
+      await expect(page.locator('nav[aria-label="Management tools"] a[href="/superadmin/identity"]')).toHaveCount(1);
+    }
     await checkLayout(page);
     await testInfo.attach(`${path.split("/").at(-1) || "overview"}-${testInfo.project.name}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   }

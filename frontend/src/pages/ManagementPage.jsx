@@ -3,12 +3,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useOutlet, useOutletContext } from "react-router-dom";
 import { useManagement } from "../auth/management-context";
 import { managementApi } from "../api/management";
-import { managementPath, managementPaths } from "../components/layout/management-paths";
+import { managementPath, validManagementContext } from "../components/layout/management-paths";
 import ManagementStatistics from "../components/management/ManagementStatistics";
 import WorkspaceIcon from "../components/workspace/WorkspaceIcon";
 import "./management.css";
 import ManagementPageHeader from "../components/management/ManagementPageHeader";
-const routes = new Set(Object.keys(managementPaths));
 const date = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString("en", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) : "Not available";
 export default function ManagementPage() { const { staff: account, logout } = useManagement(); return <ManagementWorkspace key={account?.id} accountId={account?.id} logout={logout} />; }
 function ManagementWorkspace({ accountId, logout }) {
@@ -22,7 +21,7 @@ function ManagementWorkspace({ accountId, logout }) {
     try {
       const next = await managementApi.context(controller.signal);
       if (life.current !== current || controller.signal.aborted) return;
-      if (next.allowed !== true || next.staffId !== accountId || !next.role || !Array.isArray(next.tools) || !Array.isArray(next.audits) || next.tools.some(tool => typeof tool.allowed !== "boolean" || !routes.has(tool.to))) throw new Error("Management context could not be verified for this account.");
+      if (!validManagementContext(next,accountId)) throw new Error("Management context could not be verified for this account.");
       setData(next); setWorkspace?.(next);
     } catch (e) { if (life.current === current && !controller.signal.aborted) { if ([401, 403, 404].includes(e.status)) { setData(null); setWorkspace?.(null); } setError(e); } }
     finally { if (life.current === current) { current.pending = false; setBusy(false); } }
@@ -30,7 +29,7 @@ function ManagementWorkspace({ accountId, logout }) {
   useEffect(() => {
     const current = { pending: false, controller: null }; life.current = current;
     void Promise.resolve().then(() => load(current)); const focus = () => void load(current); const unsubscribeFocus = subscribeFocus(focus);
-    return () => { current.controller?.abort(); if (life.current === current) life.current = null; setWorkspace?.(null); unsubscribeFocus(); };
+    return () => { current.controller?.abort(); if (life.current === current) life.current = null; unsubscribeFocus(); };
   }, [load, setWorkspace]);
   const child = useOutlet({ ...outer, management: data });
   const authorizedChild = !child || data?.tools.some(tool => tool.allowed === true && managementPath(tool.to) === pathname);

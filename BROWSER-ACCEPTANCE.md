@@ -53,3 +53,13 @@ credentials, evidence, email delivery or application database is used.
 The redesign is frontend-only. It requires no schema migration or new environment
 variables. Backend authority, evidence authorization, stale-write protection and
 MFA requirements continue to apply to every protected operation.
+
+## Operational tools coverage
+
+`management-operations.spec.mjs` adds three scenarios per viewport (18 browser cases
+in the full suite). It visits Users, Organization oversight, Team access, Support,
+Reports, Audit log and Operations, then checks password/MFA-confirmed versioned
+access changes and assignment-gated case replies. A management internal note is
+absent after navigating to the requester's personal Help page. These responses
+and identities are synthetic. The PostgreSQL suite independently checks the real
+service projections and transactions; the browser fixture is not a live API test.
