@@ -9,7 +9,12 @@ on:
       - deploy/staging/**
       - backend/scripts/*staging*.js
       - backend/scripts/*cleanup*.js
-      - backend/src/jobs/**
+      - backend/src/**
+      - frontend/**
+      - shared/**
+      - package.json
+      - package-lock.json
+      - backend/package.json
       - .github/workflows/staging-package.yml
   pull_request:
     branches: [main]
@@ -19,7 +24,12 @@ on:
       - deploy/staging/**
       - backend/scripts/*staging*.js
       - backend/scripts/*cleanup*.js
-      - backend/src/jobs/**
+      - backend/src/**
+      - frontend/**
+      - shared/**
+      - package.json
+      - package-lock.json
+      - backend/package.json
       - .github/workflows/staging-package.yml
 permissions:
   contents: read
@@ -44,6 +54,8 @@ jobs:
           DIRECT_URL=postgresql://synthetic:unused@127.0.0.1/unused
           MFA_ENCRYPTION_KEY=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
           EMAIL_VERIFICATION_SECRET=synthetic-ci-only-email-secret-not-for-use
+          MANAGEMENT_MFA_ENCRYPTION_KEY=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+          MANAGEMENT_EMAIL_SECRET=synthetic-ci-only-management-secret-not-for-use
           RESEND_API_KEY=synthetic-ci-only
           EMAIL_FROM=BrightWay <hello@joinbrightway.me>
           R2_ACCOUNT_ID=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
@@ -69,6 +81,18 @@ jobs:
           # --insecure is ONLY for this ephemeral CI certificate, never an operator deployment recommendation.
           curl --retry 5 --retry-connrefused --retry-delay 1 --insecure --fail --show-error --silent https://127.0.0.1:8443/api/v1/health | python3 -c 'import json,sys; assert json.load(sys.stdin)["success"] is True'
           curl --retry 5 --retry-connrefused --retry-delay 1 --insecure --fail --show-error --silent https://127.0.0.1:8443/manual-identity/name-change | python3 -c 'import sys; assert "<div id=\"root\">" in sys.stdin.read()'
+          for path in superadmin/login superadmin/users help; do
+            curl --insecure --fail --show-error --silent "https://127.0.0.1:8443/$path" | python3 -c 'import sys; assert "<div id=\"root\">" in sys.stdin.read()'
+          done
+          # Missing/wrong-realm cookies must be rejected before any database access.
+          for path in management/auth/me management/tools/users; do
+            status=$(curl --insecure --show-error --silent --output /dev/null --write-out '%{http_code}' --cookie '__Host-brightway_session=synthetic-wrong-realm' "https://127.0.0.1:8443/api/v1/$path")
+            test "$status" = 401
+          done
+          status=$(curl --insecure --show-error --silent --output /dev/null --write-out '%{http_code}' --cookie '__Host-brightway-management=synthetic-wrong-realm' https://127.0.0.1:8443/api/v1/auth/me)
+          test "$status" = 401
+          status=$(curl --insecure --show-error --silent --output /dev/null --write-out '%{http_code}' --header 'Content-Type: application/json' --header 'Origin: https://untrusted.invalid' --data '{}' https://127.0.0.1:8443/api/v1/management/auth/login)
+          test "$status" = 403
           docker compose -f deploy/staging/compose.yaml exec -T api node -e "const fs=require('fs'); if(fs.existsSync('/app/backend/.env')||fs.existsSync('/app/deploy/staging/.env.staging'))process.exit(1)"
           # No cleanup service, migration, email, upload or authenticated DB journey is run here.
       - name: Container diagnostics on failure

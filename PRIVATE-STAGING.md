@@ -1,6 +1,6 @@
 # Private staging preparation
 
-**Parked by owner decision: deployment, including private staging, stays paused until after Sprint 2 acceptance.** Keep this package for later review; do not provision resources or run host deployment commands during the pause.
+**Private-staging preparation resumed by owner request on 4 November 2026.** This resumes preparation and validation; it does not record Sprint 2 acceptance or a completed deployment. Select the private host and isolated resources and record the remaining application acceptance before starting the hosted environment. The public launch remains separate.
 
 This is a reviewed configuration package, not a deployed environment. No host, DNS record, paid service, staging database, bucket, scheduler or alert destination has been provisioned. The owner reported the final retention check PASS on 26 October; see SPRINT-1-ACCEPTANCE.md. Public launch remains targeted for 26 January 2027, subject to the agreed production gates.
 
@@ -17,7 +17,7 @@ There is one API replica in this package. Existing in-memory request limits and 
 1. Select the hosting environment. No provider purchase or deployment is authorized by this file.
 2. Create a dedicated **staging** database/branch. Do not point staging to the development database, integration-test database or eventual live database. Start with synthetic/consenting test accounts; do not copy real identity documents or production data.
 3. Create private staging photo and identity buckets and a token limited to those buckets. Keep identity separate from photos; disable public bucket access. Existing development credentials can stay untouched.
-4. Configure a verified staging email sender and test recipients. Preserve each environment's MFA encryption key across deploys; never rotate an existing enrolled account's key casually. With fresh staging accounts use separate stage secrets. Persona stays paused and its credentials must be absent.
+4. Configure a verified staging email sender and test recipients. Preserve each environment's MFA encryption key across deploys; never rotate an existing enrolled account's key casually. With fresh staging accounts use separate stage secrets. Management additionally requires MANAGEMENT_MFA_ENCRYPTION_KEY (64 hex characters) and MANAGEMENT_EMAIL_SECRET (at least 32 random characters), distinct from the personal MFA/email secrets. The preflight rejects missing, malformed or reused realm keys. Generate values privately on the host, never in command arguments or repository files; preserve them across redeployments. Persona stays paused and its credentials must be absent.
 5. Provide a trusted TLS certificate/key matching the browser host. The non-root Nginx container must be able to read the mounted files. Protect the parent directory on the host and set file ownership/modes appropriately for its nginx UID; do not commit certificates or keys. CI generates its own ephemeral certificate and disables verification only within CI. Operators should install/trust their private CA or use a trusted certificate, not disable browser verification.
 
 Copy `deploy/staging/.env.example` to the ignored `.env.staging` alongside it. Fill private values only on the host, restrict file access and avoid command output containing them. `STAGING_DATABASE_ACK` is an operator acknowledgement, not automatic proof of database isolation: verify the actual endpoint/database separately. Set private stage buckets/sender before running cleanup. Do not run `docker compose config` into public logs: it can expand secrets.
@@ -33,7 +33,7 @@ docker compose -f deploy/staging/compose.yaml build api web
 docker compose -f deploy/staging/compose.yaml run --rm --no-deps api node backend/scripts/check-staging-env.js
 ```
 
-Preflight checks HTTPS/origin, production cookie mode, secret shapes, direct migration/lock connection, separate identity bucket, 30-day retention, holiday dates and paused Persona. It prints only missing/invalid setting names. It does not prove credentials work, buckets are private, email is delivered or the chosen endpoint is isolated.
+Preflight checks HTTPS/origin, production cookie mode, personal and independent management secret shapes/separation, direct migration/lock connection, separate identity bucket, 30-day retention, holiday dates and paused Persona. It prints only missing/invalid setting names. It does not prove credentials work, buckets are private, email is delivered or the chosen endpoint is isolated.
 
 Before the **first** staging migration, record the reviewed SHA and take an isolated staging snapshot/backup. Check the migration target in the operator's private configuration. Apply migrations as a separate one-shot step, never on every app startup:
 
@@ -65,6 +65,7 @@ No alert is sent by this package. Connect a real destination and trigger a contr
 - Prove the host port is not publicly reachable; establish authorized private access and trusted TLS.
 - Check frontend, direct SPA links, API process health and database readiness separately. Never accept only the liveness response as database proof.
 - Register/verify email, log in/out, reset password and prove old password/session rejection plus MFA after reset. Inspect Secure/HttpOnly/host-only cookies and trusted Origin denial.
+- Verify /superadmin direct links, independent management enrollment/login/recovery and fresh MFA; reject personal cookies on management APIs and management cookies on personal APIs. Test root vs restricted staff, private internal notes and access actions using synthetic targets. Bootstrap only the new staging internal identity through the existing secure terminal command in MANAGEMENT-ADMIN.md; never copy development passwords, MFA material or sessions.
 - Repeat one consenting applicant/reviewer identity/photo/name journey; confirm private images, role/MFA revocation and correct badges on this deployed revision. Preserve local acceptance rather than treating it as proof of deployed routing/secrets.
 - Confirm actual stage-bucket privacy, cleanup heartbeat, due synthetic cleanup and a delivered failure/recovery alert. The retention probe uses TEST_DATABASE_URL: do not relabel the stage application database as TEST just to run it.
 - Demonstrate restoration into a **different isolated destination**, then verify migrated schema and a synthetic critical journey. Record application image rollback and database forward-repair steps; rolling back code does not reverse a migration.
@@ -73,4 +74,4 @@ Record SHA/image digest, environment, UTC date, migration IDs, observed results 
 
 ## Validation scope
 
-The new unit checks validate fail-closed environment checks, dedicated lock acquisition/release/skip/failure paths and composition with existing retention behavior. A separate GitHub workflow builds both container targets and probes local HTTPS/SPA/API routing with synthetic configuration, without starting cleanup or calling cloud databases/email/storage. Its actual result must be checked for the implementing commit. CI does not provision hosting or prove a deployed environment, certificate trust, external alert delivery, restore or live payment readiness.
+The new unit checks validate fail-closed environment checks, dedicated lock acquisition/release/skip/failure paths and composition with existing retention behavior. A separate GitHub workflow builds both container targets and probes local HTTPS/SPA/API routing, management/help direct links, wrong-realm unauthenticated cookie rejection and untrusted-Origin rejection with synthetic configuration, without starting cleanup or calling cloud databases/email/storage. Its actual result must be checked for the implementing commit. CI does not provision hosting or prove a deployed environment, certificate trust, external alert delivery, restore or live payment readiness.
