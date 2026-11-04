@@ -27,7 +27,7 @@ function mount({ state = "NONE", handler, strict = false } = {}) {
 async function find(f) { await screen.findByRole("button", { name: "Find person" }); await waitFor(() => expect(screen.getByRole("button", { name: "Find person" }).disabled).toBe(false)); await f.user.type(screen.getByLabelText("Connect by BrightWay username"), "grace"); await f.user.click(screen.getByRole("button", { name: "Find person" })); await screen.findByRole("heading", { name: "Grace Johnson" }); }
 it("Strict Mode and overlapping focus events share initial reads and preserve existing content while refreshing", async () => {
   let release; const delayed = new Promise(resolve => { release = resolve; }); let calls = 0;
-  const f = mount({ state: "CONNECTED", strict: true, handler(url, options) { if (!url.includes("/people/") && ++calls === 1) return delayed; } });
+  const f = mount({ state: "CONNECTED", strict: true, handler(url) { if (!url.includes("/people/") && ++calls === 1) return delayed; } });
   await waitFor(() => expect(f.fetch).toHaveBeenCalledTimes(1)); act(() => { window.dispatchEvent(new Event("focus")); window.dispatchEvent(new Event("focus")); }); expect(f.fetch).toHaveBeenCalledTimes(1);
   await act(async () => release(reply({ view: "connections", items: [{ person, relationship: { state: "CONNECTED", version: 1 } }], nextCursor: null })));
   await screen.findByRole("button", { name: /Grace Johnson/ });
