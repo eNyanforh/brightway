@@ -17,6 +17,12 @@ export function validateStagingEnvironment(env) {
   try { const host = new URL(env.DIRECT_URL).hostname; if (host.endsWith(".neon.tech") && host.includes("-pooler.")) invalid.push("DIRECT_URL (direct connection required)"); } catch { /* Already reported. */ }
   if (!/^[a-f0-9]{64}$/i.test(env.MFA_ENCRYPTION_KEY ?? "")) invalid.push("MFA_ENCRYPTION_KEY");
   if ((env.EMAIL_VERIFICATION_SECRET?.length ?? 0) < 32) invalid.push("EMAIL_VERIFICATION_SECRET");
+  if (!/^[a-f0-9]{64}$/i.test(env.MANAGEMENT_MFA_ENCRYPTION_KEY ?? "")) invalid.push("MANAGEMENT_MFA_ENCRYPTION_KEY");
+  if (typeof env.MANAGEMENT_EMAIL_SECRET !== "string" || env.MANAGEMENT_EMAIL_SECRET.length < 32) invalid.push("MANAGEMENT_EMAIL_SECRET");
+  // Independent realms must not reuse keys. Compare decoded hex equivalently,
+  // so changing a letter's case cannot bypass this configuration boundary.
+  if (env.MANAGEMENT_MFA_ENCRYPTION_KEY && env.MANAGEMENT_MFA_ENCRYPTION_KEY.toLowerCase() === env.MFA_ENCRYPTION_KEY?.toLowerCase()) invalid.push("MANAGEMENT_MFA_ENCRYPTION_KEY (must differ from personal key)");
+  if (env.MANAGEMENT_EMAIL_SECRET && env.MANAGEMENT_EMAIL_SECRET === env.EMAIL_VERIFICATION_SECRET) invalid.push("MANAGEMENT_EMAIL_SECRET (must differ from personal secret)");
   if (!env.RESEND_API_KEY?.trim()) invalid.push("RESEND_API_KEY");
   if (!env.EMAIL_FROM?.includes("@") || env.EMAIL_FROM.includes("example.com") || env.EMAIL_FROM.includes("onboarding@resend.dev")) invalid.push("EMAIL_FROM");
   if (!/^[a-f0-9]{32}$/i.test(env.R2_ACCOUNT_ID ?? "")) invalid.push("R2_ACCOUNT_ID");

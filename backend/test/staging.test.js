@@ -7,11 +7,31 @@ function configured() { return {
   NODE_ENV: "production", BRIGHTWAY_STAGE: "private-staging", STAGING_DATABASE_ACK: "isolated-staging-database",
   CLIENT_URL: "https://localhost:8443", DATABASE_URL: "postgresql://synthetic:password@test.invalid/staging", DIRECT_URL: "postgresql://synthetic:password@test.invalid/staging",
   MFA_ENCRYPTION_KEY: "a".repeat(64), EMAIL_VERIFICATION_SECRET: "synthetic-test-value-".repeat(3), RESEND_API_KEY: "synthetic-only", EMAIL_FROM: "Test <hello@joinbrightway.me>",
+  MANAGEMENT_MFA_ENCRYPTION_KEY: "c".repeat(64), MANAGEMENT_EMAIL_SECRET: "synthetic-management-test-only-".repeat(2),
   R2_ACCOUNT_ID: "b".repeat(32), R2_ACCESS_KEY_ID: "synthetic-only", R2_SECRET_ACCESS_KEY: "synthetic-only", R2_BUCKET: "staging-photos", R2_IDENTITY_BUCKET: "staging-private-identity", MANUAL_IDENTITY_RETENTION_DAYS: "30",
 }; }
 test("staging preflight requires HTTPS, production cookies and isolated-stage acknowledgement", () => {
   assert.equal(validateStagingEnvironment(configured()).valid, true);
   for (const values of [{ CLIENT_URL: "http://localhost:8443" }, { CLIENT_URL: "https://user:secret@host.invalid" }, { CLIENT_URL: "https://host.invalid/subpath" }, { NODE_ENV: "development" }, { STAGING_DATABASE_ACK: "" }, { BRIGHTWAY_STAGE: "production" }]) assert.throws(() => validateStagingEnvironment({ ...configured(), ...values }));
+});
+test("staging preflight rejects missing, malformed and shared management secrets without printing them", () => {
+  const env = configured();
+  for (const values of [
+    { MANAGEMENT_MFA_ENCRYPTION_KEY: undefined },
+    { MANAGEMENT_EMAIL_SECRET: undefined },
+    { MANAGEMENT_MFA_ENCRYPTION_KEY: "private-invalid-key" },
+    { MANAGEMENT_EMAIL_SECRET: "private-short-secret" },
+    { MANAGEMENT_MFA_ENCRYPTION_KEY: env.MFA_ENCRYPTION_KEY },
+    { MANAGEMENT_MFA_ENCRYPTION_KEY: env.MFA_ENCRYPTION_KEY.toUpperCase() },
+    { MANAGEMENT_EMAIL_SECRET: env.EMAIL_VERIFICATION_SECRET },
+  ]) {
+    assert.throws(() => validateStagingEnvironment({ ...env, ...values }), error => {
+      assert.match(error.message, /MANAGEMENT_/);
+      for (const value of Object.values(values)) if (value) assert(!error.message.includes(value));
+      return true;
+    });
+  }
+  assert.deepEqual(validateStagingEnvironment(env), { valid: true, stage: "private-staging", https: true, retentionDays: 30 });
 });
 test("staging preflight fails closed on trust/storage/email/provider errors without exposing values", () => {
   for (const values of [{ MFA_ENCRYPTION_KEY: "short-sensitive-secret" }, { DATABASE_URL: "not-a-url-private-password" }, { DIRECT_URL: "postgresql://secret@ep-fixture-pooler.us.neon.tech/staging" }, { R2_IDENTITY_BUCKET: "staging-photos" }, { MANUAL_IDENTITY_RETENTION_DAYS: "365" }, { MANUAL_IDENTITY_HOLIDAYS: "2026-02-31" }, { PERSONA_API_KEY: "sensitive-provider-secret" }, { EMAIL_FROM: "BrightWay <onboarding@resend.dev>" }, { AUTH_TIMING: "true" }]) {
