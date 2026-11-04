@@ -58,3 +58,13 @@ it("the management shell shows only granted operational navigation and clears it
   expect(within(screen.getByRole("navigation", { name: "Mobile management navigation" })).getAllByRole("link")).toHaveLength(2);
   denied = true; act(() => window.dispatchEvent(new Event("focus"))); await screen.findByRole("alert"); expect(screen.queryByRole("navigation", { name: "Management tools" })).toBeNull(); expect(screen.queryByRole("link", { name: "Open workspace" })).toBeNull();
 });
+
+it("temporary management revalidation failures preserve operational drafts while confirmed denial clears them", async () => {
+  let failure = 0;
+  vi.stubGlobal("fetch", vi.fn(() => response(failure ? "Management check unavailable" : { ...context, tools: context.tools.map(tool => ({ ...tool, allowed: true })) }, failure || 200)));
+  render(<ManagementContext.Provider value={{ staff: { id: "admin" } }}><MemoryRouter initialEntries={["/superadmin/credentials"]}><Routes><Route path="/superadmin" element={<ManagementPage />}><Route path="credentials" element={<label>Review note<textarea defaultValue="" /></label>} /></Route></Routes></MemoryRouter></ManagementContext.Provider>);
+  const user = userEvent.setup(); await user.type(await screen.findByLabelText("Review note"), "Keep this unsaved review feedback");
+  failure = 503; act(() => window.dispatchEvent(new Event("focus"))); await screen.findByRole("alert");
+  expect(screen.getByLabelText("Review note").value).toBe("Keep this unsaved review feedback"); expect(screen.getByLabelText("Review note").matches(":disabled")).toBe(true);
+  failure = 403; act(() => window.dispatchEvent(new Event("focus"))); await waitFor(() => expect(screen.queryByLabelText("Review note")).toBeNull());
+});
