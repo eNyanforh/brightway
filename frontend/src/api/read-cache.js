@@ -1,7 +1,7 @@
 // Private, memory-only JSON request sharing. Never an authorization source.
 const realms = new Map();
 const state = realm => {
-  if (!realms.has(realm)) realms.set(realm, { identity: null, entries: new Map(), epoch: 0 });
+  if (!realms.has(realm)) realms.set(realm, { identity: null, entries: new Map(), organizationScopes: new Map(), epoch: 0 });
   return realms.get(realm);
 };
 export function setReadIdentity(realm, identity) {
@@ -12,13 +12,20 @@ export function setReadIdentity(realm, identity) {
 export function invalidateReads(realm = "personal", except = null) {
   const store = state(realm); store.epoch++;
   for (const entry of store.entries.values()) if (entry !== except) entry.controller.abort();
-  store.entries.clear();
+  store.entries.clear(); store.organizationScopes.clear();
 }
 export function expireReadSnapshots() {
   // Focus revalidates snapshots, while sharing work already in flight.
   for (const store of realms.values()) for (const [key, entry] of store.entries) {
     if (entry.done) store.entries.delete(key);
   }
+}
+export function scopeOrganizationReads(context) {
+  const store = state("personal"), organizationId = context?.organization?.id;
+  if (!store.identity || context.accountId !== store.identity || typeof organizationId !== "string" || !Number.isInteger(context.staffVersion) || !Array.isArray(context.permissions)) return;
+  const previous = store.organizationScopes.get(organizationId);
+  if (previous && previous.version > context.staffVersion) return;
+  store.organizationScopes.set(organizationId, { version: context.staffVersion, key: JSON.stringify([context.staffVersion, context.membership?.version, context.membership?.role, context.setup?.version, [...context.permissions].sort()]) });
 }
 export function resourceFetch(url, options = {}, realm = "personal") {
   const store = state(realm), method = options.method || "GET";
@@ -28,8 +35,12 @@ export function resourceFetch(url, options = {}, realm = "personal") {
   }
   // Authentication, evidence and images are deliberately not cached here.
   if (!store.identity || /\/(?:auth|documents|evidence|images|portrait|photo)(?:\/|\?|$)/.test(url)) return fetch(url, options);
-  const key = `${url}:${JSON.stringify(options.headers || {})}`;
-  const privateAccess = /\/(?:admin|management)(?:\/|\?|$)/.test(url) || /\/organization-workspace\/[^/?]+(?:\?|$)/.test(url);
+  const organization = url.match(/\/organization-workspace\/([^/?]+)(\/[^?]*)?(?:\?|$)/);
+  const scope = organization && store.organizationScopes.get(decodeURIComponent(organization[1]));
+  const key = `${url}:${JSON.stringify(options.headers || {})}:${scope?.key || "unscoped"}`;
+  // Access context is always fresh. A recent tenant snapshot is reusable only
+  // under a server-returned current membership/permission scope.
+  const privateAccess = /\/(?:admin|management)(?:\/|\?|$)/.test(url) || Boolean(organization && (!organization[2] || !scope));
   const ttl = privateAccess ? 0 : 10000;
   let entry = store.entries.get(key);
   if (entry?.done && Date.now() - entry.at >= ttl) { store.entries.delete(key); entry = null; }

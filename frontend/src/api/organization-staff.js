@@ -1,4 +1,4 @@
-import { resourceFetch } from "./read-cache";
+import { resourceFetch, scopeOrganizationReads } from "./read-cache";
 import { ApiError } from "./auth";
 const base = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/$/, "");
 export const staffPhotoUrl = path => typeof path === "string" && /^\/organization-workspace\/[a-f0-9-]{36}\/staff\/people\/[a-f0-9-]{36}\/photo\/[a-f0-9-]{36}$/i.test(path) ? base + path : null;
@@ -14,7 +14,7 @@ const query = paging => { const value = new URLSearchParams(paging || {}).toStri
 export const staffApi = {
   directory: (signal, filters) => request("/my-workspace" + query(filters), "GET", undefined, signal),
   home: (signal, paging) => request("/organization-workspace" + query(paging), "GET", undefined, signal),
-  context: (id, signal) => request(`/organization-workspace/${encodeURIComponent(id)}`, "GET", undefined, signal),
+  context: async (id, signal) => { const result = await request(`/organization-workspace/${encodeURIComponent(id)}`, "GET", undefined, signal); if (!signal?.aborted && result.organization?.id === id) scopeOrganizationReads(result); return result; },
   dashboard: (id, days, signal) => request(`/organization-workspace/${encodeURIComponent(id)}/dashboard?${new URLSearchParams({ days })}`, "GET", undefined, signal),
   staff: (id, signal, paging) => request(`/organization-workspace/${encodeURIComponent(id)}/staff${query(paging)}`, "GET", undefined, signal),
   invite: (id, body) => request(`/organization-workspace/${encodeURIComponent(id)}/invitations`, "POST", body),

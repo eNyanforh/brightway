@@ -10,8 +10,10 @@ measured against an application database during this change.
   initial staff loading queues one later access check so a revocation is not lost.
 - A private memory-only request layer shares in-flight JSON reads and clones each
   response. One consumer abort does not cancel another. Recent ordinary results
-  expire after ten seconds; admin/management and organization access remain
-  network-revalidated. No cookies, bearer tokens or evidence enter this cache.
+  expire after ten seconds; admin/management and organization access remain network-revalidated. Tenant
+  snapshots can be reused only under server-returned membership/permission
+  versions; a changed scope uses a different cache key. Unscoped tenant reads
+  always revalidate. No cookies, bearer tokens or evidence enter this cache.
 - Keys include realm, identity epoch, full URL/query (including organization) and
   headers. Identity changes/logout, mutations and confirmed denial invalidate the
   affected realm. Late results cannot repopulate a previous epoch. All protected

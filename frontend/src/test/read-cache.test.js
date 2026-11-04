@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { resourceFetch, setReadIdentity, invalidateReads, expireReadSnapshots } from "../api/read-cache";
+import { resourceFetch, setReadIdentity, invalidateReads, expireReadSnapshots, scopeOrganizationReads } from "../api/read-cache";
 const reply = value => new Response(JSON.stringify(value), { headers: { "Content-Type": "application/json" } });
 afterEach(() => { setReadIdentity("personal", null); setReadIdentity("management", null); });
 it("shares concurrent reads and gives every consumer an independent response body", async () => {
@@ -32,4 +32,26 @@ it("management and personal reads never share cache entries; protected access is
   await resourceFetch("/api/v1/shared"); await resourceFetch("/api/v1/shared", {}, "management"); expect(fetch).toHaveBeenCalledTimes(2);
   await resourceFetch("/api/v1/management"); await resourceFetch("/api/v1/management"); expect(fetch).toHaveBeenCalledTimes(4);
   invalidateReads("management"); await resourceFetch("/api/v1/shared"); expect(fetch).toHaveBeenCalledTimes(4);
+});
+it("completed organization statistics and staff reads revalidate permissions instead of reusing a previous grant", async () => {
+  let denied = false;
+  const fetch = vi.fn(() => Promise.resolve(denied ? new Response('{}', { status: 403 }) : reply({ private: "tenant statistics" }))); vi.stubGlobal("fetch", fetch);
+  setReadIdentity("personal", "organization-member");
+  for (const path of ["/api/v1/organization-workspace/org/dashboard?days=30", "/api/v1/organization-workspace/org/staff"]) {
+    denied = false; expect((await resourceFetch(path)).status).toBe(200);
+    denied = true; expect((await resourceFetch(path)).status).toBe(403);
+  }
+  expect(fetch).toHaveBeenCalledTimes(4);
+});
+it("recent organization data is reused only within the server-returned membership, permission and query scope", async () => {
+  const fetch = vi.fn(() => Promise.resolve(reply({ statistics: 7 }))); vi.stubGlobal("fetch", fetch); setReadIdentity("personal", "member");
+  const context = { accountId: "member", organization: { id: "school" }, staffVersion: 1, membership: { role: "STAFF", version: 1 }, permissions: ["organization.members.manage"] };
+  scopeOrganizationReads(context);
+  const path = "/api/v1/organization-workspace/school/dashboard?days=30";
+  await resourceFetch(path); await resourceFetch(path); expect(fetch).toHaveBeenCalledTimes(1);
+  await resourceFetch(path.replace("30", "90")); expect(fetch).toHaveBeenCalledTimes(2);
+  scopeOrganizationReads({ ...context, staffVersion: 2, permissions: [] });
+  await resourceFetch(path); expect(fetch).toHaveBeenCalledTimes(3);
+  scopeOrganizationReads(context); await resourceFetch(path); expect(fetch).toHaveBeenCalledTimes(3);
+  setReadIdentity("personal", "other"); scopeOrganizationReads(context); await resourceFetch(path); await resourceFetch(path); expect(fetch).toHaveBeenCalledTimes(5);
 });
