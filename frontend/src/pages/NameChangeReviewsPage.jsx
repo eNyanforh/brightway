@@ -57,7 +57,7 @@ export default function NameChangeReviewsPage() {
     <ManagementPageHeader title="Name-correction reviews" description="Check the approved portrait, government-issued ID and selfie before confirming a name correction." icon="edit" action={<button type="button" disabled={busy} onClick={() => action(reload)}>Reload name reviews</button>} />
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
     {reloadRequired && <p>Reload before another decision. Your feedback is retained unless access was revoked.</p>}
-    {!queue && !error && <p role="status">Checking reviewer access…</p>}
+    {!queue && !error && <p className="bw-mgmt-loading" role="status">Checking reviewer access…</p>}
     <div className="bw-mgmt-review-desk"><div>{queue && <ManagementQueue title="Name corrections" count={queue.requests.length}>{!queue.requests.length && <p>No pending name corrections.</p>}
       <ul className="bw-identity-queue">{queue.requests.map(row => <ManagementQueueRow key={row.id} title="Name correction" reference={`#${row.id.slice(0, 8)}`} status={row.state === "SUBMITTED" ? "Waiting for review" : "In review"} meta={`Target ${identityDate(row.targetAt)}`} selected={visible?.id === row.id} disabled={busy} icon="edit" onClick={() => action(async alive => {
         selected.current = row.id; setDetail(null); setImages(null); const next = await api.detail(row.id);

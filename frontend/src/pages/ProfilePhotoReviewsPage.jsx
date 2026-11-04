@@ -84,7 +84,7 @@ export default function ProfilePhotoReviewsPage() {
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
     {reloadRequired && <p>Reload before making another decision. Your feedback remains unless access has been revoked.</p>}
     {[401, 403].includes(error?.status) && <p><Link to="/superadmin/security">Open Account security</Link>. Active identity-review permission and MFA are required.</p>}
-    {!queue && !error && <p role="status">Checking photo reviewer access…</p>}
+    {!queue && !error && <p className="bw-mgmt-loading" role="status">Checking photo reviewer access…</p>}
     <div className="bw-mgmt-review-desk"><div>{queue && <ManagementQueue title="Photo replacements" count={queue.requests.length}>{!queue.requests.length && <p>No pending photo requests.</p>}
       <ul className="bw-identity-queue">{queue.requests.map((row) => <ManagementQueueRow key={row.id} title="Photo replacement" reference={`#${row.id.slice(0, 8)}`} status={row.state === "PENDING" ? "Waiting for review" : "In review"} meta={identityDate(row.createdAt)} selected={visible?.id === row.id} disabled={busy} onClick={() => action(async (alive) => {
         setDetail(null); setImages(null); selectedId.current = row.id;

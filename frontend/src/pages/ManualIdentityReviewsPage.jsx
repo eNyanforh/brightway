@@ -38,7 +38,7 @@ export default function ManualIdentityReviewsPage() {
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
     {[401, 403].includes(error?.status) && <p><Link to="/superadmin/security">Open Account security</Link>. An active identity-review permission is also required. Sign in with your authenticator or backup code if prompted.</p>}
     {reloadRequired && <p>Reload before making a decision. Any unsaved feedback stays here unless access has been revoked.</p>}
-    {!queue && !error && <p role="status">Checking reviewer access…</p>}
+    {!queue && !error && <p className="bw-mgmt-loading" role="status">Checking reviewer access…</p>}
     <div className="bw-mgmt-review-desk"><div>{queue && <ManagementQueue title="Identity requests" count={queue.requests.length}>{!queue.requests.length && <p>No identity requests yet.</p>}
       <p className="bw-identity-muted">Queue statuses are saved states. Open a request to check its current eligibility and validity.</p>
       <ul className="bw-identity-queue">{queue.requests.map((item) => <ManagementQueueRow key={item.id} title="Identity request" reference={`#${item.id.slice(0, 8)}`} status={identityLabels[item.state] || item.state} meta={`Target ${identityDate(item.targetAt)}`} selected={detail?.request.id === item.id} disabled={busy} onClick={() => action(async () => {

@@ -187,7 +187,7 @@
 .bw-mgmt-backup-panel { margin-top:23px; padding:18px; background:#0e2333; border:1px solid #3c6d77; border-radius:11px; font-size:13px; line-height:1.8; }
 .bw-mgmt-backup-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); list-style:none; margin:16px 0; padding:0; gap:10px; }.bw-mgmt-backup-list li { min-width:0; padding:10px 12px; border:1px solid #3b5678; background:#0d1a2b; border-radius:7px; }.bw-mgmt-backup-list code { font-size:12px; color:#c2dfff; overflow-wrap:anywhere; }
 .bw-management-shell [role=alert],.bw-management-shell .bw-review-alert,.bw-management-shell .bw-mgmt-review-page [role=alert] { color:#ffccda; background:#351f2c; border:1px solid #79465b; border-radius:10px; padding:14px 17px; font-size:13px; line-height:1.8; }
-.bw-management-shell .bw-review-alert p { color:#ffccda; }.bw-management-shell .bw-review-notice,.bw-management-shell .bw-mgmt-review-page>p[role=status],.bw-management-shell .bw-mgmt-security-card>p[role=status] { padding:13px 17px; color:#a6eacf; background:#14362e; border:1px solid #356e5c; border-radius:9px; font-size:13px; }
+.bw-management-shell .bw-review-alert p { color:#ffccda; }.bw-management-shell .bw-review-notice,.bw-management-shell .bw-mgmt-review-page>p[role=status]:not(.bw-mgmt-loading),.bw-management-shell .bw-mgmt-security-card>p[role=status] { padding:13px 17px; color:#a6eacf; background:#14362e; border:1px solid #356e5c; border-radius:9px; font-size:13px; }
 
 @media(min-width:1680px) { .bw-management-shell .bw-design-layout { gap:44px; } }
 @media(max-width:1200px) {
@@ -215,3 +215,6 @@
 .bw-mgmt-auth-state>svg { color:var(--sa-blue); }.bw-mgmt-auth-state h1 { margin:0; font-size:25px; letter-spacing:-.6px; }.bw-mgmt-auth-state p { max-width:45ch; font-size:14px; line-height:1.8; color:var(--sa-muted); }.bw-mgmt-auth-state button { padding:13px 18px; min-height:44px; border:1px solid #4f82cc; background:#245eb8; color:#fff; border-radius:9px; }
 
 @media(max-width:760px) { .bw-superadmin-auth-card input,.bw-management-shell .bw-mgmt-security-card input,.bw-management-shell .bw-mgmt-security-card textarea,.bw-management-shell .bw-mgmt-review-page input:not([type=checkbox]),.bw-management-shell .bw-mgmt-review-page textarea,.bw-management-shell .bw-mgmt-review-page select { font-size:16px; } }
+/* Outrank legacy page CSS even when a review page's stylesheet loads later. */
+.bw-management-shell .bw-management h1,.bw-management-shell .bw-management h2,.bw-management-shell .bw-management h3,.bw-management-shell .bw-management h4 { color:var(--sa-text); }
+.bw-management-shell .bw-mgmt-review-page form,.bw-management-shell .bw-mgmt-review-page article article { background:#0e1a2b; border-color:#344c6b; color:var(--sa-muted); }

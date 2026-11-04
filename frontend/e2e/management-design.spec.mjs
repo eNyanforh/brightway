@@ -11,7 +11,7 @@ const tools = [
 const context = { allowed: true, staffId: staff.id, username: staff.username, fullName: staff.fullName, role: { label: "Super Admin", isSuperAdmin: true, version: 1, grantedAt: "2026-10-30T12:00:00Z" }, tools, audits: [] };
 const statistics = { staffId: staff.id, asOf: "2026-10-30T12:00:00.000Z", period: { days: 30, timeZone: "UTC", from: "2026-10-01T00:00:00.000Z", to: "2026-10-30T12:00:00.000Z", sevenDayFrom: "2026-10-23T12:00:00.000Z" }, accounts: { total: 1234, active: 1200, suspended: 20, deactivated: 14, emailVerified: 1000, mfaEnabled: 240, newLast7Days: 15, signedInLast7Days: 420 }, organizations: { total: 12, active: 11, suspended: 1, schools: 7, companies: 3, ngos: 2 }, queues: { organizations: 8, identities: 3, credentials: 11 }, registrations: Array.from({ length: 30 }, (_, i) => ({ date: `2026-10-${String(i + 1).padStart(2, "0")}`, count: i % 4 })) };
 async function fixture(page) {
-  const state = { unexpected: [], errors: [], writes: [] };
+  const state = { unexpected: [], errors: [], writes: [], conflictFailure: false };
   page.on("pageerror", error => state.errors.push(error.message));
   await page.route("**/*", async route => {
     const url = new URL(route.request().url()), path = url.pathname;
@@ -22,7 +22,7 @@ async function fixture(page) {
     if (path === "/api/v1/management") return reply(context);
     if (path === "/api/v1/management/statistics") return reply(statistics);
     if (path === "/api/v1/management/security/backups") { state.writes.push(path); return reply({ backupCodes: ["synthetic-backup-only"] }); }
-    if (path === "/api/v1/management/security/conflicts") { state.writes.push(path); return reply({ recorded: true }); }
+    if (path === "/api/v1/management/security/conflicts") { state.writes.push(path); return state.conflictFailure ? route.fulfill({ status: 403, json: { success: false, message: "Fresh management MFA required" } }) : reply({ recorded: true }); }
     if (path === "/api/v1/admin/manual-identity/access") return reply({ allowed: true });
     if (path === "/api/v1/admin/manual-identity") return reply({ requests: [{ id, state: "SUBMITTED", targetAt: "2026-11-09T12:00:00Z" }] });
     if (path === `/api/v1/admin/manual-identity/${id}`) return reply({ username: "synthetic_applicant", status: "SUBMITTED", request: { id, version: 1, currentAttemptId: "synthetic-attempt", targetAt: "2026-11-09T12:00:00Z" }, attempts: [{ id: "synthetic-attempt", revision: 1, state: "SUBMITTED", evidence: [] }] });
@@ -40,6 +40,19 @@ async function fixture(page) {
 async function checkLayout(page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   await expect(page.locator("main h1")).toHaveCount(1);
+  // Catch late-loaded legacy light-theme rules leaking onto dark review panels.
+  const lowContrast = await page.locator("main :is(h1,h2,h3,h4)").evaluateAll(headings => {
+    const rgb = value => value.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+    const luminance = color => color.map(v => { const c = v / 255; return c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4; }).reduce((n, v, i) => n + v * [.2126, .7152, .0722][i], 0);
+    return headings.filter(node => node.getBoundingClientRect().width).flatMap(node => {
+      let ancestor = node, background;
+      while (ancestor) { const value = getComputedStyle(ancestor).backgroundColor; if (value !== "rgba(0, 0, 0, 0)" && value !== "transparent") { background = rgb(value); break; } ancestor = ancestor.parentElement; }
+      const a = luminance(rgb(getComputedStyle(node).color)), b = luminance(background || [255, 255, 255]);
+      const ratio = (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+      return ratio < 4.5 ? [{ heading: node.textContent, ratio }] : [];
+    });
+  });
+  expect(lowContrast).toEqual([]);
 }
 
 test("every management page has a responsive review layout with current selection and protected controls", async ({ page }, testInfo) => {
@@ -80,7 +93,9 @@ test("mobile management menu supports Escape, focus return and navigation; secur
   await page.getByLabel("Current management password").fill("synthetic passphrase only"); await page.getByLabel("Fresh management authenticator or backup code").fill("123456");
   await page.getByRole("button", { name: "Replace backup codes", exact: true }).click(); await expect(page.getByText("synthetic-backup-only")).toBeVisible();
   await page.getByRole("button", { name: "I saved these codes" }).click(); await expect(page.getByText("synthetic-backup-only")).toHaveCount(0);
-  await page.getByLabel("Related personal username").fill("synthetic_applicant"); await page.getByLabel("Conflict reason").fill("Synthetic account ownership declaration."); await page.getByRole("button", { name: "Record conflict", exact: true }).click();
+  state.conflictFailure = true; await page.getByLabel("Related personal username").fill("synthetic_applicant"); await page.getByLabel("Conflict reason").fill("Synthetic account ownership declaration."); await page.getByRole("button", { name: "Record conflict", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Fresh management MFA required"); await expect(page.getByLabel("Related personal username")).toHaveValue("synthetic_applicant");
+  state.conflictFailure = false; await page.getByRole("button", { name: "Record conflict", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Conflict recorded"); await checkLayout(page);
-  expect(state.writes).toEqual(["/api/v1/management/security/backups", "/api/v1/management/security/conflicts"]); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
+  expect(state.writes).toEqual(["/api/v1/management/security/backups", "/api/v1/management/security/conflicts", "/api/v1/management/security/conflicts"]); expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]);
 });
