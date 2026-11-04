@@ -133,17 +133,17 @@ function mountReviewer({ decisionStatus = 200 } = {}) {
   return { user: userEvent.setup(), fetchMock, revoke() { allowed = false; }, ...mounted };
 }
 async function openAssigned(user) {
-  await user.click(await screen.findByRole("button", { name: /^Photo request 11111111/ }));
+  await user.click(await screen.findByRole("button", { name: /Photo replacement #11111111/ }));
   await user.click(screen.getByRole("button", { name: "Assign photo review to me" }));
   return screen.findByLabelText("Photo decision");
 }
 it("requires assignment before private images load and binds one decision to the exact review and profile versions", async () => {
   const { user, fetchMock } = mountReviewer();
-  await user.click(await screen.findByRole("button", { name: /^Photo request 11111111/ }));
+  await user.click(await screen.findByRole("button", { name: /Photo replacement #11111111/ }));
   expect(fetchMock.mock.calls.some(([url]) => url.includes("/images/"))).toBe(false);
   await user.click(screen.getByRole("button", { name: "Assign photo review to me" }));
   await screen.findByLabelText("Photo decision");
-  expect(screen.getByRole("button", { name: /^Photo request 11111111/ }).textContent).toContain("In review");
+  expect(screen.getByRole("button", { name: /Photo replacement #11111111/ }).textContent).toContain("In review");
   expect(screen.getByAltText("Current approved profile portrait")).toBeTruthy();
   expect(screen.getByAltText("Private replacement profile portrait")).toBeTruthy();
   await user.selectOptions(screen.getByLabelText("Photo decision"), "APPROVED");
@@ -179,7 +179,7 @@ it("ignores a previous reviewer's delayed private detail after the signed-in acc
     return response({ requests: [{ id: requestId, state: "IN_REVIEW", createdAt: "2026-10-25" }], nextCursor: null });
   });
   vi.stubGlobal("fetch", fetchMock); const user = userEvent.setup(); const { rerender } = render(<Reviewer id="first" />);
-  await user.click(await screen.findByRole("button", { name: /^Photo request/ }));
+  await user.click(await screen.findByRole("button", { name: /Photo replacement/ }));
   nextAccount = true; rerender(<Reviewer id="second" />); await screen.findByRole("alert");
   await act(async () => release(response({ id: requestId, username: "private-applicant", state: "IN_REVIEW", reviewerId: "first", imagesAvailable: true })));
   expect(screen.queryByText(/private-applicant/)).toBeNull();

@@ -111,7 +111,7 @@ function reviewerHandler({ decisionStatus = 200 } = {}) {
   };
 }
 async function openReview(user) {
-  await user.click(await screen.findByRole("button", { name: /^Request 11111111/ }));
+  await user.click(await screen.findByRole("button", { name: /Identity request #11111111/ }));
 }
 it("does not fetch the review queue or expose decision controls when privileged access is denied", async () => {
   const { fetchMock } = mount(ManualIdentityReviewsPage, async () => response("Two-factor authentication is required.", 403));

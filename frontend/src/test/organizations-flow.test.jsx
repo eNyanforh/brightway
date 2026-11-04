@@ -68,7 +68,7 @@ function review(mode = "agent", overrides = {}) {
   }); vi.stubGlobal("fetch", fetchMock); render(tree(OrganizationReviewPage, "operator"));
   return { user: userEvent.setup(), fetchMock, calls, revoke() { allowed = false; }, stale() { changed = true; } };
 }
-async function select(user) { await user.click(await screen.findByRole("button", { name: /Global Learning Centre ·/ })); await screen.findByText(/Requested by @applicant/); }
+async function select(user) { await user.click(await screen.findByRole("button", { name: /Global Learning Centre #/ })); await screen.findByText(/Requested by @applicant/); }
 async function complete(user) {
   for (const checkbox of screen.getAllByRole("checkbox")) await user.click(checkbox);
   await user.selectOptions(screen.getByLabelText("Recommendation"), "APPROVE");

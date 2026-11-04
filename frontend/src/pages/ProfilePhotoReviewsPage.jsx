@@ -1,13 +1,14 @@
+import ManagementPageHeader from "../components/management/ManagementPageHeader";
+import { ManagementQueue, ManagementQueueRow, ManagementReviewPlaceholder } from "../components/management/ManagementQueue";
 import { subscribeFocus } from "../auth/focus-refresh";
 import { useEffect, useRef, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useManagement } from "../auth/management-context";
 import { profilePhotoReviewsApi as api } from "../api/profile-photo-reviews";
 import { identityDate } from "./manual-identity-format";
 import "./manual-identity.css";
 
 export default function ProfilePhotoReviewsPage() {
-  const management = useOutletContext()?.management;
   const { staff: account } = useManagement();
   const [view, setView] = useState(null), [detail, setDetail] = useState(null), [images, setImages] = useState(null);
   const [error, setError] = useState(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
@@ -78,22 +79,20 @@ export default function ProfilePhotoReviewsPage() {
   const queue = view?.actor === actor ? view.queue : null;
   const stateLabel = { PENDING: "Waiting for review", IN_REVIEW: "In review", APPROVED: "Approved", DECLINED: "Declined", SUPERSEDED: "Replaced by a newer request", CANCELLED: "Cancelled" };
   const canDecide = visible?.state === "IN_REVIEW" && imagesAvailable && !visible.stale && !reloadRequired && images?.actor === actor && images?.id === visible.id;
-  return <section className="bw-profile-card bw-identity">
-    <Link to={management ? "/superadmin/identity" : "/admin/manual-identity"}>Identity review workspace</Link><h1>Profile photo reviews</h1>
-    <p>Compare the current portrait and replacement. Confirm that the replacement is an appropriate photo of the same person. You cannot review your own photo.</p>
+  return <section className="bw-profile-card bw-identity bw-mgmt-review-page">
+    <ManagementPageHeader title="Profile photo reviews" description="Compare the approved portrait with its proposed replacement. Keep the same person behind the profile." icon="shield" action={<button type="button" disabled={busy} onClick={reload}>Reload photo reviews</button>} />
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
-    <button type="button" disabled={busy} onClick={reload}>Reload photo reviews</button>
     {reloadRequired && <p>Reload before making another decision. Your feedback remains unless access has been revoked.</p>}
     {[401, 403].includes(error?.status) && <p><Link to="/superadmin/security">Open Account security</Link>. Active identity-review permission and MFA are required.</p>}
-    {!queue && !error && <p role="status">Checking photo reviewer access…</p>}
-    {queue && <><h2>Pending replacements</h2>{!queue.requests.length && <p>No pending photo requests.</p>}
-      <ul className="bw-identity-queue">{queue.requests.map((row) => <li key={row.id}><button type="button" disabled={busy} onClick={() => action(async (alive) => {
+    {!queue && !error && <p className="bw-mgmt-loading" role="status">Checking photo reviewer access…</p>}
+    <div className="bw-mgmt-review-desk"><div>{queue && <ManagementQueue title="Photo replacements" count={queue.requests.length}>{!queue.requests.length && <p>No pending photo requests.</p>}
+      <ul className="bw-identity-queue">{queue.requests.map((row) => <ManagementQueueRow key={row.id} title="Photo replacement" reference={`#${row.id.slice(0, 8)}`} status={row.state === "PENDING" ? "Waiting for review" : "In review"} meta={identityDate(row.createdAt)} selected={visible?.id === row.id} disabled={busy} onClick={() => action(async (alive) => {
         setDetail(null); setImages(null); selectedId.current = row.id;
         const next = await api.detail(row.id); if (alive()) { setDetail(next); setReloadRequired(false); setDraft({ actor, note: "", decision: "DECLINED" }); }
-      })}>Photo request {row.id.slice(0, 8)} · {row.state === "PENDING" ? "Waiting for review" : "In review"} · {identityDate(row.createdAt)}</button></li>)}</ul>
+      })} />)}</ul>
       {queue.nextCursor && <button type="button" disabled={busy} onClick={() => action(async (alive) => { const next = await api.queue(queue.nextCursor); if (alive()) setView({ actor, queue: next }); })}>Next photo requests</button>}
-    </>}
-    {visible && <div><h2>Photo for @{visible.username}</h2>
+    </ManagementQueue>}</div><div className="bw-mgmt-detail-panel">
+    {visible ? <div><h2>Photo for @{visible.username}</h2>
       <p>Current state: {stateLabel[visible.state] || "Unavailable"}</p>
       {visible.stale && <p>The applicant’s identity or current photo changed. Ask them to cancel this request and submit a new replacement.</p>}
       {visible.state === "PENDING" && <button type="button" disabled={busy || reloadRequired || visible.stale} onClick={() => action(async (alive) => {
@@ -121,6 +120,6 @@ export default function ProfilePhotoReviewsPage() {
         <label htmlFor="photo-review-note">Feedback shown to the user</label><textarea id="photo-review-note" required minLength={10} maxLength={2000} value={note} onChange={(e) => updateDraft({ note: e.target.value })} />
         <button type="submit" className="bw-profile-button" disabled={busy || note.trim().length < 10}>Save photo decision</button>
       </fieldset></form>}
-    </div>}
+    </div> : <ManagementReviewPlaceholder title="Keep the person in the picture" description="Select a replacement to compare the current portrait and the proposed photo." />}</div></div>
   </section>;
 }

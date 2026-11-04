@@ -1,13 +1,13 @@
+import ManagementPageHeader from "../components/management/ManagementPageHeader";
+import { ManagementQueue, ManagementQueueRow, ManagementReviewPlaceholder } from "../components/management/ManagementQueue";
 import { subscribeFocus } from "../auth/focus-refresh";
 import { useEffect, useRef, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
 import { useManagement } from "../auth/management-context";
 import { nameChangesApi as api } from "../api/name-changes";
 import { identityDate, imageLabels } from "./manual-identity-format";
 import "./manual-identity.css";
 
 export default function NameChangeReviewsPage() {
-  const management = useOutletContext()?.management;
   const { staff: account } = useManagement(), actor = account?.id;
   const [view, setView] = useState(null), [detail, setDetail] = useState(null), [images, setImages] = useState(null), [feedback, setFeedback] = useState(null);
   const [error, setError] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [reloadRequired, setReloadRequired] = useState(false);
@@ -53,21 +53,19 @@ export default function NameChangeReviewsPage() {
   const update = values => setFeedback(old => ({ actor, ...(old?.actor === actor ? old : { note: "", decision: "DECLINED", confirmed: false }), ...values }));
   const imageReady = images?.actor === actor && images.requestId === requestId && images.values.length === 3;
   const canDecide = visible?.state === "IN_REVIEW" && available && imageReady && !reloadRequired && !visible.stale;
-  return <section className="bw-profile-card bw-identity">
-    <Link to={management ? "/superadmin/identity" : "/admin/manual-identity"}>Identity review workspace</Link><h1>Name-correction reviews</h1>
-    <p>Compare the current approved portrait, fresh government-issued ID and selfie to confirm the same person and proposed name. Only an assigned identity reviewer with MFA can decide. You cannot review your own request.</p>
+  return <section className="bw-profile-card bw-identity bw-mgmt-review-page">
+    <ManagementPageHeader title="Name-correction reviews" description="Check the approved portrait, government-issued ID and selfie before confirming a name correction." icon="edit" action={<button type="button" disabled={busy} onClick={() => action(reload)}>Reload name reviews</button>} />
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
-    <button type="button" disabled={busy} onClick={() => action(reload)}>Reload name reviews</button>
     {reloadRequired && <p>Reload before another decision. Your feedback is retained unless access was revoked.</p>}
-    {!queue && !error && <p role="status">Checking reviewer access…</p>}
-    {queue && <><h2>Pending name corrections</h2>{!queue.requests.length && <p>No pending name corrections.</p>}
-      <ul className="bw-identity-queue">{queue.requests.map(row => <li key={row.id}><button type="button" disabled={busy} onClick={() => action(async alive => {
+    {!queue && !error && <p className="bw-mgmt-loading" role="status">Checking reviewer access…</p>}
+    <div className="bw-mgmt-review-desk"><div>{queue && <ManagementQueue title="Name corrections" count={queue.requests.length}>{!queue.requests.length && <p>No pending name corrections.</p>}
+      <ul className="bw-identity-queue">{queue.requests.map(row => <ManagementQueueRow key={row.id} title="Name correction" reference={`#${row.id.slice(0, 8)}`} status={row.state === "SUBMITTED" ? "Waiting for review" : "In review"} meta={`Target ${identityDate(row.targetAt)}`} selected={visible?.id === row.id} disabled={busy} icon="edit" onClick={() => action(async alive => {
         selected.current = row.id; setDetail(null); setImages(null); const next = await api.detail(row.id);
         if (alive()) { setDetail(next); setReloadRequired(false); setFeedback({ actor, note: "", decision: "DECLINED", confirmed: false }); }
-      })}>Name request {row.id.slice(0, 8)} · {row.state === "SUBMITTED" ? "Waiting for review" : "In review"} · {identityDate(row.targetAt)}</button></li>)}</ul>
+      })} />)}</ul>
       {queue.nextCursor && <button type="button" disabled={busy} onClick={() => action(async alive => { const next = await api.queue(queue.nextCursor); if (alive()) setView({ actor, queue: next }); })}>Next name requests</button>}
-    </>}
-    {visible && <article><h2>Request from @{visible.username}</h2><p>State: {visible.state.replaceAll("_", " ")}</p>
+    </ManagementQueue>}</div><div className="bw-mgmt-detail-panel">
+    {visible ? <article><h2>Request from @{visible.username}</h2><p>State: {visible.state.replaceAll("_", " ")}</p>
       {visible.stale && <p>The saved identity or eligibility changed. The owner must cancel this request and use the current identity-verification flow.</p>}
       {visible.state === "SUBMITTED" && <button type="button" disabled={busy || reloadRequired || visible.stale} onClick={() => action(async alive => {
         await api.assign(visible.id, visible.version); if (!alive()) return; setReloadRequired(true);
@@ -91,6 +89,6 @@ export default function NameChangeReviewsPage() {
         <label className="bw-identity-consent"><input type="checkbox" checked={draft.confirmed} onChange={e => update({ confirmed: e.target.checked })} />I compared the approved portrait, both documents and the proposed name.</label>
         <button type="submit" className="bw-profile-button" disabled={busy || !draft.confirmed || draft.note.trim().length < 10}>Save name decision</button>
       </fieldset></form>}
-    </article>}
+    </article> : <ManagementReviewPlaceholder title="A name with the right evidence" description="Select a correction to compare the saved name, requested change and supporting documents." />}</div></div>
   </section>;
 }

@@ -1,5 +1,6 @@
 export default function WorkspaceIcon({ name = "building", size = 20, className = "" }) {
   const paths = {
+    menu: <path d="M4 6h16M4 12h16M4 18h16" />,
     building: <><path d="M4 21V3h11v18M15 9h5v12M2 21h20M8 21v-4h3v4M7 7h1m3 0h1M7 11h1m3 0h1M17 13h1m-1 4h1" /></>,
     people: <><circle cx="9" cy="8" r="3" /><path d="M3 21v-2a6 6 0 0 1 12 0v2M17 5a3 3 0 0 1 0 6M21 21v-2a6 6 0 0 0-3-5" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4M17 3v4M3 11h18M8 15h2m4 0h2M8 18h2" /></>,

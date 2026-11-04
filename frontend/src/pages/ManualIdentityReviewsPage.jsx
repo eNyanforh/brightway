@@ -1,12 +1,13 @@
+import ManagementPageHeader from "../components/management/ManagementPageHeader";
+import { ManagementQueue, ManagementQueueRow, ManagementReviewPlaceholder } from "../components/management/ManagementQueue";
 import { useEffect, useRef, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useManagement } from "../auth/management-context";
 import { manualIdentityApi as api } from "../api/manual-identity";
 import ManualIdentityHistory from "../components/profile/ManualIdentityHistory";
 import { identityDate, identityLabels } from "./manual-identity-format";
 import "./manual-identity.css";
 export default function ManualIdentityReviewsPage() {
-  const management = useOutletContext()?.management;
   const { staff: account } = useManagement();
   const [queue, setQueue] = useState(null), [detail, setDetail] = useState(null), [busy, setBusy] = useState(false);
   const [error, setError] = useState(null), [status, setStatus] = useState("ACTION_REQUIRED"), [note, setNote] = useState("");
@@ -32,22 +33,20 @@ export default function ManualIdentityReviewsPage() {
       const nextDetail = detail ? await api.detail(detail.request.id) : null;
       setQueue(nextQueue); setDetail(nextDetail); setReloadRequired(false); });
   }
-  return <section className="bw-profile-card bw-identity">
-    <Link to={management ? "/superadmin" : "/manual-identity"}>{management ? "Back to Management" : "Back to identity verification"}</Link>{" "}<Link to={management ? "/superadmin/photos" : "/admin/profile-photos"}>Profile photo reviews</Link><h1>Identity review workspace</h1>
-    <p>Only authorized BrightWay reviewers with two-factor authentication may use this workspace. You cannot review your own request. Review within five working days.</p>
+  return <section className="bw-profile-card bw-identity bw-mgmt-review-page">
+    <ManagementPageHeader title="Identity review workspace" description="Government-issued ID and selfie reviews, with a five-working-day target. Identity decisions stay separate from credential review." icon="shield" action={<button type="button" disabled={busy} onClick={reload}>Reload identity reviews</button>} />
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
     {[401, 403].includes(error?.status) && <p><Link to="/superadmin/security">Open Account security</Link>. An active identity-review permission is also required. Sign in with your authenticator or backup code if prompted.</p>}
-    <button type="button" disabled={busy} onClick={reload}>Reload identity reviews</button>
     {reloadRequired && <p>Reload before making a decision. Any unsaved feedback stays here unless access has been revoked.</p>}
-    {!queue && !error && <p role="status">Checking reviewer access…</p>}
-    {queue && <><h2>Requests</h2>{!queue.requests.length && <p>No identity requests yet.</p>}
+    {!queue && !error && <p className="bw-mgmt-loading" role="status">Checking reviewer access…</p>}
+    <div className="bw-mgmt-review-desk"><div>{queue && <ManagementQueue title="Identity requests" count={queue.requests.length}>{!queue.requests.length && <p>No identity requests yet.</p>}
       <p className="bw-identity-muted">Queue statuses are saved states. Open a request to check its current eligibility and validity.</p>
-      <ul className="bw-identity-queue">{queue.requests.map((item) => <li key={item.id}><button type="button" disabled={busy} onClick={() => action(async () => {
+      <ul className="bw-identity-queue">{queue.requests.map((item) => <ManagementQueueRow key={item.id} title="Identity request" reference={`#${item.id.slice(0, 8)}`} status={identityLabels[item.state] || item.state} meta={`Target ${identityDate(item.targetAt)}`} selected={detail?.request.id === item.id} disabled={busy} onClick={() => action(async () => {
         setDetail(null); setDetail(await api.detail(item.id)); setNote(""); setStatus("ACTION_REQUIRED"); setReloadRequired(false);
-      })}>Request {item.id.slice(0, 8)} · {identityLabels[item.state] || item.state} · target {identityDate(item.targetAt)}</button></li>)}</ul>
+      })} />)}</ul>
       {queue.nextCursor && <button type="button" disabled={busy} onClick={() => action(async () => setQueue(await api.queue(queue.nextCursor)))}>Next page</button>}
-    </>}
-    {detail && <div><h2>Review for @{detail.username}</h2>
+    </ManagementQueue>}</div><div className="bw-mgmt-detail-panel">
+    {detail ? <div><h2>Review for @{detail.username}</h2>
       <p>Current status: <strong>{identityLabels[detail.status] || detail.status}</strong> · Request version {detail.request.version}</p>
       <p>Review target {identityDate(detail.request.targetAt)}{detail.request.overdue && " · Past review target"}</p>
       {["INVALIDATED", "EXPIRED"].includes(detail.status) && <p>This request cannot be approved. The owner must submit fresh evidence.</p>}
@@ -71,6 +70,6 @@ export default function ManualIdentityReviewsPage() {
         <button className="bw-profile-button" type="submit" disabled={busy || note.trim().length < 10}>Save identity decision</button>
       </fieldset></form>}
       <ManualIdentityHistory attempts={detail.attempts} busy={busy} onDownload={(id) => action(() => api.download(id, true, true))} />
-    </div>}
+    </div> : <ManagementReviewPlaceholder />}</div></div>
   </section>;
 }

@@ -1,6 +1,7 @@
+import ManagementPageHeader from "../components/management/ManagementPageHeader";
+import { ManagementQueue, ManagementQueueRow, ManagementReviewPlaceholder } from "../components/management/ManagementQueue";
 import { subscribeFocus } from "../auth/focus-refresh";
 import { useEffect, useRef, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
 import { useManagement } from "../auth/management-context";
 import { organizationsApi as api } from "../api/organizations";
 import { identityDate } from "./manual-identity-format";
@@ -12,7 +13,6 @@ export default function OrganizationReviewPage() {
   return <OrganizationReview key={account?.id || "anonymous"} actor={account?.id} />;
 }
 function OrganizationReview({ actor }) {
-  const management = useOutletContext()?.management;
   const [view, setView] = useState(null), [detail, setDetail] = useState(null), [report, setReport] = useState(empty), [agent, setAgent] = useState(""), [decision, setDecision] = useState("REJECT"), [reason, setReason] = useState("");
   const [error, setError] = useState(null), [busy, setBusy] = useState(false), [stale, setStale] = useState(false), [notice, setNotice] = useState("");
   const life = useRef(null), lock = useRef(false), selectedRef = useRef(null);
@@ -53,15 +53,14 @@ function OrganizationReview({ actor }) {
     setStale(true); setDetail(null); setReport(empty); setReason(""); setNotice("Saved. Reload the organization queue for current status.");
     const queue = await api.queue(); if (life.current === current) { setView({ actor, data: queue }); setStale(false); }
   }
-  return <section className="bw-org-page"><h1>Organization review workspace</h1><p><Link to={management ? "/superadmin" : "/organizations/new"}>{management ? "Back to Management" : "My organization requests"}</Link> · <Link to="/superadmin/security">Account security</Link></p>
-    <p>Agents investigate assigned requests. A separate authorized approver makes the final decision. All review actions require two-factor authentication.</p>
+  return <section className="bw-org-page bw-mgmt-review-page">
+    <ManagementPageHeader title="Organization review workspace" description="Investigate with care. A separate authorized approver makes the final organization decision." icon="building" action={<button type="button" disabled={busy} onClick={reload}>Reload organization queue</button>} />
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}{stale && <p>Reload before continuing. Unsubmitted feedback stays here while you still have access.</p>}
-    <button type="button" disabled={busy} onClick={reload}>Reload organization queue</button>
-    {!data && !error && <p role="status">Checking organization review access…</p>}
-    {data && <><h2>Requests</h2>{!data.requests.length && <p>No organization requests in your queue.</p>}<ul className="bw-org-list">{data.requests.map(r => <li key={r.id}><button type="button" disabled={busy} onClick={() => action(async current => { const next = await api.detail(r.id); if (life.current === current) { setDetail({ actor, data: next }); setReport(empty); setAgent(""); setReason(""); setStale(false); } })}>{r.name} · {r.status}</button><p>Target {identityDate(r.targetAt)}{r.overdue && " · Past target"}</p></li>)}</ul>
+    {!data && !error && <p className="bw-mgmt-loading" role="status">Checking organization review access…</p>}
+    <div className="bw-mgmt-review-desk"><div>{data && <ManagementQueue title="Organization requests" count={data.requests.length}>{!data.requests.length && <p>No organization requests in your queue.</p>}<ul className="bw-org-list">{data.requests.map(r => <ManagementQueueRow key={r.id} title={r.name} reference={`#${r.id.slice(0, 8)}`} status={r.status.replaceAll("_", " ")} meta={`Target ${identityDate(r.targetAt)}${r.overdue ? " · Past target" : ""}`} selected={selected?.id === r.id} disabled={busy} icon="building" onClick={() => action(async current => { const next = await api.detail(r.id); if (life.current === current) { setDetail({ actor, data: next }); setReport(empty); setAgent(""); setReason(""); setStale(false); } })} />)}</ul>
       {data.nextCursor && <button disabled={busy} onClick={() => action(async current => { const next = await api.queue(undefined, data.nextCursor); if (life.current === current) { setView({ actor, data: next }); setDetail(null); } })}>Next requests</button>}
-    </>}
-    {selected && <article><h2>{selected.name}</h2><p>Requested by @{selected.applicantUsername}, {selected.representativeRole}</p><p>{[selected.location.address, selected.location.city, selected.location.region, selected.location.countryCode].filter(Boolean).join(", ")}</p><p>{selected.type} · Offers training: {selected.offersTraining ? "Yes" : "No"} · Version {selected.version}</p>
+    </ManagementQueue>}</div><div className="bw-mgmt-detail-panel">
+    {selected ? <article><h2>{selected.name}</h2><p>Requested by @{selected.applicantUsername}, {selected.representativeRole}</p><p>{[selected.location.address, selected.location.city, selected.location.region, selected.location.countryCode].filter(Boolean).join(", ")}</p><p>{selected.type} · Offers training: {selected.offersTraining ? "Yes" : "No"} · Version {selected.version}</p>
       {selected.requiresReassignment && <p role="status">The investigating Agent is no longer authorized. Assign a replacement Agent and obtain fresh findings before deciding.</p>}
       {selected.canAssign && selected.status === "RECOMMENDED" && <p>Reassignment preserves the previous findings in private history and requires a new investigation. The original review target stays unchanged.</p>}
       {selected.canAssign && <form onSubmit={e => { e.preventDefault(); void action(current => mutate("assign", { agentUsername: agent }, current)); }}><label>{selected.status === "RECOMMENDED" ? "Replacement Agent username" : "Agent username"}<input required pattern="[a-zA-Z0-9_]{3,30}" value={agent} disabled={busy || stale} onChange={e => setAgent(e.target.value)} /></label><button disabled={busy || stale}>{selected.status === "RECOMMENDED" ? "Assign replacement Agent" : "Assign Agent"}</button></form>}
@@ -73,6 +72,6 @@ function OrganizationReview({ actor }) {
       {selected.finding && <section><h3>Recorded Agent findings</h3><ul>{Object.entries(checks).map(([key, label]) => <li key={key}>{selected.finding[key] ? "Confirmed" : "Not confirmed"} — {label}</li>)}</ul><p>{selected.finding.recommendation}</p><p>{selected.finding.notes}</p>{selected.finding.setupAssistance && <p>{selected.finding.setupAssistance}</p>}</section>}
       {!!selected.findingHistory?.length && <section><h3>Previous investigations</h3><p>These findings are retained for review history and cannot authorize the current decision. Showing the latest ten investigations.</p>{selected.findingHistory.map(entry => <article key={entry.id}><h4>Request version {entry.sourceVersion} · {entry.recommendation}</h4><p>Recorded {identityDate(entry.createdAt)} · Replaced {identityDate(entry.retiredAt)}</p><ul>{Object.entries(checks).map(([key, label]) => <li key={key}>{entry[key] ? "Confirmed" : "Not confirmed"} — {label}</li>)}</ul><p>{entry.notes}</p>{entry.setupAssistance && <p>{entry.setupAssistance}</p>}</article>)}</section>}
       {selected.canDecide && <form onSubmit={e => { e.preventDefault(); void action(current => mutate("decide", { decision, reason }, current)); }}><label>Final organization decision<select aria-label="Final organization decision" disabled={busy || stale} value={decision} onChange={e => setDecision(e.target.value)}><option value="REJECT">Reject</option><option value="APPROVE" disabled={selected.finding?.recommendation !== "APPROVE"}>Approve</option></select></label><label>Feedback shown to the requester<textarea required minLength={10} maxLength={2000} disabled={busy || stale} value={reason} onChange={e => setReason(e.target.value)} /></label><button disabled={busy || stale}>Save organization decision</button></form>}
-    </article>}
+    </article> : <ManagementReviewPlaceholder title="Build trust from the start" description="Select an organization request to view the application, assign an Agent and review the investigation." />}</div></div>
   </section>;
 }
