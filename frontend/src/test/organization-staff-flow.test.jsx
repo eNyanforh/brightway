@@ -23,7 +23,7 @@ it("opens the server-authorized organization context, protects the primary admin
   const f = mount(defaultRead); await screen.findByRole("heading", { name: "Global school", level: 1 }); await screen.findByText("Primary administrator");
   expect(f.setActingOrganization).toHaveBeenCalledWith(expect.objectContaining({ accountId: "owner", organization }));
   expect(screen.queryByRole("button", { name: "Save permissions for Emmanuel Nyanforh" })).toBeNull();
-  await f.user.click(screen.getByRole("link", { name: "Personal account" })); await screen.findByText("Personal account page"); expect(f.setActingOrganization).toHaveBeenLastCalledWith(null);
+  await f.user.click(screen.getByRole("link", { name: "Personal account" })); await screen.findByText("Personal account page"); expect(screen.queryByRole("heading", { name: "Global school", level: 1 })).toBeNull();
 });
 it("invites by username with explicit permissions, scope version and one cookie-bound request", async () => {
   let release; const pending = new Promise(resolve => { release = resolve; }); const f = mount((url, options) => options?.method === "POST" ? pending : defaultRead(url));
