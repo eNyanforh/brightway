@@ -74,3 +74,12 @@ it("HTTP error bodies remain readable after the last shared consumer receives he
   expect((await (await resourceFetch("/api/v1/management/tools/cases",{},"management")).json()).message).toBe("Temporary case service failure");
   expect(fetch).toHaveBeenCalledTimes(2);
 });
+
+it("network state is shared only while in flight and contact responses are never cached", async () => {
+  const fetch = vi.fn(async () => new Response(JSON.stringify({ success:true,data:{} }), { headers: { "Content-Type":"application/json" } }));
+  vi.stubGlobal("fetch",fetch); setReadIdentity("personal","network-owner");
+  const path="/api/v1/network?view=connections";
+  await Promise.all([resourceFetch(path),resourceFetch(path)]); expect(fetch).toHaveBeenCalledTimes(1);
+  await resourceFetch(path); expect(fetch).toHaveBeenCalledTimes(2);
+  await resourceFetch("/api/v1/profile/person/contact"); await resourceFetch("/api/v1/profile/person/contact"); expect(fetch).toHaveBeenCalledTimes(4);
+});

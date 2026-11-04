@@ -38,6 +38,10 @@ enum PersonGender {
 }
 
 model Account {
+  networkLeft NetworkPair[] @relation("NetworkLeft")
+  networkRight NetworkPair[] @relation("NetworkRight")
+  networkRequests NetworkPair[] @relation("NetworkRequester")
+  networkEvents NetworkEvent[]
   accessVersion Int @default(0)
   managementCases ManagementCase[]
   caseMessages ManagementCaseMessage[]
@@ -1180,4 +1184,47 @@ model ManagementCaseMessage {
   createdAt DateTime @default(now())
   @@unique([caseId, authorKey, idempotencyKey])
   @@index([caseId, createdAt, id])
+}
+
+// Personal connections are independent of organization memberships and trust.
+enum NetworkStatus {
+  NONE
+  PENDING
+  CONNECTED
+}
+model NetworkPair {
+  id String @id @default(uuid())
+  leftAccountId String
+  rightAccountId String
+  leftAccount Account @relation("NetworkLeft", fields: [leftAccountId], references: [id], onDelete: Restrict)
+  rightAccount Account @relation("NetworkRight", fields: [rightAccountId], references: [id], onDelete: Restrict)
+  requestedById String?
+  requestedBy Account? @relation("NetworkRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  status NetworkStatus @default(NONE)
+  leftBlocked Boolean @default(false)
+  rightBlocked Boolean @default(false)
+  version Int @default(0)
+  lastRequestedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events NetworkEvent[]
+  @@unique([leftAccountId, rightAccountId])
+  @@index([leftAccountId, status, updatedAt, id])
+  @@index([rightAccountId, status, updatedAt, id])
+}
+model NetworkEvent {
+  id String @id @default(uuid())
+  pairId String
+  pair NetworkPair @relation(fields: [pairId], references: [id], onDelete: Restrict)
+  actorId String
+  actor Account @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action String @db.VarChar(16)
+  requestKey String @db.VarChar(36)
+  requestHash String @db.VarChar(64)
+  resultVersion Int
+  createdAt DateTime @default(now())
+  @@unique([actorId, requestKey])
+  @@index([actorId, action, createdAt])
+  @@index([actorId, createdAt])
+  @@index([pairId, createdAt])
 }
