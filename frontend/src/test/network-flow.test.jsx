@@ -75,3 +75,18 @@ it("newer lookups and refreshes cannot display a late contact response", async (
   act(() => window.dispatchEvent(new Event("focus"))); await waitFor(() => expect(f.fetch.mock.calls.filter(([url]) => url.includes("/network?")).length).toBeGreaterThan(1));
   await act(async () => release(reply({ email: "late-private@example.invalid" }))); expect(screen.queryByText("late-private@example.invalid")).toBeNull();
 });
+
+it("a streaming authorization denial clears private data even when its parallel read aborts first", async () => {
+  const f = mount({ state: "CONNECTED", handler(url, options, state) {
+    if (!state.denialRace) return;
+    if (url.includes("/network?")) return new Response(new ReadableStream({ start(controller) { setTimeout(() => { controller.enqueue(new TextEncoder().encode(JSON.stringify({ success:false,message:"Confirmed revoked session" }))); controller.close(); },30); } }), { status:401,headers:{"Content-Type":"application/json"} });
+    if (url.includes("/people/")) return new Promise((resolve, reject) => {
+      void resolve;
+      if (options.signal.aborted) reject(new DOMException("Aborted sibling", "AbortError"));
+      else options.signal.addEventListener("abort", () => reject(new DOMException("Aborted sibling", "AbortError")), { once:true });
+    });
+  } });
+  await find(f); await f.user.click(screen.getByRole("button", { name:"View shared contact" })); await screen.findByText("shared@example.invalid");
+  f.data.denialRace = true; act(() => window.dispatchEvent(new Event("focus")));
+  await screen.findByText("Confirmed revoked session"); expect(screen.queryByText("Grace Johnson")).toBeNull(); expect(screen.queryByText("shared@example.invalid")).toBeNull();
+});

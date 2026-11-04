@@ -10,6 +10,16 @@ const tabs = [["connections", "Connections", UsersRound], ["incoming", "Received
 const actions = { NONE: [["REQUEST", "Connect"]], OUTGOING: [["CANCEL", "Cancel request"]], INCOMING: [["ACCEPT", "Accept request"], ["DECLINE", "Decline request"]], CONNECTED: [["REMOVE", "Remove connection"]], BLOCKED: [["UNBLOCK", "Unblock person"]] };
 const states = { NONE: "Not connected", OUTGOING: "Request sent", INCOMING: "Wants to connect", CONNECTED: "Connected", BLOCKED: "Blocked by you" };
 const denied = error => [401, 403].includes(error?.status);
+async function readTogether(reads) {
+  const results = await Promise.allSettled(reads);
+  const errors = results.filter(result => result.status === "rejected").map(result => result.reason);
+  // A 401/403 invalidates shared reads and may abort its sibling before its
+  // response body finishes. Preserve the authoritative denial over AbortError.
+  const error = errors.find(denied) || errors.find(value => value.name !== "AbortError") || errors[0];
+  if (error) throw error;
+  return results.map(result => result.value);
+}
+
 function NetworkPanel({ view, cursor, setCursor, history, setHistory }) {
   const [list, setList] = useState(null), [selection, setSelection] = useState(null), [username, setUsername] = useState("");
   const [error, setError] = useState(null), [refreshing, setRefreshing] = useState(false), [busy, setBusy] = useState(false), [lookupBusy, setLookupBusy] = useState(false), [notice, setNotice] = useState("");
@@ -21,7 +31,7 @@ function NetworkPanel({ view, cursor, setCursor, history, setHistory }) {
     pending.current = true; const currentController = new AbortController(); controller.current = currentController; setRefreshing(true); setContact(null); contactSequence.current++;
     const requestSequence = ++sequence.current;
     try {
-      const [data, current] = await Promise.all([networkApi.list(view, cursor, controller.current.signal), selected.current ? networkApi.person(selected.current.person.username, controller.current.signal).catch(e => { if (e.status === 404) return null; throw e; }) : null]);
+      const [data, current] = await readTogether([networkApi.list(view, cursor, controller.current.signal), selected.current ? networkApi.person(selected.current.person.username, controller.current.signal).catch(e => { if (e.status === 404) return null; throw e; }) : null]);
       if (!live.current || requestSequence !== sequence.current) return;
       setList(data); selected.current = current; setSelection(current); setError(null);
     } catch (e) {
@@ -55,7 +65,7 @@ function NetworkPanel({ view, cursor, setCursor, history, setHistory }) {
       await networkApi.action(target, body);
       if (!live.current) return;
       setConfirmation(null); dialog.current?.close();
-      const [data, person] = await Promise.all([networkApi.list(view, cursor), networkApi.person(target).catch(e => { if (e.status === 404) return null; throw e; })]);
+      const [data, person] = await readTogether([networkApi.list(view, cursor), networkApi.person(target).catch(e => { if (e.status === 404) return null; throw e; })]);
       if (!live.current) return;
       setList(data); selected.current = person; setSelection(person); setNotice("Network updated.");
     } catch (e) { if (live.current) { setConfirmation(null); dialog.current?.close(); if (denied(e)) clearPrivate(); setError(e); } }
