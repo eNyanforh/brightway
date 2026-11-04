@@ -77,3 +77,17 @@ test("management session versions and current status immediately reject revoked 
   f.state.managementStaff[0].version++; await assert.rejects(f.auth.authenticate(root.token), { status: 401 });
   await assert.rejects(assertManagementSession(f.db, root.staff.id, auth.sessionId, f.now()), { status: 403 });
 });
+
+test("management step-up requires password and fresh single-use MFA, retains session expiry, and commits failure budgets", async () => {
+  const f = managementAuthFixture(), root = await f.enroll(); f.secret = root.secret; f.advance(360000);
+  const actor = await f.auth.authenticate(root.token), before = f.state.managementSession.find(row => row.id === actor.sessionId).expiresAt;
+  await assert.rejects(f.auth.stepUp(root.staff.id,actor.sessionId,{ password:"wrong",code:code(f) }),{ status:400 });
+  assert.equal(f.state.managementStaff[0].failureCount,1);
+  await f.auth.stepUp(root.staff.id,actor.sessionId,{ password:f.password,code:code(f) });
+  assert.equal(+f.state.managementSession.find(row => row.id === actor.sessionId).expiresAt,+before);
+  await assertManagementSession(f.db,root.staff.id,actor.sessionId,f.now(),true);
+  await assert.rejects(f.auth.stepUp(root.staff.id,actor.sessionId,{ password:f.password,code:code(f) }),{ status:400 });
+  assert.equal(f.state.managementStaff[0].failureCount,1);
+  for (let i=0;i<4;i++) await assert.rejects(f.auth.stepUp(root.staff.id,actor.sessionId,{ password:"wrong",code:"000000" }),{ status:400 });
+  f.advance(30000); await assert.rejects(f.auth.stepUp(root.staff.id,actor.sessionId,{ password:f.password,code:code(f) }),{ status:400 });
+});

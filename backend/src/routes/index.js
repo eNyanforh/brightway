@@ -1,3 +1,6 @@
+import { createManagementOperations } from "../modules/management/management-operations.service.js";
+import { createManagementCases } from "../modules/management/management-cases.service.js";
+import { createManagementOperationsRoutes, createSupportRoutes } from "../modules/management/management-operations.routes.js";
 import { createManagementAuth } from "../modules/management/management-auth.service.js";
 import { createManagementEmail } from "../modules/management/management-email.js";
 import { createManagementAuthRoutes } from "../modules/management/management-auth.http.js";
@@ -54,8 +57,11 @@ const verification = createSignupEmailService({ prisma });
 router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const mfa = createMfaService({ prisma });
 const sessions = createSessionService({ prisma, mfa });
+const managementCases = createManagementCases({ prisma });
 const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
 router.use(createManagementAuthRoutes({ authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createManagementOperationsRoutes({ operations: createManagementOperations({ prisma }), cases: managementCases, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createSupportRoutes({ cases: managementCases, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManagementRoutes({ management: createManagementService({ prisma }), authentication, nodeEnv: env.NODE_ENV }));
 router.use(createOrganizationProfileRoutes({ profiles: createOrganizationProfileService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createOrganizationStaffRoutes({ staff: createOrganizationStaffService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));

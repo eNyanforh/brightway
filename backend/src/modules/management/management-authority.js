@@ -1,6 +1,7 @@
+import { capabilitiesForOperations } from "./management-operations.schema.js";
 const fail = (status, message) => Object.assign(Error(message), { status });
 export const staffId = id => typeof id === "string" && /^mg_[a-f0-9-]{36}$/.test(id);
-export const capabilities = ["credential-reviewer", "identity-reviewer", "organization-agent", "organization-approver"];
+export const capabilities = ["credential-reviewer", "identity-reviewer", "organization-agent", "organization-approver", ...capabilitiesForOperations];
 export const permits = (staff, capability) => staff?.status === "ACTIVE" && !!staff.emailVerifiedAt && (staff.isSuperAdmin === true || staff.capabilities.includes(capability));
 
 export async function managementPermission(db, id, capability) {

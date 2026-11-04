@@ -14,7 +14,7 @@ export default function ManagementLayout() {
     const close = event => { if (event.key === "Escape") { setOpen(false); menuButton.current?.focus(); } };
     window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close);
   }, [open]);
-  const section = { credentials: "Credential reviews", identity: "Identity reviews", photos: "Photo reviews", names: "Name corrections", organizations: "Organization reviews", security: "Account security" }[pathname.split("/")[2]] || "Overview";
+  const section = { users: "Users", directory: "Organization oversight", team: "Team access", support: "Support", reports: "Reports", audit: "Audit log", operations: "Operations", credentials: "Credential reviews", identity: "Identity reviews", photos: "Photo reviews", names: "Name corrections", organizations: "Organization reviews", security: "Account security" }[pathname.split("/")[2]] || "Overview";
   const visibleWorkspace = workspace?.staffId === staff.id ? workspace : null;
   return <div className="bw-app-shell bw-management-shell">
     <a className="bw-mgmt-skip" href="#management-content">Skip to content</a>

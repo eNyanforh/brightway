@@ -1,3 +1,7 @@
+const ManagementDirectoryPage = lazy(() => import("../pages/ManagementDirectoryPage"));
+const ManagementCasesPage = lazy(() => import("../pages/ManagementCasesPage"));
+const ManagementOperationsPage = lazy(() => import("../pages/ManagementOperationsPage"));
+function ManagementTool({ children }) { return <Suspense fallback={<p role="status">Loading management tool…</p>}>{children}</Suspense>; }
 import ManagementProvider from "../auth/ManagementProvider";
 import ManagementGate from "../auth/ManagementGate";
 import ManagementLayout from "../layouts/ManagementLayout";
@@ -49,6 +53,13 @@ export default function AppRoutes() {
         <Route path="login" element={<ManagementLoginPage />} />
         <Route element={<ManagementGate />}><Route element={<ManagementLayout />}>
           <Route path="" element={<Suspense fallback={<p role="status">Loading BrightWay management…</p>}><ManagementPage /></Suspense>}>
+            <Route path="users" element={<ManagementTool><ManagementDirectoryPage kind="users" /></ManagementTool>} />
+            <Route path="directory" element={<ManagementTool><ManagementDirectoryPage kind="organizations" /></ManagementTool>} />
+            <Route path="team" element={<ManagementTool><ManagementDirectoryPage kind="team" /></ManagementTool>} />
+            <Route path="support" element={<ManagementTool><ManagementCasesPage /></ManagementTool>} />
+            <Route path="reports" element={<ManagementTool><ManagementCasesPage kind="REPORT" /></ManagementTool>} />
+            <Route path="audit" element={<ManagementTool><ManagementOperationsPage audit /></ManagementTool>} />
+            <Route path="operations" element={<ManagementTool><ManagementOperationsPage /></ManagementTool>} />
             <Route path="credentials" element={<Suspense fallback={<p role="status">Loading credential reviews…</p>}><CredentialReviewsPage /></Suspense>} />
             <Route path="identity" element={<ManualIdentityReviewsPage />} />
             <Route path="photos" element={<ProfilePhotoReviewsPage />} />
@@ -93,6 +104,8 @@ export default function AppRoutes() {
           <Route path="/credentials/:kind/:recordId" element={<CredentialPage />} />
           <Route path="/manual-identity" element={<ManualIdentityPage />} />
           <Route path="/manual-identity/name-change" element={<NameChangePage />} />
+          <Route path="/help" element={<ManagementTool><ManagementCasesPage personal /></ManagementTool>} />
+          <Route path="/help/reports" element={<ManagementTool><ManagementCasesPage kind="REPORT" personal /></ManagementTool>} />
           <Route path="/security" element={<AccountSecurityPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/explore" element={<ExplorePage />} />

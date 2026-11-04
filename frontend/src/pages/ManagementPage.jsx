@@ -3,12 +3,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useOutlet, useOutletContext } from "react-router-dom";
 import { useManagement } from "../auth/management-context";
 import { managementApi } from "../api/management";
-import { managementPath } from "../components/layout/management-paths";
+import { managementPath, managementPaths } from "../components/layout/management-paths";
 import ManagementStatistics from "../components/management/ManagementStatistics";
 import WorkspaceIcon from "../components/workspace/WorkspaceIcon";
 import "./management.css";
 import ManagementPageHeader from "../components/management/ManagementPageHeader";
-const routes = new Set(["/admin/credentials", "/admin/manual-identity", "/admin/profile-photos", "/admin/name-changes", "/admin/organizations"]);
+const routes = new Set(Object.keys(managementPaths));
 const date = value => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString("en", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) : "Not available";
 export default function ManagementPage() { const { staff: account, logout } = useManagement(); return <ManagementWorkspace key={account?.id} accountId={account?.id} logout={logout} />; }
 function ManagementWorkspace({ accountId, logout }) {

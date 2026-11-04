@@ -15,5 +15,6 @@ async function request(path, body, method = body ? "POST" : "GET") {
 export const managementAuthApi = {
   me: () => request("auth/me"), login: body => request("auth/login", body), verify: body => request("auth/verify", body), logout: () => request("auth/logout", {}),
   recover: email => request("auth/recovery/request", { email }), reset: body => request("auth/recovery/reset", body), backups: body => request("security/backups", body),
+  stepUp: body => request("security/step-up", body),
   conflict: body => request("security/conflicts", body),
 };

@@ -52,6 +52,9 @@ export function createManagementAuthRoutes({ authentication, clientUrl, nodeEnv,
     const result = await authentication.reset(cookieValue(req, cookies.recovery), req.body);
     res.clearCookie(cookies.recovery, cookies.options); res.clearCookie(cookies.session, cookies.options); reply(res, result);
   }));
+  router.post("/management/security/step-up", origin, auth, limits, wrap(async (req, res) => {
+    res.set("Cache-Control", "no-store"); reply(res, await authentication.stepUp(req.management.staff.id, req.management.sessionId, req.body));
+  }));
   router.post("/management/security/backups", origin, auth, limits, wrap(async (req, res) => {
     res.set("Cache-Control", "no-store"); reply(res, await authentication.regenerate(req.management.staff.id, req.management.sessionId, req.body));
   }));
