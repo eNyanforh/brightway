@@ -59,7 +59,9 @@ function Workspace({ actor, usernameLabel, id, section }) {
     const current = { actor, id, controller: null }; life.current = current;
     if (actor) void Promise.resolve().then(() => { if (life.current === current) return load(current); });
     const focus = () => { if (lock.current) return; if (current.loading) { current.focusQueued = true; return; } void load(current, true); }; const unsubscribeFocus = subscribeFocus(focus);
-    return () => { current.controller?.abort(); if (life.current === current) life.current = null; setActing?.(null); unsubscribeFocus(); };
+    // AppLayout scopes navigation by account and route. Tab cleanup must not clear
+    // that shared context; confirmed access failures still clear it above.
+    return () => { current.controller?.abort(); if (life.current === current) life.current = null; unsubscribeFocus(); };
   }, [actor, id, load, setActing]);
   useEffect(() => {
     if (!username && !permissions.length && !busy && !editorDirty) return;

@@ -64,7 +64,9 @@ function ReviewWorkspace({ accountId, organizationId }) {
       } catch (e) { if (!controller.signal.aborted && life.current === current) failure(e); }
     }
     void load(); const focus = () => void load(true); const unsubscribeFocus = subscribeFocus(focus);
-    return () => { current.controller?.abort(); if (life.current === current) life.current = null; setActing?.(null); unsubscribeFocus(); };
+    // AppLayout scopes navigation by account and route. Tab cleanup must not clear
+    // that shared context; confirmed access failures still clear it above.
+    return () => { current.controller?.abort(); if (life.current === current) life.current = null; unsubscribeFocus(); };
   }, [readQueue, readDetail, publishQueue, failure, setActing]);
   useEffect(() => {
     if (!dirty && !busy) return;

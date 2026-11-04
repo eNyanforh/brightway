@@ -217,3 +217,40 @@ it("the organization menu exposes planned tools without changing the mobile bott
   const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" });
   expect(within(mobile).getAllByRole("link")).toHaveLength(5); expect(within(mobile).queryByRole("button", { name: /Coming soon/ })).toBeNull();
 });
+
+it("keeps the same organization navigation mounted while switching tabs and clears it only on confirmed access loss", async () => {
+  let hold = false, release;
+  const f = mount(base, url => {
+    if (url.endsWith('/work/access')) return reply({ hasWork: true });
+    if (hold) return new Promise(resolve => { release = resolve; });
+    return reply(context);
+  });
+  await screen.findByRole("heading", { name: "Dashboard", level: 2 });
+  const nav = screen.getByRole("navigation", { name: "Organization tools" });
+  hold = true;
+  await f.user.click(within(nav).getByRole("link", { name: "Staff" }));
+  await waitFor(() => expect(release).toBeTypeOf("function"));
+  expect(nav.isConnected).toBe(true);
+  expect(within(nav).getAllByRole("link")).toHaveLength(4);
+  expect(within(nav).getByRole("link", { name: "Staff" }).getAttribute("aria-current")).toBe("page");
+  expect(screen.queryByText("Organization access is checked before tools are shown.")).toBeNull();
+  await act(async () => release(reply(context)));
+  // The subsequent staff read must also leave navigation intact while pending.
+  expect(within(nav).getAllByRole("link")).toHaveLength(4);
+  await act(async () => release(reply({ members: [], invitations: [], staffVersion: 1 })));
+  await f.user.click(within(nav).getByRole("link", { name: "Credential Review" }));
+  await waitFor(() => expect(f.fetch.mock.calls.some(([url]) => url.includes("credential-reviews"))).toBe(true));
+  expect(within(nav).getAllByRole("link")).toHaveLength(4);
+  await act(async () => release(reply("Organization access revoked", 403)));
+  await screen.findByRole("alert");
+  expect(within(nav).queryByRole("link", { name: "Staff" })).toBeNull();
+});
+
+it("leaving an organization hides its navigation and name in the real account layout", async () => {
+  const f = mount(); await screen.findByRole("heading", { name: "Dashboard", level: 2 });
+  await f.user.click(within(screen.getByRole("navigation", { name: "Account contexts" })).getByRole("link", { name: "Return to Personal" }));
+  await screen.findByText("Personal destination");
+  expect(screen.queryByRole("navigation", { name: "Organization tools" })).toBeNull();
+  expect(screen.queryByRole("navigation", { name: "Mobile organization navigation" })).toBeNull();
+  expect(document.querySelector(".bw-design-personal").textContent).not.toContain(organization.name);
+});
