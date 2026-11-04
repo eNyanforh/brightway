@@ -1,3 +1,2 @@
-// Legacy direct database grants must not bypass authenticated Super Admin provisioning.
-console.error('This unauthenticated grant command has been retired. Use node backend/scripts/superadmin.js staff <username> credential-reviewer grant|revoke --by <superadmin_username> --reason "Operational reason".');
+console.error("Personal management grants are retired. Use backend/scripts/superadmin.js with a separate management identity. See MANAGEMENT-ADMIN.md. No database changes were made.");
 process.exitCode = 1;

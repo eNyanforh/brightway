@@ -37,3 +37,14 @@ export async function conflictAccounts(db, id) {
 export async function assertNoSelfReview(db, id, accountId) {
   if ((await conflictAccounts(db, id)).includes(accountId)) throw fail(403, "You cannot review your own or a declared related account's submission.");
 }
+// Identity-conflict declarations also connect independent staff identities for
+// separation of duties; they never connect their passwords, sessions or profiles.
+export async function relatedReviewActors(db, id) {
+  const accounts = await conflictAccounts(db, id);
+  if (!staffId(id) || !accounts.length) return [id, ...accounts];
+  const declared = await db.managementConflict.findMany({ where: { accountId: { in: accounts } }, select: { staffId: true } });
+  const owners = await db.account.findMany({ where: { id: { in: accounts } }, select: { email: true } });
+  const emails = owners.map(row => row.email).filter(value => typeof value === "string");
+  const inferred = emails.length ? await db.managementStaff.findMany({ where: { OR: emails.map(email => ({ email: { equals: email, mode: "insensitive" } })) }, select: { id: true } }) : [];
+  return [...new Set([id, ...accounts, ...declared.map(row => row.staffId), ...inferred.map(row => row.id)])];
+}

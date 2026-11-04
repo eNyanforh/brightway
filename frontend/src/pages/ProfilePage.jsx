@@ -3,7 +3,6 @@ import { profilePhotoReviewsApi } from "../api/profile-photo-reviews";
 import { useIdentityStatus } from "../auth/useIdentityStatus";
 import VerificationBadge from "../components/VerificationBadge";
 import { hasVerifiedIdentity } from "./manual-identity-format";
-import IdentityReviewerLink from "../components/profile/IdentityReviewerLink";
 import { useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -474,13 +473,6 @@ export default function ProfilePage() {
     <div className="bw-profile-page">
       <Link to="/security">Account security</Link>{" "}
       <Link to="/credentials">My credential reviews</Link>{" "}
-      <IdentityReviewerLink />{" "}
-
-      {account.platformRole === "CREDENTIAL_REVIEWER" && (
-        <Link to="/admin/credentials">
-          Open credential review workspace
-        </Link>
-      )}
 
       {draft.notice && (
         <p className="bw-profile-success" role="status">

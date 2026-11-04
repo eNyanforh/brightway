@@ -26,7 +26,7 @@ test("database name corrections serialize proof claims/decisions, roll back fail
       username: `${label}_${marker.replaceAll("-", "")}`, email: `${label}_${marker}@example.invalid`, passwordHash: hash, emailVerifiedAt: date,
       person: { create: { firstName: "Sample", lastName: label, birthDate: new Date("2000-01-01"), gender: "MALE", phoneNumber: "+231770000000" } },
     } }));
-    accounts.push(await managementStaffFixture(db, { username: `reviewer_${marker.replaceAll("-", "")}`, email: `reviewer_${marker}@example.invalid` }, ["identity-reviewer"], date));
+    accounts.push(await managementStaffFixture(db, { username: `reviewer_${marker.replaceAll("-", "").slice(0, 12)}`, email: `reviewer_${marker}@example.invalid` }, ["identity-reviewer"], date));
     const [owner, reviewer] = accounts;
     const photo = await db.photoAsset.create({ data: { personId: owner.personId, storageKey: `name-fixture/${marker}`, state: "CLAIMED", expiresAt: new Date(+date + 86400000) } });
     objects.set(photo.storageKey, Buffer.from("synthetic portrait"));

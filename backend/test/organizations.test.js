@@ -175,3 +175,12 @@ test("concurrent reassignment has one winner and cannot target the applicant, re
   assert.equal(f.state.organizationFindingArchive.length, 1); assert.equal(f.state.organizationRequestAudit.filter(a => a.action === "REASSIGNED").length, 1);
   await assert.rejects(f.service.report(next.id, next.sessionId, r.id, { ...f.finding(), expectedVersion: r.version }), { status: 409 });
 });
+
+test("separate management credentials cannot bypass Agent/Approver separation when both declare the same personal identity", async () => {
+  const f = organizationFixture(), request = await f.report(await f.assign(await f.submit()));
+  const shared = f.personalActors.other.id;
+  for (const staff of [f.actors.agent, f.actors.approver]) f.state.managementConflict.push({ staffId: staff.id, accountId: shared });
+  const detail = await f.service.detail(f.actors.approver.id, f.actors.approver.sessionId, request.id);
+  assert.equal(detail.canDecide, false);
+  await assert.rejects(f.decide(request), { status: 403 }); assert.equal(f.state.organization.length, 0);
+});

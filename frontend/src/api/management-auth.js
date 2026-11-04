@@ -1,9 +1,9 @@
 import { ApiError } from "./auth";
-import { invalidateReads } from "./read-cache";
+import { invalidateReads, resourceFetch } from "./read-cache";
 const base = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/$/, "");
 async function request(path, body, method = body ? "POST" : "GET") {
   let response;
-  try { response = await fetch(`${base}/management/${path}`, { method, credentials: "include", cache: "no-store", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined }); }
+  try { response = await resourceFetch(`${base}/management/${path}`, { method, credentials: "include", cache: "no-store", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined }, "management"); }
   catch { throw new ApiError("Unable to reach BrightWay Management. Keep your inputs and retry."); }
   const payload = await response.json().catch(() => null);
   if (!response.ok || payload?.success !== true) {

@@ -1,4 +1,4 @@
-import { managementPermission, assertManagementSession, lockReviewActors, assertNoSelfReview, conflictAccounts, staffId, permits } from "../management/management-authority.js";
+import { managementPermission, assertManagementSession, lockReviewActors, assertNoSelfReview, conflictAccounts, relatedReviewActors, staffId, permits } from "../management/management-authority.js";
 import { organizationPhotoUrl } from "./organization-profile.schema.js";
 import { randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
@@ -49,7 +49,7 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
     const finding = await db.organizationFinding.findUnique({ where: { requestId: r.id } });
     const permitted = roles.approverEnabled || r.assignedAgentId === actorId;
     const findingHistory = roles.approverEnabled ? await db.organizationFindingArchive.findMany({ where: { requestId: r.id }, orderBy: [{ sourceVersion: "desc" }, { id: "desc" }], take: 10 }) : [];
-    const investigated = roles.approverEnabled && !!await db.organizationFindingArchive.findFirst({ where: { requestId: r.id, agentId: { in: [actorId, ...await conflictAccounts(db, actorId)] } } });
+    const investigated = roles.approverEnabled && !!await db.organizationFindingArchive.findFirst({ where: { requestId: r.id, agentId: { in: await relatedReviewActors(db, actorId) } } });
     const assignedRole = r.assignedAgentId ? await operator(db, r.assignedAgentId) : null;
     const assignedAccount = r.assignedAgentId ? await db.managementStaff.findUnique({ where: { id: r.assignedAgentId } }) : null;
     const requiresReassignment = r.status === "RECOMMENDED" && (!assignedRole?.agentEnabled || assignedAccount?.status !== "ACTIVE" || !assignedAccount.emailVerifiedAt);
@@ -57,7 +57,7 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
     return { ...await ownerView(db, r), applicantUsername: applicant?.username, assignedAgentId: r.assignedAgentId,
       finding: permitted ? finding : null, findingHistory, requiresReassignment, canAssign: roles.approverEnabled && ["SUBMITTED", "ASSIGNED", "RECOMMENDED"].includes(r.status),
       canReport: roles.agentEnabled && r.assignedAgentId === actorId && r.status === "ASSIGNED",
-      canDecide: roles.approverEnabled && r.status === "RECOMMENDED" && !requiresReassignment && !investigated && r.assignedAgentId !== actorId };
+      canDecide: roles.approverEnabled && r.status === "RECOMMENDED" && !requiresReassignment && !investigated && !(await relatedReviewActors(db, actorId)).includes(r.assignedAgentId) };
   }
   const service = {
     async access(actorId, sessionId) {
@@ -184,7 +184,7 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
         await lock(tx, [actorId, known.applicantId, ...(known.assignedAgentId ? [known.assignedAgentId] : [])]); await capability(tx, actorId, sessionId, "approver");
         const r = await row(tx, id);
         await assertNoSelfReview(tx, actorId, r.applicantId);
-        const sameHuman = [actorId, ...await conflictAccounts(tx, actorId)];
+        const sameHuman = await relatedReviewActors(tx, actorId);
         if (sameHuman.includes(r.assignedAgentId) || await tx.organizationFindingArchive.findFirst({ where: { requestId: id, agentId: { in: sameHuman } } })) throw fail(403, "A separate approver who has not investigated this request must decide it.");
         if (r.version !== data.expectedVersion || r.status !== "RECOMMENDED" || r.assignedAgentId !== known.assignedAgentId) throw conflict();
         const finding = await tx.organizationFinding.findUnique({ where: { requestId: id } }), agentRole = await operator(tx, r.assignedAgentId);

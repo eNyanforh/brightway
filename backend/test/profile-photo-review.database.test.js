@@ -25,7 +25,7 @@ test("database verified photo reviews serialize decisions, retain the approved p
       username: `${label}_${marker.replaceAll("-", "")}`, email: `${label}_${marker}@example.invalid`, emailVerifiedAt: date, passwordHash: "fixture-only-not-a-login-hash",
       person: { create: { firstName: "Photo", lastName: label, birthDate: new Date("2000-01-01"), gender: "MALE", phoneNumber: "+231770000000" } },
     } }));
-    accounts.push(await managementStaffFixture(db, { username: `reviewer_${marker.replaceAll("-", "")}`, email: `reviewer_${marker}@example.invalid` }, ["identity-reviewer"], date));
+    accounts.push(await managementStaffFixture(db, { username: `reviewer_${marker.replaceAll("-", "").slice(0, 12)}`, email: `reviewer_${marker}@example.invalid` }, ["identity-reviewer"], date));
     const [owner, reviewer] = accounts;
     const old = await db.photoAsset.create({ data: { personId: owner.personId, storageKey: `photo-review-fixture/${marker}`, state: "CLAIMED", expiresAt: new Date(+date + 86400000) } });
     objects.set(old.storageKey, Buffer.from("old portrait"));

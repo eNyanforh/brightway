@@ -25,7 +25,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
       username: `${label}_${marker.replaceAll("-", "")}`, email: `${label}_${marker}@example.invalid`, passwordHash, emailVerifiedAt: date,
       person: { create: { firstName: "Sample", lastName: label, birthDate: label === "owner" ? null : new Date("2000-01-01"), gender: "MALE", phoneNumber: "+231770000000" } },
     } }));
-    accounts.push(await managementStaffFixture(db, { username: `reviewer_${marker.replaceAll("-", "")}`, email: `reviewer_${marker}@example.invalid` }, ["identity-reviewer"], date));
+    accounts.push(await managementStaffFixture(db, { username: `reviewer_${marker.replaceAll("-", "").slice(0, 12)}`, email: `reviewer_${marker}@example.invalid` }, ["identity-reviewer"], date));
     const [owner, reviewer] = accounts;
     photo = await db.photoAsset.create({ data: { personId: owner.personId, storageKey: `test-photo-${marker}`, state: "CLAIMED", expiresAt: new Date(+date + 86400000) } });
     const profile = await db.profile.create({ data: {

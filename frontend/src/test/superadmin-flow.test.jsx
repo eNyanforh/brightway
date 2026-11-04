@@ -73,3 +73,32 @@ it("login return destinations reject external and arbitrary paths", () => {
   expect(authDestination("/management")).toBe("/superadmin"); expect(authDestination("/superadmin/identity")).toBe("/superadmin"); expect(authDestination("/superadmin")).toBe("/superadmin");
   for (const path of ["//evil.invalid", "https://evil.invalid", "/superadministrator", "/unknown", undefined]) expect(authDestination(path)).toBe("/explore");
 });
+
+it("first management enrollment verifies its email and independent authenticator before showing one-time backups", async () => {
+  const backups = ["abcdef-123456-abcdef-123456"];
+  const f = mount("/superadmin/login", url => reply(url.endsWith("/auth/login") ? { step: "enroll", secret: "SYNTHETIC-MANAGEMENT-SETUP", accountLabel: "founder" } : url.endsWith("/auth/verify") ? { staff: account, backupCodes: backups } : management));
+  await passwordStep(f.user);
+  await screen.findByLabelText("Management authenticator secret");
+  await f.user.type(screen.getByLabelText("Management email verification code"), "654321");
+  await f.user.type(screen.getByLabelText("Management authenticator code"), "123456");
+  await f.user.click(screen.getByRole("button", { name: "Verify management access" }));
+  await screen.findByText(backups[0]); expect(screen.queryByLabelText("Management authenticator secret")).toBeNull();
+  expect(JSON.parse(f.fetch.mock.calls.find(([url]) => url.endsWith("/auth/verify"))[1].body)).toEqual({ code: "123456", emailCode: "654321" });
+  await f.user.click(screen.getByRole("button", { name: "I saved my backup codes" })); await screen.findByRole("heading", { name: "Welcome, Named Administrator" });
+  expect(f.fetch.mock.calls.some(([url]) => url.startsWith("/api/v1/auth/") || url.endsWith("/profile/me") || url.endsWith("/work/access"))).toBe(false);
+});
+it("management recovery submits email proof and existing MFA to its own realm without personal recovery", async () => {
+  const f = mount("/superadmin/login", url => reply(url.endsWith("/recovery/reset") ? { reset: true } : { accepted: true }));
+  await f.user.click(await screen.findByRole("button", { name: "Forgot management password?" }));
+  await f.user.type(screen.getByLabelText("Management email"), "founder@management.example.invalid");
+  await f.user.click(screen.getByRole("button", { name: "Request management recovery" }));
+  await f.user.type(await screen.findByLabelText("New management password"), "new management passphrase");
+  await f.user.type(screen.getByLabelText("Confirm new management password"), "new management passphrase");
+  await f.user.type(screen.getByLabelText("Management email verification code"), "654321");
+  await f.user.type(screen.getByLabelText("Management authenticator or backup code"), "123456");
+  await f.user.click(screen.getByRole("button", { name: "Reset management password" }));
+  expect((await screen.findByLabelText("Management password")).value).toBe("");
+  const request = f.fetch.mock.calls.find(([url]) => url.endsWith("/recovery/reset"));
+  expect(JSON.parse(request[1].body)).toEqual({ password: "new management passphrase", code: "123456", emailCode: "654321" });
+  expect(f.fetch.mock.calls.every(([url]) => url.startsWith("/api/v1/management/"))).toBe(true);
+});

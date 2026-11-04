@@ -55,7 +55,6 @@ export async function reviewerStillAuthorized(db, accountId, review) {
   const account = await db.account.findFirst({ where: { id: accountId, status: "ACTIVE", emailVerifiedAt: { not: null } } });
   const factor = await db.mfaFactor.findUnique({ where: { accountId } });
   if (!account || !factor?.enabled) return false;
-  if (!review.issuerOrganizationId) return account.platformRole === "CREDENTIAL_REVIEWER";
   const member = await db.organizationMembership.findFirst({ where: { organizationId: review.issuerOrganizationId, accountId, enabled: true } });
   return Boolean(member && (member.role === "PRIMARY_ADMIN" || (member.permissions ?? []).includes(issuerPermission(review.kind))));
 }
