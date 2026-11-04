@@ -61,3 +61,15 @@ test("foreign, expired and stale management sessions cannot read private managem
   for (const sid of [undefined, "", randomUUID()]) await assert.rejects(service.context(root.staff.id, sid), { status: 403 });
   f.state.managementSession[0].expiresAt = f.now(); await assert.rejects(service.context(root.staff.id, root.actor.sessionId), { status: 403 });
 });
+
+test("provisioning a new staff identity holds the root lock and a stale permission update cannot create a false success audit", async () => {
+  const f = managementAuthFixture(), root = await f.enroll();
+  const original = f.db.managementStaff.updateMany.bind(f.db.managementStaff), locks = [];
+  f.db.managementStaff.updateMany = async args => { if (args.data.failureCount) locks.push(args.where.id); return original(args); };
+  const child = await f.provisioner.create({ username: "pending_staff", fullName: "Pending staff", email: "pending@management.example.invalid", passwordHash: "scrypt$synthetic", reason: "Explicit independent staff provisioning." }, root.actor);
+  assert(locks.includes(root.actor.staffId));
+  const audits = f.state.managementStaffAudit.length;
+  f.db.managementStaff.updateMany = async args => args.where.id === child.id && args.where.version !== undefined ? { count: 0 } : original(args);
+  await assert.rejects(f.provisioner.change({ username: child.username, capability: "identity-reviewer", enabled: true, reason: "An enrollment race must not produce a successful permission audit." }, root.actor), { status: 409 });
+  assert.equal(f.state.managementStaffAudit.length, audits);
+});

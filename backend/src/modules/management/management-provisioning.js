@@ -16,6 +16,7 @@ export function createManagementProvisioner({ prisma, now = () => new Date() }) 
     async create(input, actor = null, bootstrap = false) {
       const parsed = newStaffSchema.safeParse(input); if (!parsed.success) throw fail(400, "Provide a valid new management username, full name, email, password and reason.");
       return serial(async tx => {
+        if (!bootstrap) await lockReviewActors(tx, [actor?.staffId]);
         const operator = bootstrap ? null : await root(tx, actor);
         if (bootstrap && (await tx.managementStaff.findFirst({ where: { isSuperAdmin: true } }) || await tx.managementStaffAudit.findFirst({ where: { action: "ROOT_BOOTSTRAPPED" } }))) throw fail(409, "Management bootstrap is permanently closed. Use an existing Super Admin.");
         if (await tx.managementStaff.findFirst({ where: { OR: [{ username: parsed.data.username }, { email: parsed.data.email }] } })) throw fail(409, "That management username or email already exists.");
@@ -38,7 +39,8 @@ export function createManagementProvisioner({ prisma, now = () => new Date() }) 
         const removesRoot = current.isSuperAdmin && ((capability === "superadmin" || capability === "access") && !enabled);
         if (removesRoot && !await tx.managementStaff.findFirst({ where: { id: { not: target.id }, status: "ACTIVE", isSuperAdmin: true, emailVerifiedAt: { not: null }, encryptedSecret: { not: null } } })) throw fail(409, "Establish another active MFA Super Admin before removing this root.");
         const values = new Set(current.capabilities); if (enabled) values.add(capability); else values.delete(capability);
-        await tx.managementStaff.updateMany({ where: { id: current.id, version: current.version }, data: { version: { increment: 1 }, ...(capability === "superadmin" ? { isSuperAdmin: enabled } : capability === "access" ? { status: "DISABLED" } : { capabilities: [...values] }) } });
+        const changed = await tx.managementStaff.updateMany({ where: { id: current.id, version: current.version }, data: { version: { increment: 1 }, ...(capability === "superadmin" ? { isSuperAdmin: enabled } : capability === "access" ? { status: "DISABLED" } : { capabilities: [...values] }) } });
+        if (changed.count !== 1) throw fail(409, "Management staff changed. Reload before provisioning permissions.");
         await tx.managementSession.deleteMany({ where: { staffId: target.id } });
         await tx.managementChallenge.updateMany({ where: { staffId: target.id }, data: { consumedAt: now(), setupSecret: null, emailCodeHash: null } });
         await event(tx, operator.id, target.id, "PERMISSION_CHANGED", reason.trim(), { capability, enabled, previousVersion: current.version });
