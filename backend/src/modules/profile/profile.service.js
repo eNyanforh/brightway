@@ -54,9 +54,9 @@ function conflict() {
   return Object.assign(new Error("Your profile changed. Reload it before saving again."), { status: 409 });
 }
 
-export function createProfileService({ prisma, relationshipFor }) {
+export function createProfileService({ prisma, relationshipFor, contactReader }) {
   return {
-    visibleContact: createContactReader({ prisma, relationshipFor }),
+    visibleContact: contactReader ?? createContactReader({ prisma, relationshipFor }),
     async read(personId) {
       const row = await prisma.profile.findUnique({ where: { personId }, select: ownerProfileSelect });
       const person = row ? row.person : await prisma.person.findUnique({ where: { id: personId }, select: personContactSelect });

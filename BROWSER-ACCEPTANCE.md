@@ -30,7 +30,7 @@ checks, not end-to-end acceptance of real credentials or provider delivery.
 Organization navigation also stays mounted during delayed tab access checks,
 then clears on confirmed membership denial. This runs in both viewport projects.
 
-GitHub workflow `Management browser acceptance` runs all 18 cases on PRs. Reports
+GitHub workflow `Management browser acceptance` runs all 22 cases on PRs. Reports
 and failure screenshots/traces are retained for seven days as CI artifacts.
 `frontend/playwright-report/` and `frontend/test-results/` are ignored by Git.
 The existing Vitest suite remains separate under `frontend/src/test`.
@@ -55,8 +55,8 @@ MFA requirements continue to apply to every protected operation.
 
 ## Operational tools coverage
 
-`management-operations.spec.mjs` adds three scenarios per viewport (18 browser cases
-in the full suite). It visits Users, Organization oversight, Team access, Support,
+`management-operations.spec.mjs` adds three scenarios per viewport (18 management browser cases
+plus the network coverage below). It visits Users, Organization oversight, Team access, Support,
 Reports, Audit log and Operations, then checks password/MFA-confirmed versioned
 access changes and assignment-gated case replies. A management internal note is
 absent after navigating to the requester's personal Help page. Temporary case-read
@@ -64,3 +64,14 @@ failures preserve the unsent message and disable writes; confirmed denial remove
 the private case and draft. These responses
 and identities are synthetic. The PostgreSQL suite independently checks the real
 service projections and transactions; the browser fixture is not a live API test.
+
+## Personal network coverage
+
+`network.spec.mjs` adds two scenarios per viewport (22 total browser cases across
+the suite). Synthetic responses exercise exact-username requests/cancellation,
+shared-contact reading, confirmed blocking, Escape cancellation, unblocking without
+restoring consent, desktop/mobile layout, shared focus reads, safe background
+content, outage write denial and private clearing on session loss. Screenshots
+are synthetic. The separate PostgreSQL suite checks actual relationship/contact
+queries and transactional races. Neither fixture browser coverage nor SQL tests
+prove real application acceptance or deployment.

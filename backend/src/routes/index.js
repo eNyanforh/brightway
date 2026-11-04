@@ -1,3 +1,5 @@
+import { createNetworkService } from "../modules/network/network.service.js";
+import { createNetworkRoutes } from "../modules/network/network.routes.js";
 import { createManagementOperations } from "../modules/management/management-operations.service.js";
 import { createManagementCases } from "../modules/management/management-cases.service.js";
 import { createManagementOperationsRoutes, createSupportRoutes } from "../modules/management/management-operations.routes.js";
@@ -57,6 +59,8 @@ const verification = createSignupEmailService({ prisma });
 router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const mfa = createMfaService({ prisma });
 const sessions = createSessionService({ prisma, mfa });
+const network = createNetworkService({ prisma });
+router.use(createNetworkRoutes({ network, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const managementCases = createManagementCases({ prisma });
 const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
 router.use(createManagementAuthRoutes({ authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
@@ -92,7 +96,7 @@ router.use("/auth", createSessionRoutes({
 }));
 
 router.use("/profile", createProfileRoutes({
-  profiles: createProfileService({ prisma }),
+  profiles: createProfileService({ prisma, contactReader: network.visibleContact }),
   sessions,
   clientUrl: env.CLIENT_URL,
   nodeEnv: env.NODE_ENV,

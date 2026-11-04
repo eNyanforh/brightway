@@ -40,7 +40,7 @@ import RegisterPage from "../pages/RegisterPage";
 import NotFoundPage from "../pages/NotFoundPage";
 
 import ExplorePage from "../pages/ExplorePage";
-import NetworkPage from "../pages/NetworkPage";
+const NetworkPage = lazy(() => import("../pages/NetworkPage"));
 import OpportunitiesPage from "../pages/OpportunitiesPage";
 import ProfilePage from "../pages/ProfilePage";
 import LearningPage from "../pages/LearningPage";
@@ -110,7 +110,7 @@ export default function AppRoutes() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/explore" element={<ExplorePage />} />
 
-          <Route path="/network" element={<NetworkPage />} />
+          <Route path="/network" element={<Suspense fallback={<p role="status">Loading your network…</p>}><NetworkPage /></Suspense>} />
 
           <Route path="/opportunities" element={<OpportunitiesPage />} />
 

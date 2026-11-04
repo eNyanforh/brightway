@@ -34,13 +34,13 @@ export function resourceFetch(url, options = {}, realm = "personal") {
     return Promise.resolve(fetch(url, options)).finally(() => invalidateReads(realm));
   }
   // Authentication, evidence and images are deliberately not cached here.
-  if (!store.identity || /\/(?:auth|documents|evidence|images|portrait|photo)(?:\/|\?|$)/.test(url)) return fetch(url, options);
+  if (!store.identity || /\/(?:auth|documents|evidence|images|portrait|photo|contact)(?:\/|\?|$)/.test(url)) return fetch(url, options);
   const organization = url.match(/\/organization-workspace\/([^/?]+)(\/[^?]*)?(?:\?|$)/);
   const scope = organization && store.organizationScopes.get(decodeURIComponent(organization[1]));
   const key = `${url}:${JSON.stringify(options.headers || {})}:${scope?.key || "unscoped"}`;
   // Access context is always fresh. A recent tenant snapshot is reusable only
   // under a server-returned current membership/permission scope.
-  const privateAccess = /\/(?:admin|management)(?:\/|\?|$)/.test(url) || Boolean(organization && (!organization[2] || !scope));
+  const privateAccess = /\/(?:admin|management|network)(?:\/|\?|$)/.test(url) || Boolean(organization && (!organization[2] || !scope));
   const ttl = privateAccess ? 0 : 10000;
   let entry = store.entries.get(key);
   if (entry?.done && Date.now() - entry.at >= ttl) { store.entries.delete(key); entry = null; }

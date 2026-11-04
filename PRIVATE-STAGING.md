@@ -1,6 +1,6 @@
 # Private staging preparation
 
-**Private-staging preparation resumed by owner request on 4 November 2026.** This resumes preparation and validation; it does not record Sprint 2 acceptance or a completed deployment. Select the private host and isolated resources and record the remaining application acceptance before starting the hosted environment. The public launch remains separate.
+**Deployment paused again by the owner on 4 November 2026, including private staging.** Continue product development. The validated preparation package remains available for later; no hosting purchase, provisioning, application database migration or deployment is authorized by this document. The public-launch target and acceptance gates remain separate.
 
 This is a reviewed configuration package, not a deployed environment. No host, DNS record, paid service, staging database, bucket, scheduler or alert destination has been provisioned. The owner reported the final retention check PASS on 26 October; see SPRINT-1-ACCEPTANCE.md. Public launch remains targeted for 26 January 2027, subject to the agreed production gates.
 
