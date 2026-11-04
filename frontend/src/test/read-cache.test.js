@@ -55,3 +55,22 @@ it("recent organization data is reused only within the server-returned membershi
   scopeOrganizationReads(context); await resourceFetch(path); expect(fetch).toHaveBeenCalledTimes(3);
   setReadIdentity("personal", "other"); scopeOrganizationReads(context); await resourceFetch(path); await resourceFetch(path); expect(fetch).toHaveBeenCalledTimes(5);
 });
+
+it("HTTP error bodies remain readable after the last shared consumer receives headers, and errors are never cached", async () => {
+  const signals = [];
+  const fetch = vi.fn((_url, options) => {
+    const signal = options.signal; signals.push(signal);
+    const stream = new ReadableStream({ start(controller) {
+      signal.addEventListener("abort", () => controller.error(new DOMException("Aborted body", "AbortError")), { once:true });
+      setTimeout(() => { if (!signal.aborted) { controller.enqueue(new TextEncoder().encode(JSON.stringify({ success:false,message:"Temporary case service failure" }))); controller.close(); } },10);
+    } });
+    return Promise.resolve(new Response(stream,{ status:503,headers:{"Content-Type":"application/json"} }));
+  });
+  vi.stubGlobal("fetch",fetch); setReadIdentity("management","synthetic-staff");
+  const a=resourceFetch("/api/v1/management/tools/cases",{},"management"),b=resourceFetch("/api/v1/management/tools/cases",{},"management");
+  expect(fetch).toHaveBeenCalledTimes(1);
+  for (const response of await Promise.all([a,b])) expect(await response.json()).toEqual({success:false,message:"Temporary case service failure"});
+  expect(signals[0].aborted).toBe(false);
+  expect((await (await resourceFetch("/api/v1/management/tools/cases",{},"management")).json()).message).toBe("Temporary case service failure");
+  expect(fetch).toHaveBeenCalledTimes(2);
+});
