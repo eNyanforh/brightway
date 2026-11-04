@@ -1,3 +1,9 @@
+import ManagementProvider from "../auth/ManagementProvider";
+import ManagementGate from "../auth/ManagementGate";
+import ManagementLayout from "../layouts/ManagementLayout";
+import ManagementLoginPage from "../pages/ManagementLoginPage";
+import ManagementSecurityPage from "../pages/ManagementSecurityPage";
+import { Outlet } from "react-router-dom";
 import { lazy, Suspense } from "react";
 const OrganizationSetupGate = lazy(() => import("../components/organizations/OrganizationSetupGate"));
 const OrganizationWorkspacePage = lazy(() => import("../pages/OrganizationWorkspacePage"));
@@ -38,7 +44,25 @@ import LearningPage from "../pages/LearningPage";
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/superadmin/login" element={<LoginPage management />} />
+
+      <Route path="/superadmin" element={<ManagementProvider><Outlet /></ManagementProvider>}>
+        <Route path="login" element={<ManagementLoginPage />} />
+        <Route element={<ManagementGate />}><Route element={<ManagementLayout />}>
+          <Route path="" element={<Suspense fallback={<p role="status">Loading BrightWay management…</p>}><ManagementPage /></Suspense>}>
+            <Route path="credentials" element={<Suspense fallback={<p role="status">Loading credential reviews…</p>}><CredentialReviewsPage /></Suspense>} />
+            <Route path="identity" element={<ManualIdentityReviewsPage />} />
+            <Route path="photos" element={<ProfilePhotoReviewsPage />} />
+            <Route path="names" element={<NameChangeReviewsPage />} />
+            <Route path="organizations" element={<OrganizationReviewPage />} />
+          </Route>
+        <Route path="security" element={<ManagementSecurityPage />} />
+        </Route></Route>
+      </Route>
+          <Route path="/admin/organizations" element={<Navigate to="/superadmin/organizations" replace />} />
+          <Route path="/admin/credentials" element={<Navigate to="/superadmin/credentials" replace />} />
+          <Route path="/admin/manual-identity" element={<Navigate to="/superadmin/identity" replace />} />
+          <Route path="/admin/profile-photos" element={<Navigate to="/superadmin/photos" replace />} />
+          <Route path="/admin/name-changes" element={<Navigate to="/superadmin/names" replace />} />
       <Route path="/management" element={<Navigate to="/superadmin" replace />} />
       <Route element={<PublicLayout />}>
         <Route path="/" element={<HomePage />} />
@@ -56,13 +80,6 @@ export default function AppRoutes() {
 
       <Route element={<AuthGate />}>
         <Route element={<AppLayout />}>
-          <Route path="/superadmin" element={<Suspense fallback={<p role="status">Loading BrightWay management…</p>}><ManagementPage /></Suspense>}>
-            <Route path="credentials" element={<Suspense fallback={<p role="status">Loading credential reviews…</p>}><CredentialReviewsPage /></Suspense>} />
-            <Route path="identity" element={<ManualIdentityReviewsPage />} />
-            <Route path="photos" element={<ProfilePhotoReviewsPage />} />
-            <Route path="names" element={<NameChangeReviewsPage />} />
-            <Route path="organizations" element={<OrganizationReviewPage />} />
-          </Route>
           <Route path="/organization-workspace" element={<Navigate to="/work" replace />} />
           <Route path="/organization-workspace/:organizationId/credentials" element={<Suspense fallback={<p role="status">Loading organization workspace…</p>}><OrganizationSetupGate><CredentialReviewsPage /></OrganizationSetupGate></Suspense>} />
           <Route path="/organization-workspace/:id/profile" element={<WorkspaceRoute section="profile" />} />
@@ -72,15 +89,10 @@ export default function AppRoutes() {
           <Route path="/work" element={<Suspense fallback={<p role="status">Loading My Workspace…</p>}><WorkPage /></Suspense>} />
           <Route path="/work/requests/:id/edit" element={<OrganizationRequestsPage />} />
           <Route path="/organizations/new" element={<OrganizationRequestsPage />} />
-          <Route path="/admin/organizations" element={<OrganizationReviewPage />} />
           <Route path="/credentials" element={<MyCredentialReviewsPage />} />
           <Route path="/credentials/:kind/:recordId" element={<CredentialPage />} />
-          <Route path="/admin/credentials" element={<Suspense fallback={<p role="status">Loading credential reviews…</p>}><CredentialReviewsPage /></Suspense>} />
           <Route path="/manual-identity" element={<ManualIdentityPage />} />
           <Route path="/manual-identity/name-change" element={<NameChangePage />} />
-          <Route path="/admin/manual-identity" element={<ManualIdentityReviewsPage />} />
-          <Route path="/admin/profile-photos" element={<ProfilePhotoReviewsPage />} />
-          <Route path="/admin/name-changes" element={<NameChangeReviewsPage />} />
           <Route path="/security" element={<AccountSecurityPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/explore" element={<ExplorePage />} />

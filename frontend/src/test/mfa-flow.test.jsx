@@ -13,6 +13,7 @@ const response = (data, status = 200) => new Response(JSON.stringify({ success: 
 function loginMount(handler) {
   const fetchMock = vi.fn(async (url, options) => {
     if (url.endsWith("/auth/me")) return response("Log in required", 401);
+    if (url.endsWith("/work/access")) return response({ hasWork: false });
     if (url.endsWith("/profile/me")) return response({ profile });
     return handler(url, options);
   });

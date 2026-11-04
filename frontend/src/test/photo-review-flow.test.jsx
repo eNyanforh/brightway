@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ThemeProvider } from "styled-components";
 import AuthProvider from "../auth/AuthProvider";
+import { ManagementContext } from "../auth/management-context";
 import { AuthContext } from "../auth/auth-context";
 import AppRoutes from "../routes/AppRoutes";
 import ProfilePhotoReviewsPage from "../pages/ProfilePhotoReviewsPage";
@@ -117,7 +118,7 @@ it("does not overwrite other changed saved fields or discard drafts during photo
   expect(screen.getByLabelText("Headline", { exact: true }).value).toBe("Keep my draft");
 });
 
-function Reviewer({ id = "reviewer" }) { return <MemoryRouter><AuthContext.Provider value={{ account: { id } }}><ProfilePhotoReviewsPage /></AuthContext.Provider></MemoryRouter>; }
+function Reviewer({ id = "reviewer" }) { return <MemoryRouter><AuthContext.Provider value={{ account: { id } }}><ManagementContext.Provider value={{ staff: { id } }}><ProfilePhotoReviewsPage /></ManagementContext.Provider></AuthContext.Provider></MemoryRouter>; }
 function mountReviewer({ decisionStatus = 200 } = {}) {
   let state = "PENDING", version = 1, allowed = true;
   const fetchMock = vi.fn(async (url) => {

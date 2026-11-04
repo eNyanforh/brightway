@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
+import { ManagementContext } from "../auth/management-context";
 import { AuthContext } from "../auth/auth-context";
 import ManualIdentityPage from "../pages/ManualIdentityPage";
 import ManualIdentityReviewsPage from "../pages/ManualIdentityReviewsPage";
@@ -19,7 +20,7 @@ function mount(Component, handler) {
     return handler(url, options);
   });
   vi.stubGlobal("fetch", fetchMock);
-  render(<MemoryRouter><AuthContext.Provider value={{ account: { id: "reviewer" } }}><Component /></AuthContext.Provider></MemoryRouter>);
+  render(<MemoryRouter><AuthContext.Provider value={{ account: { id: "reviewer" } }}><ManagementContext.Provider value={{ staff: Component === ManualIdentityReviewsPage ? { id: "reviewer" } : null }}><Component /></ManagementContext.Provider></AuthContext.Provider></MemoryRouter>);
   return { user: userEvent.setup(), fetchMock };
 }
 async function choose(user) {

@@ -1,3 +1,4 @@
+import { subscribeFocus } from "../auth/focus-refresh";
 import {
   useCallback,
   useEffect,
@@ -25,20 +26,26 @@ import "./app-shell.css";
 import "../pages/superadmin.css";
 
 export default function AppLayout() {
+  const { account } = useAuth();
+  return <AccountLayout key={account?.id || "anonymous"} />;
+}
+function AccountLayout() {
   const { pathname } = useLocation(), { account } = useAuth();
   const [workAccess, setWorkAccess] = useState(null);
   const workGeneration = useRef(0);
   const hasWork = workAccess?.accountId === account?.id && workAccess.hasWork;
   const onOrganizationSubmitted = useCallback(() => { workGeneration.current++; setWorkAccess({ accountId: account?.id, hasWork: true }); }, [account?.id]);
   useEffect(() => {
-    let controller;
+    let controller, pending = false;
     const load = () => {
+      if (pending) return;
+      pending = true;
       controller?.abort(); controller = new AbortController(); const signal = controller.signal, generation = workGeneration.current;
       if (!account?.id) return;
-      organizationsApi.workAccess(signal).then(result => { if (!signal.aborted && generation === workGeneration.current) setWorkAccess({ accountId: account.id, hasWork: result.hasWork === true }); }).catch(error => { if (!signal.aborted && [401, 403].includes(error.status)) setWorkAccess(null); });
+      organizationsApi.workAccess(signal).then(result => { if (!signal.aborted && generation === workGeneration.current) setWorkAccess({ accountId: account.id, hasWork: result.hasWork === true }); }).catch(error => { if (!signal.aborted && [401, 403].includes(error.status)) setWorkAccess(null); }).finally(() => { pending = false; });
     };
-    load(); window.addEventListener("focus", load);
-    return () => { controller?.abort(); window.removeEventListener("focus", load); };
+    load(); const unsubscribeFocus = subscribeFocus(load);
+    return () => { controller?.abort(); unsubscribeFocus(); };
   }, [account?.id]);
   const [actingOrganization, setActingOrganization] = useState(null);
   const [managementWorkspace, setManagementWorkspace] = useState(null);

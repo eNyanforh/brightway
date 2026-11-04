@@ -1,3 +1,4 @@
+import { staffId, assertManagementSession } from "../management/management-authority.js";
 import { randomBytes } from "node:crypto";
 import { base32, fingerprint, matchTotp, secretBox, recoveryCodes, recoveryHash, safeEqual } from "./mfa.crypto.js";
 import { verifyPassword } from "./password.js";
@@ -136,6 +137,7 @@ export function requireMfa(req, res, next) {
 }
 // Call after locking the account when making a privileged transactional decision.
 export async function assertMfaSession(db, accountId, sessionId, timestamp = new Date()) {
+  if (staffId(accountId)) return assertManagementSession(db, accountId, sessionId, timestamp);
   if (typeof accountId !== "string" || !accountId || typeof sessionId !== "string" || !sessionId.trim()) {
     throw error(403, "A current two-factor session is required for reviewer actions.");
   }

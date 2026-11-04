@@ -1,13 +1,14 @@
+import { subscribeFocus } from "../auth/focus-refresh";
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { useAuth } from "../auth/useAuth";
+import { useManagement } from "../auth/management-context";
 import { organizationsApi as api } from "../api/organizations";
 import { identityDate } from "./manual-identity-format";
 import "./organizations.css";
 const checks = { existenceConfirmed: "Organization exists", locationConfirmed: "Operating location confirmed", authorityConfirmed: "Representative authority confirmed", typeConfirmed: "Organization type confirmed", operationalConfirmed: "Organization is operational" };
 const empty = { existenceConfirmed: false, locationConfirmed: false, authorityConfirmed: false, typeConfirmed: false, operationalConfirmed: false, recommendation: "REJECT", notes: "", setupAssistance: "" };
 export default function OrganizationReviewPage() {
-  const { account } = useAuth();
+  const { staff: account } = useManagement();
   return <OrganizationReview key={account?.id || "anonymous"} actor={account?.id} />;
 }
 function OrganizationReview({ actor }) {
@@ -36,8 +37,8 @@ function OrganizationReview({ actor }) {
       catch (e) { if (life.current !== current || controller.signal.aborted || e.name === "AbortError") return; setError(e); if ([401, 403].includes(e.status)) { setView(null); setDetail(null); setReport(empty); setReason(""); setStale(true); } }
     }
     if (actor) void load();
-    const focus = () => { if (!lock.current) void load(true); }; window.addEventListener("focus", focus);
-    return () => { current.controller?.abort(); if (life.current === current) life.current = null; window.removeEventListener("focus", focus); };
+    const focus = () => { if (!lock.current) void load(true); }; const unsubscribeFocus = subscribeFocus(focus);
+    return () => { current.controller?.abort(); if (life.current === current) life.current = null; unsubscribeFocus(); };
   }, [actor]);
   async function action(work) {
     if (lock.current) return; lock.current = true; const current = life.current; current?.controller?.abort(); setBusy(true); setError(null); setNotice("");
@@ -52,7 +53,7 @@ function OrganizationReview({ actor }) {
     setStale(true); setDetail(null); setReport(empty); setReason(""); setNotice("Saved. Reload the organization queue for current status.");
     const queue = await api.queue(); if (life.current === current) { setView({ actor, data: queue }); setStale(false); }
   }
-  return <section className="bw-org-page"><h1>Organization review workspace</h1><p><Link to={management ? "/superadmin" : "/organizations/new"}>{management ? "Back to Management" : "My organization requests"}</Link> · <Link to="/security">Account security</Link></p>
+  return <section className="bw-org-page"><h1>Organization review workspace</h1><p><Link to={management ? "/superadmin" : "/organizations/new"}>{management ? "Back to Management" : "My organization requests"}</Link> · <Link to="/superadmin/security">Account security</Link></p>
     <p>Agents investigate assigned requests. A separate authorized approver makes the final decision. All review actions require two-factor authentication.</p>
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}{stale && <p>Reload before continuing. Unsubmitted feedback stays here while you still have access.</p>}
     <button type="button" disabled={busy} onClick={reload}>Reload organization queue</button>

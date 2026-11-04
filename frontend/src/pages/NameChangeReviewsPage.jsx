@@ -1,13 +1,14 @@
+import { subscribeFocus } from "../auth/focus-refresh";
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { useAuth } from "../auth/useAuth";
+import { useManagement } from "../auth/management-context";
 import { nameChangesApi as api } from "../api/name-changes";
 import { identityDate, imageLabels } from "./manual-identity-format";
 import "./manual-identity.css";
 
 export default function NameChangeReviewsPage() {
   const management = useOutletContext()?.management;
-  const { account } = useAuth(), actor = account?.id;
+  const { staff: account } = useManagement(), actor = account?.id;
   const [view, setView] = useState(null), [detail, setDetail] = useState(null), [images, setImages] = useState(null), [feedback, setFeedback] = useState(null);
   const [error, setError] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [reloadRequired, setReloadRequired] = useState(false);
   const life = useRef(null), sequence = useRef(0), lock = useRef(false), selected = useRef(null);
@@ -20,15 +21,15 @@ export default function NameChangeReviewsPage() {
         if (current.active && generation === sequence.current && !controller.signal.aborted) { setView({ actor, queue }); setDetail(next); setReloadRequired(false); setBusy(false); setError(null); }
       } catch (e) { if (current.active && generation === sequence.current && e.name !== "AbortError") { setError(e); setReloadRequired(true); setBusy(false); if ([401, 403].includes(e.status)) { setView(null); setDetail(null); setImages(null); setFeedback(null); selected.current = null; } } }
     }
-    void load(); window.addEventListener("focus", load);
-    return () => { current.active = false; controller?.abort(); window.removeEventListener("focus", load); };
+    void load(); const unsubscribeFocus = subscribeFocus(load);
+    return () => { current.active = false; controller?.abort(); unsubscribeFocus(); };
   }, [actor]);
   const visible = view?.actor === actor ? detail : null, requestId = visible?.id, imageIds = visible?.evidence.map(e => e.id).join(",") || "";
   const available = visible?.evidenceAvailable === true && visible.reviewerId === actor;
   useEffect(() => {
     if (!available || !requestId || reloadRequired) return;
     const controller = new AbortController(), urls = []; let disposed = false;
-    Promise.all([{ id: "current-portrait", work: api.portrait(requestId, controller.signal) }, ...imageIds.split(",").filter(Boolean).map(id => ({ id, work: api.image(requestId, id, controller.signal) }))].map(async item => ({ id: item.id, blob: await item.work }))).then(rows => {
+    Promise.all([{ id: "current-portrait", work: api.portrait(requestId, controller.signal) }, ...imageIds.split(",").filter(Boolean).map(id => ({ id, work: api.image(requestId, id, controller.signal, true) }))].map(async item => ({ id: item.id, blob: await item.work }))).then(rows => {
       if (disposed) return;
       if (rows.length !== 3) throw Error("Required identity evidence is incomplete. Reload before reviewing.");
       const values = rows.map(row => { const url = URL.createObjectURL(row.blob); urls.push(url); return { id: row.id, url }; });

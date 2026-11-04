@@ -1,5 +1,5 @@
 import { dashboardQuerySchema, dashboardPeriod, readTeamStatistics, readReviewStatistics } from "./organization-dashboard.js";
-import { requireOrganizationProfile, organizationProfileReady } from "./organization-profile.schema.js";
+import { requireOrganizationProfile, organizationProfileReady, organizationSetupView } from "./organization-profile.schema.js";
 import { organizationWorkspace } from "../../../../shared/organization-workspace.mjs";
 import { randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
@@ -114,7 +114,7 @@ export function createOrganizationStaffService({ prisma, storage, now = () => ne
     async context(actorId, sessionId, id) {
       requestId(id); return transaction(async db => {
         await lock(db, [actorId]); const organization = await org(db, id, true), actor = await access(db, actorId, sessionId, organization, false, true);
-        return { accountId: actorId, organization: summary(organization), membership: { id: actor.membership.id, role: actor.membership.role, version: actor.membership.version }, permissions: actor.permissions, setupRequired: !organizationProfileReady(organization), workspace: organizationProfileReady(organization) ? organizationWorkspace(organization, actor.permissions, actor.membership.role) : { available: [], planned: [], campusActive: false, campusSetup: null }, staffVersion: organization.staffVersion, permissionCatalog: catalog(organization).map(key => ({ key, label: PERMISSIONS[key] })) };
+        return { accountId: actorId, organization: summary(organization), membership: { id: actor.membership.id, role: actor.membership.role, version: actor.membership.version }, permissions: actor.permissions, setupRequired: !organizationProfileReady(organization), setup: organizationSetupView({ organization, role: actor.membership.role, canEdit: actor.membership.role === "PRIMARY_ADMIN" || actor.permissions.includes("organization.profile.manage") }), workspace: organizationProfileReady(organization) ? organizationWorkspace(organization, actor.permissions, actor.membership.role) : { available: [], planned: [], campusActive: false, campusSetup: null }, staffVersion: organization.staffVersion, permissionCatalog: catalog(organization).map(key => ({ key, label: PERMISSIONS[key] })) };
       });
     },
     async dashboard(actorId, sessionId, id, supplied = {}) {

@@ -1,8 +1,9 @@
+import { requireManagement } from "../management/management-auth.http.js";
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { createRequireAuth, createSessionCookieConfig, requireTrustedOrigin } from "../auth/session.http.js";
 import { requireMfa } from "../auth/mfa.service.js";
-export function createManualIdentityReviewRoutes({ reviews, sessions, clientUrl, nodeEnv, limiter }) {
+export function createManualIdentityReviewRoutes({ reviews, sessions, authentication, clientUrl, nodeEnv, limiter }) {
   const router = Router(), auth = createRequireAuth({ sessions, cookieName: createSessionCookieConfig(nodeEnv).name });
   const origin = requireTrustedOrigin(clientUrl);
   const limits = limiter ?? rateLimit({ windowMs: 3600000, limit: 60, standardHeaders: "draft-8", legacyHeaders: false });
@@ -25,11 +26,16 @@ export function createManualIdentityReviewRoutes({ reviews, sessions, clientUrl,
         "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox; default-src 'none'" }).send(result.bytes);
     } catch (error) { next(error.status >= 400 && error.status <= 599 ? error : Object.assign(Error("Identity document is temporarily unavailable."), { status: 503 })); }
   });
-  router.use(adminPath, privateResponse, auth, requireMfa);
-  router.get(`${adminPath}/access`, handle((req) => reviews.access(req.auth.account.id, req.auth.sessionId)));
-  router.get(adminPath, handle((req) => reviews.queue(req.auth.account.id, req.auth.sessionId, req.query.cursor)));
-  router.get(`${adminPath}/:id`, handle((req) => reviews.detail(req.auth.account.id, req.auth.sessionId, req.params.id)));
-  router.post(`${adminPath}/:id/assign`, origin, limits, handle((req) => reviews.transition(req.auth.account.id, req.auth.sessionId, req.params.id, req.body, true)));
-  router.post(`${adminPath}/:id/decision`, origin, limits, handle((req) => reviews.transition(req.auth.account.id, req.auth.sessionId, req.params.id, req.body)));
+  router.use(adminPath, privateResponse, requireManagement(authentication, nodeEnv));
+  router.get(`${adminPath}/documents/:id/download`, limits, async (req, res, next) => {
+    try { const result = await reviews.download(req.management.staff.id, req.management.sessionId, req.params.id);
+      res.set({ "Content-Type": "application/octet-stream", "Content-Disposition": 'attachment; filename="identity-image.webp"', "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox; default-src 'none'" }).send(result.bytes);
+    } catch (error) { next(error.status ? error : Object.assign(Error("Identity document unavailable."), { status: 503 })); }
+  });
+  router.get(`${adminPath}/access`, handle((req) => reviews.access(req.management.staff.id, req.management.sessionId)));
+  router.get(adminPath, handle((req) => reviews.queue(req.management.staff.id, req.management.sessionId, req.query.cursor)));
+  router.get(`${adminPath}/:id`, handle((req) => reviews.detail(req.management.staff.id, req.management.sessionId, req.params.id)));
+  router.post(`${adminPath}/:id/assign`, origin, limits, handle((req) => reviews.transition(req.management.staff.id, req.management.sessionId, req.params.id, req.body, true)));
+  router.post(`${adminPath}/:id/decision`, origin, limits, handle((req) => reviews.transition(req.management.staff.id, req.management.sessionId, req.params.id, req.body)));
   return router;
 }

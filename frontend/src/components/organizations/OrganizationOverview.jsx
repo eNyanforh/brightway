@@ -1,3 +1,4 @@
+import { subscribeFocus } from "../../auth/focus-refresh";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { readOrganizationDashboard } from "../../api/organization-dashboard";
@@ -63,16 +64,19 @@ export default function OrganizationOverview({ organization, role, refreshVersio
   const [days, setDays] = useState(30), [retry, setRetry] = useState(0), [result, setResult] = useState(null);
   const source = `${organization.id}:${days}:${refreshVersion}:${retry}`;
   useEffect(() => {
-    let controller, disposed = false;
+    let controller, disposed = false, pending = false;
     async function load() {
+      if (pending) return;
+      pending = true;
       controller?.abort(); controller = new AbortController(); const signal = controller.signal;
-      setResult({ source, loading: true });
+      setResult(previous => previous?.source === source && previous.data ? { ...previous, refreshing: true } : { source, loading: true });
       try { const data = await readOrganizationDashboard(organization.id, days, signal); if (!signal.aborted && !disposed) setResult({ source, data }); }
       catch (error) { if (!signal.aborted && !disposed && error.name !== "AbortError") setResult({ source, error }); }
+      finally { pending = false; }
     }
     void Promise.resolve().then(() => { if (!disposed) return load(); });
-    const focus = () => { if (!disposed) void load(); }; window.addEventListener("focus", focus);
-    return () => { disposed = true; controller?.abort(); window.removeEventListener("focus", focus); };
+    const focus = () => { if (!disposed) void load(); }; const unsubscribeFocus = subscribeFocus(focus);
+    return () => { disposed = true; controller?.abort(); unsubscribeFocus(); };
   }, [organization.id, days, source]);
   const current = result?.source === source ? result : null, data = current?.data, error = current?.error;
   const review = data?.reviews.access === "allowed" ? data.reviews.data : null, team = data?.team.access === "allowed" ? data.team.data : null;
@@ -83,7 +87,7 @@ export default function OrganizationOverview({ organization, role, refreshVersio
     {(!current || current.loading) && <div className="bw-analytics-loading" role="status"><p>Loading organization statistics…</p><div aria-hidden="true"><span /><span /><span /><span /></div></div>}
     {error && <div className="bw-analytics-error"><p role="alert">{error.message}</p><button type="button" onClick={() => setRetry(value => value + 1)}>Retry statistics</button>{[401, 403].includes(error.status) && <Link to="/security">Account security</Link>}</div>}
     {data && <>
-      <div className="bw-analytics-snapshot"><span className="bw-analytics-role"><WorkspaceIcon name="shield" size={14} />{role === "PRIMARY_ADMIN" ? "Primary administrator" : "Staff member"}</span><span>Snapshot: {new Date(data.asOf).toLocaleString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC</span></div>
+      <div className="bw-analytics-snapshot">{current.refreshing && <span role="status">Updating statistics…</span>}<span className="bw-analytics-role"><WorkspaceIcon name="shield" size={14} />{role === "PRIMARY_ADMIN" ? "Primary administrator" : "Staff member"}</span><span>Snapshot: {new Date(data.asOf).toLocaleString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC</span></div>
       {blocked && <div className="bw-analytics-access-notice"><WorkspaceIcon name="shield" size={20} /><p>Sensitive statistics are locked. Verify your email and sign in with two-factor authentication.</p><Link to="/security">Account security<WorkspaceIcon name="arrow" size={15} /></Link></div>}
       {noScope ? <section className="bw-analytics-panel bw-analytics-no-scope"><WorkspaceIcon name="shield" size={32} /><h3>Analytics access is limited</h3><p>Your current role does not include team management or credential review. Ask your organization administrator if you need access to these statistics.</p></section> : <>
         <div className="bw-analytics-metrics">

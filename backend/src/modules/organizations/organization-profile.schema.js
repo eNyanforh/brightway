@@ -30,3 +30,5 @@ export function requireOrganizationProfile(organization) {
   if (!organizationProfileReady(organization)) throw Object.assign(Error("Finish this organization's profile setup before using its workspace. Contact details may be skipped."), { status: 409 });
 }
 export const organizationPhotoUrl = (organizationId, photoId) => photoId ? `/api/v1/organizations/${encodeURIComponent(organizationId)}/photo/${encodeURIComponent(photoId)}` : null;
+
+export const organizationSetupView = ({ organization: o, canEdit, role }) => ({ organization: { id: o.id, name: o.name, type: o.type, offersTraining: o.offersTraining }, role, canEdit, required: !organizationProfileReady(o), nextStep: organizationSetupStep(o), version: o.profileVersion, username: o.username, phoneNumber: o.phoneNumber ?? null, contactEmail: o.contactEmail ?? null, website: o.website ?? null, photo: o.profilePhotoId ? { id: o.profilePhotoId, url: organizationPhotoUrl(o.id, o.profilePhotoId) } : null });

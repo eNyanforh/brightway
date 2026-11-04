@@ -205,7 +205,7 @@ export default function ProfilePage() {
     mutation.current = true;
     setDraft((previous) => ({ ...previous, busy: true, error: null, notice: "" }));
     try {
-      const next = await profileApi.read();
+      const next = await profileApi.readFresh();
       if (next.id !== profile.id || savedText(next) !== savedText(profile)) {
         throw Object.assign(new Error("Other saved profile information changed. Keep your drafts and explicitly reload the profile before continuing."), { status: 409 });
       }

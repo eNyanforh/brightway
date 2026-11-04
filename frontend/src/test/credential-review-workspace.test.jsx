@@ -80,7 +80,7 @@ it("a false-credential decision requires a supported-finding acknowledgement", a
 it("evidence is downloaded through the private API and revoked access clears names and draft feedback", async () => {
   const download = vi.spyOn(credentialsApi, "download").mockRejectedValue(Object.assign(new Error("Reviewer access withdrawn"), { status: 403 }));
   const f = mount(url => reads(url)); await f.user.click(await screen.findByRole("button", { name: /Grace Johnson/ })); await f.user.type(screen.getByLabelText("Reason shown to the user"), "Unfinished private feedback");
-  await f.user.click(screen.getByRole("button", { name: "Download supporting document 1" })); await screen.findByRole("alert"); expect(download).toHaveBeenCalledWith("asset", "application/pdf");
+  await f.user.click(screen.getByRole("button", { name: "Download supporting document 1" })); await screen.findByRole("alert"); expect(download).toHaveBeenCalledWith("asset", "application/pdf", false);
   expect(screen.queryByRole("heading", { name: "Grace Johnson" })).toBeNull(); expect(screen.queryByDisplayValue("Unfinished private feedback")).toBeNull(); expect(screen.queryByLabelText("Decision")).toBeNull();
 });
 it("rejects a mismatched organization response before showing private applicant names", async () => {

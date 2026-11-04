@@ -2,13 +2,14 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { vi, it, expect } from "vitest";
+import { ManagementContext } from "../auth/management-context";
 import { AuthContext } from "../auth/auth-context";
 import OrganizationRequestsPage from "../pages/OrganizationRequestsPage";
 import OrganizationReviewPage from "../pages/OrganizationReviewPage";
 import OrganizationPage from "../pages/OrganizationPage";
 const id = "843f9b44-7e5a-4ecb-9e62-1bc1c0844d59";
 const response = (data, status = 200) => new Response(JSON.stringify(status >= 400 ? { success: false, message: data } : { success: true, data }), { status, headers: { "Content-Type": "application/json" } });
-function tree(Page, actor = "owner") { return <MemoryRouter><AuthContext.Provider value={{ account: { id: actor } }}><Page /></AuthContext.Provider></MemoryRouter>; }
+function tree(Page, actor = "owner") { return <MemoryRouter><AuthContext.Provider value={{ account: { id: actor } }}><ManagementContext.Provider value={{ staff: actor === "operator" ? { id: actor } : null }}><Page /></ManagementContext.Provider></AuthContext.Provider></MemoryRouter>; }
 function owner(handler) {
   const fetchMock = vi.fn(async (url, options) => {
     if (url.endsWith("/access")) return response({ agent: false, approver: false });

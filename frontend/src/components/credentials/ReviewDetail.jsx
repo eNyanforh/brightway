@@ -1,3 +1,4 @@
+import { useManagement } from "../../auth/management-context";
 import { useRef, useState } from "react";
 import { credentialsApi } from "../../api/credentials";
 import { credentialLabels } from "../../pages/credential-form";
@@ -26,10 +27,11 @@ export function ReviewIcon({ name = "document", size = 18 }) {
 export function ReviewStatus({ status }) { return <span className={`bw-review-status status-${status || "DRAFT"}`}><i />{credentialLabels[status] || "Status unavailable"}</span>; }
 function Evidence({ attempt, allowed, disabled, onError }) {
   const lock = useRef(false), [pending, setPending] = useState(null);
+  const management = useManagement();
   async function download(asset) {
     if (!allowed || disabled || lock.current) return;
     lock.current = true; setPending(asset.id);
-    try { await credentialsApi.download(asset.id, asset.contentType); }
+    try { await credentialsApi.download(asset.id, asset.contentType, !!management.staff); }
     catch (error) { onError(error, error.status === 409); }
     finally { lock.current = false; setPending(null); }
   }

@@ -1,110 +1,145 @@
-# BrightWay Management: /superadmin
+# Independent BrightWay Management
 
-BrightWay Management is part of BrightWay. `/superadmin` is its canonical entrance; signed-out users go to `/superadmin/login`. `/management` redirects to it. The dedicated dark control-room UI shares the existing password, recovery, HttpOnly session-cookie and MFA backend. There is no public administrator signup and no web endpoint for granting staff permissions.
+Management staff sign in at `/superadmin/login`. They have their own identities,
+passwords, verified email, authenticator factors, backup codes, sessions and
+recovery proofs. No ordinary Account or Person profile is required or created.
+Organization staff continue to sign in personally; issuer authority comes from
+current organization membership, the relevant permission and MFA.
 
-## Apply the code and development schema
+## Update order — operator-run, never automatic promotion
 
-From the repository root:
+1. Keep application hosting deployment paused. Back up the development database
+   before an owner-approved schema update. Stop old backend workers during the
+   cutover: old binaries still accept personal reviewer roles.
+2. Install locked dependencies with `npm ci`. In `backend`, run
+   `npx --no-install prisma validate`, `npx --no-install prisma migrate deploy`,
+   then `npx --no-install prisma generate` against the intended development DB.
+   Run integration checks separately using an isolated `TEST_DATABASE_URL`.
+3. Configure two **new, independent** server secrets in untracked `backend/.env`:
+   `MANAGEMENT_MFA_ENCRYPTION_KEY` (64 hex characters) and
+   `MANAGEMENT_EMAIL_SECRET` (at least 32 unpredictable characters). Generate
+   locally with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+   Keep both out of Git, screenshots and chat. Do not reuse personal MFA/email
+   secrets. Back up the encryption key securely: losing it disables TOTP access.
+4. Configure the existing verified Resend sender using `RESEND_API_KEY` and
+   `EMAIL_FROM`. Enrollment and management recovery use distinct email purposes.
+   Start the updated backend and frontend together.
+5. Bootstrap and enroll the independent founding Super Admin, then provision
+   named staff. Inventory/release unfinished legacy assignments explicitly.
+   Record acceptance on the exact revision before normal administrative work.
 
-```bash
-git pull --ff-only origin main
-cd backend
-npx --no-install prisma validate
-npx --no-install prisma migrate deploy
-npx --no-install prisma generate
-cd ..
-```
+Migration `20261031130000_management_authentication_realm` adds independent staff,
+proof/session/audit tables. `ReviewPrincipal` preserves exact historical actor IDs
+and moves existing actor foreign keys without rewriting reviews, evidence,
+revisions or deadlines. Account insert triggers support new personal applicants;
+staff insert triggers support new internal actors. Legacy grants remain historical
+records but no longer authorize management APIs. No passwords, TOTP secrets or
+existing users are copied/promoted. Historical final approvals remain valid.
+This is a forward schema migration; do not run an old backend against it as a
+rollback. Restore/release recovery must be rehearsed separately before hosting.
 
-Restart the backend and frontend in separate terminals. This applies the configured development database schema; hosting deployment remains paused.
+## First Super Admin
 
-The additive `20261030200000_superadmin_terminal_control` migration distinguishes Super Admins from management staff and attributes terminal actions. Existing enabled management memberships were previously granted only by the trusted server operator and remain Super Admins. Disabled memberships are not reactivated. Existing audit history is retained. Existing reviewer/Agent/Approver permissions are not converted to Super Admin authority.
-
-## Prepare named accounts
-
-Use existing named BrightWay accounts, or prepare them through normal email-verified registration first. Enable authenticator MFA in Account security and save backup codes privately. The terminal commands **provision staff roles on those accounts**; they do not create passwords, mark an email verified or bypass signup/MFA. A completed public profile or identity badge is not a staff prerequisite.
-
-Never use a shared admin password. The target account must be active, email verified and MFA enrolled. A fresh MFA sign-in after a permission change is required before management access.
-
-## First Super Admin: trusted terminal bootstrap
-
-Only if no Super Admin has ever been established, run from the repository root:
-
-```bash
-node backend/scripts/superadmin.js bootstrap founder_username --reason "Establish the founding BrightWay Super Admin."
-```
-
-Replace `founder_username` with the actual named account. The terminal privately prompts for **that account's password and fresh authenticator/unused backup code**. Nothing is echoed or accepted through password/code command arguments or environment variables. Use an interactive terminal; if a Git Bash session does not provide a TTY, run the command in Windows Terminal/PowerShell instead.
-
-The command binds the bootstrap to the authenticated account. A global transaction-level advisory lock prevents two concurrent first-root commands from winning. A historical successful Super Admin audit permanently closes bootstrap, including after later suspension/revocation. Retrying `bootstrap` after success is refused; subsequent operations must be authenticated as an existing Super Admin.
-
-If you already activated a management administrator before this update, the migration preserves that trusted grant as Super Admin. Use `staff` with `--by` below; do not bootstrap again.
-
-## All later staff permissions: authenticated Super Admin terminal
-
-Example Agent:
-
-```bash
-node backend/scripts/superadmin.js staff agent_username organization-agent grant --by founder_username --reason "Assign organization investigations to this staff member."
-```
-
-The terminal prompts for the password and fresh MFA code of **the Super Admin named in `--by`**, not the target Agent's credentials. The target must already satisfy the account prerequisites. Merely naming a Super Admin in the arguments grants no authority.
-
-Supported capabilities:
-
-| Capability | What it grants |
-| --- | --- |
-| `superadmin` | Authority to provision staff through this terminal command; management hub access. No automatic reviewer/approver power. |
-| `credential-reviewer` | Existing BrightWay review capability for claims from unlisted issuers. |
-| `identity-reviewer` | Existing identity, protected photo and name-correction review capability. |
-| `organization-agent` | Organization investigation capability. It does not grant approval authority. |
-| `organization-approver` | Existing assignment/approval capability; investigation/approval separation remains enforced. |
-
-Use the same command with `revoke` to remove a specific capability. Existing unrelated capabilities remain intact. Grants also establish a non-Super-Admin management membership for staff. Revoking the final assigned capability removes that staff member's portal access; a Super Admin retains the hub without acquiring review powers.
-
-Establish a separately secured backup Super Admin through the same authenticated operation:
+From the repository root, in an interactive terminal:
 
 ```bash
-node backend/scripts/superadmin.js staff backup_username superadmin grant --by founder_username --reason "Establish a separately secured recovery administrator."
+node backend/scripts/superadmin.js bootstrap founder_management --reason "Establish the independent founding management identity."
 ```
 
-The command refuses to revoke the last **eligible Super Admin**. Ordinary management staff, suspended/unverified accounts and accounts without MFA do not count. Role changes are serialized and account locks use a consistent order. Password/MFA/session state and current Super Admin authority are rechecked inside the permission transaction. MFA proof must be no older than five minutes and must postdate the actor's management grant. Target permission changes and attributable management/domain audit writes commit together; audit failures roll everything back. Repeating an already applied grant is idempotent.
+Enter full name, management email and a new password (12–128 characters) at the
+hidden prompts. The identity starts **PENDING**, with no workspace access. Sign
+in at `/superadmin/login`, verify the email code, add the separately labelled
+management authenticator secret, confirm its TOTP, and save the one-time backup
+codes. Never reuse a personal authenticator entry. Bootstrap is permanently closed
+after the first successful staff creation, even if that staff is later disabled.
+Concurrent bootstrap attempts have one winner.
 
-Each command signs in afresh, using the existing MFA replay protection, attempt budget and single-use backup codes. Wait for a new authenticator code if the current one was just used. CLI-created sessions expire within five minutes and are deleted on normal completion/failure; pending challenges are cancelled. No bearer token is printed or stored in a file.
-
-The older `set-management-admin.js`, `set-credential-reviewer.js`, `set-identity-reviewer.js` and `set-organization-operator.js` grant entry points are retired and fail closed without database writes. Use `superadmin.js`.
-
-## Open the management workspace
-
-Sign out, then sign in at `http://localhost:5173/superadmin` using password and fresh MFA. The avatar's BrightWay Management entry also opens it. An ordinary account or an old/pre-grant MFA session is denied. Already signed-in users can explicitly continue from the management login; server permission checks still run.
-
-Nested authorized routes keep the dark shell: `/superadmin/credentials`, `/superadmin/identity`, `/superadmin/photos`, `/superadmin/names` and `/superadmin/organizations`. The hub/sidebar shows only assigned operational links; a direct unassigned child route is denied before its review component mounts. The domain APIs independently enforce their current permissions, MFA, owner/issuer scope and no-self-review rules. A Super Admin cannot approve their own claim or bypass the Agent/Approver separation.
-
-The dark styling is scoped to management. Public and organization workspaces retain their existing theme. Team access administration in the browser, Support, Billing and Moderation remain planned; their roles/actions are not invented or granted by this update. Staff provisioning remains terminal-only.
-
-## Operational boundary and acceptance
-
-A person with unrestricted application-database/server access remains a trusted infrastructure operator and can modify database data outside the application. CLI checks do not replace server access controls, protected secrets, backups and hosting audit logs. Bootstrap is not an emergency MFA bypass. Keep the backup administrator, encryption keys and private recovery codes safe. MFA disablement/suspension can make a root unusable independently of role revocation; loss of every eligible root requires a documented owner-controlled recovery, not reopening public bootstrap.
-
-Run the normal frontend/backend tests, lint/build and isolated PostgreSQL suite:
+## Subsequent staff and permissions
 
 ```bash
-npm run test --workspace backend
-npm run test --workspace frontend
-npm run lint --workspace frontend
-npm run build
-npm run test:database --workspace backend -- --migrate
+node backend/scripts/superadmin.js create named_agent --by founder_management --reason "Provision a named organization investigator."
+node backend/scripts/superadmin.js staff named_agent organization-agent grant --by founder_management --reason "Authorize organization investigations only."
+node backend/scripts/superadmin.js staff named_agent organization-agent revoke --by founder_management --reason "Withdraw investigation access after role change."
 ```
 
-Record real application acceptance separately: correct migration applied; initial bootstrap (or preserved grant) opens management only after fresh MFA; password/code input is hidden; ordinary user denied; an Agent gets only investigation tools; the Agent cannot run staff grants; authenticated Super Admin delegation records its actor; old sessions/revoked permissions are refused; final-root revocation is blocked; logout returns to management login. Synthetic browser fixtures and CI test accounts are not evidence that an application account has been promoted or that hosting has been deployed.
+The responsible active Super Admin enters their management password and a fresh
+management app/unused backup code privately. Creation also prompts for the new
+staff details/password. No secrets are accepted in arguments, environment values,
+logs or committed files. Each operation is audited and its temporary terminal
+session is removed even after failure. New staff complete their own email/MFA
+enrollment in the browser.
 
-## Platform statistics
+Supported capabilities: `credential-reviewer`, `identity-reviewer`,
+`organization-agent`, `organization-approver`, and `superadmin`.
+Super Admin implicitly receives **every implemented** management permission.
+`access revoke` disables an internal identity. Permission changes increment the
+staff version and invalidate its sessions and outstanding challenges. The last
+active enrolled Super Admin cannot be removed. Disabled staff cannot be casually
+reactivated with `access grant` or recovery.
 
-The `/superadmin` overview now includes exact registered Account totals (including internal staff), saved account statuses, registrations in the rolling past seven days, accounts with a verified email or enabled MFA, and accounts whose latest successful sign-in is within seven days. Active account status is not an online-user or identity-verification metric. Signup drafts that have not created an Account are excluded.
+Root authority still requires current MFA, attributable audits, no self-review,
+separate Agent/Approver people on the same request, and issuer boundaries. It
+cannot impersonate school staff or override a participating issuer decision.
 
-Approved organization totals come from Organization records and include active and suspended schools, companies and NGOs. Saved pending OrganizationRequest states are SUBMITTED/ASSIGNED/RECOMMENDED; saved identity and credential queues include SUBMITTED/IN_REVIEW. Credential counts span BrightWay and participating issuers. These aggregate queue counts do not grant access to private claims, establish current verification eligibility, or compute overdue/working-day SLAs.
+## Conflicts across independent identities
 
-The 30 UTC calendar-day registration chart includes a partial current day, zero-filled dates, an accessible exact-value table and an explicit snapshot timestamp. Seven-day metrics use an exact rolling seven-day interval, so they need not match the sum of seven daily chart buckets. Future timestamps do not contribute to registration/sign-in windows. MFA counts are joined to Account rows so orphaned factor rows cannot inflate account totals.
+Same-email personal accounts are excluded automatically. In management Security,
+declare every other owned/related personal username before review. Declarations
+are additive and audited; they confer no personal login authority. Organization
+review checks also compare current and historical investigators for shared-person
+conflicts. Separate credentials do not remove a conflict of interest.
 
-`GET /api/v1/management/statistics` is authenticated, no-store and Super-Admin-only; no client-supplied dates, identities or scopes are accepted. It rechecks live role/version/MFA before returning data. A single bound PostgreSQL aggregate statement supplies all counts and the chart without loading profiles, email addresses, sessions or evidence. Account totals and registrations share one account scan with at most 31 groups. Exact global totals still require aggregate database work; the UI fetches on authorized overview entry, focus and explicit refresh rather than polling continuously. Every read is a new snapshot; no global browser cache or fabricated fallback zeros are used. Failure clears the visible snapshot and offers retry. Ordinary management staff neither request nor receive these totals.
+The software cannot discover undisclosed alternate identities from credentials
+alone. Staff onboarding and supervision must record these declarations; this
+implementation does not claim universal human-identity matching.
 
-No new schema migration is introduced for statistics. Existing management migrations must already be applied. Automated checks include isolated SQL counts/UTC boundaries and stale access; real application acceptance remains: use a Super Admin account, compare a known registration/status change against refreshed totals, and confirm an Agent cannot read the endpoint.
+## Unfinished legacy reviews
+
+```bash
+node backend/scripts/management-transition.js inventory --by founder_management
+node backend/scripts/management-transition.js release credentials REQUEST_UUID VERSION --by founder_management --reason "Transfer an unfinished obsolete personal assignment to management."
+```
+
+Inventory reports counts of legacy grants and up to 200 unfinished assignments per
+category. Categories for release are `credentials`, `identities`, `photos`, `names`.
+For identities, use the **requestId** and its returned request.version, not the
+attempt ID. Release returns the item to its submitted/pending queue with a new
+version; a management reviewer explicitly claims it through the normal flow.
+Original evidence/snapshots, revisions and first deadlines remain. The transition
+audit records the previous actor and version. Final decisions, current management
+assignments and participating-issuer claims cannot be released this way. Repeat
+inventory after each batch when the limit is reached.
+
+Organization requests use the existing versioned Agent replacement process: an
+authorized independent Agent must investigate and record new findings, and a
+different authorized Approver decides. Old findings remain attributed/history.
+Never relabel an old review as if a new management staff member performed it.
+
+Old personal grant scripts cannot authorize management after this cutover. Review
+applicant history/submission and organization issuer review remain personal flows.
+Copied evidence URLs still require the appropriate realm, current permission,
+assignment and conflict checks, including rechecks after storage access.
+
+## Recovery, retention and operational acceptance
+
+Management password recovery sends only to registered active management email;
+email code **and existing management MFA** are required. Personal recovery cannot
+reset management credentials. Password changes revoke management sessions while
+preserving MFA enforcement. Backup regeneration needs password plus a fresh
+management factor or the existing recent-MFA window, and displays new codes once.
+Password-only retries do not extend that window.
+
+Maintain at least two separately enrolled Super Admins and offline backup codes.
+If all root factors and backups are lost, there is deliberately no public/email-only
+MFA bypass or bootstrap reopening. A documented, identity-checked offline recovery
+procedure must be approved/rehearsed before production; it is not performed by this
+update. Never copy a personal password/factor to recover management access.
+
+The existing hosted identity cleanup now also deletes expired/consumed management
+challenges and expired sessions, retaining active factors and audits. Schedule and
+monitor the hosted job at deployment; a one-off local run is not scheduling proof.
+
+Acceptance requires isolated PostgreSQL migrations/concurrency, wrong-realm
+cookie/MFA/recovery denial, two named operators, issuer boundaries, current
+revocation, evidence access, historical preservation and desktop/mobile browser
+journeys. Fixture tests alone do not establish application or production readiness.

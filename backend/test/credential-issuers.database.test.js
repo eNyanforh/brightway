@@ -1,3 +1,4 @@
+import { managementStaffFixture, managementSessionFixture, cleanupManagementFixtures } from "../test-support/management-database-fixture.js";
 import { seedOrganizationProfile, clearOrganizationProfiles } from "../test-support/organization-profile-seed.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -18,9 +19,9 @@ test("database issuer review isolates tenants, serializes decisions/revocation a
   } }); }
   try {
     for (const label of ["owner", "review", "admin", "school", "foreign"]) {
-      const account = await db.account.create({ data: { username: `iss_${label}_${marker.replaceAll("-", "").slice(0, 12)}`, email: `${label}_${marker}@example.invalid`, passwordHash: "unusable-fixture", emailVerifiedAt: date, platformRole: label === "admin" ? "CREDENTIAL_REVIEWER" : "MEMBER", person: { create: { firstName: "Synthetic", lastName: label } } } }); accounts.push(account);
-      await db.mfaFactor.create({ data: { accountId: account.id, encryptedSecret: "synthetic-not-a-secret", enabled: true, version: 1, windowStart: date } });
-      sessions.push(await db.session.create({ data: { accountId: account.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 86400000), mfaVerifiedAt: date, mfaVersion: 1 } }));
+      const account = label === "admin" ? await managementStaffFixture(db, { username: `iss_admin_${marker.replaceAll("-", "").slice(0, 12)}`, email: `admin_${marker}@example.invalid` }, ["credential-reviewer"], date) : await db.account.create({ data: { username: `iss_${label}_${marker.replaceAll("-", "").slice(0, 12)}`, email: `${label}_${marker}@example.invalid`, passwordHash: "unusable-fixture", emailVerifiedAt: date, platformRole: label === "admin" ? "CREDENTIAL_REVIEWER" : "MEMBER", person: { create: { firstName: "Synthetic", lastName: label } } } }); accounts.push(account);
+      if (label !== "admin") await db.mfaFactor.create({ data: { accountId: account.id, encryptedSecret: "synthetic-not-a-secret", enabled: true, version: 1, windowStart: date } });
+      sessions.push(label === "admin" ? await managementSessionFixture(db, account, date) : await db.session.create({ data: { accountId: account.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 86400000), mfaVerifiedAt: date, mfaVersion: 1 } }));
     }
     const [owner, reviewer, admin, primary, foreign] = accounts;
     for (const [i, person] of [[0, primary], [1, foreign]]) {
@@ -98,13 +99,13 @@ test("database issuer review isolates tenants, serializes decisions/revocation a
     assert.equal((await db.account.findUnique({ where: { id: primary.id } })).platformRole, "MEMBER");
   } finally {
     try {
-      const personIds = accounts.map(a => a.personId), ids = accounts.map(a => a.id);
+      const personIds = accounts.map(a => a.personId).filter(Boolean), ids = accounts.map(a => a.id);
       const reviews = await db.credentialReview.findMany({ where: { profileId: { in: profiles } }, select: { id: true } }), reviewIds = reviews.map(r => r.id);
       await db.credentialEvidence.deleteMany({ where: { personId: { in: personIds } } }); await db.credentialUploadBudget.deleteMany({ where: { personId: { in: personIds } } });
       await db.credentialAuditEvent.deleteMany({ where: { reviewId: { in: reviewIds } } }); await db.credentialAttempt.deleteMany({ where: { reviewId: { in: reviewIds } } }); await db.credentialReview.deleteMany({ where: { id: { in: reviewIds } } });
       await db.profile.deleteMany({ where: { id: { in: profiles } } });
       await db.organizationStaffAudit.deleteMany({ where: { organizationId: { in: orgs } } }); await db.organizationMembership.deleteMany({ where: { organizationId: { in: orgs } } }); await clearOrganizationProfiles(db, orgs); await db.organization.deleteMany({ where: { id: { in: orgs } } }); await db.organizationRequest.deleteMany({ where: { id: { in: requests } } });
-      await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } }); await db.account.deleteMany({ where: { id: { in: ids } } }); await db.person.deleteMany({ where: { id: { in: personIds } } });
+      await cleanupManagementFixtures(db, ids); await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } }); await db.account.deleteMany({ where: { id: { in: ids } } }); await db.person.deleteMany({ where: { id: { in: personIds } } });
     } finally { await db.$disconnect(); }
   }
 });

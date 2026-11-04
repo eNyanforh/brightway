@@ -1,13 +1,14 @@
+import { subscribeFocus } from "../auth/focus-refresh";
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { useAuth } from "../auth/useAuth";
+import { useManagement } from "../auth/management-context";
 import { profilePhotoReviewsApi as api } from "../api/profile-photo-reviews";
 import { identityDate } from "./manual-identity-format";
 import "./manual-identity.css";
 
 export default function ProfilePhotoReviewsPage() {
   const management = useOutletContext()?.management;
-  const { account } = useAuth();
+  const { staff: account } = useManagement();
   const [view, setView] = useState(null), [detail, setDetail] = useState(null), [images, setImages] = useState(null);
   const [error, setError] = useState(null), [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
   const [reloadRequired, setReloadRequired] = useState(false), [draft, setDraft] = useState(null);
@@ -33,8 +34,8 @@ export default function ProfilePhotoReviewsPage() {
         }
       }
     }
-    void load(); window.addEventListener("focus", load);
-    return () => { life.active = false; controller?.abort(); window.removeEventListener("focus", load); };
+    void load(); const unsubscribeFocus = subscribeFocus(load);
+    return () => { life.active = false; controller?.abort(); unsubscribeFocus(); };
   }, [actor]);
   const visible = view?.actor === actor ? detail : null;
   const visibleId = visible?.id;
@@ -83,7 +84,7 @@ export default function ProfilePhotoReviewsPage() {
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
     <button type="button" disabled={busy} onClick={reload}>Reload photo reviews</button>
     {reloadRequired && <p>Reload before making another decision. Your feedback remains unless access has been revoked.</p>}
-    {[401, 403].includes(error?.status) && <p><Link to="/security">Open Account security</Link>. Active identity-review permission and MFA are required.</p>}
+    {[401, 403].includes(error?.status) && <p><Link to="/superadmin/security">Open Account security</Link>. Active identity-review permission and MFA are required.</p>}
     {!queue && !error && <p role="status">Checking photo reviewer access…</p>}
     {queue && <><h2>Pending replacements</h2>{!queue.requests.length && <p>No pending photo requests.</p>}
       <ul className="bw-identity-queue">{queue.requests.map((row) => <li key={row.id}><button type="button" disabled={busy} onClick={() => action(async (alive) => {

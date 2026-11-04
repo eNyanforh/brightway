@@ -89,11 +89,14 @@ test("corrections preserve issuer snapshots and deadlines and cannot silently mo
 });
 test("revoked assignment recovery is versioned, audited and cannot steal a currently authorized review", async () => {
   const f = fixture(), { review } = await f.submit(); await f.assign(review);
-  f.state.organizationMembership.push({ ...f.member, id: randomUUID(), accountId: f.reviewerId });
-  const assign = () => f.service.transition(f.reviewerId, review.id, { expectedVersion: 2 }, true, f.reviewerSessionId, f.org.id);
+  const replacement = randomUUID();
+  f.state.account.push({ id: replacement, personId: randomUUID(), status: "ACTIVE", emailVerifiedAt: f.now() });
+  const replacementSession = f.authorizeReviewer(replacement);
+  f.state.organizationMembership.push({ ...f.member, id: randomUUID(), accountId: replacement });
+  const assign = () => f.service.transition(replacement, review.id, { expectedVersion: 2 }, true, replacementSession, f.org.id);
   await assert.rejects(assign(), { status: 409 }); f.state.organizationMembership.find(m => m.id === f.member.id).enabled = false;
   const attempts = await Promise.allSettled([assign(), assign()]); assert.equal(attempts.filter(r => r.status === "fulfilled").length, 1);
-  assert.equal(f.state.credentialReview[0].reviewerId, f.reviewerId); assert.equal(f.state.credentialAuditEvent.at(-1).action, "REASSIGNED");
+  assert.equal(f.state.credentialReview[0].reviewerId, replacement); assert.equal(f.state.credentialAuditEvent.at(-1).action, "REASSIGNED");
   await assert.rejects(f.decide(f.state.credentialReview[0]), { status: 403 });
 });
 test("submission/decision audit failure rolls issuer, proof claims, status and profile version back", async () => {

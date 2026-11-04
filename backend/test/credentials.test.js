@@ -81,8 +81,8 @@ test("reviewer permissions, self-review, assignment and stale decisions are enfo
   await assert.rejects(f.service.queue(f.otherId), { status: 403 });
   f.state.account[0].platformRole = "CREDENTIAL_REVIEWER";
   await assert.rejects(f.service.transition(f.ownerId, f.state.credentialReview[0].id, { expectedVersion: 1 }, true, f.authorizeReviewer(f.ownerId)), { status: 403 });
-  const otherAdmin = { id: randomUUID(), personId: randomUUID(), status: "ACTIVE", platformRole: "CREDENTIAL_REVIEWER", emailVerifiedAt: f.now() };
-  f.state.account.push(otherAdmin);
+  const otherAdmin = { ...f.state.managementStaff[0], id: `mg_${randomUUID()}`, username: "second_reviewer", email: "second@management.example.invalid" };
+  f.state.managementStaff.push(otherAdmin);
   await assign(f);
   const review = f.state.credentialReview[0];
   const input = { expectedVersion: review.version, revision: 1, status: "VERIFIED", note: "Evidence has been checked." };
@@ -96,9 +96,9 @@ test("reviewer permissions, self-review, assignment and stale decisions are enfo
 
 test("role revocation and a failed audit write cannot produce a successful decision", async () => {
   const f = fixture(); await submit(f); await assign(f);
-  f.state.account[1].platformRole = "MEMBER";
+  f.state.managementStaff[0].capabilities = [];
   await assert.rejects(decide(f), { status: 403 });
-  f.state.account[1].platformRole = "CREDENTIAL_REVIEWER";
+  f.state.managementStaff[0].capabilities = ["credential-reviewer"];
   f.db.credentialAuditEvent.create = async () => { throw new Error("audit unavailable"); };
   const version = f.state.profile[0].version;
   await assert.rejects(decide(f), /audit unavailable/);
@@ -175,7 +175,7 @@ test("credential HTTP rejects anonymous, untrusted and injected review mutations
   const headers = { Cookie: "brightway_session=owner", Origin: "http://localhost:5173", "Content-Type": "application/json" };
   try {
     assert.equal((await fetch(base + path)).status, 401);
-    assert.equal((await fetch(base + "/admin/credentials", { headers })).status, 403);
+    assert.equal((await fetch(base + "/admin/credentials", { headers })).status, 401);
     assert.equal((await fetch(base + path + "/submit", { method: "POST", headers: { ...headers, Origin: "https://foreign.example" }, body: "{}" })).status, 403);
     assert.equal((await fetch(base + path + "/submit", { method: "POST", headers, body: JSON.stringify({ expectedVersion: 1, revision: 1, evidenceIds: [randomUUID()], status: "VERIFIED" }) })).status, 400);
     const read = await fetch(base + path, { headers }); assert.equal(read.headers.get("cache-control"), "no-store");
@@ -225,11 +225,11 @@ test("disconnecting an evidence upload does not release its processing capacity 
 test("review decisions recheck current MFA session state inside the credential transaction", async () => {
   const f = fixture(); await submit(f);
   const sessionId = randomUUID(), factorVersion = 2;
-  f.state.mfaFactor.find(row => row.accountId === f.reviewerId).version = factorVersion;
-  f.state.session.push({ id: sessionId, accountId: f.reviewerId, expiresAt: new Date(+f.now() + 3600000), mfaVerifiedAt: f.now(), mfaVersion: factorVersion });
+  f.state.managementStaff.find(row => row.id === f.reviewerId).version = factorVersion;
+  f.state.managementSession.push({ id: sessionId, staffId: f.reviewerId, expiresAt: new Date(+f.now() + 3600000), mfaVerifiedAt: f.now(), staffVersion: factorVersion });
   let review = f.state.credentialReview[0];
   await f.service.transition(f.reviewerId, review.id, { expectedVersion: review.version }, true, sessionId);
-  f.state.session.length = 0; review = f.state.credentialReview[0];
+  f.state.managementSession.length = 0; review = f.state.credentialReview[0];
   await assert.rejects(f.service.transition(f.reviewerId, review.id, { expectedVersion: review.version, revision: review.revision, status: "VERIFIED", note: "Institution confirmed the certificate." }, false, sessionId), { status: 403 });
   assert.equal(f.state.educationRecord[0].status, "IN_REVIEW");
   assert.equal(f.state.credentialAuditEvent.some((row) => row.action === "DECIDED"), false);

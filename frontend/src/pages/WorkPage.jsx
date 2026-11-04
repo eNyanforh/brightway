@@ -1,3 +1,4 @@
+import { subscribeFocus } from "../auth/focus-refresh";
 import { organizationPictureUrl } from "../api/organization-profile";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
@@ -46,7 +47,7 @@ function Work({ actor }) {
   const view = result?.key === key ? result : null;
   const counts = result?.search === query.trim() ? result.counts : {};
   const load = useCallback(async (current, cursor) => {
-    setFetching(true);
+    current.loading = true; setFetching(true);
     current.controller?.abort(); current.controller = new AbortController(); const signal = current.controller.signal;
     try {
       const next = await staffApi.directory(signal, { tab: current.tab, search: current.search, ...(cursor ? { cursor } : {}) });
@@ -57,13 +58,13 @@ function Work({ actor }) {
       if (life.current !== current || signal.aborted || e.name === "AbortError") return;
       setError(e); if ([401, 403, 404].includes(e.status)) { setResult(null); setConfirm(null); }
       setStale(true);
-    } finally { if (life.current === current && !signal.aborted) setFetching(false); }
+    } finally { if (life.current === current && !signal.aborted) { current.loading = false; setFetching(false); } }
   }, [setResult, setError, setStale, setConfirm, setFetching]);
   useEffect(() => {
     const current = { tab, search: query.trim(), key }; life.current = current;
     const timer = setTimeout(() => { if (actor) void load(current); }, 200);
-    const focus = () => { if (!lock.current) void load(current); }; window.addEventListener("focus", focus);
-    return () => { clearTimeout(timer); current.controller?.abort(); if (life.current === current) life.current = null; window.removeEventListener("focus", focus); };
+    const focus = () => { if (!lock.current && !current.loading) void load(current); }; const unsubscribeFocus = subscribeFocus(focus);
+    return () => { clearTimeout(timer); current.controller?.abort(); if (life.current === current) life.current = null; unsubscribeFocus(); };
   }, [actor, key, tab, query, load]);
   useEffect(() => { if (view && hash) document.getElementById(hash.slice(1))?.scrollIntoView?.({ block: "center" }); }, [view, hash]);
   function changeTab(next) { if (lock.current) return; setConfirm(null); setError(null); setStale(false); setNotice(""); setParams({ tab: next, ...(query ? { search: query } : {}) }); }

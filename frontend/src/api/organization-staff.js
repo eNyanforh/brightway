@@ -1,9 +1,10 @@
+import { resourceFetch } from "./read-cache";
 import { ApiError } from "./auth";
 const base = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/$/, "");
 export const staffPhotoUrl = path => typeof path === "string" && /^\/organization-workspace\/[a-f0-9-]{36}\/staff\/people\/[a-f0-9-]{36}\/photo\/[a-f0-9-]{36}$/i.test(path) ? base + path : null;
 async function request(path, method = "GET", body, signal) {
   let response;
-  try { response = await fetch(base + path, { method, signal, credentials: "include", cache: "no-store", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined }); }
+  try { response = await resourceFetch(base + path, { method, signal, credentials: "include", cache: "no-store", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined }); }
   catch (error) { if (error.name === "AbortError") throw error; throw new ApiError("Unable to reach BrightWay. Keep your changes and retry."); }
   let result; try { result = await response.json(); } catch { throw new ApiError("Unexpected staffing response. Reload before continuing.", response.status); }
   if (!response.ok || result.success !== true) throw new ApiError(result.message || "Organization staffing is unavailable.", response.status);

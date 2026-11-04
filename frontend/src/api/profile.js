@@ -1,3 +1,4 @@
+import { invalidateReads, resourceFetch } from "./read-cache";
 import { ApiError } from "./auth";
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(
@@ -11,7 +12,7 @@ async function request(
 ) {
   let response;
   try {
-    response = await fetch(baseUrl + path, {
+    response = await resourceFetch(baseUrl + path, {
       method,
       credentials: "include",
       cache: "no-store",
@@ -51,7 +52,8 @@ async function request(
 export const profileApi = {
   read: async (signal) =>
     (await request("/profile/me", { signal })).data.profile,
-  completion: async () => (await request("/profile/me/completion")).data,
+  readFresh: async () => { invalidateReads("personal"); return (await request("/profile/me")).data.profile; },
+  completion: async () => { invalidateReads("personal"); return (await request("/profile/me/completion")).data; },
   requestEmail: async (signal) => (await request("/auth/email/request", { method: "POST", body: {}, signal })).data,
   verifyEmail: async (code, signal) => (await request("/auth/email/verify", { method: "POST", body: { code }, signal })).data,
   save: async (expectedVersion, changes) =>

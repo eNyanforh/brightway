@@ -1,3 +1,4 @@
+import { managementStaffFixture, managementSessionFixture, cleanupManagementFixtures } from "../test-support/management-database-fixture.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -8,12 +9,10 @@ test("database owner edit/abort races invalidate old findings and decisions atom
   const service = createOrganizationService({ prisma: db }), marker = randomUUID(), accounts = [], sessions = [];
   try {
     for (const label of ["owner", "agent", "approver"]) {
-      const account = await db.account.create({ data: { username: `chg_${label}_${marker.replaceAll("-", "").slice(0, 12)}`, email: `${label}_${marker}@example.invalid`, passwordHash: "synthetic-unusable", emailVerifiedAt: new Date(), person: { create: { firstName: "Synthetic", lastName: label } } } }); accounts.push(account);
-      if (label !== "owner") await db.mfaFactor.create({ data: { accountId: account.id, encryptedSecret: "synthetic-unusable", enabled: true, version: 1, windowStart: new Date() } });
-      sessions.push(await db.session.create({ data: { accountId: account.id, tokenHash: randomUUID(), expiresAt: new Date(Date.now() + 86400000), mfaVersion: label === "owner" ? 0 : 1, mfaVerifiedAt: label === "owner" ? null : new Date() } }));
+      const account = label === "owner" ? await db.account.create({ data: { username: `chg_${label}_${marker.replaceAll("-", "").slice(0, 12)}`, email: `${label}_${marker}@example.invalid`, passwordHash: "synthetic-unusable", emailVerifiedAt: new Date(), person: { create: { firstName: "Synthetic", lastName: label } } } }) : await managementStaffFixture(db, { username: `internal_${label}_${marker.replaceAll("-", "").slice(0, 12)}`, email: `internal_${label}_${marker}@example.invalid` }, [label === "agent" || label === "next" ? "organization-agent" : "organization-approver"], new Date()); accounts.push(account);
+      sessions.push(label === "owner" ? await db.session.create({ data: { accountId: account.id, tokenHash: randomUUID(), expiresAt: new Date(+new Date() + 86400000) } }) : await managementSessionFixture(db, account, new Date()));
     }
     const [owner, agent, approver] = accounts;
-    await db.organizationOperator.create({ data: { accountId: agent.id, agentEnabled: true } }); await db.organizationOperator.create({ data: { accountId: approver.id, approverEnabled: true } });
     const input = { idempotencyKey: randomUUID(), name: `Synthetic request ${marker}`, type: "SCHOOL", representativeRole: "Principal", countryCode: "GH", region: "", city: "Accra", address: "Synthetic test location" };
     const submit = () => service.submit(owner.id, sessions[0].id, { ...input, idempotencyKey: randomUUID() });
     async function recommend(r) {
@@ -55,7 +54,7 @@ test("database owner edit/abort races invalidate old findings and decisions atom
       const organizations = await db.organization.findMany({ where: { requestId: { in: requestIds } }, select: { id: true } }), orgIds = organizations.map(o => o.id);
       await db.organizationMembership.deleteMany({ where: { organizationId: { in: orgIds } } }); await db.organizationOperatingLocation.deleteMany({ where: { organizationId: { in: orgIds } } }); await db.organization.deleteMany({ where: { id: { in: orgIds } } });
       for (const model of ["organizationRequestRevision", "organizationFindingArchive", "organizationFinding", "organizationRequestAudit"]) await db[model].deleteMany({ where: { requestId: { in: requestIds } } });
-      await db.organizationRequest.deleteMany({ where: { id: { in: requestIds } } }); await db.organizationOperator.deleteMany({ where: { accountId: { in: ids } } }); await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } }); await db.account.deleteMany({ where: { id: { in: ids } } }); await db.person.deleteMany({ where: { id: { in: accounts.map(a => a.personId) } } });
+      await db.organizationRequest.deleteMany({ where: { id: { in: requestIds } } }); await db.organizationOperator.deleteMany({ where: { accountId: { in: ids } } }); await cleanupManagementFixtures(db, ids); await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } }); await db.account.deleteMany({ where: { id: { in: ids } } }); await db.person.deleteMany({ where: { id: { in: accounts.map(a => a.personId).filter(Boolean) } } });
     } finally { await db.$disconnect(); }
   }
 });

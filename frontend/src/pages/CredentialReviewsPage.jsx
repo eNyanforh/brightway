@@ -1,3 +1,5 @@
+import { useManagement } from "../auth/management-context";
+import { subscribeFocus } from "../auth/focus-refresh";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -8,7 +10,8 @@ import { applicantName, reviewDate } from "../components/credentials/review-pres
 import "./credential-reviews.css";
 const initialDecision = "ACTION_REQUIRED", openStatuses = new Set(["SUBMITTED", "IN_REVIEW"]);
 export default function CredentialReviewsPage() {
-  const { account } = useAuth(), { organizationId } = useParams(), [params] = useSearchParams();
+  const personal = useAuth(), management = useManagement(), { organizationId } = useParams(), [params] = useSearchParams();
+  const account = organizationId ? personal.account : management.staff;
   return <ReviewWorkspace key={`${account?.id}:${organizationId || "brightway"}:${params.toString()}`} accountId={account?.id} organizationId={organizationId} />;
 }
 function ReviewWorkspace({ accountId, organizationId }) {
@@ -60,8 +63,8 @@ function ReviewWorkspace({ accountId, organizationId }) {
         setError(previous => preserve ? previous : null);
       } catch (e) { if (!controller.signal.aborted && life.current === current) failure(e); }
     }
-    void load(); const focus = () => void load(true); window.addEventListener("focus", focus);
-    return () => { current.controller?.abort(); if (life.current === current) life.current = null; setActing?.(null); window.removeEventListener("focus", focus); };
+    void load(); const focus = () => void load(true); const unsubscribeFocus = subscribeFocus(focus);
+    return () => { current.controller?.abort(); if (life.current === current) life.current = null; setActing?.(null); unsubscribeFocus(); };
   }, [readQueue, readDetail, publishQueue, failure, setActing]);
   useEffect(() => {
     if (!dirty && !busy) return;
@@ -121,7 +124,7 @@ function ReviewWorkspace({ accountId, organizationId }) {
       <div className="bw-review-page-title"><div className="bw-review-title-icon"><ReviewIcon name="shield" size={25} /></div><div><p>{organizationId ? queue?.organization?.name || "ORGANIZATION WORKSPACE" : "BRIGHTWAY REVIEW TEAM"}</p><h1>Credential Review</h1><span>Careful review. Credible achievements.</span></div><button type="button" className="bw-review-refresh bw-review-secondary" disabled={busy} onClick={reload} aria-label="Reload reviews"><ReviewIcon name="refresh" /><span>{busy ? "Working…" : "Refresh"}</span></button></div>
     </header>
     <div className="bw-review-policy"><ReviewIcon name="shield" /><p>{organizationId ? "Review only claims submitted to your organization." : "BrightWay reviews claims submitted for unlisted issuers."} <span>Credential decisions are separate from individual identity verification.</span></p><span className="bw-review-private"><ReviewIcon name="lock" size={13} />Private workspace</span></div>
-    {error && <div className="bw-review-alert" role="alert"><ReviewIcon name="alert" /><div><strong>Review access or information needs attention</strong><p>{error.message}</p>{stale && queue && <p>Your draft is kept. Reload reviews before assigning, deciding or downloading evidence.</p>}{error.status === 403 && <Link to="/security">Open Account security</Link>}</div></div>}
+    {error && <div className="bw-review-alert" role="alert"><ReviewIcon name="alert" /><div><strong>Review access or information needs attention</strong><p>{error.message}</p>{stale && queue && <p>Your draft is kept. Reload reviews before assigning, deciding or downloading evidence.</p>}{error.status === 403 && <Link to={organizationId ? "/security" : "/superadmin/security"}>Open Account security</Link>}</div></div>}
     {notice && <p className="bw-review-notice" role="status"><ReviewIcon name="check" />{notice}</p>}
     {!queue ? <div className="bw-review-state" role={error ? undefined : "status"}><ReviewIcon name={error ? "lock" : "inbox"} size={38} /><h2>{error ? "Review queue unavailable" : "Checking reviewer access…"}</h2><p>{error ? "Your account needs current review permission and two-factor authentication. Refresh after access is restored." : "Loading the claims you are authorized to review."}</p></div> : <>
       <div className="bw-review-page-summary"><span><strong>{rows.length}</strong> reviews on this page</span><span><i className="bw-review-dot blue" />{rows.filter(row => row.status === "SUBMITTED").length} submitted</span><span><i className="bw-review-dot amber" />{rows.filter(row => row.status === "IN_REVIEW").length} in review</span><span><i className="bw-review-dot red" />{overdue} open past target</span><small>Page {pages.length} · Oldest submissions first</small></div>

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { processPhoto } from "../photos/photo.image.js";
 import { failure, parse, requestId } from "./organization.schema.js";
-import { PROFILE_MANAGE, organizationPhotoUrl, organizationProfileReady, organizationProfileSchema, organizationContactSchema, organizationSetupStep, profileVersion } from "./organization-profile.schema.js";
+import { PROFILE_MANAGE, organizationSetupView, organizationSetupStep, organizationProfileReady, organizationProfileSchema, organizationContactSchema, profileVersion } from "./organization-profile.schema.js";
 const conflict = () => failure(409, "This organization profile changed. Reload the saved profile before continuing.");
 export function createOrganizationProfileService({ prisma, storage, process = processPhoto, now = () => new Date() }) {
   async function transaction(work) {
@@ -33,7 +33,7 @@ export function createOrganizationProfileService({ prisma, storage, process = pr
     }
     return { organization, canEdit, role: membership.role };
   }
-  const view = ({ organization: o, canEdit, role }) => ({ organization: { id: o.id, name: o.name, type: o.type, offersTraining: o.offersTraining }, role, canEdit, required: !organizationProfileReady(o), nextStep: organizationSetupStep(o), version: o.profileVersion, username: o.username, phoneNumber: o.phoneNumber ?? null, contactEmail: o.contactEmail ?? null, website: o.website ?? null, photo: o.profilePhotoId ? { id: o.profilePhotoId, url: organizationPhotoUrl(o.id, o.profilePhotoId) } : null });
+  const view = organizationSetupView;
   async function audit(db, id, actorId, action, entityId, data) { await db.organizationStaffAudit.create({ data: { organizationId: id, actorId, action, entityId, data } }); }
   const service = {
     async read(actorId, sessionId, id) { return transaction(async db => view(await access(db, actorId, sessionId, id))); },

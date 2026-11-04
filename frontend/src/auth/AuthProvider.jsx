@@ -1,3 +1,6 @@
+import { useLocation } from "react-router-dom";
+import { subscribeFocus } from "./focus-refresh";
+import { setReadIdentity } from "../api/read-cache";
 import {
   useCallback,
   useEffect,
@@ -9,6 +12,8 @@ import { authApi } from "../api/auth";
 import { AuthContext } from "./auth-context";
 
 export default function AuthProvider({ children }) {
+  const { pathname } = useLocation();
+  const personalMode = !pathname.startsWith("/superadmin");
   const [session, setSession] = useState({
     status: "loading",
     account: null,
@@ -33,6 +38,7 @@ export default function AuthProvider({ children }) {
       .then((data) => {
         if (current !== version.current) return;
 
+        setReadIdentity("personal", data.account.id);
         setSession({
           status: "authenticated",
           account: data.account,
@@ -48,6 +54,7 @@ export default function AuthProvider({ children }) {
         }
 
         if (error.status === 401) {
+          setReadIdentity("personal", null);
           setSession({
             status: "anonymous",
             account: null,
@@ -88,6 +95,7 @@ export default function AuthProvider({ children }) {
   }, [checkSession]);
 
   useEffect(() => {
+    if (!personalMode) return;
     const controller = new AbortController();
 
     void checkSession(controller.signal);
@@ -97,19 +105,20 @@ export default function AuthProvider({ children }) {
       pendingCheck.current = null;
       version.current += 1;
     };
-  }, [checkSession]);
+  }, [checkSession, personalMode]);
 
   useEffect(() => {
+    if (!personalMode) return;
     const onFocus = () => {
       void refresh();
     };
 
-    window.addEventListener("focus", onFocus);
+    const unsubscribeFocus = subscribeFocus(onFocus);
 
     return () => {
-      window.removeEventListener("focus", onFocus);
+      unsubscribeFocus();
     };
-  }, [refresh]);
+  }, [refresh, personalMode]);
 
   const login = useCallback(async (body) => {
     mutation.current = true;
@@ -123,6 +132,7 @@ export default function AuthProvider({ children }) {
       }
 
       if (current === version.current) {
+        setReadIdentity("personal", data.account.id);
         setSession({
           status: "authenticated",
           account: data.account,
@@ -141,7 +151,7 @@ export default function AuthProvider({ children }) {
     const current = ++version.current;
     try {
       const data = await authApi.verifyMfaLogin(code);
-      if (current === version.current) setSession({ status: "authenticated", account: data.account, error: "" });
+      if (current === version.current) { setReadIdentity("personal", data.account.id); setSession({ status: "authenticated", account: data.account, error: "" }); }
       return data.account;
     } finally { mutation.current = false; }
   }, []);
@@ -152,6 +162,7 @@ export default function AuthProvider({ children }) {
 
     try {
       await authApi.logout();
+      setReadIdentity("personal", null);
 
       if (current === version.current) {
         setSession({
