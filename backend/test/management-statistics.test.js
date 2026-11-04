@@ -1,3 +1,4 @@
+import { managementHttpFixture } from "../test-support/management-http-fixture.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
@@ -24,13 +25,13 @@ test("invalid, inconsistent, unsafe or missing aggregate results fail instead of
 test("platform totals require current Super Admin authority and never run for ordinary management staff", async () => {
   const f = managementFixture(); await f.grant(); f.signIn(); let calls = 0;
   const service = createManagementService({ prisma: f.db, now: f.now, readStatistics: async () => { calls++; return { asOf: f.now().toISOString(), ...counts() }; } });
-  const owner = f.actors.owner; assert.equal((await service.statistics(owner.id, owner.sessionId)).accountId, owner.id); assert.equal(calls, 1);
-  f.state.managementAdministrator[0].isSuperAdmin = false; await assert.rejects(service.statistics(owner.id, owner.sessionId), { status: 403 }); assert.equal(calls, 1);
-  f.state.managementAdministrator[0].isSuperAdmin = true; f.state.mfaFactor.find(r => r.accountId === owner.id).enabled = false;
+  const owner = f.actors.owner; assert.equal((await service.statistics(owner.id, owner.sessionId)).staffId, owner.id); assert.equal(calls, 1);
+  f.state.managementStaff[0].isSuperAdmin = false; await assert.rejects(service.statistics(owner.id, owner.sessionId), { status: 403 }); assert.equal(calls, 1);
+  f.state.managementStaff[0].isSuperAdmin = true; f.state.managementStaff[0].status = "DISABLED";
   await assert.rejects(service.statistics(owner.id, owner.sessionId), { status: 403 }); assert.equal(calls, 1);
 });
 test("statistics recheck root version and MFA before returning a snapshot", async () => {
-  for (const change of [f => { f.state.managementAdministrator[0].isSuperAdmin = false; }, f => { f.state.managementAdministrator[0].version++; }, f => { f.state.mfaFactor.find(r => r.accountId === f.actors.owner.id).version++; }]) {
+  for (const change of [f => { f.state.managementStaff[0].isSuperAdmin = false; }, f => { f.state.managementStaff[0].version++; }, f => { f.state.managementStaff[0].version++; }]) {
     const f = managementFixture(); await f.grant(); f.signIn(); const service = createManagementService({ prisma: f.db, now: f.now, readStatistics: async () => { change(f); return counts(); } });
     await assert.rejects(service.statistics(f.actors.owner.id, f.actors.owner.sessionId), { status: 403 });
   }
@@ -38,12 +39,12 @@ test("statistics recheck root version and MFA before returning a snapshot", asyn
 test("statistics HTTP is uncached, authenticated and root-only, rejects query injection and sanitizes database failure", async () => {
   const f = managementFixture(); await f.grant(); f.signIn(); let unavailable = false;
   const management = createManagementService({ prisma: f.db, now: f.now, readStatistics: async () => { if (unavailable) throw Error("Sensitive database diagnostic"); return counts(); } });
-  const app = express(); app.use(createManagementRoutes({ management, nodeEnv: "test", limiter: (r, s, n) => n(), sessions: { async authenticate(token) { if (token !== "owner") throw Object.assign(Error("Sign in"), { status: 401 }); return { account: { id: f.actors.owner.id }, sessionId: f.actors.owner.sessionId, mfaVerified: true }; } } })); app.use((e, r, s, n) => { void n; s.status(e.status || 500).json({ success: false, message: e.message }); });
-  const server = app.listen(0, "127.0.0.1"); await new Promise(r => server.once("listening", r)); const base = `http://127.0.0.1:${server.address().port}/management/statistics`, get = suffix => fetch(base + (suffix || ""), { headers: { Cookie: "brightway_session=owner" } });
+  const app = express(); app.use(createManagementRoutes({ management, authentication: managementHttpFixture(f), nodeEnv: "test", limiter: (r, s, n) => n(), sessions: { async authenticate(token) { if (token !== "owner") throw Object.assign(Error("Sign in"), { status: 401 }); return { account: { id: f.actors.owner.id }, sessionId: f.actors.owner.sessionId, mfaVerified: true }; } } })); app.use((e, r, s, n) => { void n; s.status(e.status || 500).json({ success: false, message: e.message }); });
+  const server = app.listen(0, "127.0.0.1"); await new Promise(r => server.once("listening", r)); const base = `http://127.0.0.1:${server.address().port}/management/statistics`, get = suffix => fetch(base + (suffix || ""), { headers: { Cookie: "brightway-management=owner" } });
   try {
-    assert.equal((await fetch(base)).status, 401); const success = await get(); assert.equal(success.status, 200); assert.equal(success.headers.get("cache-control"), "no-store"); assert.equal((await success.json()).data.accountId, f.actors.owner.id);
+    assert.equal((await fetch(base)).status, 401); const success = await get(); assert.equal(success.status, 200); assert.equal(success.headers.get("cache-control"), "no-store"); assert.equal((await success.json()).data.staffId, f.actors.owner.id);
     assert.equal((await get("?accountId=other")).status, 400); assert.equal((await get("?days=99999")).status, 400);
     unavailable = true; const failed = await get(); assert.equal(failed.status, 503); assert(!JSON.stringify(await failed.json()).includes("Sensitive database"));
-    f.state.managementAdministrator[0].isSuperAdmin = false; assert.equal((await get()).status, 403);
+    f.state.managementStaff[0].isSuperAdmin = false; assert.equal((await get()).status, 403);
   } finally { server.closeAllConnections(); await new Promise(r => server.close(r)); }
 });

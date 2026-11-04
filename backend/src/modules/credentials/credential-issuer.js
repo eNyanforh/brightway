@@ -1,3 +1,4 @@
+import { managementPermission, assertManagementSession, lockReviewActors, assertNoSelfReview, conflictAccounts, staffId, permits } from "../management/management-authority.js";
 import { requireOrganizationProfile } from "../organizations/organization-profile.schema.js";
 import { organizationPermissionKeys } from "../organizations/organization-staff.schema.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
@@ -16,12 +17,15 @@ export async function credentialIssuer(db, id, kind, lock = false) {
 }
 export async function credentialReviewerScope(db, actorId, organizationId, lock = false) {
   if (typeof actorId !== "string" || !actorId.trim()) throw fail(403, "Reviewer access is required.");
+  if (!organizationId) {
+    const staff = await managementPermission(db, actorId, "credential-reviewer");
+    const excluded = await conflictAccounts(db, actorId);
+    const people = await db.account.findMany({ where: { id: { in: excluded } }, select: { personId: true } });
+    return { realm: "management", staff, excludedPersonIds: people.map(row => row.personId), organization: null, kinds };
+  }
+  if (staffId(actorId)) throw fail(403, "Management identities cannot impersonate organization staff.");
   const account = await db.account.findFirst({ where: { id: actorId, status: "ACTIVE", emailVerifiedAt: { not: null } } });
   if (!account) throw fail(403, "Reviewer access is required.");
-  if (!organizationId) {
-    if (account.platformRole !== "CREDENTIAL_REVIEWER") throw fail(403, "Reviewer access is required.");
-    return { account, organization: null, kinds };
-  }
   let organization;
   try { organization = await credentialIssuer(db, organizationId, undefined, lock); }
   catch (error) { if ([400, 409].includes(error.status)) throw fail(403, "Organization credential review is unavailable."); throw error; }
@@ -31,7 +35,7 @@ export async function credentialReviewerScope(db, actorId, organizationId, lock 
   if (!allowed.length) throw fail(403, "This organization requires credential-review permission.");
   const catalog = organizationPermissionKeys(organization);
   const permissions = membership.role === "PRIMARY_ADMIN" ? catalog : (membership.permissions ?? []).filter(key => catalog.includes(key));
-  return { account, organization, kinds: allowed, membership, permissions };
+  return { account, excludedPersonIds: [account.personId], organization, kinds: allowed, membership, permissions };
 }
 export async function authorizeCredentialReviewer(db, actorId, sessionId, organizationId, now, lock = false) {
   const scope = await credentialReviewerScope(db, actorId, organizationId, lock);
@@ -43,17 +47,16 @@ export function requireReviewScope(review, scope) {
 }
 export async function reviewerStillAuthorized(db, accountId, review) {
   if (typeof accountId !== "string" || !accountId) return false;
+  if (!review.issuerOrganizationId) {
+    if (!staffId(accountId)) return false;
+    return permits(await db.managementStaff.findUnique({ where: { id: accountId } }), "credential-reviewer");
+  }
+  if (staffId(accountId)) return false;
   const account = await db.account.findFirst({ where: { id: accountId, status: "ACTIVE", emailVerifiedAt: { not: null } } });
   const factor = await db.mfaFactor.findUnique({ where: { accountId } });
   if (!account || !factor?.enabled) return false;
-  if (!review.issuerOrganizationId) return account.platformRole === "CREDENTIAL_REVIEWER";
   const member = await db.organizationMembership.findFirst({ where: { organizationId: review.issuerOrganizationId, accountId, enabled: true } });
   return Boolean(member && (member.role === "PRIMARY_ADMIN" || (member.permissions ?? []).includes(issuerPermission(review.kind))));
 }
-export async function lockCredentialActors(db, ids) {
-  // Match staffing's sorted account → organization lock order; revocation and decisions serialize.
-  for (const id of [...new Set(ids)].sort()) {
-    if ((await db.account.updateMany({ where: { id, status: "ACTIVE", emailVerifiedAt: { not: null } }, data: { identityRevision: { increment: 0 } } })).count !== 1) throw fail(403, "An active account with verified email is required.");
-  }
-}
+export const lockCredentialActors = lockReviewActors;
 export const issuerSearchSchema = z.strictObject({ kind: z.enum(kinds), query: z.string().trim().min(2).max(100) });

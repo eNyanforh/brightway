@@ -1,3 +1,4 @@
+import { managementHttpFixture } from "../test-support/management-http-fixture.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
@@ -41,13 +42,13 @@ test("every reviewer service entry point rejects missing MFA context despite ano
 
 test("privileged reads and decisions reject expired, foreign, password-only, disabled and stale-version sessions", async () => {
   const mutations = [
-    f => { f.state.session[0].expiresAt = f.now(); },
-    f => { f.state.session[0].accountId = f.otherId; },
-    f => { f.state.session[0].mfaVerifiedAt = null; },
-    f => { f.state.mfaFactor[0].enabled = false; },
-    f => { f.state.mfaFactor[0].version++; },
-    f => { f.state.session.length = 0; },
-    f => { f.state.account[1].platformRole = "MEMBER"; },
+    f => { f.state.managementSession[0].expiresAt = f.now(); },
+    f => { f.state.managementSession[0].staffId = f.otherId; },
+    f => { f.state.managementSession[0].mfaVerifiedAt = null; },
+    f => { f.state.managementStaff[0].status = "DISABLED"; },
+    f => { f.state.managementStaff[0].version++; },
+    f => { f.state.managementSession.length = 0; },
+    f => { f.state.managementStaff[0].capabilities = []; },
   ];
   for (const mutate of mutations) {
     const f = await fixture(), review = f.state.credentialReview[0];
@@ -84,18 +85,18 @@ test("HTTP reviewer paths carry the authenticated session and reject revoked acc
     const account = f.state.account.find(row => row.id === (token === "member" ? f.otherId : f.reviewerId));
     return { account: { id: account.id, person: { id: account.personId } }, sessionId: f.reviewerSessionId, mfaVerified: token !== "password-only" };
   } };
-  app.use(createCredentialRoutes({ credentials: f.service, sessions, clientUrl: "http://localhost:5173", nodeEnv: "test", limiter: (req, res, next) => next() }));
+  app.use(createCredentialRoutes({ credentials: f.service, authentication: managementHttpFixture(f), sessions, clientUrl: "http://localhost:5173", nodeEnv: "test", limiter: (req, res, next) => next() }));
   app.use((error, req, res, next) => { void next; res.status(error.status ?? 500).json({ success: false, message: error.message }); });
   const server = app.listen(0, "127.0.0.1");
   await new Promise(resolve => server.once("listening", resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const review = f.state.credentialReview[0];
-  const headers = { Cookie: "brightway_session=reviewer", Origin: "http://localhost:5173", "Content-Type": "application/json" };
+  const headers = { Cookie: "brightway-management=reviewer", Origin: "http://localhost:5173", "Content-Type": "application/json" };
   try {
     for (const route of ["/admin/credentials/access", "/admin/credentials", `/admin/credentials/${review.id}`]) {
       assert.equal((await fetch(base + route)).status, 401);
-      assert.equal((await fetch(base + route, { headers: { Cookie: "brightway_session=password-only" } })).status, 403);
-      assert.equal((await fetch(base + route, { headers: { Cookie: "brightway_session=member" } })).status, 403);
+      assert.equal((await fetch(base + route, { headers: { Cookie: "brightway_session=password-only" } })).status, 401);
+      assert.equal((await fetch(base + route, { headers: { Cookie: "brightway_session=member" } })).status, 401);
       const allowed = await fetch(base + route, { headers });
       assert.equal(allowed.status, 200);
       assert.equal(allowed.headers.get("cache-control"), "no-store");
@@ -104,10 +105,10 @@ test("HTTP reviewer paths carry the authenticated session and reject revoked acc
     assert.equal((await fetch(base + assign, { method: "POST", headers: { ...headers, Origin: "https://foreign.example" }, body: JSON.stringify({ expectedVersion: review.version }) })).status, 403);
     assert.equal((await fetch(base + assign, { method: "POST", headers, body: JSON.stringify({ expectedVersion: review.version, mfaVerified: true }) })).status, 400);
     assert.equal((await fetch(base + assign, { method: "POST", headers, body: JSON.stringify({ expectedVersion: review.version }) })).status, 200);
-    assert.equal((await fetch(base + `/credentials/evidence/${f.asset.id}/download`, { headers })).status, 200);
-    f.state.session.length = 0;
+    assert.equal((await fetch(base + `/admin/credentials/evidence/${f.asset.id}/download`, { headers })).status, 200);
+    f.state.managementSession.length = 0;
     assert.equal((await fetch(base + "/admin/credentials", { headers })).status, 403);
-    assert.equal((await fetch(base + `/credentials/evidence/${f.asset.id}/download`, { headers })).status, 403);
+    assert.equal((await fetch(base + `/admin/credentials/evidence/${f.asset.id}/download`, { headers })).status, 403);
     const current = f.state.credentialReview[0];
     assert.equal((await fetch(base + `/admin/credentials/${review.id}/decision`, { method: "POST", headers,
       body: JSON.stringify({ expectedVersion: current.version, revision: 1, status: "VERIFIED", note: "The institution confirmed this claim." }) })).status, 403);

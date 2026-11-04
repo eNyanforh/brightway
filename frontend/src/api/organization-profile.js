@@ -1,9 +1,10 @@
+import { resourceFetch } from "./read-cache";
 import { ApiError } from "./auth";
 const base = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/$/, "");
 export const organizationPictureUrl = (id, photoId) => `${base}/organizations/${encodeURIComponent(id)}/photo/${encodeURIComponent(photoId)}`;
 async function request(id, { method = "GET", body, headers, photo = false, signal } = {}) {
   let response;
-  try { response = await fetch(`${base}/organization-workspace/${encodeURIComponent(id)}/profile${photo ? "/photo" : ""}`, { method, body, headers, signal, credentials: "include", cache: "no-store" }); }
+  try { response = await resourceFetch(`${base}/organization-workspace/${encodeURIComponent(id)}/profile${photo ? "/photo" : ""}`, { method, body, headers, signal, credentials: "include", cache: "no-store" }); }
   catch (error) { if (error.name === "AbortError") throw error; throw new ApiError("Unable to reach BrightWay. Keep your changes and reload the saved profile before retrying."); }
   let result;
   try { result = await response.json(); } catch { throw new ApiError("Unexpected profile response. Reload the saved profile before retrying.", response.status); }

@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 const copy = (v) => structuredClone(v);
 export function credentialFixture() {
-  const state = Object.fromEntries(["organization", "organizationRequest", "organizationMembership", "session", "mfaFactor", "account", "profile", "educationRecord", "experienceRecord", "credentialReview", "credentialAttempt", "credentialEvidence", "credentialUploadBudget", "credentialAuditEvent"].map((name) => [name, []]));
+  const state = Object.fromEntries(["managementStaff", "managementSession", "managementConflict", "managementStaffAudit", "managementChallenge", "organization", "organizationRequest", "organizationMembership", "session", "mfaFactor", "account", "profile", "educationRecord", "experienceRecord", "credentialReview", "credentialAttempt", "credentialEvidence", "credentialUploadBudget", "credentialAuditEvent"].map((name) => [name, []]));
   let date = new Date("2026-10-18T12:00:00Z");
-  const personId = randomUUID(), ownerId = randomUUID(), reviewerId = randomUUID(), otherId = randomUUID(), profileId = randomUUID(), recordId = randomUUID();
-  state.account.push({ id: ownerId, personId, status: "ACTIVE", platformRole: "MEMBER", emailVerifiedAt: date }, { id: reviewerId, personId: randomUUID(), status: "ACTIVE", platformRole: "CREDENTIAL_REVIEWER", emailVerifiedAt: date }, { id: otherId, personId: randomUUID(), status: "ACTIVE", platformRole: "MEMBER", emailVerifiedAt: date });
+  const personId = randomUUID(), ownerId = randomUUID(), reviewerId = `mg_${randomUUID()}`, otherId = randomUUID(), profileId = randomUUID(), recordId = randomUUID();
+  state.account.push({ id: ownerId, personId, status: "ACTIVE", platformRole: "MEMBER", emailVerifiedAt: date }, { id: randomUUID(), personId: randomUUID(), status: "ACTIVE", platformRole: "CREDENTIAL_REVIEWER", emailVerifiedAt: date }, { id: otherId, personId: randomUUID(), status: "ACTIVE", platformRole: "MEMBER", emailVerifiedAt: date });
   state.profile.push({ id: profileId, personId, version: 1, educationMode: "RECORDS", experienceMode: "NONE", skills: [], interests: [] });
   state.educationRecord.push({ id: recordId, profileId, revision: 1, status: "DRAFT", institution: "School", qualification: "Diploma", startMonth: "2020-09", endMonth: "2023-06", current: false, description: "" });
+  state.managementStaff.push({ id: reviewerId, username: "reviewer", email: "management-reviewer@example.invalid", fullName: "Reviewer", status: "ACTIVE", version: 1, emailVerifiedAt: date, encryptedSecret: "synthetic", capabilities: ["credential-reviewer"], isSuperAdmin: false, failureCount: 0 });
   const db = {};
   function matches(row, where = {}) {
     return Object.entries(where).every(([key, value]) => {
@@ -18,6 +19,9 @@ export function credentialFixture() {
       if (value && typeof value === "object" && !(value instanceof Date)) {
         if ("has" in value) return row[key]?.includes(value.has);
         if ("contains" in value) return String(row[key]).toLowerCase().includes(value.contains.toLowerCase());
+        if ("notIn" in value && value.notIn.includes(row[key])) return false;
+        if ("equals" in value) return String(row[key]).toLowerCase() === String(value.equals).toLowerCase();
+        if ("notIn" in value && Object.keys(value).length === 1) return true;
         if ("in" in value) return value.in.includes(row[key]);
         if ("lt" in value) return row[key] < value.lt;
         if ("lte" in value) return row[key] <= value.lte;
@@ -76,6 +80,11 @@ export function credentialFixture() {
     chain = run.catch(() => {}); return run;
   };
   function authorizeReviewer(accountId = reviewerId) {
+    if (accountId.startsWith("mg_")) {
+      const staff = state.managementStaff.find(row => row.id === accountId);
+      if (!staff) throw Error("Seed a separate management staff fixture before signing in.");
+      const sessionId = randomUUID(); state.managementSession.push({ id: sessionId, staffId: accountId, expiresAt: new Date(+date + 3600000), mfaVerifiedAt: date, staffVersion: staff.version }); return sessionId;
+    }
     let factor = state.mfaFactor.find((row) => row.accountId === accountId);
     if (!factor) { factor = { accountId, enabled: true, version: 1 }; state.mfaFactor.push(factor); }
     const sessionId = randomUUID();

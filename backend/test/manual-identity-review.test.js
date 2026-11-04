@@ -1,3 +1,4 @@
+import { managementHttpFixture } from "../test-support/management-http-fixture.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
@@ -82,11 +83,11 @@ test("credential reviewer status alone never grants identity review; every privi
     () => f.service.transition(f.reviewerId, undefined, request.id, { expectedVersion: request.version }, true),
   ];
   for (const call of operations) await assert.rejects(call(), { status: 403 });
-  f.state.manualIdentityReviewer[0].enabled = false;
+  f.state.managementStaff[0].capabilities = [];
   f.state.account[1].platformRole = "CREDENTIAL_REVIEWER";
   await assert.rejects(f.service.access(f.reviewerId, f.sessionId), { status: 403 });
-  f.state.manualIdentityReviewer[0].enabled = true;
-  for (const change of [() => { f.state.session[0].mfaVersion = 0; }, () => { f.state.session[0].mfaVersion = 1; f.state.mfaFactor[0].enabled = false; }]) {
+  f.state.managementStaff[0].capabilities = ["identity-reviewer"];
+  for (const change of [() => { f.state.managementSession[0].staffVersion = 0; }, () => { f.state.managementSession[0].staffVersion = 1; f.state.managementStaff[0].status = "DISABLED"; }]) {
     change(); await assert.rejects(f.service.access(f.reviewerId, f.sessionId), { status: 403 });
   }
 });
@@ -161,10 +162,10 @@ test("role/MFA revocation during a slow evidence download prevents disclosure an
   const f = manualReviewFixture(); await f.service.submit(f.ownerId, f.submission()); await f.assign();
   const asset = f.state.manualIdentityEvidence[0];
   await assert.rejects(f.service.download(f.otherId, f.sessionId, asset.id), { status: 403 });
-  f.storage.get = async () => { f.state.manualIdentityReviewer[0].enabled = false; return Buffer.from("private"); };
+  f.storage.get = async () => { f.state.managementStaff[0].capabilities = []; return Buffer.from("private"); };
   await assert.rejects(f.service.download(f.reviewerId, f.sessionId, asset.id), { status: 403 });
-  f.state.manualIdentityReviewer[0].enabled = true;
-  f.storage.get = async () => { f.state.mfaFactor[0].version++; return Buffer.from("private"); };
+  f.state.managementStaff[0].capabilities = ["identity-reviewer"];
+  f.storage.get = async () => { f.state.managementStaff[0].version++; return Buffer.from("private"); };
   await assert.rejects(f.service.download(f.reviewerId, f.sessionId, asset.id), { status: 403 });
 });
 
@@ -195,7 +196,7 @@ test("retention purges private snapshots and queues attached images for deletion
 
 test("HTTP owner/reviewer routes require actual session, trusted Origin and MFA; inputs cannot grant ownership or trust", async () => {
   const f = manualReviewFixture(), app = express(); app.use(express.json());
-  app.use("/api/v1", createManualIdentityReviewRoutes({ reviews: f.service, sessions: { async authenticate(token) {
+  app.use("/api/v1", createManualIdentityReviewRoutes({ authentication: managementHttpFixture(f), reviews: f.service, sessions: { async authenticate(token) {
     if (!["owner", "reviewer", "password-only"].includes(token)) throw Object.assign(Error("Login required"), { status: 401 });
     return { account: { id: token === "owner" ? f.ownerId : f.reviewerId }, sessionId: f.sessionId, mfaVerified: token === "reviewer" };
   } }, clientUrl: "http://localhost:5173", nodeEnv: "test", limiter: (req, res, next) => next() }));
@@ -213,8 +214,8 @@ test("HTTP owner/reviewer routes require actual session, trusted Origin and MFA;
     assert.equal((await fetch(`${base}/manual-identity/submit`, { method: "POST", headers, body: JSON.stringify({ ...data, identityVerified: true }) })).status, 400);
     const submitted = await fetch(`${base}/manual-identity/submit`, { method: "POST", headers, body: JSON.stringify(data) });
     assert.equal(submitted.status, 200); assert.equal(submitted.headers.get("cache-control"), "no-store");
-    assert.equal((await fetch(`${base}/admin/manual-identity/access`, { headers: { Cookie: "brightway_session=password-only" } })).status, 403);
-    assert.equal((await fetch(`${base}/admin/manual-identity/access`, { headers: { Cookie: "brightway_session=reviewer" } })).status, 200);
+    assert.equal((await fetch(`${base}/admin/manual-identity/access`, { headers: { Cookie: "brightway_session=password-only" } })).status, 401);
+    assert.equal((await fetch(`${base}/admin/manual-identity/access`, { headers: { Cookie: "brightway-management=reviewer" } })).status, 200);
     const owner = await fetch(`${base}/manual-identity`, { headers });
     const serialized = JSON.stringify(await owner.json());
     for (const word of ["storageKey", "inputHash", "identityHash", "idempotencyKey"]) assert(!serialized.includes(word));

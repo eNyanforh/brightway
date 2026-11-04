@@ -38,29 +38,23 @@ enum PersonGender {
 }
 
 model Account {
+  reviewPrincipal ReviewPrincipal?
   managementAdministrator ManagementAdministrator?
   managementAdministratorAudits ManagementAdministratorAudit[] @relation("ManagementAuditTarget")
   managementActions ManagementAdministratorAudit[] @relation("ManagementAuditActor")
   organizationOperator OrganizationOperator?
   organizationRoleAudits OrganizationOperatorAudit[]
   organizationRequests OrganizationRequest[] @relation("OrganizationApplicant")
-  assignedOrganizationRequests OrganizationRequest[] @relation("OrganizationAgent")
-  decidedOrganizationRequests OrganizationRequest[] @relation("OrganizationApprover")
   organizationMemberships OrganizationMembership[]
   receivedOrganizationInvitations OrganizationInvitation[] @relation("OrganizationInviteRecipient")
   sentOrganizationInvitations OrganizationInvitation[] @relation("OrganizationInviteSender")
   organizationStaffActions OrganizationStaffAudit[]
-  organizationFindings OrganizationFinding[]
-  retiredOrganizationFindings OrganizationFindingArchive[] @relation("ArchivedOrganizationAgent")
-  organizationReassignments OrganizationFindingArchive[] @relation("OrganizationFindingRetiredBy")
 
   latestNameChangeId String? @unique
   latestNameChangeProof IdentityNameChange? @relation("LatestNameChange", fields: [latestNameChangeId], references: [id], onDelete: Restrict)
   nameChanges IdentityNameChange[] @relation("NameChangeOwner")
-  assignedNameChanges IdentityNameChange[] @relation("NameChangeReviewer")
   photoReviewRequired Boolean @default(false)
   photoReviews ProfilePhotoReview[] @relation("PhotoReviewOwner")
-  assignedPhotoReviews ProfilePhotoReview[] @relation("PhotoReviewAssignee")
   identityRevision Int @default(0)
   id           String        @id @default(uuid())
   username     String        @unique
@@ -685,7 +679,7 @@ model ProfilePhotoReview {
   state ProfilePhotoReviewState @default(PENDING)
   version Int @default(1)
   reviewerId String?
-  reviewer Account? @relation("PhotoReviewAssignee", fields: [reviewerId], references: [id], onDelete: Restrict)
+  reviewer ReviewPrincipal? @relation("PhotoReviewAssignee", fields: [reviewerId], references: [id], onDelete: Restrict)
   note String? @db.VarChar(2000)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -733,7 +727,7 @@ model IdentityNameChange {
   state IdentityNameChangeState @default(SUBMITTED)
   version Int @default(1)
   reviewerId String?
-  reviewer Account? @relation("NameChangeReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  reviewer ReviewPrincipal? @relation("NameChangeReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
   note String? @db.VarChar(2000)
   consentVersion String
   createdAt DateTime @default(now())
@@ -826,9 +820,9 @@ model OrganizationRequest {
   status OrganizationRequestStatus @default(SUBMITTED)
   version Int @default(1)
   assignedAgentId String?
-  assignedAgent Account? @relation("OrganizationAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict)
+  assignedAgent ReviewPrincipal? @relation("OrganizationAgent", fields: [assignedAgentId], references: [id], onDelete: Restrict)
   decidedById String?
-  decidedBy Account? @relation("OrganizationApprover", fields: [decidedById], references: [id], onDelete: Restrict)
+  decidedBy ReviewPrincipal? @relation("OrganizationApprover", fields: [decidedById], references: [id], onDelete: Restrict)
   decisionReason String? @db.VarChar(2000)
   decidedAt DateTime?
   targetAt DateTime
@@ -848,7 +842,7 @@ model OrganizationFinding {
   requestId String @id
   request OrganizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
   agentId String
-  agent Account @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  agent ReviewPrincipal @relation(fields: [agentId], references: [id], onDelete: Restrict)
   existenceConfirmed Boolean
   locationConfirmed Boolean
   authorityConfirmed Boolean
@@ -864,7 +858,7 @@ model OrganizationFindingArchive {
   requestId String
   request OrganizationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
   agentId String
-  agent Account @relation("ArchivedOrganizationAgent", fields: [agentId], references: [id], onDelete: Restrict)
+  agent ReviewPrincipal @relation("ArchivedOrganizationAgent", fields: [agentId], references: [id], onDelete: Restrict)
   sourceVersion Int
   existenceConfirmed Boolean
   locationConfirmed Boolean
@@ -877,7 +871,7 @@ model OrganizationFindingArchive {
   createdAt DateTime
   retiredAt DateTime @default(now())
   retiredById String
-  retiredBy Account @relation("OrganizationFindingRetiredBy", fields: [retiredById], references: [id], onDelete: Restrict)
+  retiredBy ReviewPrincipal @relation("OrganizationFindingRetiredBy", fields: [retiredById], references: [id], onDelete: Restrict)
   @@unique([requestId, sourceVersion])
   @@index([requestId, retiredAt, id])
 }
@@ -1017,4 +1011,87 @@ model OrganizationPhoto {
   updatedAt DateTime @updatedAt
   @@index([state, expiresAt])
   @@index([organizationId, createdAt])
+}
+
+model ReviewPrincipal {
+  id String @id
+  accountId String? @unique
+  account Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  staffId String? @unique
+  staff ManagementStaff? @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  assignedOrganizationRequests OrganizationRequest[] @relation("OrganizationAgent")
+  decidedOrganizationRequests OrganizationRequest[] @relation("OrganizationApprover")
+  organizationFindings OrganizationFinding[]
+  retiredOrganizationFindings OrganizationFindingArchive[] @relation("ArchivedOrganizationAgent")
+  organizationReassignments OrganizationFindingArchive[] @relation("OrganizationFindingRetiredBy")
+  assignedNameChanges IdentityNameChange[] @relation("NameChangeReviewer")
+  assignedPhotoReviews ProfilePhotoReview[] @relation("PhotoReviewAssignee")
+}
+
+model ManagementStaff {
+  id String @id
+  username String @unique @db.VarChar(30)
+  fullName String @db.VarChar(160)
+  email String @unique @db.VarChar(254)
+  passwordHash String
+  status String @default("PENDING")
+  isSuperAdmin Boolean @default(false)
+  capabilities String[]
+  version Int @default(1)
+  emailVerifiedAt DateTime?
+  encryptedSecret String?
+  lastCounter BigInt @default(-1)
+  recoveryHashes String[]
+  failureCount Int @default(0)
+  windowStart DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  principal ReviewPrincipal?
+  sessions ManagementSession[]
+  challenges ManagementChallenge[]
+}
+model ManagementSession {
+  id String @id @default(uuid())
+  staffId String
+  staff ManagementStaff @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  tokenHash String @unique
+  staffVersion Int
+  mfaVerifiedAt DateTime
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([staffId, expiresAt])
+}
+model ManagementChallenge {
+  id String @id @default(uuid())
+  staffId String
+  staff ManagementStaff @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  tokenHash String @unique
+  purpose String
+  staffVersion Int
+  passwordFingerprint String
+  emailCodeHash String?
+  setupSecret String?
+  attempts Int @default(0)
+  consumedAt DateTime?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([staffId, purpose, expiresAt])
+}
+model ManagementStaffAudit {
+  id String @id @default(uuid())
+  actorId String
+  targetStaffId String
+  action String
+  reason String @db.VarChar(500)
+  data Json?
+  createdAt DateTime @default(now())
+  @@index([targetStaffId, createdAt])
+}
+// Declarations supplement verified same-email detection; there is no login linkage.
+model ManagementConflict {
+  staffId String
+  accountId String
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now())
+  @@id([staffId, accountId])
 }

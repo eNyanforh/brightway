@@ -3,7 +3,7 @@ import { createOrganizationService } from "../src/modules/organizations/organiza
 const clone = v => structuredClone(v);
 export function organizationFixture({ ready = true } = {}) {
   let date = new Date("2026-10-27T12:00:00Z"), auditFails = false, auditHook;
-  const state = Object.fromEntries(["organizationOperatorAudit", "reviewerRoleAudit", "manualIdentityReviewer", "manualIdentityAudit", "managementAdministrator", "managementAdministratorAudit", "person", "profile", "photoAsset", "account", "session", "mfaFactor", "organizationOperator", "organizationRequest", "organizationFinding", "organizationFindingArchive", "organizationRequestAudit", "organizationRequestRevision", "organization", "organizationOperatingLocation", "organizationMembership", "organizationInvitation", "organizationStaffAudit", "organizationPhoto"].map(k => [k, []]));
+  const state = Object.fromEntries(["managementStaff", "managementSession", "managementConflict", "managementStaffAudit", "managementChallenge", "organizationOperatorAudit", "reviewerRoleAudit", "manualIdentityReviewer", "manualIdentityAudit", "managementAdministrator", "managementAdministratorAudit", "person", "profile", "photoAsset", "account", "session", "mfaFactor", "organizationOperator", "organizationRequest", "organizationFinding", "organizationFindingArchive", "organizationRequestAudit", "organizationRequestRevision", "organization", "organizationOperatingLocation", "organizationMembership", "organizationInvitation", "organizationStaffAudit", "organizationPhoto"].map(k => [k, []]));
   const actors = {};
   for (const label of ["owner", "agent", "approver", "other"]) {
     const id = randomUUID(), sessionId = randomUUID(); actors[label] = { id, sessionId, username: `${label}_fixture` };
@@ -15,6 +15,13 @@ export function organizationFixture({ ready = true } = {}) {
       state.organizationOperator.push({ accountId: id, agentEnabled: label === "agent", approverEnabled: label === "approver" });
     }
   }
+  const personalActors = { ...actors };
+  for (const label of ["agent", "approver"]) {
+    const id = `mg_${randomUUID()}`, sessionId = randomUUID();
+    actors[label] = { id, sessionId, username: `${label}_management` };
+    state.managementStaff.push({ id, username: actors[label].username, email: `${label}@management.example.invalid`, fullName: label, status: "ACTIVE", version: 1, emailVerifiedAt: date, encryptedSecret: "synthetic", capabilities: [label === "agent" ? "organization-agent" : "organization-approver"], isSuperAdmin: false, failureCount: 0 });
+    state.managementSession.push({ id: sessionId, staffId: id, expiresAt: new Date(+date + 7 * 86400000), mfaVerifiedAt: date, staffVersion: 1 });
+  }
   function matches(row, where = {}) {
     return Object.entries(where).every(([key, value]) => {
       if (value === undefined) return true;
@@ -24,10 +31,14 @@ export function organizationFixture({ ready = true } = {}) {
       if (key === "request") return matches(state.organizationRequest.find(r => r.id === row.requestId) ?? {}, value);
       if (key === "AND") return value.every(w => matches(row, w));
       if (key === "OR") return value.some(w => matches(row, w));
+      if (key === "staffId_accountId") return matches(row, value);
       if (key === "applicantId_idempotencyKey") return matches(row, value);
       if (value instanceof Date) return +row[key] === +value;
       if (value && typeof value === "object") {
         if ("contains" in value) return String(row[key] ?? "").toLowerCase().includes(value.contains.toLowerCase().replace(/\\([\\%_])/g, "$1"));
+        if ("notIn" in value && value.notIn.includes(row[key])) return false;
+        if ("equals" in value) return String(row[key]).toLowerCase() === String(value.equals).toLowerCase();
+        if ("notIn" in value && Object.keys(value).length === 1) return true;
         if ("in" in value) return value.in.includes(row[key]); if ("not" in value) return row[key] !== value.not;
         if ("gt" in value) return row[key] > value.gt; if ("gte" in value) return row[key] >= value.gte;
       }
@@ -65,6 +76,8 @@ export function organizationFixture({ ready = true } = {}) {
       async create({ data }) {
         if (["organizationRequestAudit", "organizationStaffAudit"].includes(model)) { if (auditFails) throw Error("Audit failed"); if (auditHook) await auditHook(data); }
         const value = { id: randomUUID(), createdAt: date, updatedAt: date,
+          ...(model === "managementStaff" ? { version: 1, failureCount: 0, windowStart: date, lastCounter: -1n, emailVerifiedAt: null, encryptedSecret: null, capabilities: [], recoveryHashes: [], status: "PENDING", isSuperAdmin: false } : {}),
+          ...(model === "managementChallenge" ? { attempts: 0, consumedAt: null, setupSecret: null, emailCodeHash: null } : {}),
           ...(model === "organizationRequest" ? { version: 1, status: "SUBMITTED", assignedAgentId: null, decisionReason: null, decidedById: null, decidedAt: null } : {}),
           ...(model === "organization" ? { status: "ACTIVE", staffVersion: 1, username: null, profileVersion: 0, profileSetupStep: 1, phoneNumber: null, contactEmail: null, website: null, profileReadyAt: null, profilePhotoId: null } : {}),
           ...(model === "organizationPhoto" ? { state: "UPLOADING" } : {}),
@@ -77,6 +90,7 @@ export function organizationFixture({ ready = true } = {}) {
         }
         state[model].push(value); return clone(value);
       },
+      async upsert({ where, create, update }) { if (await this.findUnique({ where })) { await this.updateMany({ where, data: update }); return this.findUnique({ where }); } return this.create({ data: create }); },
       async deleteMany({ where }) {
         const before = state[model].length; state[model] = state[model].filter(row => !matches(row, where)); return { count: before - state[model].length };
       },
@@ -90,7 +104,7 @@ export function organizationFixture({ ready = true } = {}) {
   const service = createOrganizationService({ prisma: db, now: () => date });
   const input = () => ({ idempotencyKey: randomUUID(), name: " Global Test School ", type: "SCHOOL", representativeRole: "Principal", countryCode: "gh", region: "", city: "Accra", address: "Synthetic operating location" });
   const finding = () => ({ expectedVersion: 2, existenceConfirmed: true, locationConfirmed: true, authorityConfirmed: true, typeConfirmed: true, operationalConfirmed: true, recommendation: "APPROVE", notes: "Synthetic verification findings only.", setupAssistance: "Setup explained to the representative." });
-  return { db, state, actors, service, input, finding, now: () => date, advance(ms) { date = new Date(+date + ms); }, failAudit(value = true) { auditFails = value; }, onAudit(fn) { auditHook = fn; },
+  return { db, state, actors, personalActors, service, input, finding, now: () => date, advance(ms) { date = new Date(+date + ms); }, failAudit(value = true) { auditFails = value; }, onAudit(fn) { auditHook = fn; },
     async submit(body = input()) { return service.submit(actors.owner.id, actors.owner.sessionId, body); },
     async assign(r) { return service.assign(actors.approver.id, actors.approver.sessionId, r.id, { expectedVersion: r.version, agentUsername: actors.agent.username }); },
     async report(r) { return service.report(actors.agent.id, actors.agent.sessionId, r.id, { ...finding(), expectedVersion: r.version }); },

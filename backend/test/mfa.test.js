@@ -122,7 +122,7 @@ test("HTTP second-step cookies are HttpOnly, no full session is sent early, Orig
   const success = await post("/auth/mfa/verify-login", { code: enrolled.backupCodes[0] }, cookie);
   assert.equal(success.status, 200); assert(success.headers.getSetCookie().some((value) => /^__Host-brightway_session=[a-f0-9]{64};/.test(value)));
   const returned = await success.json(); assert.equal(returned.data.account.id, "account"); assert(!JSON.stringify(returned).includes("backupCodes")); assert(!JSON.stringify(returned).includes("passwordHash")); assert(!JSON.stringify(returned).includes("encryptedSecret"));
-  assert.equal((await fetch(base+"/admin/credentials")).status, 403); assert.equal(queueReads, 0);
+  assert.equal((await fetch(base+"/admin/credentials")).status, 401); assert.equal(queueReads, 0);
   assert.equal((await fetch(base+"/credentials/evidence/11111111-1111-4111-8111-111111111111/download")).status, 403);
 });
 test("using the last backup code permits password-confirmed regeneration only in the recently verified session", async () => {

@@ -1,3 +1,4 @@
+import { managementStaffFixture, managementSessionFixture, cleanupManagementFixtures } from "../test-support/management-database-fixture.js";
 import { hashPassword } from "../src/modules/auth/password.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -20,10 +21,11 @@ test("database manual identity requests serialize retries and decisions, revoke 
   const reviews = createManualIdentityReviewService(config);
   const uploads = createManualIdentityEvidenceService({ ...config, processImage: async () => ({ bytes: Buffer.from("test image"), width: 640, height: 480 }) });
   try {
-    for (const label of ["owner", "reviewer"]) accounts.push(await db.account.create({ data: {
+    for (const label of ["owner"]) accounts.push(await db.account.create({ data: {
       username: `${label}_${marker.replaceAll("-", "")}`, email: `${label}_${marker}@example.invalid`, passwordHash, emailVerifiedAt: date,
       person: { create: { firstName: "Sample", lastName: label, birthDate: label === "owner" ? null : new Date("2000-01-01"), gender: "MALE", phoneNumber: "+231770000000" } },
     } }));
+    accounts.push(await managementStaffFixture(db, { username: `reviewer_${marker.replaceAll("-", "").slice(0, 12)}`, email: `reviewer_${marker}@example.invalid` }, ["identity-reviewer"], date));
     const [owner, reviewer] = accounts;
     photo = await db.photoAsset.create({ data: { personId: owner.personId, storageKey: `test-photo-${marker}`, state: "CLAIMED", expiresAt: new Date(+date + 86400000) } });
     const profile = await db.profile.create({ data: {
@@ -58,9 +60,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(await db.manualIdentityAttempt.count({ where: { requestId } }), 1);
     assert.equal(await db.manualIdentityEvidence.count({ where: { attemptId: replay[0].attemptId, state: "ATTACHED" } }), 2);
     await assert.rejects(reviews.access(reviewer.id, randomUUID()), { status: 403 });
-    await db.manualIdentityReviewer.create({ data: { accountId: reviewer.id, enabled: true } });
-    await db.mfaFactor.create({ data: { accountId: reviewer.id, encryptedSecret: "test-only-not-a-secret", enabled: true, version: 1, windowStart: date } });
-    const session = await db.session.create({ data: { accountId: reviewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000), mfaVersion: 1, mfaVerifiedAt: date } });
+    const session = await managementSessionFixture(db, reviewer, date, new Date(+date + 100 * 86400000));
     const request = await db.manualIdentityRequest.findUnique({ where: { id: requestId } });
     const assigned = await Promise.allSettled([1, 2].map(() => reviews.transition(reviewer.id, session.id, requestId, { expectedVersion: request.version }, true)));
     assert.equal(assigned.filter((r) => r.status === "fulfilled").length, 1);
@@ -81,7 +81,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal((await reviews.status(owner.id)).identityVerified, false);
     await reviews.submit(owner.id, await submission());
     assert.equal(await db.manualIdentityAttempt.count({ where: { requestId } }), 2);
-    await db.manualIdentityReviewer.update({ where: { accountId: reviewer.id }, data: { enabled: false } });
+    await db.managementStaff.update({ where: { id: reviewer.id }, data: { capabilities: [] } });
     await assert.rejects(reviews.detail(reviewer.id, session.id, requestId), { status: 403 });
     await db.manualIdentityAudit.updateMany({ where: { requestId, action: "DECIDED" }, data: { note: "Legacy private decision feedback" } });
     date = new Date(+date + 31 * 86400000);
@@ -105,7 +105,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(await db.manualIdentityAudit.count({ where: { requestId, action: "DECIDED" } }), 1);
   } finally {
     try {
-      const ids = accounts.map((a) => a.id), people = accounts.map((a) => a.personId);
+      const ids = accounts.map((a) => a.id), people = accounts.map((a) => a.personId).filter(Boolean);
       const requests = await db.manualIdentityRequest.findMany({ where: { accountId: { in: ids } }, select: { id: true } });
       const requestIds = requests.map((r) => r.id);
       await db.manualIdentityEvidence.deleteMany({ where: { accountId: { in: ids } } });
@@ -113,6 +113,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
       await db.manualIdentityAttempt.deleteMany({ where: { requestId: { in: requestIds } } });
       await db.manualIdentityRequest.deleteMany({ where: { id: { in: requestIds } } });
       await db.manualIdentityUploadBudget.deleteMany({ where: { accountId: { in: ids } } });
+      await cleanupManagementFixtures(db, ids);
       await db.manualIdentityReviewer.deleteMany({ where: { accountId: { in: ids } } });
       await db.session.deleteMany({ where: { accountId: { in: ids } } });
       await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } });

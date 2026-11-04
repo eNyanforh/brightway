@@ -1,3 +1,4 @@
+import { managementPermission, assertManagementSession, lockReviewActors, assertNoSelfReview, conflictAccounts, staffId, permits } from "../management/management-authority.js";
 import { createManualIdentityDetailsService, missingIdentityFields } from "./manual-identity-details.service.js";
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
@@ -31,21 +32,13 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
     try { return await prisma.$transaction(fn); }
     catch (error) { if (["P2002", "P2034"].includes(error.code)) throw conflict(); throw error; }
   }
-  async function lockAccounts(db, ids) {
-    for (const id of [...new Set(ids.map(accountId))].sort()) {
-      const locked = await db.account.updateMany({ where: { id, status: "ACTIVE" }, data: { status: "ACTIVE" } });
-      if (locked.count !== 1) throw fail(403, "An active account is required.");
-    }
-  }
+  async function lockAccounts(db, ids) { return lockReviewActors(db, ids); }
   async function lockPerson(db, personId) {
     if (!personId || (await db.person.updateMany({ where: { id: personId }, data: { identityRevision: { increment: 0 } } })).count !== 1) throw conflict();
   }
   async function reviewer(db, actorId, sessionId) {
-    accountId(actorId);
-    const role = await db.manualIdentityReviewer.findUnique({ where: { accountId: actorId } });
-    const account = await db.account.findUnique({ where: { id: actorId }, select: { status: true, emailVerifiedAt: true } });
-    if (!role?.enabled || account?.status !== "ACTIVE" || !account.emailVerifiedAt) throw fail(403, "BrightWay identity-review permission is required.");
-    await assertMfaSession(db, actorId, sessionId, now());
+    await managementPermission(db, actorId, "identity-reviewer");
+    await assertManagementSession(db, actorId, sessionId, now());
   }
   async function context(db, id) {
     accountId(id);
@@ -134,6 +127,7 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
     await lockAccounts(db, [actorId]);
     if (actorId !== asset.accountId) {
       await reviewer(db, actorId, sessionId);
+      await assertNoSelfReview(db, actorId, request.accountId);
       const latest = await current(db, request);
       if (latest.reviewerId !== actorId) throw fail(403, "Assign this request to yourself before downloading evidence.");
       if (recordDownload) await audit(db, request, actorId, "EVIDENCE_DOWNLOADED", attempt, attempt.state, attempt.state);
@@ -239,7 +233,7 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
       if (cursor !== undefined) uuid(cursor);
       return transaction(async (tx) => {
         await lockAccounts(tx, [actorId]); await reviewer(tx, actorId, sessionId);
-        const rows = await tx.manualIdentityRequest.findMany({ where: { accountId: { not: actorId } },
+        const rows = await tx.manualIdentityRequest.findMany({ where: { accountId: { notIn: await conflictAccounts(tx, actorId) } },
           ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), orderBy: [{ initialSubmittedAt: "asc" }, { id: "asc" }], take: 21,
           select: { id: true, version: true, revision: true, state: true, initialSubmittedAt: true, targetAt: true } });
         return { requests: rows.slice(0, 20), nextCursor: rows.length > 20 ? rows[19].id : null };
@@ -251,7 +245,7 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
         await lockAccounts(tx, [actorId]); await reviewer(tx, actorId, sessionId);
         const request = await tx.manualIdentityRequest.findUnique({ where: { id } });
         if (!request) throw fail(404, "Identity request not found.");
-        if (request.accountId === actorId) throw fail(403, "You cannot review your own identity request.");
+        await assertNoSelfReview(tx, actorId, request.accountId);
         return projection(tx, request, await context(tx, request.accountId), true, actorId);
       });
     },
@@ -262,7 +256,7 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
       if (!known) throw fail(404, "Identity request not found.");
       return transaction(async (tx) => {
         await lockAccounts(tx, [actorId, known.accountId]); await reviewer(tx, actorId, sessionId);
-        if (actorId === known.accountId) throw fail(403, "You cannot review your own identity request.");
+        await assertNoSelfReview(tx, actorId, known.accountId);
         const request = await tx.manualIdentityRequest.findUnique({ where: { id } });
         if (!request || request.version !== data.expectedVersion) throw conflict();
         const ctx = await context(tx, request.accountId);

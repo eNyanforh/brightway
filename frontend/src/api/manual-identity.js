@@ -1,11 +1,12 @@
+import { resourceFetch } from "./read-cache";
 import { ApiError } from "./auth";
 const base = (import.meta.env.VITE_API_BASE_URL || "/api/v1").replace(/\/$/, "");
 async function request(path, { method = "GET", body, file, signal } = {}) {
   let response;
   try {
-    response = await fetch(base + path, { method, signal, credentials: "include", cache: "no-store",
+    response = await resourceFetch(base + path, { method, signal, credentials: "include", cache: "no-store",
       headers: file ? { "Content-Type": file.type, "X-Identity-Consent": "manual-identity-upload-v1" } : body ? { "Content-Type": "application/json" } : undefined,
-      body: file || (body ? JSON.stringify(body) : undefined) });
+      body: file || (body ? JSON.stringify(body) : undefined) }, path.startsWith("/admin/") ? "management" : "personal");
   } catch (error) {
     if (error.name === "AbortError") throw error;
     throw new ApiError("Unable to reach BrightWay. Keep this page open and retry or reload the review status.");
@@ -28,9 +29,9 @@ export const manualIdentityApi = {
   detail: (id) => request(`/admin/manual-identity/${encodeURIComponent(id)}`),
   assign: (id, expectedVersion) => request(`/admin/manual-identity/${encodeURIComponent(id)}/assign`, { method: "POST", body: { expectedVersion } }),
   decide: (id, body) => request(`/admin/manual-identity/${encodeURIComponent(id)}/decision`, { method: "POST", body }),
-  async download(id, attached = true) {
+  async download(id, attached = true, management = false) {
     let response;
-    try { response = await fetch(base + `/manual-identity/${attached ? "documents" : "evidence"}/${encodeURIComponent(id)}/download`, { credentials: "include", cache: "no-store" }); }
+    try { response = await resourceFetch(base + `${management ? "/admin/manual-identity" : "/manual-identity"}/${attached ? "documents" : "evidence"}/${encodeURIComponent(id)}/download`, { credentials: "include", cache: "no-store" }); }
     catch { throw new ApiError("Unable to download the identity image."); }
     if (!response.ok) {
       let data; try { data = await response.json(); } catch { /* Use the generic message. */ }

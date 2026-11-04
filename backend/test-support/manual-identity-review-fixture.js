@@ -4,12 +4,12 @@ import { createManualIdentityReviewService } from "../src/modules/manual-identit
 import { reviewPolicy, MANUAL_REVIEW_CONSENT } from "../src/modules/manual-identity/manual-identity.policy.js";
 export function manualReviewFixture() {
   let date = new Date("2026-10-23T12:00:00Z"), auditFails = false;
-  const ownerId = randomUUID(), reviewerId = randomUUID(), otherId = randomUUID(), personId = randomUUID(), sessionId = randomUUID();
-  const modelNames = ["account", "profile", "session", "mfaFactor", "manualIdentityEvidence", "manualIdentityUploadBudget", "manualIdentityRequest", "manualIdentityAttempt", "manualIdentityAudit", "manualIdentityReviewer", "photoAsset", "profilePhotoReview", "profilePhotoReviewAudit", "identityNameChange", "identityNameChangeAudit"];
+  const ownerId = randomUUID(), reviewerId = `mg_${randomUUID()}`, otherId = randomUUID(), personId = randomUUID(), sessionId = randomUUID();
+  const modelNames = ["managementStaff", "managementSession", "managementConflict", "managementStaffAudit", "managementChallenge", "account", "profile", "session", "mfaFactor", "manualIdentityEvidence", "manualIdentityUploadBudget", "manualIdentityRequest", "manualIdentityAttempt", "manualIdentityAudit", "manualIdentityReviewer", "photoAsset", "profilePhotoReview", "profilePhotoReviewAudit", "identityNameChange", "identityNameChangeAudit"];
   const state = Object.fromEntries(modelNames.map((name) => [name, []]));
   state.account.push({ id: ownerId, identityRevision: 0, personId, status: "ACTIVE", username: "owner", email: "owner@example.invalid", emailVerifiedAt: date,
     person: { id: personId, firstName: "Sample", lastName: "Owner", middleName: null, birthDate: new Date("2000-01-01"), gender: "MALE", identityRevision: 0 } },
-    { id: reviewerId, personId: randomUUID(), status: "ACTIVE", username: "reviewer", emailVerifiedAt: date },
+    { id: randomUUID(), personId: randomUUID(), status: "ACTIVE", username: "reviewer", emailVerifiedAt: date },
     { id: otherId, personId: randomUUID(), status: "ACTIVE", username: "other", emailVerifiedAt: date });
   state.profile.push({ id: randomUUID(), identityRevision: 0, personId, version: 1, countryCode: "US", locality: "City", headline: "Developer", careerFieldMode: "EXPLORING",
     skills: ["JavaScript"], interests: ["Technology"], photo: { id: randomUUID() }, person: { phoneNumber: "+231770000000", account: { email: "owner@example.invalid", emailVerifiedAt: date } },
@@ -17,6 +17,8 @@ export function manualReviewFixture() {
   state.manualIdentityReviewer.push({ accountId: reviewerId, enabled: true });
   state.mfaFactor.push({ accountId: reviewerId, enabled: true, version: 1 });
   state.session.push({ id: sessionId, accountId: reviewerId, expiresAt: new Date(+date + 7 * 86400000), mfaVerifiedAt: date, mfaVersion: 1 });
+  state.managementStaff.push({ id: reviewerId, username: "reviewer", email: "management-reviewer@example.invalid", fullName: "Review Operator", status: "ACTIVE", version: 1, emailVerifiedAt: date, encryptedSecret: "synthetic", capabilities: ["identity-reviewer"], isSuperAdmin: false, failureCount: 0 });
+  state.managementSession.push({ id: sessionId, staffId: reviewerId, expiresAt: new Date(+date + 7 * 86400000), mfaVerifiedAt: date, staffVersion: 1 });
   state.profile[0].photoId = state.profile[0].photo.id;
   state.photoAsset.push({ id: state.profile[0].photo.id, personId, state: "CLAIMED", storageKey: "old/profile.webp", updatedAt: date });
   const clone = (value) => structuredClone(value);
@@ -26,6 +28,9 @@ export function manualReviewFixture() {
       if (key === "requestId_idempotencyKey" || key === "accountId_idempotencyKey") return matches(row, value);
       if (value instanceof Date) return +row[key] === +value;
       if (value && typeof value === "object") {
+        if ("notIn" in value && value.notIn.includes(row[key])) return false;
+        if ("equals" in value) return String(row[key]).toLowerCase() === String(value.equals).toLowerCase();
+        if ("notIn" in value && Object.keys(value).length === 1) return true;
         if ("in" in value) return value.in.includes(row[key]);
         if ("not" in value) return row[key] !== value.not;
         if ("gte" in value) return row[key] >= value.gte;
@@ -63,6 +68,7 @@ export function manualReviewFixture() {
         if (cursor) { const index = rows.findIndex((r) => r.id === cursor.id); rows = index === -1 ? [] : rows.slice(index + skip); }
         return rows.slice(0, take).map((r) => project(r, select));
       },
+      async deleteMany({ where }) { const old = state[model].length; state[model] = state[model].filter(row => !matches(row, where)); return { count: old - state[model].length }; },
       async count({ where }) { return state[model].filter((r) => matches(r, where)).length; },
       async create({ data }) {
         if (["manualIdentityAudit", "profilePhotoReviewAudit", "identityNameChangeAudit"].includes(model) && auditFails) throw Error("Audit storage failed");

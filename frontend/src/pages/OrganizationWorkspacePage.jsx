@@ -1,3 +1,5 @@
+import { subscribeFocus } from "../auth/focus-refresh";
+import { useOrganizationBootstrap } from "../components/organizations/organization-bootstrap-context";
 import OrganizationStaff from "../components/organizations/OrganizationStaff";
 import { organizationWorkspace } from "../../../shared/organization-workspace.mjs";
 import CampusSetupOverview from "../components/organizations/CampusSetupOverview";
@@ -16,16 +18,20 @@ export default function OrganizationWorkspacePage({ section = "overview" }) {
   return <Workspace key={`${account?.id}:${id || "personal"}:${section}`} actor={account?.id} usernameLabel={account?.username} id={id} section={section} />;
 }
 function Workspace({ actor, usernameLabel, id, section }) {
+  const bootstrap = useOrganizationBootstrap();
+  const initialAccess = useRef(bootstrap);
   const outlet = useOutletContext(), setActing = outlet?.setActingOrganization;
   const [view, setView] = useState(null), [staff, setStaff] = useState(null), [error, setError] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [stale, setStale] = useState(false), [generation, setGeneration] = useState(0);
   const [username, setUsername] = useState(""), [permissions, setPermissions] = useState([]), [retrying, setRetrying] = useState(false);
   const life = useRef(null), lock = useRef(false), inviteRetry = useRef(null), currentView = useRef(null), filtersRef = useRef({}), editorDirtyRef = useRef(false);
   const [filters, setFilters] = useState({}), [editorDirty, setEditorDirty] = useState(false);
   const changeEditorDirty = useCallback(value => { editorDirtyRef.current = value; setEditorDirty(value); }, []);
-  const load = useCallback(async (current, preserve = false) => {
-    current.controller?.abort(); current.controller = new AbortController(); const signal = current.controller.signal;
+  const load = useCallback(async function loadWorkspace(current, preserve = false) {
+    current.controller?.abort(); current.controller = new AbortController(); current.loading = true; const signal = current.controller.signal;
     try {
-      const next = await api.context(id, signal);
+      const prefetched = !preserve && initialAccess.current;
+      initialAccess.current = null;
+      const next = prefetched?.accountId === actor && prefetched?.organization?.id === id ? prefetched : await api.context(id, signal);
       if (life.current !== current || signal.aborted) return;
       if (id) setActing?.({ accountId: actor, organization: next.organization, workspace: next.workspace || organizationWorkspace(next.organization, next.permissions, next.membership?.role) });
       if (preserve && id && currentView.current && (next.staffVersion !== currentView.current.staffVersion || JSON.stringify(next.permissions) !== JSON.stringify(currentView.current.permissions))) {
@@ -47,13 +53,13 @@ function Workspace({ actor, usernameLabel, id, section }) {
         } }
       } else if (id) setStaff(null);
       if (!preserve) { setStale(false); changeEditorDirty(false); setGeneration(g => g + 1); }
-    } catch (e) { if (life.current !== current || signal.aborted || e.name === "AbortError") return; setError(e); if ([401, 403, 404].includes(e.status)) { currentView.current = null; setView(null); setStaff(null); setActing?.(null); setUsername(""); setPermissions([]); inviteRetry.current = null; setRetrying(false); changeEditorDirty(false); setGeneration(g => g + 1); } }
+    } catch (e) { if (life.current !== current || signal.aborted || e.name === "AbortError") return; setError(e); if ([401, 403, 404].includes(e.status)) { currentView.current = null; setView(null); setStaff(null); setActing?.(null); setUsername(""); setPermissions([]); inviteRetry.current = null; setRetrying(false); changeEditorDirty(false); setGeneration(g => g + 1); } } finally { if (life.current === current && !signal.aborted) { current.loading = false; if (current.focusQueued) { current.focusQueued = false; void loadWorkspace(current, true); } } }
   }, [actor, id, section, setActing, changeEditorDirty]);
   useEffect(() => {
     const current = { actor, id, controller: null }; life.current = current;
     if (actor) void Promise.resolve().then(() => { if (life.current === current) return load(current); });
-    const focus = () => { if (!lock.current) void load(current, true); }; window.addEventListener("focus", focus);
-    return () => { current.controller?.abort(); if (life.current === current) life.current = null; setActing?.(null); window.removeEventListener("focus", focus); };
+    const focus = () => { if (lock.current) return; if (current.loading) { current.focusQueued = true; return; } void load(current, true); }; const unsubscribeFocus = subscribeFocus(focus);
+    return () => { current.controller?.abort(); if (life.current === current) life.current = null; setActing?.(null); unsubscribeFocus(); };
   }, [actor, id, load, setActing]);
   useEffect(() => {
     if (!username && !permissions.length && !busy && !editorDirty) return;

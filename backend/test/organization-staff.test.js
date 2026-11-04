@@ -50,14 +50,14 @@ test("delegated staff cannot grant or manage authority they do not hold; only au
   const f = await fixture(); await f.accept(await f.invite([MANAGE]));
   await assert.rejects(f.staff.staff(f.recipient.id, f.recipient.sessionId, f.id), { status: 403 });
   f.state.mfaFactor.push({ accountId: f.recipient.id, enabled: true, version: 1 }); Object.assign(f.state.session.find(s => s.id === f.recipient.sessionId), { mfaVersion: 1, mfaVerifiedAt: f.now() });
-  await assert.rejects(f.staff.invite(f.recipient.id, f.recipient.sessionId, f.id, { expectedStaffVersion: 3, idempotencyKey: randomUUID(), username: f.actors.agent.username, permissions: [POSTS] }), { status: 403 });
+  await assert.rejects(f.staff.invite(f.recipient.id, f.recipient.sessionId, f.id, { expectedStaffVersion: 3, idempotencyKey: randomUUID(), username: f.personalActors.agent.username, permissions: [POSTS] }), { status: 403 });
   assert.equal((await f.staff.staff(f.recipient.id, f.recipient.sessionId, f.id)).members.length, 2);
   const raw = f.state.organizationMembership.find(m => m.accountId === f.recipient.id); raw.enabled = false;
   await assert.rejects(f.staff.staff(f.recipient.id, f.recipient.sessionId, f.id), { status: 403 });
 });
 test("current inviter authority is rechecked at acceptance and suspended organizations fail closed", async () => {
   const f = await fixture(); await f.accept(await f.invite([MANAGE, POSTS]));
-  const recipient = f.actors.agent, sender = f.recipient; f.state.mfaFactor.push({ accountId: sender.id, enabled: true, version: 1 }); Object.assign(f.state.session.find(s => s.id === sender.sessionId), { mfaVersion: 1, mfaVerifiedAt: f.now() });
+  const recipient = f.personalActors.agent, sender = f.recipient; f.state.mfaFactor.push({ accountId: sender.id, enabled: true, version: 1 }); Object.assign(f.state.session.find(s => s.id === sender.sessionId), { mfaVersion: 1, mfaVerifiedAt: f.now() });
   const invite = await f.staff.invite(sender.id, sender.sessionId, f.id, { expectedStaffVersion: 3, idempotencyKey: randomUUID(), username: recipient.username, permissions: [POSTS] });
   const membership = f.state.organizationMembership.find(m => m.accountId === sender.id);
   await f.staff.change(f.owner.id, f.owner.sessionId, f.id, membership.id, { expectedStaffVersion: 4, expectedVersion: membership.version, permissions: [MANAGE], enabled: true });
@@ -175,10 +175,10 @@ test("revoked grants remain inspectable and only an authorized manager can resto
   const member = f.state.organizationMembership.find(m => m.accountId === f.recipient.id); member.enabled = false;
   const page = await f.staff.staff(f.owner.id, f.owner.sessionId, f.id, { memberStatus: "revoked" });
   assert.deepEqual(page.members[0].assignedPermissions, [POSTS]); assert.deepEqual(page.members[0].permissions, []);
-  f.state.organizationMembership.push({ id: randomUUID(), organizationId: f.id, accountId: f.actors.agent.id, role: "STAFF", enabled: true, permissions: [MANAGE], version: 1 });
-  const delegated = await f.staff.staff(f.actors.agent.id, f.actors.agent.sessionId, f.id);
+  f.state.organizationMembership.push({ id: randomUUID(), organizationId: f.id, accountId: f.personalActors.agent.id, role: "STAFF", enabled: true, permissions: [MANAGE], version: 1 });
+  const delegated = await f.staff.staff(f.personalActors.agent.id, f.personalActors.agent.sessionId, f.id);
   assert.equal(delegated.members.find(m => m.id === member.id).canManage, false);
-  await assert.rejects(f.staff.change(f.actors.agent.id, f.actors.agent.sessionId, f.id, member.id, { expectedStaffVersion: 3, expectedVersion: member.version, enabled: true, permissions: [] }), { status: 403 });
+  await assert.rejects(f.staff.change(f.personalActors.agent.id, f.personalActors.agent.sessionId, f.id, member.id, { expectedStaffVersion: 3, expectedVersion: member.version, enabled: true, permissions: [] }), { status: 403 });
   await f.staff.change(f.owner.id, f.owner.sessionId, f.id, member.id, { expectedStaffVersion: 3, expectedVersion: member.version, enabled: true, permissions: [POSTS] });
   assert.deepEqual((await f.staff.context(f.recipient.id, f.recipient.sessionId, f.id)).permissions, [POSTS]);
 });
@@ -217,7 +217,7 @@ test("staff photos require live tenant management/MFA, show only current publish
   await assert.rejects(read(), { status: 404 }); assert.equal(reads, 0);
   const invitation = await f.invite(); await assert.rejects(read(), { status: 404 }); assert.equal(reads, 0);
   await assert.rejects(f.staff.photo(f.recipient.id, f.recipient.sessionId, f.id, f.recipient.id, photoId), { status: 403 });
-  await assert.rejects(f.staff.photo(f.owner.id, f.owner.sessionId, f.id, f.actors.agent.id, photoId), { status: 404 });
+  await assert.rejects(f.staff.photo(f.owner.id, f.owner.sessionId, f.id, f.personalActors.agent.id, photoId), { status: 404 });
   const pendingId = randomUUID(); f.state.photoAsset.push({ id: pendingId, personId: f.state.photoAsset[0].personId, state: "CLAIMED", storageKey: "UNAPPROVED" });
   await assert.rejects(f.staff.photo(f.owner.id, f.owner.sessionId, f.id, f.recipient.id, pendingId), { status: 404 });
   f.state.organizationInvitation[0].expiresAt = f.now(); await assert.rejects(read(), { status: 404 });

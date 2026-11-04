@@ -1,6 +1,7 @@
+import { managementStaffFixture, managementSessionFixture, cleanupManagementFixtures } from "../test-support/management-database-fixture.js";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { createCredentialService } from "../src/modules/credentials/credential.service.js";
 import { createProfileService } from "../src/modules/profile/profile.service.js";
 
@@ -16,16 +17,12 @@ test("database credential races, immutable evidence snapshots, corrections and r
   let time = new Date();
   const credentials = createCredentialService({ prisma, storage, process: async (bytes) => ({ bytes, contentType: "application/pdf" }), now: () => time });
   async function account(suffix, role = "MEMBER") {
+    if (role === "CREDENTIAL_REVIEWER") return managementStaffFixture(prisma, { username: `cred_${marker}_${suffix}`, email: `${marker}_${suffix}@example.invalid` }, ["credential-reviewer"], time);
     return prisma.account.create({ data: { username: `cred_${marker}_${suffix}`, email: `${marker}_${suffix}@example.com`, passwordHash: "not-a-login-hash", emailVerifiedAt: new Date(), platformRole: role, person: { create: { firstName: marker, lastName: suffix } } }, include: { person: true } });
   }
   const reviewerSessions = new Map();
   async function authenticateReviewer(account) {
-    // Domain-test fixture only: actual TOTP enrollment is exercised in mfa.database.test.js.
-    await prisma.mfaFactor.upsert({ where: { accountId: account.id },
-      create: { accountId: account.id, encryptedSecret: "test-only-domain-fixture", enabled: true, version: 1, windowStart: time }, update: {} });
-    const session = await prisma.session.create({ data: { accountId: account.id,
-      tokenHash: createHash("sha256").update(randomUUID()).digest("hex"),
-      expiresAt: new Date(+time + 3600000), mfaVerifiedAt: time, mfaVersion: 1 } });
+    const session = await managementSessionFixture(prisma, account, time, new Date(+time + 3600000));
     reviewerSessions.set(account.id, session.id);
     return session.id;
   }
@@ -69,7 +66,7 @@ test("database credential races, immutable evidence snapshots, corrections and r
     assert.equal((await credentials.owner(owner.personId, "education", record.id)).review.hiddenFromPublic, true);
     await credentials.transition(admin.id, review.id, { expectedVersion: review.version }, true, reviewerSessions.get(admin.id));
     review = await prisma.credentialReview.findUnique({ where: { id: review.id } });
-    await prisma.account.update({ where: { id: admin.id }, data: { platformRole: "MEMBER" } });
+    await prisma.managementStaff.update({ where: { id: admin.id }, data: { capabilities: [] } });
     saved = await profiles.read(owner.personId);
     await assert.rejects(credentials.transition(admin.id, review.id, { expectedVersion: review.version, revision: 2, status: "VERIFIED", note: "The school confirmed the revised document." }, false, reviewerSessions.get(admin.id)), { status: 403 });
     assert.equal((await profiles.read(owner.personId)).version, saved.version);
@@ -78,7 +75,7 @@ test("database credential races, immutable evidence snapshots, corrections and r
     assert.equal((await profiles.read(owner.personId)).completion.eligibleToRequestVerification, false);
   } finally {
     try {
-      const personIds = [owner, admin, otherAdmin].filter(Boolean).map((v) => v.personId);
+      const personIds = [owner, admin, otherAdmin].filter(Boolean).map((v) => v.personId).filter(Boolean);
       if (profile) {
         const reviews = await prisma.credentialReview.findMany({ where: { profileId: profile.id }, select: { id: true } });
         const ids = reviews.map((v) => v.id);
@@ -90,6 +87,7 @@ test("database credential races, immutable evidence snapshots, corrections and r
       await prisma.credentialUploadBudget.deleteMany({ where: { personId: { in: personIds } } });
       await prisma.profile.deleteMany({ where: { personId: { in: personIds } } });
       const accountIds = [owner, admin, otherAdmin].filter(Boolean).map((v) => v.id);
+      await cleanupManagementFixtures(prisma, accountIds);
       await prisma.mfaFactor.deleteMany({ where: { accountId: { in: accountIds } } });
       await prisma.account.deleteMany({ where: { personId: { in: personIds } } });
       await prisma.person.deleteMany({ where: { id: { in: personIds } } });

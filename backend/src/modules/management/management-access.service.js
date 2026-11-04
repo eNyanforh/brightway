@@ -1,55 +1,38 @@
+import { assertManagementSession, lockReviewActors, permits } from "./management-authority.js";
 import { readPlatformStatistics } from "./management-statistics.js";
-import { z } from "zod";
-import { assertMfaSession } from "../auth/mfa.service.js";
-const fail = (status, message) => Object.assign(new Error(message), { status });
-const denied = () => fail(403, "BrightWay management permission, verified email and a current MFA sign-in are required.");
-export const managementGrantSchema = z.strictObject({ username: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,30}$/), action: z.enum(["grant", "revoke"]), reason: z.string().trim().min(10).max(500).refine(value => !/[\u0000-\u001f\u007f]/.test(value)) });
-
-export { createManagementProvisioning, createManagementBootstrap, createStaffProvisioning } from "./staff-provisioning.service.js";
-
+const fail = () => Object.assign(Error("Current BrightWay management access is required."), { status: 403 });
 export function createManagementService({ prisma, now = () => new Date(), readStatistics = readPlatformStatistics }) {
-  async function authorize(db, accountId, sessionId) {
-    if (typeof accountId !== "string" || !accountId || typeof sessionId !== "string" || !sessionId.trim()) throw denied();
-    const timestamp = now();
-    const account = await db.account.findUnique({ where: { id: accountId }, select: { id: true, username: true, status: true, emailVerifiedAt: true, platformRole: true, person: { select: { firstName: true, middleName: true, lastName: true } } } });
-    const role = await db.managementAdministrator.findUnique({ where: { accountId } });
-    if (!account || account.status !== "ACTIVE" || !account.emailVerifiedAt || role?.enabled !== true || !role.grantedAt) throw denied();
-    await assertMfaSession(db, accountId, sessionId, timestamp);
-    const session = await db.session.findFirst({ where: { id: sessionId, accountId, expiresAt: { gt: timestamp } } });
-    if (!session?.mfaVerifiedAt || session.mfaVerifiedAt > timestamp || session.mfaVerifiedAt < role.grantedAt) throw fail(403, "Sign out and sign in again with MFA after management access was granted.");
-    return { account, role };
-  }
-  async function read(accountId, sessionId, full) {
-    return prisma.$transaction(async tx => {
-      if (typeof accountId !== "string" || !accountId || (await tx.account.updateMany({ where: { id: accountId, status: "ACTIVE" }, data: { identityRevision: { increment: 0 } } })).count !== 1) throw denied();
-      const { account, role } = await authorize(tx, accountId, sessionId);
-      if (!full) return { allowed: true, accountId };
-      const identity = await tx.manualIdentityReviewer.findUnique({ where: { accountId } }), operator = await tx.organizationOperator.findUnique({ where: { accountId } });
-      const permissions = { credentialReviewer: account.platformRole === "CREDENTIAL_REVIEWER", identityReviewer: identity?.enabled === true, organizationAgent: operator?.agentEnabled === true, organizationApprover: operator?.approverEnabled === true };
-      const tools = [
-        { key: "credentials", label: "Credential reviews", description: "Review claims submitted for unlisted issuers.", to: "/admin/credentials", allowed: permissions.credentialReviewer },
-        { key: "identity", label: "Identity reviews", description: "Review government-issued ID and selfie submissions.", to: "/admin/manual-identity", allowed: permissions.identityReviewer },
-        { key: "photos", label: "Profile photo reviews", description: "Review protected profile photo replacements.", to: "/admin/profile-photos", allowed: permissions.identityReviewer },
-        { key: "names", label: "Name-correction reviews", description: "Review supported identity name corrections.", to: "/admin/name-changes", allowed: permissions.identityReviewer },
-        { key: "organizations", label: "Organization verification", description: "Investigate or approve organization requests within your assigned role.", to: "/admin/organizations", allowed: permissions.organizationAgent || permissions.organizationApprover },
-      ];
-      const audits = await tx.managementAdministratorAudit.findMany({ where: { targetAccountId: accountId }, orderBy: [{ version: "desc" }], take: 10, select: { id: true, toEnabled: true, toSuperAdmin: true, capability: true, capabilityEnabled: true, actorAccountId: true, version: true, reason: true, createdAt: true } });
-      const final = await authorize(tx, accountId, sessionId);
-      if (final.role.version !== role.version) throw denied();
-      return { allowed: true, accountId, username: account.username, fullName: [account.person?.firstName, account.person?.middleName, account.person?.lastName].filter(Boolean).join(" "), role: { label: role.isSuperAdmin ? "Super Admin" : "Management staff", isSuperAdmin: role.isSuperAdmin === true, version: role.version, grantedAt: role.grantedAt }, permissions, tools, audits };
-    });
+  async function checked(tx, id, sessionId) {
+    await lockReviewActors(tx, [id]);
+    return assertManagementSession(tx, id, sessionId, now());
   }
   return {
-    async access(accountId, sessionId) { try { return await read(accountId, sessionId, false); } catch (error) { if ([401, 403].includes(error.status)) return { allowed: false }; throw error; } },
-    context: (accountId, sessionId) => read(accountId, sessionId, true),
-    statistics: (accountId, sessionId) => prisma.$transaction(async tx => {
-      if (typeof accountId !== "string" || !accountId || (await tx.account.updateMany({ where: { id: accountId, status: "ACTIVE" }, data: { identityRevision: { increment: 0 } } })).count !== 1) throw denied();
-      const { role } = await authorize(tx, accountId, sessionId);
-      if (role.isSuperAdmin !== true) throw fail(403, "Super Admin permission is required for platform statistics.");
-      const snapshot = await readStatistics(tx, now());
-      const current = await authorize(tx, accountId, sessionId);
-      if (current.role.isSuperAdmin !== true || current.role.version !== role.version) throw denied();
-      return { ...snapshot, accountId };
-    }),
+    async access(id, sessionId) {
+      try { await assertManagementSession(prisma, id, sessionId, now()); return { allowed: true, staffId: id }; }
+      catch (error) { if ([401, 403].includes(error.status)) return { allowed: false }; throw error; }
+    },
+    async context(id, sessionId) {
+      return prisma.$transaction(async tx => {
+        const staff = await checked(tx, id, sessionId);
+        const tools = [
+          ["credentials", "Credential reviews", "Review claims from unlisted issuers.", "/admin/credentials", "credential-reviewer"],
+          ["identity", "Identity reviews", "Review government-issued ID and selfie submissions.", "/admin/manual-identity", "identity-reviewer"],
+          ["photos", "Profile photo reviews", "Review protected profile photo replacements.", "/admin/profile-photos", "identity-reviewer"],
+          ["names", "Name-correction reviews", "Review supported identity name corrections.", "/admin/name-changes", "identity-reviewer"],
+          ["organizations", "Organization verification", "Investigate or approve within the separation-of-duties rules.", "/admin/organizations", "organization-agent"],
+        ].map(([key, label, description, to, permission]) => ({ key, label, description, to, allowed: permits(staff, permission) || key === "organizations" && permits(staff, "organization-approver") }));
+        const audits = await tx.managementStaffAudit.findMany({ where: { targetStaffId: id }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 10, select: { id: true, actorId: true, action: true, reason: true, createdAt: true } });
+        const final = await assertManagementSession(tx, id, sessionId, now()); if (staff.version !== final.version) throw fail();
+        return { allowed: true, staffId: id, username: staff.username, fullName: staff.fullName, role: { label: staff.isSuperAdmin ? "Super Admin" : "Management staff", isSuperAdmin: staff.isSuperAdmin, version: staff.version, grantedAt: staff.createdAt }, tools, audits };
+      });
+    },
+    async statistics(id, sessionId) {
+      return prisma.$transaction(async tx => {
+        const staff = await checked(tx, id, sessionId); if (!staff.isSuperAdmin) throw fail();
+        const snapshot = await readStatistics(tx, now());
+        const final = await assertManagementSession(tx, id, sessionId, now()); if (!final.isSuperAdmin || staff.version !== final.version) throw fail();
+        return { ...snapshot, staffId: id };
+      });
+    },
   };
 }

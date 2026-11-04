@@ -1,3 +1,6 @@
+import { createManagementAuth } from "../modules/management/management-auth.service.js";
+import { createManagementEmail } from "../modules/management/management-email.js";
+import { createManagementAuthRoutes } from "../modules/management/management-auth.http.js";
 import { createManagementService } from "../modules/management/management-access.service.js";
 import { createManagementRoutes } from "../modules/management/management.routes.js";
 import { createOrganizationProfileService } from "../modules/organizations/organization-profile.service.js";
@@ -51,20 +54,22 @@ const verification = createSignupEmailService({ prisma });
 router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const mfa = createMfaService({ prisma });
 const sessions = createSessionService({ prisma, mfa });
-router.use(createManagementRoutes({ management: createManagementService({ prisma }), sessions, nodeEnv: env.NODE_ENV }));
+const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
+router.use(createManagementAuthRoutes({ authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createManagementRoutes({ management: createManagementService({ prisma }), authentication, nodeEnv: env.NODE_ENV }));
 router.use(createOrganizationProfileRoutes({ profiles: createOrganizationProfileService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createOrganizationStaffRoutes({ staff: createOrganizationStaffService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-router.use(createOrganizationRoutes({ organizations: createOrganizationService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createOrganizationRoutes({ organizations: createOrganizationService({ prisma }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createIdentityRoutes({ identity: createIdentityService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use("/auth", createMfaRoutes({ mfa, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use("/auth", createAccountEmailRoutes({ verification: createAccountEmailService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-router.use(createCredentialRoutes({ credentials: createCredentialService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createCredentialRoutes({ credentials: createCredentialService({ prisma, storage: createR2Storage() }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManualIdentityEvidenceRoutes({ evidence: createManualIdentityEvidenceService({ prisma, storage: createManualIdentityStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-router.use(createManualIdentityReviewRoutes({ reviews: createManualIdentityReviewService({ prisma, storage: createManualIdentityStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createManualIdentityReviewRoutes({ reviews: createManualIdentityReviewService({ prisma, storage: createManualIdentityStorage() }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const photoStorage = createR2Storage();
-router.use(createIdentityNameChangeRoutes({ changes: createIdentityNameChangeService({ prisma, storage: createManualIdentityStorage(), photoStorage }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createIdentityNameChangeRoutes({ changes: createIdentityNameChangeService({ prisma, storage: createManualIdentityStorage(), photoStorage }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const photos = createPhotoService({ prisma, storage: photoStorage });
-router.use(createProfilePhotoReviewRoutes({ reviews: createProfilePhotoReviewService({ prisma, storage: photoStorage }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createProfilePhotoReviewRoutes({ reviews: createProfilePhotoReviewService({ prisma, storage: photoStorage }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 
 router.use(createPhotoRoutes({ photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 

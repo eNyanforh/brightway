@@ -1,3 +1,4 @@
+import { managementHttpFixture } from "../test-support/management-http-fixture.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
@@ -150,7 +151,7 @@ test("audit failure and MFA revocation roll back approval, photo swap and trust 
   assert.equal(f.state.profile[0].photoId, f.oldPhotoId); assert.equal(f.pending().approvedIdentityHash, null);
   f.failAudit(false);
   const original = f.db.profilePhotoReviewAudit.create;
-  f.db.profilePhotoReviewAudit.create = async (args) => { const value = await original(args); if (args.data.action === "DECIDED") f.state.mfaFactor[0].version++; return value; };
+  f.db.profilePhotoReviewAudit.create = async (args) => { const value = await original(args); if (args.data.action === "DECIDED") f.state.managementStaff[0].version++; return value; };
   await assert.rejects(f.decidePhoto(), { status: 403 });
   assert.equal(f.state.profile[0].photoId, f.oldPhotoId); assert.equal(f.pending().state, "IN_REVIEW");
   assert.equal(f.state.profilePhotoReviewAudit.filter((e) => e.action === "DECIDED").length, 0);
@@ -171,23 +172,23 @@ test("competing photo decisions have one winner and a slow image fetch rechecks 
   assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
   assert.equal(results.find((r) => r.status === "rejected").reason.status, 409);
   const g = await fixture(); await g.upload(); await g.assignPhoto();
-  g.storage.get = async () => { g.state.manualIdentityReviewer[0].enabled = false; return Buffer.from("private"); };
+  g.storage.get = async () => { g.state.managementStaff[0].capabilities = []; return Buffer.from("private"); };
   await assert.rejects(g.reviews.image(g.reviewerId, g.sessionId, g.pending().id, "candidate"), { status: 403 });
 });
 
 test("photo HTTP routes enforce trusted Origin, session, live MFA and private assigned-image access", async () => {
   const f = await fixture(); await f.upload(); const row = f.pending(); const app = express(); app.use(express.json());
-  app.use("/api/v1", createProfilePhotoReviewRoutes({ reviews: f.reviews, sessions: { async authenticate(token) {
+  app.use("/api/v1", createProfilePhotoReviewRoutes({ authentication: managementHttpFixture(f), reviews: f.reviews, sessions: { async authenticate(token) {
     if (!["owner", "reviewer", "password-only"].includes(token)) throw Object.assign(Error("Login required"), { status: 401 });
     return { account: { id: token === "owner" ? f.ownerId : f.reviewerId }, sessionId: f.sessionId, mfaVerified: token === "reviewer" };
   } }, clientUrl: "http://localhost:5173", nodeEnv: "test", limiter: (req, res, next) => next() }));
   app.use((e, req, res, next) => { void next; res.status(e.status ?? 500).json({ success: false, message: e.message }); });
   const server = app.listen(0, "127.0.0.1"); await new Promise((resolve) => server.once("listening", resolve));
   const base = `http://127.0.0.1:${server.address().port}/api/v1/admin/profile-photos`;
-  const headers = { Cookie: "brightway_session=reviewer", "Content-Type": "application/json", Origin: "http://localhost:5173" };
+  const headers = { Cookie: "brightway-management=reviewer", "Content-Type": "application/json", Origin: "http://localhost:5173" };
   try {
     assert.equal((await fetch(base)).status, 401);
-    assert.equal((await fetch(base, { headers: { Cookie: "brightway_session=password-only" } })).status, 403);
+    assert.equal((await fetch(base, { headers: { Cookie: "brightway_session=password-only" } })).status, 401);
     const queue = await fetch(base, { headers }); assert.equal(queue.status, 200); assert.equal(queue.headers.get("cache-control"), "no-store");
     assert.equal((await fetch(`${base}/${row.id}/images/candidate`, { headers })).status, 403);
     assert.equal((await fetch(`${base}/${row.id}/assign`, { method: "POST", headers: { ...headers, Origin: "https://foreign.invalid" }, body: JSON.stringify({ expectedVersion: row.version }) })).status, 403);

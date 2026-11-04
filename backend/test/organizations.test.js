@@ -1,3 +1,4 @@
+import { managementHttpFixture } from "../test-support/management-http-fixture.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -40,19 +41,19 @@ test("dedicated roles, assignment and current MFA protect every organization ope
   await assert.rejects(f.service.queue(other.id, other.sessionId), { status: 403 });
   await assert.rejects(f.service.detail(agent.id, agent.sessionId, r.id), { status: 403 });
   await assert.rejects(f.service.assign(agent.id, agent.sessionId, r.id, { expectedVersion: 1, agentUsername: agent.username }), { status: 403 });
-  await assert.rejects(f.service.assign(approver.id, approver.sessionId, r.id, { expectedVersion: 1, agentUsername: owner.username }), { status: 403 });
-  f.state.session.find(s => s.id === approver.sessionId).mfaVersion = 0;
+  await assert.rejects(f.service.assign(approver.id, approver.sessionId, r.id, { expectedVersion: 1, agentUsername: owner.username }), { status: 400 });
+  f.state.managementSession.find(s => s.id === approver.sessionId).staffVersion = 0;
   await assert.rejects(f.assign(r), { status: 403 });
-  f.state.session.find(s => s.id === approver.sessionId).mfaVersion = 1;
+  f.state.managementSession.find(s => s.id === approver.sessionId).staffVersion = 1;
   const assigned = await f.assign(r); assert.equal((await f.service.queue(agent.id, agent.sessionId)).requests.length, 1);
-  f.state.organizationOperator.find(x => x.accountId === agent.id).agentEnabled = false;
+  f.state.managementStaff.find(x => x.id === agent.id).capabilities = [];
   await assert.rejects(f.report(assigned), { status: 403 });
 });
 test("separate final approver and complete positive findings are required; overdue never approves", async () => {
   const f = organizationFixture(), r = await f.assign(await f.submit());
   await assert.rejects(f.service.report(f.actors.agent.id, f.actors.agent.sessionId, r.id, { ...f.finding(), existenceConfirmed: false }), { status: 400 });
   const recommended = await f.report(r);
-  f.state.organizationOperator.find(x => x.accountId === f.actors.agent.id).approverEnabled = true;
+  f.state.managementStaff.find(x => x.id === f.actors.agent.id).capabilities.push("organization-approver");
   await assert.rejects(f.service.decide(f.actors.agent.id, f.actors.agent.sessionId, r.id, { expectedVersion: recommended.version, decision: "APPROVE", reason: "Cannot approve my own investigation." }), { status: 403 });
   f.advance(73 * 3600000); const own = await f.service.owner(f.actors.owner.id, f.actors.owner.sessionId, r.id);
   assert.equal(own.overdue, true); assert.equal(own.status, "RECOMMENDED"); assert.equal(f.state.organization.length, 0);
@@ -74,8 +75,8 @@ test("audit failure rolls organization, location, membership and request decisio
 test("revocation and MFA changes inside the transaction prevent successful decisions", async () => {
   for (const kind of ["role", "mfa", "agent"]) {
     const f = organizationFixture(), r = await f.report(await f.assign(await f.submit()));
-    f.onAudit(data => { if (data.action !== "APPROVED") return; if (kind === "mfa") f.state.mfaFactor.find(x => x.accountId === f.actors.approver.id).version++;
-      else f.state.organizationOperator.find(x => x.accountId === f.actors[kind === "agent" ? "agent" : "approver"].id)[kind === "agent" ? "agentEnabled" : "approverEnabled"] = false; });
+    f.onAudit(data => { if (data.action !== "APPROVED") return; if (kind === "mfa") f.state.managementStaff.find(x => x.id === f.actors.approver.id).version++;
+      else f.state.managementStaff.find(x => x.id === f.actors[kind === "agent" ? "agent" : "approver"].id).capabilities = []; });
     await assert.rejects(f.decide(r), { status: 403 }); assert.equal(f.state.organization.length, 0); assert.equal(f.state.organizationRequest[0].status, "RECOMMENDED");
   }
 });
@@ -93,7 +94,7 @@ test("reassignment and stale findings cannot overwrite the winning request versi
 });
 test("HTTP organization routes enforce session, MFA, trusted Origin and private responses", async () => {
   const f = organizationFixture(), app = express(); app.use(express.json());
-  app.use("/api/v1", createOrganizationRoutes({ organizations: f.service, clientUrl: "https://brightway.test", nodeEnv: "test", limiter: (req, res, next) => next(), sessions: { async authenticate(token) { const actor = f.actors[token]; if (!actor) throw Object.assign(Error("Sign in"), { status: 401 }); return { account: { id: actor.id }, sessionId: actor.sessionId, mfaVerified: ["agent", "approver"].includes(token) }; } } }));
+  app.use("/api/v1", createOrganizationRoutes({ authentication: managementHttpFixture(f), organizations: f.service, clientUrl: "https://brightway.test", nodeEnv: "test", limiter: (req, res, next) => next(), sessions: { async authenticate(token) { const actor = f.actors[token]; if (!actor) throw Object.assign(Error("Sign in"), { status: 401 }); return { account: { id: actor.id }, sessionId: actor.sessionId, mfaVerified: ["agent", "approver"].includes(token) }; } } }));
   app.use((e, req, res, next) => { void next; res.status(e.status ?? 500).json({ success: false, message: e.message }); });
   const server = app.listen(0, "127.0.0.1"); await new Promise(resolve => server.once("listening", resolve)); const url = `http://127.0.0.1:${server.address().port}/api/v1`;
   try {
@@ -102,7 +103,7 @@ test("HTTP organization routes enforce session, MFA, trusted Origin and private 
     assert.equal((await send("/organization-requests", "POST", f.input(), "owner")).status, 403);
     assert.equal((await send("/organization-requests", "POST", f.input(), "owner", "https://foreign.test")).status, 403);
     const ok = await send("/organization-requests", "POST", f.input(), "owner", "https://brightway.test"); assert.equal(ok.status, 200); assert.equal(ok.headers.get("cache-control"), "no-store");
-    assert.equal((await send("/admin/organizations", "GET", null, "owner")).status, 403);
+    assert.equal((await send("/admin/organizations", "GET", null, "owner")).status, 401);
     assert.equal((await send(`/organizations/${randomUUID()}`)).status, 404);
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 });
@@ -115,16 +116,16 @@ test("public presence requires its request approval as well as active organizati
 });
 
 function replacementAgent(f) {
-  const a = f.actors.other;
-  f.state.mfaFactor.push({ accountId: a.id, enabled: true, version: 1 });
-  Object.assign(f.state.session.find(s => s.id === a.sessionId), { mfaVerifiedAt: f.now(), mfaVersion: 1 });
-  f.state.organizationOperator.push({ accountId: a.id, agentEnabled: true, approverEnabled: false });
+  const id = `mg_${randomUUID()}`, sessionId = randomUUID(), a = { id, sessionId, username: "replacement_management" };
+  f.state.managementStaff.push({ ...f.state.managementStaff[0], id, username: a.username, email: "replacement@management.example.invalid", capabilities: ["organization-agent"], isSuperAdmin: false });
+  f.state.managementSession.push({ id: sessionId, staffId: id, staffVersion: 1, mfaVerifiedAt: f.now(), expiresAt: new Date(+f.now() + 86400000) });
   return a;
 }
+
 test("permanently revoked investigating Agent can be replaced without losing findings or restarting the target", async () => {
   const f = organizationFixture(), next = replacementAgent(f), recommended = await f.report(await f.assign(await f.submit()));
   const original = structuredClone(f.state.organizationFinding[0]), targetAt = +f.state.organizationRequest[0].targetAt;
-  f.state.organizationOperator.find(r => r.accountId === f.actors.agent.id).agentEnabled = false;
+  f.state.managementStaff.find(r => r.id === f.actors.agent.id).capabilities = [];
   const approver = f.actors.approver, old = await f.service.detail(approver.id, approver.sessionId, recommended.id);
   assert.equal(old.requiresReassignment, true); assert.equal(old.canDecide, false); assert.equal(old.canAssign, true);
   await assert.rejects(f.decide(recommended), { status: 409 });
@@ -145,7 +146,7 @@ test("past investigators cannot become the final approver after another Agent su
   const f = organizationFixture(), next = replacementAgent(f), r = await f.report(await f.assign(await f.submit()));
   const a = await f.service.assign(f.actors.approver.id, f.actors.approver.sessionId, r.id, { expectedVersion: r.version, agentUsername: next.username });
   const fresh = await f.service.report(next.id, next.sessionId, a.id, { ...f.finding(), expectedVersion: a.version });
-  f.state.organizationOperator.find(x => x.accountId === f.actors.agent.id).approverEnabled = true;
+  f.state.managementStaff.find(x => x.id === f.actors.agent.id).capabilities.push("organization-approver");
   assert.equal((await f.service.detail(f.actors.agent.id, f.actors.agent.sessionId, fresh.id)).canDecide, false);
   await assert.rejects(f.service.decide(f.actors.agent.id, f.actors.agent.sessionId, fresh.id, { expectedVersion: fresh.version, decision: "APPROVE", reason: "An earlier investigator cannot make the final decision." }), { status: 403 });
   assert.equal((await f.decide(fresh)).status, "APPROVED");
@@ -155,7 +156,7 @@ test("reassignment audit failure and mid-transaction permission/MFA withdrawal r
     const f = organizationFixture(), next = replacementAgent(f), r = await f.report(await f.assign(await f.submit()));
     const snapshot = structuredClone(f.state.organizationFinding[0]);
     if (mode === "audit") f.failAudit();
-    else f.onAudit(a => { if (a.action === "REASSIGNED") { if (mode === "mfa") f.state.mfaFactor.find(x => x.accountId === f.actors.approver.id).version++; else f.state.organizationOperator.find(x => x.accountId === f.actors.approver.id).approverEnabled = false; } });
+    else f.onAudit(a => { if (a.action === "REASSIGNED") { if (mode === "mfa") f.state.managementStaff.find(x => x.id === f.actors.approver.id).version++; else f.state.managementStaff.find(x => x.id === f.actors.approver.id).capabilities = []; } });
     await assert.rejects(f.service.assign(f.actors.approver.id, f.actors.approver.sessionId, r.id, { expectedVersion: r.version, agentUsername: next.username }), mode === "audit" ? /Audit failed/ : { status: 403 });
     assert.equal(f.state.organizationRequest[0].status, "RECOMMENDED"); assert.equal(f.state.organizationRequest[0].version, r.version);
     assert.deepEqual(f.state.organizationFinding[0], snapshot); assert.equal(f.state.organizationFindingArchive.length, 0);
@@ -164,13 +165,22 @@ test("reassignment audit failure and mid-transaction permission/MFA withdrawal r
 test("concurrent reassignment has one winner and cannot target the applicant, revoked or same investigating Agent", async () => {
   const f = organizationFixture(), next = replacementAgent(f), r = await f.report(await f.assign(await f.submit())), a = f.actors.approver;
   await assert.rejects(f.assign(r), { status: 400 });
-  await assert.rejects(f.service.assign(a.id, a.sessionId, r.id, { expectedVersion: r.version, agentUsername: f.actors.owner.username }), { status: 403 });
-  f.state.organizationOperator.find(x => x.accountId === next.id).agentEnabled = false;
+  await assert.rejects(f.service.assign(a.id, a.sessionId, r.id, { expectedVersion: r.version, agentUsername: f.actors.owner.username }), { status: 400 });
+  f.state.managementStaff.find(x => x.id === next.id).capabilities = [];
   await assert.rejects(f.service.assign(a.id, a.sessionId, r.id, { expectedVersion: r.version, agentUsername: next.username }), { status: 400 });
-  f.state.organizationOperator.find(x => x.accountId === next.id).agentEnabled = true;
+  f.state.managementStaff.find(x => x.id === next.id).capabilities = ["organization-agent"];
   const body = { expectedVersion: r.version, agentUsername: next.username };
   const results = await Promise.allSettled([f.service.assign(a.id, a.sessionId, r.id, body), f.service.assign(a.id, a.sessionId, r.id, body)]);
   assert.equal(results.filter(x => x.status === "fulfilled").length, 1); assert.equal(results.find(x => x.status === "rejected").reason.status, 409);
   assert.equal(f.state.organizationFindingArchive.length, 1); assert.equal(f.state.organizationRequestAudit.filter(a => a.action === "REASSIGNED").length, 1);
   await assert.rejects(f.service.report(next.id, next.sessionId, r.id, { ...f.finding(), expectedVersion: r.version }), { status: 409 });
+});
+
+test("separate management credentials cannot bypass Agent/Approver separation when both declare the same personal identity", async () => {
+  const f = organizationFixture(), request = await f.report(await f.assign(await f.submit()));
+  const shared = f.personalActors.other.id;
+  for (const staff of [f.actors.agent, f.actors.approver]) f.state.managementConflict.push({ staffId: staff.id, accountId: shared });
+  const detail = await f.service.detail(f.actors.approver.id, f.actors.approver.sessionId, request.id);
+  assert.equal(detail.canDecide, false);
+  await assert.rejects(f.decide(request), { status: 403 }); assert.equal(f.state.organization.length, 0);
 });

@@ -1,3 +1,4 @@
+import { managementStaffFixture, managementSessionFixture, cleanupManagementFixtures } from "../test-support/management-database-fixture.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -20,10 +21,11 @@ test("database verified photo reviews serialize decisions, retain the approved p
   const photos = createPhotoService({ prisma: db, storage, now, process: async () => ({ bytes: Buffer.from("photo fixture"), width: 256, height: 256 }) });
   const reviews = createProfilePhotoReviewService({ prisma: db, storage, now });
   try {
-    for (const label of ["owner", "reviewer"]) accounts.push(await db.account.create({ data: {
+    for (const label of ["owner"]) accounts.push(await db.account.create({ data: {
       username: `${label}_${marker.replaceAll("-", "")}`, email: `${label}_${marker}@example.invalid`, emailVerifiedAt: date, passwordHash: "fixture-only-not-a-login-hash",
       person: { create: { firstName: "Photo", lastName: label, birthDate: new Date("2000-01-01"), gender: "MALE", phoneNumber: "+231770000000" } },
     } }));
+    accounts.push(await managementStaffFixture(db, { username: `reviewer_${marker.replaceAll("-", "").slice(0, 12)}`, email: `reviewer_${marker}@example.invalid` }, ["identity-reviewer"], date));
     const [owner, reviewer] = accounts;
     const old = await db.photoAsset.create({ data: { personId: owner.personId, storageKey: `photo-review-fixture/${marker}`, state: "CLAIMED", expiresAt: new Date(+date + 86400000) } });
     objects.set(old.storageKey, Buffer.from("old portrait"));
@@ -35,9 +37,7 @@ test("database verified photo reviews serialize decisions, retain the approved p
     const images = [];
     for (const kind of ["GOVERNMENT_ID", "SELFIE"]) images.push(await evidence.upload(owner.id, kind, Buffer.from("input"), "image/png", MANUAL_IDENTITY_CONSENT));
     const identity = await identities.submit(owner.id, { expectedVersion: 0, expectedProfileVersion: 1, idempotencyKey: randomUUID(), governmentId: images[0].id, selfie: images[1].id, consentVersion: MANUAL_REVIEW_CONSENT });
-    await db.manualIdentityReviewer.create({ data: { accountId: reviewer.id, enabled: true } });
-    await db.mfaFactor.create({ data: { accountId: reviewer.id, encryptedSecret: "fixture-only", enabled: true, version: 1, windowStart: date } });
-    const session = await db.session.create({ data: { accountId: reviewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000), mfaVersion: 1, mfaVerifiedAt: date } });
+    const session = await managementSessionFixture(db, reviewer, date, new Date(+date + 100 * 86400000));
     await identities.transition(reviewer.id, session.id, identity.requestId, { expectedVersion: 1 }, true);
     // Pause after the uploader's initial account lookup. Approval commits before
     // it acquires the account lock, reproducing the stale-gate race on real SQL.
@@ -117,9 +117,9 @@ test("database verified photo reviews serialize decisions, retain the approved p
     assert.equal(failedRow.state, "IN_REVIEW"); assert.equal(failedRow.approvedIdentityHash, null);
     assert.equal(await db.profilePhotoReviewAudit.count({ where: { reviewId: secondId, action: "DECIDED" } }), 0);
     assert.equal((await identities.status(owner.id)).identityVerified, true);
-    await db.manualIdentityReviewer.update({ where: { accountId: reviewer.id }, data: { enabled: false } });
+    await db.managementStaff.update({ where: { id: reviewer.id }, data: { capabilities: [] } });
     await assert.rejects(reviews.decide(reviewer.id, session.id, secondId, { expectedVersion: next.version, expectedProfileVersion: next.profileVersion, decision: "APPROVED", note: "This revoked reviewer must not publish a replacement." }), { status: 403 });
-    await db.manualIdentityReviewer.update({ where: { accountId: reviewer.id }, data: { enabled: true } });
+    await db.managementStaff.update({ where: { id: reviewer.id }, data: { capabilities: ["identity-reviewer"] } });
     await reviews.decide(reviewer.id, session.id, secondId, { expectedVersion: next.version, expectedProfileVersion: next.profileVersion, decision: "DECLINED", note: "Fixture-only decline: replacement portrait is not suitable." });
     assert.equal((await db.profile.findUnique({ where: { id: profile.id } })).photoId, replacement.uploadedPhotoAssetId);
     assert.equal((await identities.status(owner.id)).identityVerified, true);
@@ -130,7 +130,7 @@ test("database verified photo reviews serialize decisions, retain the approved p
     await db.person.update({ where: { id: owner.personId }, data: { firstName: "Photo" } });
     assert.equal((await identities.status(owner.id)).identityVerified, false);
   } finally {
-    const ids = accounts.map((a) => a.id), people = accounts.map((a) => a.personId);
+    const ids = accounts.map((a) => a.id), people = accounts.map((a) => a.personId).filter(Boolean);
     try {
       await db.profilePhotoReviewAudit.deleteMany({ where: { review: { accountId: { in: ids } } } });
       await db.profile.updateMany({ where: { personId: { in: people } }, data: { latestPhotoReviewId: null } });
@@ -139,6 +139,7 @@ test("database verified photo reviews serialize decisions, retain the approved p
       await db.manualIdentityEvidence.deleteMany({ where: { accountId: { in: ids } } });
       await db.manualIdentityAttempt.deleteMany({ where: { request: { accountId: { in: ids } } } });
       await db.manualIdentityRequest.deleteMany({ where: { accountId: { in: ids } } });
+      await cleanupManagementFixtures(db, ids);
       await db.manualIdentityReviewer.deleteMany({ where: { accountId: { in: ids } } });
       await db.manualIdentityUploadBudget.deleteMany({ where: { accountId: { in: ids } } });
       await db.session.deleteMany({ where: { accountId: { in: ids } } });

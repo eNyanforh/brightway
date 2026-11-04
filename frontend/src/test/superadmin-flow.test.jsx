@@ -7,13 +7,14 @@ import AuthProvider from "../auth/AuthProvider";
 import AppRoutes from "../routes/AppRoutes";
 import { authDestination } from "../auth/auth-destination";
 import { theme } from "../styles/theme";
-const account = { id: "staff", username: "founder", person: { firstName: "Named", lastName: "Administrator" } };
-const management = { allowed: true, accountId: account.id, username: account.username, fullName: "Named Administrator", role: { label: "Super Admin", isSuperAdmin: true, version: 1, grantedAt: "2026-10-30T12:00:00Z" }, tools: [{ key: "identity", label: "Identity reviews", allowed: true, to: "/admin/manual-identity" }, { key: "credentials", label: "Credential reviews", allowed: false, to: "/admin/credentials" }], audits: [] };
+const account = { id: "mg_11111111-1111-4111-8111-111111111111", realm: "management", username: "founder", person: { firstName: "Named", lastName: "Administrator" } };
+const management = { allowed: true, staffId: account.id, username: account.username, fullName: "Named Administrator", role: { label: "Super Admin", isSuperAdmin: true, version: 1, grantedAt: "2026-10-30T12:00:00Z" }, tools: [{ key: "identity", label: "Identity reviews", allowed: true, to: "/admin/manual-identity" }, { key: "credentials", label: "Credential reviews", allowed: false, to: "/admin/credentials" }], audits: [] };
 const reply = (data, status = 200) => new Response(JSON.stringify({ success: status < 400, ...(status < 400 ? { data } : { message: data }) }), { status, headers: { "Content-Type": "application/json" } });
 function Path() { return <output aria-label="Current path">{useLocation().pathname}</output>; }
 function mount(path, handler, authenticated = false) {
   const fetch = vi.fn(async (url, options) => {
-    if (url.endsWith("/auth/me")) return authenticated ? reply({ account }) : reply("Sign in required", 401);
+    if (url === "/api/v1/management/auth/me") return authenticated ? reply({ staff: account }) : reply("Sign in required", 401);
+    if (url === "/api/v1/auth/me") return reply("Personal session absent", 401);
     if (url.endsWith("/profile/me")) return reply({ profile: { version: 0, photo: null, location: {}, skills: [], interests: [] } });
     if (url.endsWith("/work/access")) return reply({ hasWork: false });
     return handler(url, options);
@@ -22,7 +23,7 @@ function mount(path, handler, authenticated = false) {
   return { user: userEvent.setup(), fetch };
 }
 async function passwordStep(user) {
-  await user.type(await screen.findByLabelText("Username or email"), " FOUNDER "); await user.type(screen.getByLabelText("Password"), " password with spaces ");
+  await user.type(await screen.findByLabelText("Management username or email"), " FOUNDER "); await user.type(screen.getByLabelText("Management password"), " password with spaces ");
   await user.click(screen.getByRole("button", { name: "Continue securely" }));
 }
 it("direct superadmin access leads to the dedicated dark login without public administrator signup", async () => {
@@ -31,20 +32,20 @@ it("direct superadmin access leads to the dedicated dark login without public ad
   expect(screen.queryByRole("link", { name: "Create an account" })).toBeNull(); expect(screen.queryByRole("navigation", { name: "Footer navigation" })).toBeNull();
 });
 it("management sign-in requires the second step and returns to superadmin with only the MFA code", async () => {
-  const f = mount("/superadmin", url => reply(url.endsWith("/auth/login") ? { mfaRequired: true } : url.endsWith("/verify-login") ? { account } : management));
-  await passwordStep(f.user); await screen.findByLabelText("Authenticator or backup code"); expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/management"))).toBe(false);
-  await f.user.type(screen.getByLabelText("Authenticator or backup code"), "123456"); await f.user.click(screen.getByRole("button", { name: "Verify and log in" }));
+  const f = mount("/superadmin", url => reply(url.endsWith("/auth/login") ? { step: "mfa" } : url.endsWith("/auth/verify") ? { staff: account } : management));
+  await passwordStep(f.user); await screen.findByLabelText("Management authenticator or backup code"); expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/management"))).toBe(false);
+  await f.user.type(screen.getByLabelText("Management authenticator or backup code"), "123456"); await f.user.click(screen.getByRole("button", { name: "Verify management access" }));
   await screen.findByRole("heading", { name: "Welcome, Named Administrator" }); expect(screen.getByLabelText("Current path").textContent).toBe("/superadmin");
   expect(document.querySelector(".bw-management-shell")).toBeTruthy();
-  const first = f.fetch.mock.calls.find(([url]) => url.endsWith("/auth/login")); expect(JSON.parse(first[1].body)).toEqual({ identifier: "founder", password: " password with spaces " });
-  const second = f.fetch.mock.calls.find(([url]) => url.endsWith("/verify-login")); expect(JSON.parse(second[1].body)).toEqual({ code: "123456" }); expect(second[1].credentials).toBe("include");
+  const first = f.fetch.mock.calls.find(([url]) => url.endsWith("/auth/login")); expect(JSON.parse(first[1].body)).toEqual({ identifier: " FOUNDER ", password: " password with spaces " });
+  const second = f.fetch.mock.calls.find(([url]) => url.endsWith("/auth/verify")); expect(JSON.parse(second[1].body)).toEqual({ code: "123456" }); expect(second[1].credentials).toBe("include");
 });
 it("a wrong management MFA code retains the code without opening the workspace", async () => {
-  const f = mount("/superadmin/login", url => url.endsWith("/auth/login") ? reply({ mfaRequired: true }) : reply("Invalid second factor", 401));
-  await passwordStep(f.user); await f.user.type(await screen.findByLabelText("Authenticator or backup code"), "123456"); await f.user.click(screen.getByRole("button", { name: "Verify and log in" }));
-  expect((await screen.findByRole("alert")).textContent).toContain("Invalid second factor"); expect(screen.getByLabelText("Authenticator or backup code").value).toBe("123456"); expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/management"))).toBe(false);
+  const f = mount("/superadmin/login", url => url.endsWith("/auth/login") ? reply({ step: "mfa" }) : reply("Invalid second factor", 401));
+  await passwordStep(f.user); await f.user.type(await screen.findByLabelText("Management authenticator or backup code"), "123456"); await f.user.click(screen.getByRole("button", { name: "Verify management access" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("Invalid second factor"); expect(screen.getByLabelText("Management authenticator or backup code").value).toBe("123456"); expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/management"))).toBe(false);
 });
-it("ordinary signed-in users see denied access and cannot open operational routes", async () => {
+it("management sessions without assigned capability cannot open operational routes", async () => {
   const f = mount("/superadmin/credentials", () => reply("Management permission required", 403), true);
   expect((await screen.findByRole("alert")).textContent).toContain("Management permission required"); expect(screen.queryByRole("heading", { name: "Credential Review" })).toBeNull(); expect(f.fetch.mock.calls.some(([url]) => url.includes("/credentials/reviews"))).toBe(false);
 });
@@ -54,7 +55,7 @@ it("legacy management links lead through management login to the canonical route
 it("signed-in staff can continue from management login and sign out back to its login", async () => {
   const f = mount("/superadmin/login", url => reply(url.endsWith("/logout") ? {} : management), true);
   await f.user.click(await screen.findByRole("button", { name: "Continue to Management" })); await screen.findByRole("heading", { name: "Welcome, Named Administrator" });
-  await f.user.click(screen.getByRole("button", { name: "Open account menu" })); await f.user.click(screen.getByRole("button", { name: "Log out" }));
+  await f.user.click(screen.getByRole("button", { name: "Sign out of Management" }));
   await screen.findByRole("heading", { name: "Management sign-in" }); expect(screen.getByLabelText("Current path").textContent).toBe("/superadmin/login");
 });
 it("an unassigned operational deep link stays gated before its component can fetch private data", async () => {
@@ -71,4 +72,33 @@ it("assigned operations retain the management shell and disappear after manageme
 it("login return destinations reject external and arbitrary paths", () => {
   expect(authDestination("/management")).toBe("/superadmin"); expect(authDestination("/superadmin/identity")).toBe("/superadmin"); expect(authDestination("/superadmin")).toBe("/superadmin");
   for (const path of ["//evil.invalid", "https://evil.invalid", "/superadministrator", "/unknown", undefined]) expect(authDestination(path)).toBe("/explore");
+});
+
+it("first management enrollment verifies its email and independent authenticator before showing one-time backups", async () => {
+  const backups = ["abcdef-123456-abcdef-123456"];
+  const f = mount("/superadmin/login", url => reply(url.endsWith("/auth/login") ? { step: "enroll", secret: "SYNTHETIC-MANAGEMENT-SETUP", accountLabel: "founder" } : url.endsWith("/auth/verify") ? { staff: account, backupCodes: backups } : management));
+  await passwordStep(f.user);
+  await screen.findByLabelText("Management authenticator secret");
+  await f.user.type(screen.getByLabelText("Management email verification code"), "654321");
+  await f.user.type(screen.getByLabelText("Management authenticator code"), "123456");
+  await f.user.click(screen.getByRole("button", { name: "Verify management access" }));
+  await screen.findByText(backups[0]); expect(screen.queryByLabelText("Management authenticator secret")).toBeNull();
+  expect(JSON.parse(f.fetch.mock.calls.find(([url]) => url.endsWith("/auth/verify"))[1].body)).toEqual({ code: "123456", emailCode: "654321" });
+  await f.user.click(screen.getByRole("button", { name: "I saved my backup codes" })); await screen.findByRole("heading", { name: "Welcome, Named Administrator" });
+  expect(f.fetch.mock.calls.some(([url]) => url.startsWith("/api/v1/auth/") || url.endsWith("/profile/me") || url.endsWith("/work/access"))).toBe(false);
+});
+it("management recovery submits email proof and existing MFA to its own realm without personal recovery", async () => {
+  const f = mount("/superadmin/login", url => reply(url.endsWith("/recovery/reset") ? { reset: true } : { accepted: true }));
+  await f.user.click(await screen.findByRole("button", { name: "Forgot management password?" }));
+  await f.user.type(screen.getByLabelText("Management email"), "founder@management.example.invalid");
+  await f.user.click(screen.getByRole("button", { name: "Request management recovery" }));
+  await f.user.type(await screen.findByLabelText("New management password"), "new management passphrase");
+  await f.user.type(screen.getByLabelText("Confirm new management password"), "new management passphrase");
+  await f.user.type(screen.getByLabelText("Management email verification code"), "654321");
+  await f.user.type(screen.getByLabelText("Management authenticator or backup code"), "123456");
+  await f.user.click(screen.getByRole("button", { name: "Reset management password" }));
+  expect((await screen.findByLabelText("Management password")).value).toBe("");
+  const request = f.fetch.mock.calls.find(([url]) => url.endsWith("/recovery/reset"));
+  expect(JSON.parse(request[1].body)).toEqual({ password: "new management passphrase", code: "123456", emailCode: "654321" });
+  expect(f.fetch.mock.calls.every(([url]) => url.startsWith("/api/v1/management/"))).toBe(true);
 });

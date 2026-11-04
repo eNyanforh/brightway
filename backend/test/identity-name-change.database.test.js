@@ -1,3 +1,4 @@
+import { managementStaffFixture, managementSessionFixture, cleanupManagementFixtures } from "../test-support/management-database-fixture.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -21,10 +22,11 @@ test("database name corrections serialize proof claims/decisions, roll back fail
   const uploads = createManualIdentityEvidenceService({ prisma: db, storage, now, processImage: async () => ({ bytes: Buffer.from("synthetic identity image"), width: 640, height: 480 }) });
   const changes = createIdentityNameChangeService({ prisma: db, storage, photoStorage: storage, now, policy });
   try {
-    for (const label of ["owner", "reviewer"]) accounts.push(await db.account.create({ data: {
+    for (const label of ["owner"]) accounts.push(await db.account.create({ data: {
       username: `${label}_${marker.replaceAll("-", "")}`, email: `${label}_${marker}@example.invalid`, passwordHash: hash, emailVerifiedAt: date,
       person: { create: { firstName: "Sample", lastName: label, birthDate: new Date("2000-01-01"), gender: "MALE", phoneNumber: "+231770000000" } },
     } }));
+    accounts.push(await managementStaffFixture(db, { username: `reviewer_${marker.replaceAll("-", "").slice(0, 12)}`, email: `reviewer_${marker}@example.invalid` }, ["identity-reviewer"], date));
     const [owner, reviewer] = accounts;
     const photo = await db.photoAsset.create({ data: { personId: owner.personId, storageKey: `name-fixture/${marker}`, state: "CLAIMED", expiresAt: new Date(+date + 86400000) } });
     objects.set(photo.storageKey, Buffer.from("synthetic portrait"));
@@ -39,9 +41,7 @@ test("database name corrections serialize proof claims/decisions, roll back fail
     };
     const initial = await freshImages();
     const identity = await identities.submit(owner.id, { expectedVersion: 0, expectedProfileVersion: 1, idempotencyKey: randomUUID(), governmentId: initial[0].id, selfie: initial[1].id, consentVersion: MANUAL_REVIEW_CONSENT });
-    await db.manualIdentityReviewer.create({ data: { accountId: reviewer.id, enabled: true } });
-    await db.mfaFactor.create({ data: { accountId: reviewer.id, encryptedSecret: "fixture-only", enabled: true, version: 1, windowStart: date } });
-    const session = await db.session.create({ data: { accountId: reviewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 100 * 86400000), mfaVersion: 1, mfaVerifiedAt: date } });
+    const session = await managementSessionFixture(db, reviewer, date, new Date(+date + 100 * 86400000));
     const ownerSession = await db.session.create({ data: { accountId: owner.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 100 * 86400000) } });
     await identities.transition(reviewer.id, session.id, identity.requestId, { expectedVersion: 1 }, true);
     await identities.transition(reviewer.id, session.id, identity.requestId, { expectedVersion: 2, attemptId: identity.attemptId, status: "APPROVED", note: "Synthetic original identity evidence was reviewed." });
@@ -93,7 +93,7 @@ test("database name corrections serialize proof claims/decisions, roll back fail
     await photoReviews.decide(reviewer.id, session.id, replacement.photoReview.pending.id, { expectedVersion: 2, expectedProfileVersion: 3, decision: "APPROVED", note: "Synthetic corrected-name portrait review completed." });
     assert.equal((await identities.status(owner.id)).identityVerified, true);
     // Revoke an assigned reviewer's access to the correction's retained evidence.
-    await db.manualIdentityReviewer.update({ where: { accountId: reviewer.id }, data: { enabled: false } });
+    await db.managementStaff.update({ where: { id: reviewer.id }, data: { capabilities: [] } });
     await assert.rejects(changes.image(reviewer.id, session.id, id, evidence[0].id), { status: 403 });
     date = new Date(+date + 31 * 86400000); assert.deepEqual(await changes.cleanup(), { purged: 1 });
     const purged = await db.identityNameChange.findUnique({ where: { id } });
@@ -104,7 +104,7 @@ test("database name corrections serialize proof claims/decisions, roll back fail
     await db.person.update({ where: { id: owner.personId }, data: { firstName: "Corrected" } });
     assert.equal((await identities.status(owner.id)).identityVerified, false);
   } finally {
-    const ids = accounts.map(a => a.id), people = accounts.map(a => a.personId);
+    const ids = accounts.map(a => a.id), people = accounts.map(a => a.personId).filter(Boolean);
     try {
       await db.account.updateMany({ where: { id: { in: ids } }, data: { latestNameChangeId: null } });
       await db.identityNameChangeAudit.deleteMany({ where: { request: { accountId: { in: ids } } } });
@@ -116,6 +116,7 @@ test("database name corrections serialize proof claims/decisions, roll back fail
       await db.manualIdentityAudit.deleteMany({ where: { targetAccountId: { in: ids } } });
       await db.manualIdentityAttempt.deleteMany({ where: { request: { accountId: { in: ids } } } });
       await db.manualIdentityRequest.deleteMany({ where: { accountId: { in: ids } } });
+      await cleanupManagementFixtures(db, ids);
       await db.manualIdentityReviewer.deleteMany({ where: { accountId: { in: ids } } });
       await db.manualIdentityUploadBudget.deleteMany({ where: { accountId: { in: ids } } });
       await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } });

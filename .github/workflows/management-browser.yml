@@ -1,0 +1,34 @@
+name: Management browser acceptance
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: management-browser-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: npm ci
+      - name: Install pinned Chromium and system dependencies
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Desktop and mobile synthetic management journeys
+        run: npm run test:browser --workspace frontend
+      - name: Upload browser report and failure traces
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: management-browser-${{ github.sha }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7

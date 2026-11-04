@@ -1,9 +1,11 @@
+import { cleanupManagementAuthentication } from "../modules/management/management-cleanup.js";
 import { createManualIdentityReviewService } from "../modules/manual-identity/manual-identity-review.service.js";
 import { createIdentityNameChangeService } from "../modules/manual-identity/identity-name-change.service.js";
 import { createManualIdentityEvidenceService } from "../modules/manual-identity/manual-identity-evidence.service.js";
 
 export async function runIdentityCleanup({ prisma, storage, now }) {
   const config = { prisma, storage, ...(now ? { now } : {}) };
+  await cleanupManagementAuthentication(prisma, now ? now() : new Date());
   const reviews = await createManualIdentityReviewService(config).cleanup();
   const names = await createIdentityNameChangeService(config).cleanup();
   const files = await createManualIdentityEvidenceService(config).cleanup();

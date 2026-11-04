@@ -20,3 +20,13 @@
 .bw-management-shell .bw-management-terminal{padding:20px 23px;background:linear-gradient(105deg,#162e48,#101c2d);border:1px solid #345978;border-radius:10px;margin:0 0 30px}.bw-management-terminal>div{display:flex;align-items:center;gap:10px;color:#a3d1ff;font:9px ui-monospace,monospace;letter-spacing:.1em}.bw-management-terminal h2{font-size:18px;margin:15px 0 10px}.bw-management-terminal p{max-width:85ch;font-size:12px;line-height:1.85;color:#b8cbe3}.bw-management-terminal code{display:inline-block;padding:8px 11px;font:10px ui-monospace,monospace;background:#091523;border:1px solid #3a536e;color:#b8d5f8;border-radius:5px;max-width:100%;overflow-wrap:anywhere}
 
 .bw-management-shell .bw-design-brand,.bw-management-shell .bw-design-brand-wordmark{color:#edf4fc}.bw-management-shell .bw-design-brand-dot{color:#86bcff}.bw-management-shell .bw-design-utility{color:#a9bfda}.bw-management-shell [aria-label="Account menu"]{background:#121f30;border-color:#3a526f;color:#d4e4f8;box-shadow:0 14px 45px #0006}.bw-management-shell [aria-label="Account menu"] button{background:transparent;color:#c6dcf7}.bw-management-shell [aria-label="Account menu"] button:hover{background:#1d3655}.bw-management-shell [aria-label="Account menu"] strong{color:#eef5ff}.bw-management-shell [aria-label="Account menu"] span{color:#a9bdd6}
+
+.bw-management-independent-header { position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:16px 24px;background:#101c2d;color:#dceaff;border-bottom:1px solid #30425a; }
+.bw-management-independent-header a { margin-right:auto;color:#dceaff;font-weight:700;text-decoration:none; }
+.bw-management-independent-header button { background:#203047;border:1px solid #405875;color:#e6f0ff;border-radius:8px;padding:9px 12px; }
+.bw-management-shell .bw-management form { max-width:560px; }
+.bw-management-shell .bw-management label { display:grid;gap:8px;margin:16px 0; }
+.bw-superadmin-auth-card label { display:grid;gap:8px;margin:16px 0; }
+.bw-superadmin-auth-card input,.bw-management-shell .bw-management input { width:100%;box-sizing:border-box;background:#152439;color:#e6f0ff;border:1px solid #496481;border-radius:8px;padding:12px; }
+.bw-superadmin-auth-card code { overflow-wrap:anywhere; }
+@media(max-width:650px){.bw-management-independent-header{padding:12px;gap:8px;flex-wrap:wrap}.bw-management-independent-header span{font-size:12px}}

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
+import { ManagementContext } from "../auth/management-context";
 import { AuthContext } from "../auth/auth-context";
 import NameChangePage from "../pages/NameChangePage";
 import NameChangeReviewsPage from "../pages/NameChangeReviewsPage";
@@ -16,7 +17,7 @@ beforeEach(() => {
   vi.stubGlobal("URL", class extends OriginalURL { static createObjectURL = vi.fn(() => "blob:private-image"); static revokeObjectURL = vi.fn(); });
 });
 function renderPage(Page, actor, refresh = vi.fn()) {
-  return <MemoryRouter><AuthContext.Provider value={{ account: { id: actor }, refresh }}><Page /></AuthContext.Provider></MemoryRouter>;
+  return <MemoryRouter><AuthContext.Provider value={{ account: { id: actor }, refresh }}><ManagementContext.Provider value={{ staff: Page === NameChangeReviewsPage ? { id: actor } : null }}><Page /></ManagementContext.Provider></AuthContext.Provider></MemoryRouter>;
 }
 function mountOwner(handler, data = ownerData()) {
   const refresh = vi.fn(), fetchMock = vi.fn(async (url, options) => {

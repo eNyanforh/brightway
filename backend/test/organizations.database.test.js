@@ -1,3 +1,4 @@
+import { managementStaffFixture, managementSessionFixture, cleanupManagementFixtures } from "../test-support/management-database-fixture.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -12,14 +13,10 @@ test("database organization submission/decision races, separate roles and failed
   const service = createOrganizationService({ prisma: db });
   try {
     for (const label of ["owner", "agent", "admin", "next"]) {
-      const account = await db.account.create({ data: { username: `org_${label}_${marker.replaceAll("-", "").slice(0, 16)}`, email: `org_${label}_${marker}@example.invalid`, passwordHash: "synthetic-unusable-hash", emailVerifiedAt: now, person: { create: { firstName: "Synthetic", lastName: label } } } }); accounts.push(account);
-      const mfa = label !== "owner";
-      if (mfa) await db.mfaFactor.create({ data: { accountId: account.id, encryptedSecret: "synthetic-test-no-usable-key", enabled: true, version: 1, windowStart: now } });
-      sessions.push(await db.session.create({ data: { accountId: account.id, tokenHash: randomUUID(), expiresAt: new Date(+now + 86400000), mfaVersion: mfa ? 1 : 0, mfaVerifiedAt: mfa ? now : null } }));
+      const account = label === "owner" ? await db.account.create({ data: { username: `org_${label}_${marker.replaceAll("-", "").slice(0, 16)}`, email: `org_${label}_${marker}@example.invalid`, passwordHash: "synthetic-unusable-hash", emailVerifiedAt: now, person: { create: { firstName: "Synthetic", lastName: label } } } }) : await managementStaffFixture(db, { username: `internal_${label}_${marker.replaceAll("-", "").slice(0, 12)}`, email: `internal_${label}_${marker}@example.invalid` }, [label === "agent" || label === "next" ? "organization-agent" : "organization-approver"], now); accounts.push(account);
+      sessions.push(label === "owner" ? await db.session.create({ data: { accountId: account.id, tokenHash: randomUUID(), expiresAt: new Date(+now + 86400000) } }) : await managementSessionFixture(db, account, now));
     }
     const [owner, agent, admin, replacement] = accounts;
-    await db.organizationOperator.create({ data: { accountId: agent.id, agentEnabled: true } });
-    await db.organizationOperator.create({ data: { accountId: admin.id, approverEnabled: true } });
     const input = { name: `Synthetic global NGO ${marker}`, type: "NGO", representativeRole: "Director", countryCode: "GH", region: "", city: "Accra", address: "Synthetic fixture address", offersTraining: true, idempotencyKey: randomUUID() };
     // No verified individual/profile/credential state is created for this authenticated representative.
     const submitted = await Promise.all([service.submit(owner.id, sessions[0].id, input), service.submit(owner.id, sessions[0].id, input)]);
@@ -37,11 +34,11 @@ test("database organization submission/decision races, separate roles and failed
     assert.equal(await db.organizationFinding.count({ where: { requestId: r.id } }), 1);
     const recommended = reports.find(x => x.status === "fulfilled").value;
     const decision = { expectedVersion: recommended.version, decision: "APPROVE", reason: "Synthetic authorized final organization approval." };
-    await db.organizationOperator.update({ where: { accountId: agent.id }, data: { approverEnabled: true } });
+    await db.managementStaff.update({ where: { id: agent.id }, data: { capabilities: ["organization-agent", "organization-approver"] } });
     await assert.rejects(service.decide(agent.id, sessions[1].id, r.id, decision), { status: 403 });
-    await db.organizationOperator.update({ where: { accountId: agent.id }, data: { agentEnabled: false } });
+    await db.managementStaff.update({ where: { id: agent.id }, data: { capabilities: ["organization-approver"] } });
     await assert.rejects(service.decide(admin.id, sessions[2].id, r.id, decision), { status: 409 });
-    await db.organizationOperator.update({ where: { accountId: agent.id }, data: { agentEnabled: true } });
+    await db.managementStaff.update({ where: { id: agent.id }, data: { capabilities: ["organization-agent", "organization-approver"] } });
     function failDecisionAudit(client) {
       return new Proxy(client, { get(target, key) {
         if (key === "$transaction") return work => target.$transaction(tx => work(failDecisionAudit(tx)));
@@ -66,12 +63,11 @@ test("database organization submission/decision races, separate roles and failed
     await assert.rejects(service.publicOrganization(organizationId), { status: 404 });
     assert.equal((await db.account.findUnique({ where: { id: owner.id } })).platformRole, "MEMBER");
     // Permanently retire an investigator after recommendation; no permission restoration is needed.
-    await db.organizationOperator.create({ data: { accountId: replacement.id, agentEnabled: true } });
     const second = await service.submit(owner.id, sessions[0].id, { ...input, name: `Replacement flow ${marker}`, idempotencyKey: randomUUID() });
     const assignedSecond = await service.assign(admin.id, sessions[2].id, second.id, { expectedVersion: second.version, agentUsername: agent.username });
     const oldRecommendation = await service.report(agent.id, sessions[1].id, second.id, { ...finding, expectedVersion: assignedSecond.version });
     const oldFinding = await db.organizationFinding.findUnique({ where: { requestId: second.id } });
-    await db.organizationOperator.update({ where: { accountId: agent.id }, data: { agentEnabled: false } });
+    await db.managementStaff.update({ where: { id: agent.id }, data: { capabilities: ["organization-approver"] } });
     const blocked = await service.detail(admin.id, sessions[2].id, second.id); assert.equal(blocked.requiresReassignment, true); assert.equal(blocked.canDecide, false);
     await assert.rejects(service.decide(admin.id, sessions[2].id, second.id, { ...decision, expectedVersion: oldRecommendation.version }), { status: 409 });
     const replace = { expectedVersion: oldRecommendation.version, agentUsername: replacement.username };
@@ -109,11 +105,11 @@ test("database organization submission/decision races, separate roles and failed
     assert.equal(await db.organization.count({ where: { requestId: second.id } }), 1);
     assert.equal(await db.organizationMembership.count({ where: { organizationId: approvedAfterReplacement.organizationId, enabled: true } }), 1);
     assert.equal(await db.organizationRequestAudit.count({ where: { requestId: second.id, action: "REASSIGNED" } }), 1);
-    assert.equal((await db.organizationOperator.findUnique({ where: { accountId: agent.id } })).agentEnabled, false);
+    assert.equal((await db.managementStaff.findUnique({ where: { id: agent.id } })).capabilities.includes("organization-agent"), false);
 
   } finally {
     try {
-      const ids = accounts.map(a => a.id), people = accounts.map(a => a.personId);
+      const ids = accounts.map(a => a.id), people = accounts.map(a => a.personId).filter(Boolean);
       if (ids.length) {
         const requests = await db.organizationRequest.findMany({ where: { applicantId: { in: ids } }, select: { id: true } }), requestIds = requests.map(r => r.id);
         const organizations = await db.organization.findMany({ where: { requestId: { in: requestIds } }, select: { id: true } }), orgIds = organizations.map(r => r.id);
@@ -126,7 +122,7 @@ test("database organization submission/decision races, separate roles and failed
         await db.organizationRequest.deleteMany({ where: { id: { in: requestIds } } });
         await db.organizationOperatorAudit.deleteMany({ where: { targetAccountId: { in: ids } } });
         await db.organizationOperator.deleteMany({ where: { accountId: { in: ids } } });
-        await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } });
+        await cleanupManagementFixtures(db, ids); await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } });
         await db.account.deleteMany({ where: { id: { in: ids } } }); await db.person.deleteMany({ where: { id: { in: people } } });
       }
     } finally { await db.$disconnect(); }

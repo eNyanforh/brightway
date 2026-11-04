@@ -39,6 +39,15 @@ it("MFA restrictions show locked statistics without inventing zeros", async () =
   expect(screen.getAllByText("Locked")).toHaveLength(4); expect(screen.queryByRole("img", { name: /Review activity/ })).toBeNull();
   expect(screen.queryByText("0")).toBeNull();
 });
+it("keeps visible figures during a shared in-flight focus refresh instead of blanking the Dashboard", async () => {
+  let release;
+  const f = mount((_url, days) => f.fetch.mock.calls.length === 1 ? reply(dashboardFixture(id, days)) : new Promise(resolve => { release = resolve; }));
+  await screen.findByRole("heading", { name: "Review activity" });
+  act(() => { window.dispatchEvent(new Event("focus")); window.dispatchEvent(new Event("focus")); });
+  expect(screen.getByRole("heading", { name: "Review activity" })).toBeTruthy();
+  expect(screen.getByText("Updating statistics…")).toBeTruthy();
+  await act(async () => release(reply(dashboardFixture(id))));
+});
 it("review-only access never displays staffing totals and uses only the granted credential scope", async () => {
   mount((_url, days) => { const data = dashboardFixture(id, days); data.team = { access: "permission_required" }; data.reviews.kinds = ["education"]; return reply(data); });
   await screen.findByRole("heading", { name: "Review activity" });

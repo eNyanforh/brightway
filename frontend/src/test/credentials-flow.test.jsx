@@ -14,6 +14,8 @@ const profile = { version: 1, education: { mode: "RECORDS", records: [record] },
 const response = (data, status = 200) => new Response(JSON.stringify({ success: status < 400, ...(status < 400 ? { data } : { message: data }) }), { status, headers: { "Content-Type": "application/json" } });
 function mount(path, handler) {
   const fetchMock = vi.fn(async (url, options) => {
+    if (url === "/api/v1/management/auth/me") return response({ staff: { id: "mg_11111111-1111-4111-8111-111111111111", username: "reviewer", realm: "management" } });
+    if (url === "/api/v1/management") return response({ allowed: true, staffId: "mg_11111111-1111-4111-8111-111111111111", username: "reviewer", fullName: "Reviewer", role: { isSuperAdmin: false, version: 1 }, tools: [{ key: "credentials", to: "/admin/credentials", allowed: true }], audits: [] });
     if (url.endsWith("/auth/me")) return response({ account: { id: "owner", username: "tester", person: { firstName: "Test", lastName: "User" } } });
     if (url.endsWith("/profile/me")) return response({ profile });
     return handler(url, options);
@@ -74,7 +76,7 @@ it("keeps unsaved profile sections while rebasing the submitted history status a
 });
 it("requires assignment before enabling the reviewer decision form and submits an explicit reason", async () => {
   let status = "SUBMITTED", version = 1;
-  const review = () => ({ id, revision: 1, version, status, reviewerId: status === "SUBMITTED" ? null : "owner", initialSubmittedAt: "2026-10-18", targetAt: "2026-10-25", deadlineAt: "2026-11-01", attempts: [{ id: "attempt", revision: 1, status, createdAt: "2026-10-18", snapshot: { institution: "School" }, evidence: [] }], events: [] });
+  const review = () => ({ id, revision: 1, version, status, reviewerId: status === "SUBMITTED" ? null : "mg_11111111-1111-4111-8111-111111111111", initialSubmittedAt: "2026-10-18", targetAt: "2026-10-25", deadlineAt: "2026-11-01", attempts: [{ id: "attempt", revision: 1, status, createdAt: "2026-10-18", snapshot: { institution: "School" }, evidence: [] }], events: [] });
   const { user, fetchMock } = mount("/admin/credentials", async (url) => {
     if (url.endsWith("/assign")) { status = "IN_REVIEW"; version++; return response({ id, status }); }
     if (url.endsWith("/decision")) { status = "VERIFIED"; version++; return response({ id, status }); }

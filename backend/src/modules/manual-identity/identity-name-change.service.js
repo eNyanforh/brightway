@@ -1,3 +1,4 @@
+import { managementPermission, assertManagementSession, lockReviewActors, assertNoSelfReview, conflictAccounts, staffId, permits } from "../management/management-authority.js";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { verifyPassword } from "../auth/password.js";
@@ -25,12 +26,7 @@ const names = person => ({ firstName: person.firstName, middleName: person.middl
 export function createIdentityNameChangeService({ prisma, storage, photoStorage, now = () => new Date(), policy = reviewPolicy(), verify = verifyPassword }) {
   const identities = createManualIdentityReviewService({ prisma, storage, now, policy });
   const run = async work => { try { return await prisma.$transaction(work); } catch (e) { if (["P2002", "P2034"].includes(e.code)) throw conflict(); throw e; } };
-  async function lock(db, ids) {
-    for (const id of [...new Set(ids)].sort()) {
-      if (typeof id !== "string" || !id.trim()) throw fail(401, "Please log in to continue.");
-      if ((await db.account.updateMany({ where: { id, status: "ACTIVE" }, data: { status: "ACTIVE" } })).count !== 1) throw fail(403, "An active account is required.");
-    }
-  }
+  async function lock(db, ids) { return lockReviewActors(db, ids); }
   async function live(db, id, sessionId) {
     if (typeof sessionId !== "string" || !sessionId.trim()) throw fail(401, "Please sign in again.");
     const session = await db.session.findUnique({ where: { id: sessionId } });
@@ -38,10 +34,8 @@ export function createIdentityNameChangeService({ prisma, storage, photoStorage,
     if ((await db.mfaFactor.findUnique({ where: { accountId: id } }))?.enabled) await assertMfaSession(db, id, sessionId, now());
   }
   async function reviewer(db, id, sessionId) {
-    if (typeof id !== "string" || !id.trim()) throw fail(403, "Identity-review permission is required.");
-    const account = await db.account.findUnique({ where: { id }, select: { status: true, emailVerifiedAt: true } });
-    if (account?.status !== "ACTIVE" || !account.emailVerifiedAt || (await db.manualIdentityReviewer.findUnique({ where: { accountId: id } }))?.enabled !== true) throw fail(403, "Identity-review permission is required.");
-    await assertMfaSession(db, id, sessionId, now());
+    await managementPermission(db, id, "identity-reviewer");
+    await assertManagementSession(db, id, sessionId, now());
   }
   async function lockProfile(db, ctx, profileVersion) {
     if (ctx.profile.version !== profileVersion || (await db.profile.updateMany({ where: { id: ctx.profile.id, version: profileVersion }, data: { version: profileVersion } })).count !== 1) throw conflict();
@@ -61,7 +55,7 @@ export function createIdentityNameChangeService({ prisma, storage, photoStorage,
     await reviewer(db, actorId, sessionId);
     const row = await db.identityNameChange.findUnique({ where: { id: uuid(id) } });
     if (!row) throw fail(404, "Name-correction request not found.");
-    if (row.accountId === actorId) throw fail(403, "You cannot review your own name correction.");
+    await assertNoSelfReview(db, actorId, row.accountId);
     if (requireAssignment && row.reviewerId !== actorId) throw fail(403, "Assign this request before accessing its private details.");
     return row;
   }
@@ -129,7 +123,7 @@ export function createIdentityNameChangeService({ prisma, storage, photoStorage,
       if (cursor !== undefined) uuid(cursor);
       return run(async tx => {
         await lock(tx, [actorId]); await reviewer(tx, actorId, sessionId);
-        const rows = await tx.identityNameChange.findMany({ where: { accountId: { not: actorId }, state: { in: active }, expiresAt: { gt: now() } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 21,
+        const rows = await tx.identityNameChange.findMany({ where: { accountId: { notIn: await conflictAccounts(tx, actorId) }, state: { in: active }, expiresAt: { gt: now() } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 21,
           select: { id: true, version: true, state: true, createdAt: true, targetAt: true } });
         return { requests: rows.slice(0, 20), nextCursor: rows.length > 20 ? rows[19].id : null };
       });

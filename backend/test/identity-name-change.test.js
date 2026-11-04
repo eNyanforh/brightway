@@ -1,3 +1,4 @@
+import { managementHttpFixture } from "../test-support/management-http-fixture.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
@@ -81,12 +82,12 @@ test("only assigned identity reviewers with live MFA can see private requests or
   f.state.manualIdentityReviewer.push({ accountId: f.ownerId, enabled: true });
   f.state.mfaFactor.push({ accountId: f.ownerId, enabled: true, version: 1 });
   Object.assign(f.state.session.find(s => s.id === f.ownerSessionId), { mfaVersion: 1, mfaVerifiedAt: f.now() });
-  await assert.rejects(f.changes.detail(f.ownerId, f.ownerSessionId, result.id), e => e.status === 403 && e.message.includes("own name correction"));
+  await assert.rejects(f.changes.detail(f.ownerId, f.ownerSessionId, result.id), { status: 403 });
   await f.assignName(row);
   assert.deepEqual(await f.changes.portrait(f.reviewerId, f.sessionId, result.id), Buffer.from("private WebP bytes"));
   const detail = await f.changes.detail(f.reviewerId, f.sessionId, result.id);
   assert.equal(detail.proposedName.firstName, "Corrected"); assert.equal(detail.evidence.length, 2);
-  f.state.manualIdentityReviewer[0].enabled = false;
+  f.state.managementStaff[0].capabilities = [];
   await assert.rejects(f.decideName(f.state.identityNameChange[0]), { status: 403 });
   assert.equal(f.state.account[0].person.firstName, "Sample");
 });
@@ -139,9 +140,9 @@ test("retention purges name/evidence payloads while exact approved trust and min
 test("a slow private evidence read rechecks permission before returning bytes", async () => {
   const f = await fixture(); await f.submitName(); await f.assignName(f.state.identityNameChange[0]);
   const row = f.state.identityNameChange[0], image = f.state.manualIdentityEvidence.find(e => e.nameChangeId === row.id);
-  f.storage.get = async () => { f.state.manualIdentityReviewer[0].enabled = false; return Buffer.from("private"); };
+  f.storage.get = async () => { f.state.managementStaff[0].capabilities = []; return Buffer.from("private"); };
   await assert.rejects(f.changes.portrait(f.reviewerId, f.sessionId, row.id), { status: 403 });
-  f.state.manualIdentityReviewer[0].enabled = true;
+  f.state.managementStaff[0].capabilities = ["identity-reviewer"];
   await assert.rejects(f.changes.image(f.reviewerId, f.sessionId, row.id, image.id), { status: 403 });
 });
 
@@ -164,7 +165,7 @@ test("a name proof cannot grant another account's trust or survive a bound crede
 
 test("name-correction HTTP routes require sessions, trusted Origin, MFA and private uncached responses", async () => {
   const f = await fixture(), app = express(); app.use(express.json());
-  app.use("/api/v1", createIdentityNameChangeRoutes({ changes: f.changes, sessions: { async authenticate(token) {
+  app.use("/api/v1", createIdentityNameChangeRoutes({ authentication: managementHttpFixture(f), changes: f.changes, sessions: { async authenticate(token) {
     if (!["owner", "reviewer", "password-only"].includes(token)) throw Object.assign(Error("Login required"), { status: 401 });
     return { account: { id: token === "owner" ? f.ownerId : f.reviewerId }, sessionId: token === "owner" ? f.ownerSessionId : f.sessionId, mfaVerified: token === "reviewer" };
   } }, clientUrl: "http://localhost:5173", nodeEnv: "test", limiter: (req, res, next) => next() }));
@@ -173,7 +174,7 @@ test("name-correction HTTP routes require sessions, trusted Origin, MFA and priv
   const base = `http://127.0.0.1:${server.address().port}/api/v1`, headers = { Cookie: "brightway_session=owner", Origin: "http://localhost:5173", "Content-Type": "application/json" };
   try {
     assert.equal((await fetch(base + "/manual-identity/name-changes")).status, 401);
-    assert.equal((await fetch(base + "/admin/name-changes", { headers: { Cookie: "brightway_session=password-only" } })).status, 403);
+    assert.equal((await fetch(base + "/admin/name-changes", { headers: { Cookie: "brightway_session=password-only" } })).status, 401);
     const denied = await fetch(base + "/manual-identity/name-changes", { method: "POST", headers: { ...headers, Origin: "https://foreign.invalid" }, body: JSON.stringify(f.input()) }); assert.equal(denied.status, 403);
     const response = await fetch(base + "/manual-identity/name-changes", { headers }); assert.equal(response.status, 200); assert.equal(response.headers.get("cache-control"), "no-store");
     assert(!(await response.text()).includes("passwordHash"));

@@ -3,7 +3,6 @@ import { profilePhotoReviewsApi } from "../api/profile-photo-reviews";
 import { useIdentityStatus } from "../auth/useIdentityStatus";
 import VerificationBadge from "../components/VerificationBadge";
 import { hasVerifiedIdentity } from "./manual-identity-format";
-import IdentityReviewerLink from "../components/profile/IdentityReviewerLink";
 import { useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -205,7 +204,7 @@ export default function ProfilePage() {
     mutation.current = true;
     setDraft((previous) => ({ ...previous, busy: true, error: null, notice: "" }));
     try {
-      const next = await profileApi.read();
+      const next = await profileApi.readFresh();
       if (next.id !== profile.id || savedText(next) !== savedText(profile)) {
         throw Object.assign(new Error("Other saved profile information changed. Keep your drafts and explicitly reload the profile before continuing."), { status: 409 });
       }
@@ -474,13 +473,6 @@ export default function ProfilePage() {
     <div className="bw-profile-page">
       <Link to="/security">Account security</Link>{" "}
       <Link to="/credentials">My credential reviews</Link>{" "}
-      <IdentityReviewerLink />{" "}
-
-      {account.platformRole === "CREDENTIAL_REVIEWER" && (
-        <Link to="/admin/credentials">
-          Open credential review workspace
-        </Link>
-      )}
 
       {draft.notice && (
         <p className="bw-profile-success" role="status">

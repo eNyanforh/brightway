@@ -1,3 +1,4 @@
+import { assertNoSelfReview } from "../management/management-authority.js";
 import { reviewQueueQuerySchema } from "./credential.schema.js";
 import { organizationWorkspace } from "../../../../shared/organization-workspace.mjs";
 import { assertMfaSession } from "../auth/mfa.service.js";
@@ -172,7 +173,7 @@ export function createCredentialService({ prisma, storage, process = processEvid
       if (!parsed.success) throw failure(400, "Invalid review queue filter.");
       const query = parsed.data;
       const scope = await authorizeCredentialReviewer(prisma, actorId, sessionId, organizationId, now());
-      const where = { issuerOrganizationId: scope.organization?.id ?? null, kind: { in: scope.kinds }, profile: { personId: { not: scope.account.personId } } };
+      const where = { issuerOrganizationId: scope.organization?.id ?? null, kind: { in: scope.kinds }, profile: { personId: { notIn: scope.excludedPersonIds } } };
       if (query.status) where.status = query.status;
       if (query.filter === "unassigned") Object.assign(where, { status: "SUBMITTED", reviewerId: null, initialSubmittedAt: { lte: now() } });
       if (query.filter === "past_target") Object.assign(where, { status: { in: ["SUBMITTED", "IN_REVIEW"] }, initialSubmittedAt: { lte: new Date(+now() - 7 * DAY) } });
@@ -194,7 +195,7 @@ export function createCredentialService({ prisma, storage, process = processEvid
       const review = await prisma.credentialReview.findUnique({ where: { id }, select: { ...reviewSelect, profile: { select: { personId: true, person: { select: { account: { select: { id: true, username: true } } } } } } } });
       if (!review) throw failure(404, "Review not found.");
       requireReviewScope(review, scope);
-      if (review.profile.person.account.id === actorId) throw failure(403, "You cannot review your own credentials.");
+      await assertNoSelfReview(prisma, actorId, review.profile.person.account.id);
       const canReassign = review.status === "IN_REVIEW" && review.reviewerId !== actorId && !await reviewerStillAuthorized(prisma, review.reviewerId, review);
       const { profile, ...safe } = review;
       requireReviewScope(review, await authorizeCredentialReviewer(prisma, actorId, sessionId, organizationId, now()));
@@ -206,7 +207,7 @@ export function createCredentialService({ prisma, storage, process = processEvid
         let review = await tx.credentialReview.findUnique({ where: { id }, include: { profile: { select: { id: true, version: true, personId: true } } } });
         if (!review) throw failure(404, "Review not found.");
         const owner = await activeOwner(tx, review.profile.personId);
-        if (owner.id === actorId) throw failure(403, "You cannot review your own credentials.");
+        await assertNoSelfReview(tx, actorId, owner.id);
         await lockCredentialActors(tx, [actorId, owner.id]);
         const scope = await authorizeCredentialReviewer(tx, actorId, sessionId, organizationId, now(), true);
         requireReviewScope(review, scope);
@@ -243,6 +244,9 @@ export function createCredentialService({ prisma, storage, process = processEvid
         if (!review) throw failure(404, "Evidence not found.");
         try {
           const scope = await credentialReviewerScope(prisma, actorId, review.issuerOrganizationId);
+          const owner = await prisma.account.findFirst({ where: { personId: asset.personId }, select: { id: true } });
+          if (!owner) throw failure(404, "Evidence not found.");
+          await assertNoSelfReview(prisma, actorId, owner.id);
           requireReviewScope(review, scope);
         } catch (error) { if ([403, 404, 409].includes(error.status)) throw failure(404, "Evidence not found."); throw error; }
         await assertMfaSession(prisma, actorId, sessionId, now());

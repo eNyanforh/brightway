@@ -149,3 +149,17 @@ test("profile HTTP requires session and trusted Origin, enforces raw image limit
     const image = await fetch(root + payload.data.photo.url.replace("/api/v1", "")); assert.equal(image.status, 200); assert.equal(image.headers.get("content-type"), "image/webp");
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 });
+
+test("one authorized context includes the same setup projection without extra profile reads and preserves existing concurrency locks", async () => {
+  const f = await fixture(), staff = createOrganizationStaffService({ prisma: f.db, now: f.now });
+  const expected = await f.read(), reads = [], writes = [];
+  const measured = new Proxy(f.db, { get(db, model) {
+    if (model === "$transaction") return work => db.$transaction(() => work(measured));
+    const source = db[model]; if (!source || typeof source !== "object") return source;
+    return new Proxy(source, { get(target, method) { const value = target[method]; if (typeof value !== "function") return value; return (...args) => { (String(method).startsWith("find") ? reads : writes).push(`${model}.${String(method)}`); return value.apply(target, args); }; } });
+  } });
+  const context = await createOrganizationStaffService({ prisma: measured, now: f.now }).context(f.actor.id, f.actor.sessionId, f.id);
+  assert.deepEqual(context.setup, expected); assert.deepEqual(writes, ["account.updateMany", "organization.updateMany"]);
+  assert.equal(reads.filter(method => method === "organization.findFirst").length, 1);
+  assert.equal((await staff.context(f.actor.id, f.actor.sessionId, f.id)).accountId, f.actor.id);
+});

@@ -1,3 +1,4 @@
+import { managementPermission, assertManagementSession, lockReviewActors, assertNoSelfReview, conflictAccounts, staffId, permits } from "../management/management-authority.js";
 import { digest } from "../manual-identity/manual-identity.policy.js";
 import { z } from "zod";
 import { assertMfaSession } from "../auth/mfa.service.js";
@@ -15,17 +16,10 @@ export function createProfilePhotoReviewService({ prisma, storage, now = () => n
     try { return await prisma.$transaction(work); }
     catch (error) { if (["P2002", "P2034"].includes(error.code)) throw conflict(); throw error; }
   };
-  async function lockAccounts(tx, ids) {
-    for (const id of [...new Set(ids)].sort()) {
-      if (!id || (await tx.account.updateMany({ where: { id, status: "ACTIVE" }, data: { status: "ACTIVE" } })).count !== 1) throw failure(403, "An active account is required.");
-    }
-  }
+  async function lockAccounts(tx, ids) { return lockReviewActors(tx, ids); }
   async function reviewer(tx, actorId, sessionId) {
-    if (typeof actorId !== "string" || !actorId) throw failure(403, "BrightWay identity-review permission is required.");
-    const account = await tx.account.findUnique({ where: { id: actorId }, select: { status: true, emailVerifiedAt: true } });
-    const role = await tx.manualIdentityReviewer.findUnique({ where: { accountId: actorId } });
-    if (account?.status !== "ACTIVE" || !account.emailVerifiedAt || role?.enabled !== true) throw failure(403, "BrightWay identity-review permission is required.");
-    await assertMfaSession(tx, actorId, sessionId, now());
+    await managementPermission(tx, actorId, "identity-reviewer");
+    await assertManagementSession(tx, actorId, sessionId, now());
   }
   async function lockProfile(tx, personId, version) {
     const row = await tx.profile.findUnique({ where: { personId } });
@@ -49,7 +43,7 @@ export function createProfilePhotoReviewService({ prisma, storage, now = () => n
     await reviewer(tx, actorId, sessionId);
     const row = await tx.profilePhotoReview.findUnique({ where: { id: uuid(id) } });
     if (!row) throw failure(404, "Photo request not found.");
-    if (row.accountId === actorId) throw failure(403, "You cannot review your own photo.");
+    await assertNoSelfReview(tx, actorId, row.accountId);
     if (needAssigned) {
       if (row.reviewerId !== actorId) throw failure(403, "Assign this photo request to yourself before viewing its images.");
       if (row.state !== "IN_REVIEW") throw conflict();
@@ -101,7 +95,7 @@ export function createProfilePhotoReviewService({ prisma, storage, now = () => n
       if (cursor !== undefined) uuid(cursor);
       return txRun(async (tx) => {
         await lockAccounts(tx, [actorId]); await reviewer(tx, actorId, sessionId);
-        const rows = await tx.profilePhotoReview.findMany({ where: { accountId: { not: actorId }, state: { in: activePhotoReview } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        const rows = await tx.profilePhotoReview.findMany({ where: { accountId: { notIn: await conflictAccounts(tx, actorId) }, state: { in: activePhotoReview } }, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), take: 21,
           select: { id: true, version: true, state: true, createdAt: true } });
         return { requests: rows.slice(0, 20), nextCursor: rows.length > 20 ? rows[19].id : null };

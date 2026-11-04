@@ -69,12 +69,14 @@ export async function checkIdentityRetention({ env, prisma: db, storage, head, m
     const image = await makeImage();
     assert(Buffer.isBuffer(image) && image.length > 0 && image.length < 1024 * 1024);
     stage = "creating isolated fixture accounts and profile";
-    for (const label of ["o", "r"]) accounts.push(await db.account.create({ data: {
+    for (const label of ["o"]) accounts.push(await db.account.create({ data: {
       username: `ret_${label}_${runId.replaceAll("-", "").slice(0, 20)}`, email: `ret_${label}_${runId}@example.invalid`,
       passwordHash: "synthetic-unusable-password-hash", emailVerifiedAt: date,
       person: { create: { firstName: "Synthetic", lastName: "Retention fixture", birthDate: new Date("2000-01-01"), gender: "MALE", phoneNumber: "+231770000000" } },
     } }));
-    const [owner, reviewer] = accounts;
+    const [owner] = accounts;
+    const reviewer = await db.managementStaff.create({ data: { id: `mg_${randomUUID()}`, username: `ret_r_${runId.replaceAll("-", "").slice(0, 20)}`, email: `ret_r_${runId}@management.example.invalid`, fullName: "Synthetic retention reviewer", passwordHash: "synthetic-unusable-password-hash", status: "ACTIVE", emailVerifiedAt: date, encryptedSecret: "synthetic-fixture-no-usable-secret", capabilities: ["identity-reviewer"], recoveryHashes: [] } });
+    accounts.push(reviewer);
     // A DB-only profile-photo fixture satisfies eligibility; no profile bucket is accessed.
     photo = await db.photoAsset.create({ data: { personId: owner.personId, storageKey: `retention-fixture-${runId}`, state: "CLAIMED", expiresAt: new Date(+date + DAY) } });
     const profile = await db.profile.create({ data: {
@@ -90,9 +92,7 @@ export async function checkIdentityRetention({ env, prisma: db, storage, head, m
       governmentId: images[0].id, selfie: images[1].id, idempotencyKey: randomUUID(), consentVersion: MANUAL_REVIEW_CONSENT });
     requestId = submitted.requestId; attemptId = submitted.attemptId;
     stage = "assigning and approving the synthetic request";
-    await db.manualIdentityReviewer.create({ data: { accountId: reviewer.id, enabled: true } });
-    await db.mfaFactor.create({ data: { accountId: reviewer.id, encryptedSecret: "synthetic-fixture-no-usable-secret", enabled: true, version: 1, windowStart: date } });
-    const session = await db.session.create({ data: { accountId: reviewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + DAY), mfaVersion: 1, mfaVerifiedAt: date } });
+    const session = await db.managementSession.create({ data: { staffId: reviewer.id, tokenHash: randomUUID(), staffVersion: reviewer.version, expiresAt: new Date(+date + DAY), mfaVerifiedAt: date } });
     let request = await db.manualIdentityRequest.findUnique({ where: { id: requestId } });
     await reviews.transition(reviewer.id, session.id, requestId, { expectedVersion: request.version }, true);
     request = await db.manualIdentityRequest.findUnique({ where: { id: requestId } });
@@ -150,7 +150,7 @@ export async function checkIdentityRetention({ env, prisma: db, storage, head, m
   const failures = await owned.dispose();
   if (failures) throw Error(`Synthetic storage cleanup could not be confirmed. Keep fixture records for run ${runId}; do not run an unscoped bucket cleanup.`);
   try {
-    const ids = accounts.map(a => a.id), people = accounts.map(a => a.personId);
+    const ids = accounts.map(a => a.id), people = accounts.map(a => a.personId).filter(Boolean);
     if (ids.length) {
       const requests = await db.manualIdentityRequest.findMany({ where: { accountId: { in: ids } }, select: { id: true } });
       await db.manualIdentityEvidence.deleteMany({ where: { accountId: { in: ids } } });
@@ -158,6 +158,10 @@ export async function checkIdentityRetention({ env, prisma: db, storage, head, m
       await db.manualIdentityAttempt.deleteMany({ where: { requestId: { in: requests.map(r => r.id) } } });
       await db.manualIdentityRequest.deleteMany({ where: { accountId: { in: ids } } });
       await db.manualIdentityUploadBudget.deleteMany({ where: { accountId: { in: ids } } });
+      const staffIds = ids.filter(id => id.startsWith("mg_"));
+      await db.managementSession.deleteMany({ where: { staffId: { in: staffIds } } });
+      await db.reviewPrincipal.deleteMany({ where: { staffId: { in: staffIds } } });
+      await db.managementStaff.deleteMany({ where: { id: { in: staffIds } } });
       await db.manualIdentityReviewer.deleteMany({ where: { accountId: { in: ids } } });
       await db.session.deleteMany({ where: { accountId: { in: ids } } });
       await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } });

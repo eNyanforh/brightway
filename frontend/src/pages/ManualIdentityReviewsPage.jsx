@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { useAuth } from "../auth/useAuth";
+import { useManagement } from "../auth/management-context";
 import { manualIdentityApi as api } from "../api/manual-identity";
 import ManualIdentityHistory from "../components/profile/ManualIdentityHistory";
 import { identityDate, identityLabels } from "./manual-identity-format";
 import "./manual-identity.css";
 export default function ManualIdentityReviewsPage() {
   const management = useOutletContext()?.management;
-  const { account } = useAuth();
+  const { staff: account } = useManagement();
   const [queue, setQueue] = useState(null), [detail, setDetail] = useState(null), [busy, setBusy] = useState(false);
   const [error, setError] = useState(null), [status, setStatus] = useState("ACTION_REQUIRED"), [note, setNote] = useState("");
   const [reloadRequired, setReloadRequired] = useState(false), [notice, setNotice] = useState("");
@@ -26,7 +26,7 @@ export default function ManualIdentityReviewsPage() {
     } finally { lock.current = false; setBusy(false); }
   }
   const attempt = detail?.attempts.find((a) => a.id === detail.request.currentAttemptId);
-  const canDecide = !reloadRequired && detail?.status === "IN_REVIEW" && attempt?.reviewerId === account.id;
+  const canDecide = !reloadRequired && detail?.status === "IN_REVIEW" && attempt?.reviewerId === account?.id;
   async function reload() {
     await action(async () => { await api.access(); const nextQueue = await api.queue();
       const nextDetail = detail ? await api.detail(detail.request.id) : null;
@@ -36,7 +36,7 @@ export default function ManualIdentityReviewsPage() {
     <Link to={management ? "/superadmin" : "/manual-identity"}>{management ? "Back to Management" : "Back to identity verification"}</Link>{" "}<Link to={management ? "/superadmin/photos" : "/admin/profile-photos"}>Profile photo reviews</Link><h1>Identity review workspace</h1>
     <p>Only authorized BrightWay reviewers with two-factor authentication may use this workspace. You cannot review your own request. Review within five working days.</p>
     {error && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}
-    {[401, 403].includes(error?.status) && <p><Link to="/security">Open Account security</Link>. An active identity-review permission is also required. Sign in with your authenticator or backup code if prompted.</p>}
+    {[401, 403].includes(error?.status) && <p><Link to="/superadmin/security">Open Account security</Link>. An active identity-review permission is also required. Sign in with your authenticator or backup code if prompted.</p>}
     <button type="button" disabled={busy} onClick={reload}>Reload identity reviews</button>
     {reloadRequired && <p>Reload before making a decision. Any unsaved feedback stays here unless access has been revoked.</p>}
     {!queue && !error && <p role="status">Checking reviewer access…</p>}
@@ -70,7 +70,7 @@ export default function ManualIdentityReviewsPage() {
         <p>Explain the decision clearly. Avoid copying ID numbers or other sensitive document details into feedback.</p>
         <button className="bw-profile-button" type="submit" disabled={busy || note.trim().length < 10}>Save identity decision</button>
       </fieldset></form>}
-      <ManualIdentityHistory attempts={detail.attempts} busy={busy} onDownload={(id) => action(() => api.download(id))} />
+      <ManualIdentityHistory attempts={detail.attempts} busy={busy} onDownload={(id) => action(() => api.download(id, true, true))} />
     </div>}
   </section>;
 }

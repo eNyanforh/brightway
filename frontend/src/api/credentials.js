@@ -25,8 +25,8 @@ export const credentialsApi = {
   ...reviewerApi(),
   inOrganization: reviewerApi,
   issuers: (kind, query, signal) => request(`/credentials/issuers?${new URLSearchParams({ kind, query })}`, { signal }),
-  async download(id, contentType) {
-    const response = await fetch(base + `/credentials/evidence/${id}/download`, { credentials: "include", cache: "no-store" });
+  async download(id, contentType, management = false) {
+    const response = await fetch(base + `${management ? "/admin" : ""}/credentials/evidence/${id}/download`, { credentials: "include", cache: "no-store" });
     if (!response.ok) {
       let payload; try { payload = await response.json(); } catch { /* Generic message below. */ }
       throw new ApiError(payload?.message || "Unable to download evidence.", response.status);
