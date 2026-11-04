@@ -12,7 +12,7 @@ export default function ManagementActionDialog({ title, description, onConfirm, 
     <form onSubmit={async event => { event.preventDefault(); if (lock.current || uncertain) return; lock.current = true; setBusy(true); setError(null);
       let attempted = false;
       try { await managementAuthApi.stepUp({ password, code }); setPassword(""); setCode(""); attempted = true; await onConfirm(reason); }
-      catch (failure) { setError(failure); if (attempted) setUncertain(true); }
+      catch (failure) { setError(failure); if ([401,403].includes(failure.status)) { setPassword(""); setCode(""); setReason(""); } if (attempted) setUncertain(true); }
       finally { lock.current = false; setBusy(false); }
     }}><fieldset disabled={busy || uncertain}>
       <label>Reason for this action<textarea required minLength={10} maxLength={1000} value={reason} onChange={e => setReason(e.target.value)} /></label>

@@ -21,10 +21,11 @@ function Cases({ kind,personal,actor }) {
   const [status,setStatus] = useState(""),[q,setQ] = useState(""),[query,setQuery] = useState({ q:"",status:"" }),[cursors,setCursors] = useState([null]),[selected,setSelected] = useState(null),[messageCursor,setMessageCursor] = useState(null);
   const [body,setBody] = useState(""),[internal,setInternal] = useState(false),[notice,setNotice] = useState(""),[error,setError] = useState(null),[busy,setBusy] = useState(false),[stale,setStale] = useState(false),[create,setCreate] = useState(false),[action,setAction] = useState(null);
   const [nextStatus,setNextStatus] = useState("OPEN"),[priority,setPriority] = useState("NORMAL"),lock = useRef(false),messageKey = useRef(null);
+  const denied = useCallback(() => { setBody(""); setAction(null); setSelected(null); messageKey.current = null; },[]);
   const cursor = cursors.at(-1),fetchList = useCallback(signal => api.list({ kind,...query,cursor },signal),[api,kind,query,cursor]);
-  const list = useManagementResource(JSON.stringify([personal,actor.id,kind,query,cursor]),fetchList);
+  const list = useManagementResource(JSON.stringify([personal,actor.id,kind,query,cursor]),fetchList,denied);
   const fetchDetail = useCallback(signal => selected ? api.detail(selected,messageCursor,signal) : Promise.resolve(null),[api,selected,messageCursor]);
-  const detail = useManagementResource(`${personal}:${actor.id}:${selected}:${messageCursor}`,fetchDetail),row = detail.data;
+  const detail = useManagementResource(`${personal}:${actor.id}:${selected}:${messageCursor}`,fetchDetail,denied),row = detail.data;
   const canReply = row && !["RESOLVED","DISMISSED"].includes(row.status) && (personal || row.assignedStaffId === actor.id);
   const uncertain = stale || !!detail.error || detail.loading || list.loading || busy;
   function discard() { return !body.trim() || window.confirm("Discard the unsent case message?"); }
@@ -50,7 +51,7 @@ function Cases({ kind,personal,actor }) {
         <ol className="bw-mgmt-thread">{row.messages.map(message => <li key={message.id} className={message.internal ? "is-internal" : ""}><header><strong>{personal ? message.author : message.authorStaff?.fullName || (message.authorStaffId ? "Management staff" : "Requester")}</strong><small>{date(message.createdAt)}</small>{message.internal && <span className="bw-mgmt-tag">Internal note</span>}</header><p>{message.body}</p></li>)}</ol>
         {canReply ? <form className="bw-mgmt-reply" onSubmit={async e => { e.preventDefault(); if (lock.current || uncertain) return; lock.current = true; setBusy(true); setError(null); messageKey.current ||= crypto.randomUUID();
           try { await api.message(row.id,{ expectedVersion:row.version,body,internal:personal ? false : !row.creatorAccountId || internal,requestKey:messageKey.current }); setBody(""); messageKey.current = null; setNotice("Message saved."); await Promise.all([list.refresh(),detail.refresh()]); }
-          catch (failure) { setError(failure); setStale(true); }
+          catch (failure) { setError(failure); setStale(true); if ([401,403,404].includes(failure.status)) { denied(); list.clear(failure); detail.clear(failure); } }
           finally { lock.current = false; setBusy(false); }
         }}><label>{personal ? "Your reply" : !row.creatorAccountId || internal ? "Private internal note" : "Reply to requester"}<textarea required minLength={2} maxLength={4000} value={body} onChange={e => { setBody(e.target.value); messageKey.current = null; }} disabled={busy} /></label>{!personal && row.creatorAccountId && <label className="bw-mgmt-checkbox"><input type="checkbox" checked={internal} onChange={e => setInternal(e.target.checked)} disabled={busy} />Internal note · visible only to authorized management staff</label>}<button disabled={uncertain}>{busy ? "Saving…" : "Send message"}</button></form> : <p>{personal ? "This case is closed. Start a new case if you still need help." : "Assign an open case to yourself before replying."}</p>}
       </article> : !selected && <ManagementReviewPlaceholder title="One case. A clear next step." description="Select a case to read its conversation and continue from its saved status." />}

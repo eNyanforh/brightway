@@ -31,7 +31,7 @@ export function createSupportRoutes({ cases, sessions, clientUrl, nodeEnv, limit
   const router = Router(), auth = createRequireAuth({ sessions, cookieName: createSessionCookieConfig(nodeEnv).name }), origin = requireTrustedOrigin(clientUrl);
   const limits = limiter || rateLimit({ windowMs: 60000, limit: 30, standardHeaders: "draft-8", legacyHeaders: false, keyGenerator: req => req.auth.account.id });
   router.use("/support/cases", privateHeaders, auth, limits);
-  const owner = req => ({ accountId: req.auth.account.id });
+  const owner = req => ({ accountId: req.auth.account.id, sessionId:req.auth.sessionId });
   router.get("/support/cases", wrap(req => cases.list(owner(req), req.query)));
   router.post("/support/cases", origin, noQuery, wrap(req => cases.create(req.body, owner(req))));
   router.get("/support/cases/:id", wrap(req => { if (Object.keys(req.query).some(k => k !== "messageCursor")) throw Object.assign(Error("Unknown case query."), { status: 400 }); return cases.detail(owner(req), req.params.id, req.query.messageCursor); }));

@@ -72,6 +72,7 @@ export function createManagementOperations({ prisma, now = () => new Date() }) {
         await lockOperationActors(tx, [actor.staffId, ...(isUser ? [id] : [])]);
         await operationAuthority(tx, actor, capability, now(), true);
         const replay = await replayOperation(tx, actor.staffId, data.requestKey, value); if (replay) return replay;
+        if (!isUser) await tx.organization.updateMany({ where:{id},data:{accessVersion:{increment:0}} });
         const related = await conflictAccounts(tx, actor.staffId);
         const entity = await (isUser ? tx.account : tx.organization).findUnique({ where: { id }, ...(isUser ? { select: userSelect } : { include: { request: { select: { applicantId: true } } } }) });
         if (!entity) throw fail(404, "Record not found.");
