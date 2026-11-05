@@ -96,7 +96,7 @@ it("a publishing-only member sees their available scope and no staff, review or 
   expect(screen.queryByRole("heading", { name: "Admissions" })).toBeNull();
   expect(screen.queryByRole("navigation", { name: "Planned organization tools" })).toBeNull();
   expect(within(nav).getByRole("link", { name: "Posts" }).getAttribute("href")).toBe(base + "/posts");
-  const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" }); expect(within(mobile).getAllByRole("link")).toHaveLength(3);
+  const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" }); expect(within(mobile).getAllByRole("link")).toHaveLength(4);
   await screen.findByRole("heading", { name: "Analytics access is limited" });
   expect(screen.queryByRole("link", { name: "Open Staff" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Open Credential Review" })).toBeNull();
@@ -261,7 +261,7 @@ it("Dashboard attention links open a server-filtered issuer queue and keep that 
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/credential-reviews"))).toBe(true);
 });
 
-it("the organization menu exposes planned tools without changing the mobile bottom destinations and closes with Escape or navigation", async () => {
+it("the organization menu exposes planned tools while the mobile navigation includes only available destinations", async () => {
   const f = mount(); await screen.findByRole("navigation", { name: "Planned organization tools" });
   const toggle = screen.getByRole("button", { name: "Toggle navigation" }); await f.user.click(toggle);
   expect(toggle.getAttribute("aria-expanded")).toBe("true"); expect(screen.getByRole("complementary", { name: "Organization navigation" }).classList.contains("bw-design-sidebar-open")).toBe(true);
@@ -269,7 +269,7 @@ it("the organization menu exposes planned tools without changing the mobile bott
   await f.user.click(toggle); await f.user.click(within(screen.getByRole("navigation", { name: "Organization tools" })).getByRole("link", { name: "Dashboard" }));
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" });
-  expect(within(mobile).getAllByRole("link")).toHaveLength(5); expect(within(mobile).queryByRole("button", { name: /Coming soon/ })).toBeNull();
+  expect(within(mobile).getAllByRole("link")).toHaveLength(6); expect(within(mobile).queryByRole("button", { name: /Coming soon/ })).toBeNull();
 });
 
 it("keeps the same organization navigation mounted while switching tabs and clears it only on confirmed access loss", async () => {
