@@ -20,3 +20,6 @@
 .bw-post-form textarea { width: 100%; min-width: 0; border: 1px solid #c5d5ef; border-radius: .55rem; padding: .7rem; color: inherit; font: inherit; resize: vertical; }
 .bw-post-empty, .bw-post-error { margin: 0; padding: .85rem; border-radius: .55rem; background: #eef4ff; color: #243d68; }
 .bw-post-error { background: #fff0ed; color: #9b2416; }
+.bw-explore-create { display: inline-block; margin: .65rem 0 0; border-radius: .55rem; background: #164cad; color: white; padding: .55rem .85rem; font-weight: 650; }
+.bw-explore-create:hover { background: #133f90; color: white; }
+.bw-explore-heading + .bw-post-panel { margin-top: 1.2rem; }

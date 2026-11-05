@@ -39,6 +39,7 @@ import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import NotFoundPage from "../pages/NotFoundPage";
 
+import MemberPostsPage from "../pages/MemberPostsPage";
 import ExplorePage from "../pages/ExplorePage";
 const NetworkPage = lazy(() => import("../pages/NetworkPage"));
 const NotificationsPage = lazy(() => import("../pages/NotificationsPage"));
@@ -112,6 +113,7 @@ export default function AppRoutes() {
           <Route path="/security" element={<AccountSecurityPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/posts" element={<MemberPostsPage />} />
 
           <Route path="/network" element={<Suspense fallback={<p role="status">Loading your network…</p>}><NetworkPage /></Suspense>} />
           <Route path="/notifications" element={<Suspense fallback={<p role="status">Loading notifications…</p>}><NotificationsPage /></Suspense>} />

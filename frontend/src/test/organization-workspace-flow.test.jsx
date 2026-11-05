@@ -6,6 +6,7 @@ import { expect, it, vi } from "vitest";
 import { AuthContext } from "../auth/auth-context";
 import AppLayout from "../layouts/AppLayout";
 import OrganizationWorkspacePage from "../pages/OrganizationWorkspacePage";
+import MemberPostsPage from "../pages/MemberPostsPage";
 import ExplorePage from "../pages/ExplorePage";
 import WorkPage from "../pages/WorkPage";
 import OrganizationRequestsPage from "../pages/OrganizationRequestsPage";
@@ -37,6 +38,7 @@ function mount(path = base, handler = () => reply(context)) {
     <Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} />
     <Route path="/organization-workspace/:organizationId/credentials" element={<CredentialReviewsPage />} />
     <Route path="/explore" element={<ExplorePage />} />
+    <Route path="/posts" element={<MemberPostsPage />} />
     <Route path="/security" element={<h1>Account security destination</h1>} />
   </Route></Routes></MemoryRouter></AuthContext.Provider>);
   return { fetch, user: userEvent.setup() };
@@ -151,7 +153,44 @@ it("Explore separates recent posts from posts by organizations the viewer follow
   const following = screen.getByRole("button", { name: "Following", exact: true });
   await f.user.click(following);
   expect(following.getAttribute("aria-pressed")).toBe("true");
-  await screen.findByText("Posts from organizations you follow will appear here.");
+  await screen.findByText("Posts from people and organizations you follow will appear here.");
+  expect(screen.queryByText(body)).toBeNull();
+});
+
+it("the personal Post destination checks verification and lets authors withdraw after unpublishing their profile", async () => {
+  let verified = false, published = true;
+  const body = "I finished my first research project.";
+  const post = { id: "personal-post", body, createdAt: "2026-11-05T10:00:00Z", member: { username: "owner", name: "Test Owner" } };
+  const f = mount("/explore", (url, options) => {
+    if (url.includes("/explore/posts?")) return reply({ items: [], nextCursor: null });
+    if (url.endsWith("/posts/me") && options?.method === "POST") {
+      expect(JSON.parse(options.body).body).toBe(body);
+      return reply({ post }, 201);
+    }
+    if (url.endsWith("/posts/me/personal-post") && options?.method === "DELETE") return reply({ id: post.id });
+    if (url.endsWith("/posts/me")) return reply({
+      items: published ? [] : [post], nextCursor: null,
+      access: { identityVerified: verified, profilePublic: published },
+    });
+    return reply(context);
+  });
+  await f.user.click(screen.getByRole("link", { name: "Create a post" }));
+  expect((await screen.findByRole("link", { name: "Verify your identity" })).getAttribute("href")).toBe("/manual-identity");
+  expect(screen.queryByRole("button", { name: "Publish post" })).toBeNull();
+  verified = true;
+  const refresh = screen.getByRole("button", { name: "Refresh posts" });
+  await f.user.click(refresh);
+  await f.user.type(await screen.findByRole("textbox", { name: "Share a learning or career update" }), body);
+  await f.user.click(screen.getByRole("button", { name: "Publish post" }));
+  await screen.findByText("Post published.");
+  expect(screen.getByRole("link", { name: "Test Owner" }).getAttribute("href")).toBe("/people/owner");
+  published = false;
+  await f.user.click(refresh);
+  await screen.findByRole("link", { name: "Publish your public profile" });
+  expect(screen.queryByRole("button", { name: "Publish post" })).toBeNull();
+  await f.user.click(screen.getByRole("button", { name: "Withdraw post" }));
+  await f.user.click(screen.getByRole("button", { name: "Confirm withdrawal" }));
+  await screen.findByText("Post withdrawn.");
   expect(screen.queryByText(body)).toBeNull();
 });
 

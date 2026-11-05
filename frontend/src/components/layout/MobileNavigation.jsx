@@ -9,7 +9,7 @@ const items = [
     to: "/opportunities",
     icon: "opportunities",
   },
-  { label: "Post", icon: "post" },
+  { label: "Post", to: "/posts", icon: "post" },
   { label: "Network", to: "/network", icon: "network" },
   { label: "Learning", to: "/learning", icon: "learning" },
 ];
@@ -34,29 +34,12 @@ export default function MobileNavigation({ onNavigate }) {
       className="bw-mobile-navigation"
       aria-label="Mobile navigation"
     >
-      {items.map((item) =>
-        item.to ? (
-          <NavLink
-            key={item.label}
-            to={item.to}
-            onClick={onNavigate}
-          >
-            {({ isActive }) => (
-              <Content item={item} active={isActive} />
-            )}
-          </NavLink>
-        ) : (
-          <button
-            key={item.label}
-            className="bw-mobile-navigation-post"
-            type="button"
-            disabled
-            title="Posting is coming soon"
-          >
-            <Content item={item} />
-          </button>
-        ),
-      )}
+      {items.map(item => (
+        <NavLink key={item.label} to={item.to} onClick={onNavigate}
+          className={item.icon === "post" ? "bw-mobile-navigation-post" : undefined}>
+          {({ isActive }) => <Content item={item} active={isActive} />}
+        </NavLink>
+      ))}
     </nav>
   );
 }
