@@ -117,6 +117,8 @@ model Session {
 
 // Owner-only draft data. No verification or publishing state is client editable.
 model Profile {
+  profileViewSharingEnabled Boolean @default(false)
+  profileViewNotificationsEnabled Boolean @default(false)
   latestPhotoReviewId String? @unique
   latestPhotoReview ProfilePhotoReview? @relation("LatestPhotoReview", fields: [latestPhotoReviewId], references: [id], onDelete: Restrict)
   photoReviews ProfilePhotoReview[] @relation("ProfilePhotoReviewHistory")

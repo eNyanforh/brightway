@@ -121,6 +121,7 @@ Record date, SHA, migrations and expected/observed outcome without contacts/secr
 SQL tests use disposable PostgreSQL; browser responses are intercepted synthetic
 fixtures. Neither establishes real email/storage/provider or application-database
 acceptance. No real accounts, grants, documents or application data are accessed
-by development verification. Profile-view notifications/privacy consent and the
-notification surface remain the next separate slice; no viewing telemetry or
-notification policy is silently introduced here.
+by development verification. The profile-view consent settings are now documented
+in SPRINT-4-PROFILE-VIEW-CONSENT.md. Public individual profiles, explicit view
+events, and the notification inbox remain later work; this following slice still
+creates no viewing telemetry or notification policy.

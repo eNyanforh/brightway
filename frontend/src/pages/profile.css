@@ -1155,3 +1155,8 @@
   }
 }
 .bw-profile-identity h1.bw-profile-verified-name{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.bw-profile-view-privacy h2 { margin: 0.35rem 0 0.55rem; }
+.bw-profile-view-privacy > p:not(.bw-profile-eyebrow) { color: var(--profile-muted); margin: 0 0 1rem; }
+.bw-profile-view-privacy label { display: flex; align-items: flex-start; gap: 0.65rem; margin: 0.8rem 0; color: var(--profile-ink); }
+.bw-profile-view-privacy input { flex: 0 0 auto; width: 1rem; height: 1rem; margin-top: 0.2rem; accent-color: var(--profile-blue); }
+.bw-profile-view-privacy small { display: block; margin-top: 0.85rem; color: var(--profile-muted); line-height: 1.5; }
