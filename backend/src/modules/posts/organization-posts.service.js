@@ -24,6 +24,8 @@ const memberPostSelect = {
   author: { select: { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true } } } },
 };
 const identifier = z.uuid();
+const sourceInput = z.enum(["organization", "member"]);
+const likeInput = z.strictObject({ liked: z.boolean() });
 const postInput = z.strictObject({
   body: z.string().trim().min(1).max(2000).refine(value => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)),
   requestKey: identifier,
@@ -31,7 +33,7 @@ const postInput = z.strictObject({
 const cursorInput = z.string().min(1).max(700).optional();
 const feedQuery = z.strictObject({ view: z.enum(["for-you", "following"]).default("for-you"), cursor: cursorInput });
 const workspaceQuery = z.strictObject({ cursor: cursorInput });
-const cursorSchema = z.strictObject({ viewer: identifier, scope: z.string(), at: z.iso.datetime(), id: identifier, source: z.enum(["organization", "member"]).default("organization") });
+const cursorSchema = z.strictObject({ viewer: identifier, scope: z.string(), at: z.iso.datetime(), id: identifier, source: sourceInput.default("organization") });
 
 function parse(schema, data, message) {
   const result = schema.safeParse(data);
@@ -66,6 +68,35 @@ function cursorFor(rows, viewer, scope) {
   return Buffer.from(JSON.stringify({ viewer, scope, at: last.createdAt.toISOString(), id: last.id, source })).toString("base64url");
 }
 
+function unblockedAuthor(accountId) {
+  const blocked = [{ leftBlocked: true }, { rightBlocked: true }];
+  return {
+    networkLeft: { none: { rightAccountId: accountId, OR: blocked } },
+    networkRight: { none: { leftAccountId: accountId, OR: blocked } },
+  };
+}
+
+function visibleMember(accountId) {
+  return {
+    ...unblockedAuthor(accountId),
+    status: "ACTIVE",
+    manualIdentityRequest: { state: "APPROVED" },
+    person: { profile: { profilePublicEnabled: true } },
+  };
+}
+
+function likeSelect(accountId) {
+  return { _count: { select: { likes: true } }, likes: { where: { accountId }, select: { id: true } } };
+}
+
+function likeSummary({ likes, _count }) {
+  return { liked: likes.length > 0, count: _count.likes };
+}
+
+function feedPost({ likes, _count, ...post }) {
+  return { ...(post.author ? memberPost(post) : post), reaction: likeSummary({ likes, _count }) };
+}
+
 function memberPost({ author, ...post }) {
   const { firstName, middleName, lastName } = author.person;
   return { ...post, member: { username: author.username, name: [firstName, middleName, lastName].filter(Boolean).join(" ") } };
@@ -86,6 +117,14 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
   async function memberEligibility(db, accountId) {
     const { status, ctx } = await identity.inspectAccount(db, accountId);
     return { identityVerified: status === "APPROVED", profilePublic: ctx.profilePublic };
+  }
+
+  async function lockMemberProfile(db, id) {
+    await db.$queryRaw`SELECT p."id" FROM "Profile" p JOIN "Account" a ON a."personId" = p."personId" WHERE a."id" = ${id} FOR UPDATE OF p`;
+  }
+
+  async function lockOrganization(db, id) {
+    await db.$queryRaw`SELECT "id" FROM "Organization" WHERE "id" = ${id} FOR UPDATE`;
   }
 
   async function memberWrite(actor, operation) {
@@ -125,7 +164,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     return prisma.$transaction(async tx => {
       // Staff changes take the same account and organization row locks.
       await lockNetworkAccounts(tx, [actor.accountId]);
-      await tx.$queryRaw`SELECT "id" FROM "Organization" WHERE "id" = ${organizationId} FOR UPDATE`;
+      await lockOrganization(tx, organizationId);
       await publisher(tx, actor, organizationId);
       const data = await operation(tx);
       await publisher(tx, actor, organizationId);
@@ -144,26 +183,17 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const { view, cursor } = parse(feedQuery, query, "Choose a valid Explore view.");
       await assertNetworkSession(prisma, actor, now);
       const position = readCursor(cursor, actor.accountId, view);
-      const blocked = [{ leftBlocked: true }, { rightBlocked: true }];
-      const unblocked = {
-        networkLeft: { none: { rightAccountId: actor.accountId, OR: blocked } },
-        networkRight: { none: { leftAccountId: actor.accountId, OR: blocked } },
-      };
       const organization = { ...readyFilter };
-      const member = {
-        ...unblocked,
-        status: "ACTIVE",
-        manualIdentityRequest: { state: "APPROVED" },
-        person: { profile: { profilePublicEnabled: true } },
-      };
+      const member = visibleMember(actor.accountId);
+      const reaction = likeSelect(actor.accountId);
       if (view === "following") {
         const followers = { some: { followerId: actor.accountId, active: true } };
         organization.followers = followers;
         member.followers = followers;
       }
       const [organizations, members] = await Promise.all([
-        findPosts(prisma.organizationPost, postSelect, { organization, author: unblocked }, position, "organization"),
-        findPosts(prisma.memberPost, memberPostSelect, { author: member }, position, "member"),
+        findPosts(prisma.organizationPost, { ...postSelect, ...reaction }, { organization, author: unblockedAuthor(actor.accountId) }, position, "organization"),
+        findPosts(prisma.memberPost, { ...memberPostSelect, ...reaction }, { author: member }, position, "member"),
       ]);
       const rows = [...organizations, ...members].sort((a, b) =>
         b.createdAt - a.createdAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : Number(Boolean(a.author)) - Number(Boolean(b.author))));
@@ -184,9 +214,48 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       }
       await assertNetworkSession(prisma, actor, now);
       return {
-        items: candidates.filter(post => !post.author || eligible.has(post.author.id)).map(post => post.author ? memberPost(post) : post),
+        items: candidates.filter(post => !post.author || eligible.has(post.author.id)).map(feedPost),
         nextCursor: cursorFor(rows, actor.accountId, view),
       };
+    },
+
+    async setLike(actor, sourceValue, idValue, input) {
+      const source = parse(sourceInput, sourceValue, "Choose a valid post type.");
+      const id = parse(identifier, idValue, "Choose a valid post.");
+      const { liked } = parse(likeInput, input, "Choose whether to like this post.");
+      await assertNetworkSession(prisma, actor, now);
+
+      const unavailable = () => fail(404, "This post is no longer available.");
+      const member = source === "member";
+      const select = member ? { authorId: true } : { authorId: true, organizationId: true };
+      const model = member ? prisma.memberPost : prisma.organizationPost;
+      const target = await model.findUnique({ where: { id }, select });
+      if (!target) throw unavailable();
+
+      return prisma.$transaction(async tx => {
+        // Match block and post mutation lock order before rechecking visibility.
+        await lockNetworkAccounts(tx, [actor.accountId, target.authorId]);
+        await assertNetworkSession(tx, actor, now);
+        if (member) await lockMemberProfile(tx, target.authorId);
+        else await lockOrganization(tx, target.organizationId);
+
+        const author = member ? visibleMember(actor.accountId) : unblockedAuthor(actor.accountId);
+        const posts = member ? tx.memberPost : tx.organizationPost;
+        const where = { id, authorId: target.authorId, withdrawnAt: null, author,
+          ...(!member && { organizationId: target.organizationId, organization: readyFilter }) };
+        if (!await posts.findFirst({ where, select: { id: true } })) throw unavailable();
+        if (member) {
+          const access = await memberEligibility(tx, target.authorId);
+          if (!access.identityVerified || !access.profilePublic) throw unavailable();
+        }
+
+        const data = { accountId: actor.accountId, [member ? "memberPostId" : "organizationPostId"]: id };
+        if (liked) await tx.postLike.createMany({ data: [data], skipDuplicates: true });
+        else await tx.postLike.deleteMany({ where: data });
+        const reaction = likeSummary(await posts.findUniqueOrThrow({ where: { id }, select: likeSelect(actor.accountId) }));
+        await assertNetworkSession(tx, actor, now);
+        return { reaction };
+      });
     },
 
     async memberList(actor, query) {
@@ -205,7 +274,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const data = parse(postInput, input, "Enter a post with 1 to 2,000 characters.");
       return memberWrite(actor, async tx => {
         // Public-profile updates lock this same row.
-        await tx.$queryRaw`SELECT p."id" FROM "Profile" p JOIN "Account" a ON a."personId" = p."personId" WHERE a."id" = ${actor.accountId} FOR UPDATE OF p`;
+        await lockMemberProfile(tx, actor.accountId);
         const access = await memberEligibility(tx, actor.accountId);
         if (!access.identityVerified) throw fail(403, "Verify your identity before publishing a personal post.");
         if (!access.profilePublic) throw fail(403, "Publish your public profile before sharing personal posts.");

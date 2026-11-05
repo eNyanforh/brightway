@@ -37,6 +37,7 @@ const query = params => "?" + new URLSearchParams(params);
 
 export const organizationPostsApi = {
   feed: (view, cursor, signal) => readPage("/explore/posts" + query({ view, ...(cursor ? { cursor } : {}) }), signal),
+  setLike: (source, id, liked, signal) => request(`/explore/posts/${source}/${encodeURIComponent(id)}/like`, signal, "PUT", { liked }),
   memberList: (cursor, signal) => readPage("/posts/me" + (cursor ? query({ cursor }) : ""), signal),
   memberPublish: (body, signal) => request("/posts/me", signal, "POST", body),
   memberWithdraw: (postId, signal) => request("/posts/me/" + encodeURIComponent(postId), signal, "DELETE"),

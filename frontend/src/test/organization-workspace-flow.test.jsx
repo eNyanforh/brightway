@@ -157,6 +157,42 @@ it("Explore separates recent posts from posts by organizations the viewer follow
   expect(screen.queryByText(body)).toBeNull();
 });
 
+it("Explore updates likes in place and removes only the post that becomes unavailable", async () => {
+  const id = "shared-post-id";
+  const createdAt = "2026-11-05T10:00:00Z";
+  const reaction = { liked: false, count: 0 };
+  const f = mount("/explore", (url, options) => {
+    if (url.includes("/explore/posts?")) return reply({
+      items: [
+        { id, organization, body: "Registration opens today.", createdAt, reaction },
+        { id, member: { name: "Test Member", username: "member" }, body: "A member update.", createdAt, reaction },
+      ],
+      nextCursor: null,
+    });
+    if (url.endsWith("/explore/posts/organization/" + id + "/like")) {
+      expect(options.method).toBe("PUT");
+      const { liked } = JSON.parse(options.body);
+      return reply({ reaction: { liked, count: liked ? 1 : 0 } });
+    }
+    if (url.endsWith("/explore/posts/member/" + id + "/like")) return reply("This post is no longer available.", 404);
+    return reply(context);
+  });
+  const cards = await screen.findAllByRole("article");
+  const organizationLike = within(cards[0]).getByRole("button", { name: "Like", pressed: false });
+  const memberLike = within(cards[1]).getByRole("button", { name: "Like", pressed: false });
+  await f.user.click(organizationLike);
+  await within(cards[0]).findByText("1 like");
+  expect(organizationLike.getAttribute("aria-pressed")).toBe("true");
+  expect(memberLike.getAttribute("aria-pressed")).toBe("false");
+  await f.user.click(organizationLike);
+  await waitFor(() => expect(organizationLike.getAttribute("aria-pressed")).toBe("false"));
+  await f.user.click(memberLike);
+  await screen.findByText("This post is no longer available.");
+  expect(screen.queryByText("A member update.")).toBeNull();
+  expect(screen.getByText("Registration opens today.")).toBeTruthy();
+  expect(f.fetch.mock.calls.filter(([url]) => url.includes("/explore/posts?"))).toHaveLength(1);
+});
+
 it("the personal Post destination checks verification and lets authors withdraw after unpublishing their profile", async () => {
   let verified = false, published = true;
   const body = "I finished my first research project.";
