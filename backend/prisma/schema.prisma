@@ -38,6 +38,7 @@ enum PersonGender {
 }
 
 model Account {
+  memberPosts MemberPost[]
   organizationPosts OrganizationPost[]
   follows NetworkFollow[] @relation("NetworkFollower")
   followers NetworkFollow[] @relation("NetworkFollowTarget")
@@ -948,6 +949,20 @@ model OrganizationPost {
   @@unique([organizationId, authorId, requestKey])
   @@index([withdrawnAt, createdAt, id])
   @@index([organizationId, withdrawnAt, createdAt, id])
+  @@index([authorId, createdAt])
+}
+
+model MemberPost {
+  id String @id @default(uuid())
+  authorId String
+  author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  requestKey String
+  body String @db.VarChar(2000)
+  createdAt DateTime @default(now())
+  withdrawnAt DateTime?
+  @@unique([authorId, requestKey])
+  @@index([withdrawnAt, createdAt, id])
+  @@index([authorId, withdrawnAt, createdAt, id])
   @@index([authorId, createdAt])
 }
 

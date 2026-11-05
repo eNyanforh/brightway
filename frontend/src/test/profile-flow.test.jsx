@@ -609,7 +609,7 @@ it("provides the five mobile destinations and header utilities without another p
   expect([...navigation.children].map((item) => item.textContent)).toEqual([
     "Explore", "Opportunities", "Post", "Network", "Learning",
   ]);
-  expect(within(navigation).getByRole("button", { name: "Post", exact: true }).disabled).toBe(true);
+  expect(within(navigation).getByRole("link", { name: "Post", exact: true }).getAttribute("href")).toBe("/posts");
   const header = screen.getByRole("banner");
   for (const name of ["Search — coming soon", "Messages — coming soon"]) {
     expect(within(header).getByRole("button", { name, exact: true }).disabled).toBe(true);

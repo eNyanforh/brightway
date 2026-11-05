@@ -21,7 +21,7 @@ async function request(path, signal, method = "GET", body) {
     throw new ApiError("BrightWay returned an unexpected response.", response.status);
   }
   if (!response.ok || result?.success !== true) {
-    throw new ApiError(result?.message || "Organization posts are unavailable.", response.status);
+    throw new ApiError(result?.message || "Posts are unavailable.", response.status);
   }
   return result.data;
 }
@@ -37,6 +37,9 @@ const query = params => "?" + new URLSearchParams(params);
 
 export const organizationPostsApi = {
   feed: (view, cursor, signal) => readPage("/explore/posts" + query({ view, ...(cursor ? { cursor } : {}) }), signal),
+  memberList: (cursor, signal) => readPage("/posts/me" + (cursor ? query({ cursor }) : ""), signal),
+  memberPublish: (body, signal) => request("/posts/me", signal, "POST", body),
+  memberWithdraw: (postId, signal) => request("/posts/me/" + encodeURIComponent(postId), signal, "DELETE"),
   list: (id, cursor, signal) => readPage(workspacePath(id) + (cursor ? query({ cursor }) : ""), signal),
   publish: (id, body, signal) => request(workspacePath(id), signal, "POST", body),
   withdraw: (id, postId, signal) => request(workspacePath(id) + "/" + encodeURIComponent(postId), signal, "DELETE"),

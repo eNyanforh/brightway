@@ -21,11 +21,14 @@ export function createOrganizationPostRoutes({ posts, sessions, clientUrl, nodeE
       const actor = { accountId: req.auth.account.id, sessionId: req.auth.sessionId };
       res.status(status).json({ success: true, data: await operation(req, actor) });
     } catch (error) {
-      next(error.status ? error : fail(503, "Organization posts are temporarily unavailable."));
+      next(error.status ? error : fail(503, "Posts are temporarily unavailable."));
     }
   };
   const path = "/organization-workspace/:organizationId/posts";
   router.get("/explore/posts", access, respond((req, actor) => posts.feed(actor, req.query)));
+  router.get("/posts/me", access, respond((req, actor) => posts.memberList(actor, req.query)));
+  router.post("/posts/me", access, trustedOrigin, writes, respond((req, actor) => posts.memberPublish(actor, req.body), 201));
+  router.delete("/posts/me/:id", access, trustedOrigin, writes, respond((req, actor) => posts.memberWithdraw(actor, req.params.id)));
   router.get(path, access, respond((req, actor) => posts.list(actor, req.params.organizationId, req.query)));
   router.post(path, access, trustedOrigin, writes, respond((req, actor) => posts.publish(actor, req.params.organizationId, req.body), 201));
   router.delete(path + "/:id", access, trustedOrigin, writes, respond((req, actor) => posts.withdraw(actor, req.params.organizationId, req.params.id)));

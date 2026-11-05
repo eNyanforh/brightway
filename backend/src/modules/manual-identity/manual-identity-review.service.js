@@ -44,7 +44,7 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
     accountId(id);
     const account = await db.account.findUnique({ where: { id }, select: ownerAccountSelect });
     if (!account || account.status !== "ACTIVE") throw fail(403, "An active account is required.");
-    const row = await db.profile.findUnique({ where: { personId: account.personId }, select: ownerProfileSelect });
+    const row = await db.profile.findUnique({ where: { personId: account.personId }, select: { ...ownerProfileSelect, profilePublicEnabled: true } });
     const profile = profileView(row);
     const eligibility = evaluateManualVerificationEligibility(profile, profile.completion.complete);
     const snapshot = identitySnapshot(account, profile, row?.identityRevision ?? 0);
@@ -52,7 +52,7 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
     const identityHash = digest(snapshot);
     const approvedPhotoProof = account.photoReviewRequired === true && profile.photo?.id
       ? await db.profilePhotoReview.findUnique({ where: { candidatePhotoId: profile.photo.id }, select: { accountId: true, identityAttemptId: true, approvedIdentityHash: true, state: true } }) : null;
-    return { account, profile, snapshot, identityHash, eligibility, identityDetailsComplete, approvedPhotoProof };
+    return { account, profile, snapshot, identityHash, eligibility, identityDetailsComplete, approvedPhotoProof, profilePublic: row?.profilePublicEnabled === true };
   }
   async function current(db, request) {
     if (!request) return null;

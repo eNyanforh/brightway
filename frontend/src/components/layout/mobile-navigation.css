@@ -65,11 +65,6 @@
     outline-offset: -3px;
   }
 
-  .bw-mobile-navigation-post:disabled {
-    opacity: 1;
-    cursor: not-allowed;
-  }
-
   .bw-mobile-navigation-post .bw-mobile-navigation-icon {
     width: 29px;
     height: 29px;
