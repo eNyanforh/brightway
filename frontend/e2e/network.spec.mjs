@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 const id = "11111111-1111-4111-8111-111111111111";
 async function fixture(page) {
-  const state = { connection: "NONE", version: 0, following: false, followVersion: 0, organizationFollowing: false, organizationVersion: 0, followWrites: [], writes: [], unexpected: [], errors: [], reads: 0, delay: 0, status: 200 };
+  const state = { connection: "NONE", version: 0, following: false, followedBy: true, followVersion: 0, organizationFollowing: false, organizationVersion: 0, followWrites: [], writes: [], unexpected: [], errors: [], reads: 0, delay: 0, status: 200 };
   page.on("pageerror", error => state.errors.push(error.message));
   await page.route("**/*", async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname;
@@ -19,7 +19,7 @@ async function fixture(page) {
     }
     if (path === "/api/v1/network/people/grace/actions") {
       const body = request.postDataJSON(); state.writes.push(body); state.version++;
-      if (body.action === "BLOCK" && state.following) { state.following = false; state.followVersion++; }
+      if (body.action === "BLOCK") { state.followedBy = false; if (state.following) { state.following = false; state.followVersion++; } }
       state.connection = { REQUEST: "OUTGOING", CANCEL: "NONE", ACCEPT: "CONNECTED", REMOVE: "NONE", BLOCK: "BLOCKED", UNBLOCK: "NONE" }[body.action]; return reply({ saved: true, version: state.version });
     }
     if (path.startsWith("/api/v1/network")) {
@@ -32,7 +32,7 @@ async function fixture(page) {
       if (path === "/api/v1/network") { state.reads++; if (state.delay) await new Promise(resolve => setTimeout(resolve, state.delay)); const view = url.searchParams.get("view");
         let items = state.connection === "NONE" ? [] : [{ person, relationship }];
         if (view === "following") items = [...(state.following ? [{ kind: "PERSON", person, relationship: { state: "FOLLOWING", version: 0 } }] : []), ...(state.organizationFollowing ? [{ kind: "ORGANIZATION", person: { username: "school", fullName: "Synthetic Learning Centre" }, relationship: { state: "FOLLOWING", version: 0 } }] : [])];
-        if (view === "followers") items = [{ kind: "PERSON", person, relationship: { state: "FOLLOWS_YOU", version: 0 } }];
+        if (view === "followers") items = state.followedBy ? [{ kind: "PERSON", person, relationship: { state: "FOLLOWS_YOU", version: 0 } }] : [];
         return reply({ view, items, nextCursor: null }); }
     }
     state.unexpected.push(path); return reply("Unexpected synthetic request", 500);
@@ -89,6 +89,6 @@ test("blocking clears follows and unblocking never restores them; Followers is a
   await page.getByLabel("Connect by BrightWay username").fill("grace"); await page.getByRole("button", { name: "Find person", exact: true }).click(); await expect(page.getByRole("button", { name: "Unfollow", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Block person", exact: true }).click(); await page.getByRole("button", { name: "Confirm block", exact: true }).click(); await expect(page.getByRole("button", { name: "Unblock person", exact: true })).toBeVisible(); await expect(page.getByRole("button", { name: "Follow", exact: true })).toHaveCount(0); expect(state.following).toBe(false);
   await page.getByRole("button", { name: "Unblock person", exact: true }).click(); await expect(page.getByRole("button", { name: "Follow", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Followers", exact: true }).click(); await page.getByRole("button", { name: /Grace Johnson/ }).click(); await expect(page.getByRole("button", { name: "Follow", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Followers", exact: true }).click(); await expect(page.getByText("Nothing here yet", { exact: true })).toBeVisible(); await expect(page.getByRole("button", { name: /Grace Johnson/ })).toHaveCount(0);
   expect(state.followWrites).toHaveLength(0); await layout(page); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });
