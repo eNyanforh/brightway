@@ -98,6 +98,7 @@ export default function AppRoutes() {
           <Route path="/organization-workspace/:id/profile" element={<WorkspaceRoute section="profile" />} />
           <Route path="/organization-workspace/:id/campus" element={<WorkspaceRoute section="campus" />} />
           <Route path="/organization-workspace/:id/staff" element={<WorkspaceRoute section="staff" />} />
+          <Route path="/organization-workspace/:id/posts" element={<WorkspaceRoute section="posts" />} />
           <Route path="/organization-workspace/:id" element={<WorkspaceRoute />} />
           <Route path="/work" element={<Suspense fallback={<p role="status">Loading My Workspace…</p>}><WorkPage /></Suspense>} />
           <Route path="/work/requests/:id/edit" element={<OrganizationRequestsPage />} />

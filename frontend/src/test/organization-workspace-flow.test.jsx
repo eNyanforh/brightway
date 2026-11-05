@@ -6,6 +6,7 @@ import { expect, it, vi } from "vitest";
 import { AuthContext } from "../auth/auth-context";
 import AppLayout from "../layouts/AppLayout";
 import OrganizationWorkspacePage from "../pages/OrganizationWorkspacePage";
+import ExplorePage from "../pages/ExplorePage";
 import WorkPage from "../pages/WorkPage";
 import OrganizationRequestsPage from "../pages/OrganizationRequestsPage";
 import CredentialReviewsPage from "../pages/CredentialReviewsPage";
@@ -18,8 +19,10 @@ const available = [
   { key: "staff", label: "Staff", icon: "network", shortLabel: "Staff", to: base + "/staff", sensitive: true },
   { key: "credentials", label: "Credential Review", icon: "learning", shortLabel: "Reviews", to: base + "/credentials", sensitive: true },
 ];
-const planned = [{ key: "posts", label: "Posts & content", sprint: 5 }, { key: "opportunities", label: "Opportunities", sprint: 6 }, { key: "applications", label: "Applications", sprint: 6 }, { key: "programs", label: "Programs", sprint: 7 }, { key: "admissions", label: "Admissions", sprint: 7 }];
-const context = { accountId: "owner", organization, permissions: [MANAGE, REVIEW], membership: { role: "PRIMARY_ADMIN", version: 1 }, permissionCatalog: [{ key: MANAGE, label: "Manage staff" }, { key: REVIEW, label: "Review education credentials" }], staffVersion: 1, workspace: { available, planned, campusActive: false, campusSetup: { label: "Build Campus", to: base + "/campus", status: "COMING_SOON" } } };
+const postsTool = { key: "posts", label: "Posts", icon: "post", shortLabel: "Posts", to: base + "/posts", sensitive: true };
+available.push(postsTool);
+const planned = [{ key: "opportunities", label: "Opportunities", sprint: 6 }, { key: "applications", label: "Applications", sprint: 6 }, { key: "programs", label: "Programs", sprint: 7 }, { key: "admissions", label: "Admissions", sprint: 7 }];
+const context = { accountId: "owner", organization, permissions: [MANAGE, REVIEW, "organization.posts.publish"], membership: { role: "PRIMARY_ADMIN", version: 1 }, permissionCatalog: [{ key: MANAGE, label: "Manage staff" }, { key: REVIEW, label: "Review education credentials" }], staffVersion: 1, workspace: { available, planned, campusActive: false, campusSetup: { label: "Build Campus", to: base + "/campus", status: "COMING_SOON" } } };
 const profile = { version: 1, photo: null, location: {}, skills: [], interests: [] };
 const reply = (data, status = 200) => new Response(JSON.stringify(status < 400 ? { success: true, data } : { success: false, message: data }), { status, headers: { "Content-Type": "application/json" } });
 function mount(path = base, handler = () => reply(context)) {
@@ -30,9 +33,10 @@ function mount(path = base, handler = () => reply(context)) {
     <Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} />
     <Route path="/organization-workspace/:id/profile" element={<OrganizationWorkspacePage section="profile" />} />
     <Route path="/organization-workspace/:id/campus" element={<OrganizationWorkspacePage section="campus" />} />
+    <Route path="/organization-workspace/:id/posts" element={<OrganizationWorkspacePage section="posts" />} />
     <Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} />
     <Route path="/organization-workspace/:organizationId/credentials" element={<CredentialReviewsPage />} />
-    <Route path="/explore" element={<p>Personal destination</p>} />
+    <Route path="/explore" element={<ExplorePage />} />
     <Route path="/security" element={<h1>Account security destination</h1>} />
   </Route></Routes></MemoryRouter></AuthContext.Provider>);
   return { fetch, user: userEvent.setup() };
@@ -53,17 +57,17 @@ it("desktop and mobile organization navigation expose scoped operational tools w
   const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" });
   expect(within(mobile).getByRole("link", { name: "Reviews" }).getAttribute("href")).toBe(base + "/credentials");
   expect(within(mobile).getByRole("link", { name: "Dashboard" }).getAttribute("aria-current")).toBe("page");
-  expect(within(mobile).queryByRole("link", { name: "Post" })).toBeNull();
+  expect(within(mobile).getByRole("link", { name: "Posts" }).getAttribute("href")).toBe(base + "/posts");
 });
-it("the organization sidebar keeps working links separate from the five disabled planned tools", async () => {
+it("the organization sidebar keeps working links separate from the disabled planned tools", async () => {
   mount(); await screen.findByRole("heading", { name: "Dashboard", level: 2 });
   const nav = screen.getByRole("navigation", { name: "Organization tools" });
-  expect(within(nav).getAllByRole("link").map(link => link.textContent)).toEqual(["Profile", "Dashboard", "Staff", "Credential Review"]);
+  expect(within(nav).getAllByRole("link").map(link => link.textContent)).toEqual(["Profile", "Dashboard", "Staff", "Credential Review", "Posts"]);
   const future = screen.getByRole("navigation", { name: "Planned organization tools" });
-  expect(within(future).getAllByRole("button").map(button => button.getAttribute("aria-label"))).toEqual(["Posts & content — Coming soon", "Opportunities — Coming soon", "Applications — Coming soon", "Programs — Coming soon", "Admissions — Coming soon"]);
+  expect(within(future).getAllByRole("button").map(button => button.getAttribute("aria-label"))).toEqual(["Opportunities — Coming soon", "Applications — Coming soon", "Programs — Coming soon", "Admissions — Coming soon"]);
   expect(within(future).getAllByRole("button").every(button => button.disabled)).toBe(true); expect(within(future).queryByRole("link")).toBeNull();
   expect(screen.queryByRole("heading", { name: "Planned workspace tools" })).toBeNull();
-  expect(screen.queryByRole("heading", { name: "Posts & content" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Posts" })).toBeNull();
   expect(screen.queryByRole("button", { name: /activate campus/i })).toBeNull();
 });
 it("staff management is a dedicated scoped destination and revoked permission clears private rows and navigation", async () => {
@@ -86,19 +90,69 @@ it("denied organization membership cannot leave another organization's tools or 
   expect(within(screen.getByRole("navigation", { name: "Organization tools" })).queryByRole("link")).toBeNull();
 });
 it("a publishing-only member sees their available scope and no staff, review or school-management tools", async () => {
-  const f = mount(base, () => reply({ ...context, membership: { role: "STAFF" }, permissions: ["organization.posts.publish"], workspace: { available: available.slice(0, 2), planned: planned.slice(0, 1), campusActive: false } }));
+  const f = mount(base, () => reply({ ...context, membership: { role: "STAFF" }, permissions: ["organization.posts.publish"], workspace: { available: [...available.slice(0, 2), postsTool], planned: [], campusActive: false } }));
   await screen.findByRole("heading", { name: organization.name, level: 1 });
   const nav = screen.getByRole("navigation", { name: "Organization tools" }); expect(within(nav).queryByRole("link", { name: "Staff" })).toBeNull(); expect(within(nav).queryByRole("link", { name: "Credential Review" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Admissions" })).toBeNull();
-  const future = screen.getByRole("navigation", { name: "Planned organization tools" });
-  expect(within(future).getAllByRole("button")).toHaveLength(1); expect(within(future).getByRole("button", { name: "Posts & content — Coming soon" }).disabled).toBe(true);
-  const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" }); expect(within(mobile).getAllByRole("link")).toHaveLength(3);
+  expect(screen.queryByRole("navigation", { name: "Planned organization tools" })).toBeNull();
+  expect(within(nav).getByRole("link", { name: "Posts" }).getAttribute("href")).toBe(base + "/posts");
+  const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" }); expect(within(mobile).getAllByRole("link")).toHaveLength(4);
   await screen.findByRole("heading", { name: "Analytics access is limited" });
   expect(screen.queryByRole("link", { name: "Open Staff" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Open Credential Review" })).toBeNull();
   expect(screen.getByText("Staff member")).toBeTruthy();
-  expect(screen.queryByRole("heading", { name: "Posts & content" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Posts" })).toBeNull();
   expect(f.fetch.mock.calls.some(([url]) => /\/staff$|\/credential-reviews/.test(url))).toBe(false);
+});
+
+it("a publisher can retry a failed organization post and withdraw it from the workspace", async () => {
+  let requestKey;
+  const body = "The workshop opens Monday.";
+  const f = mount(base + "/posts", (url, options) => {
+    if (url.endsWith("/posts") && options?.method === "POST") {
+      const draft = JSON.parse(options.body);
+      expect(draft.body).toBe(body);
+      if (!requestKey) { requestKey = draft.requestKey; return reply("Try again shortly.", 503); }
+      expect(draft.requestKey).toBe(requestKey);
+      return reply({ post: { id: "new-post", organization, body, createdAt: "2026-11-05T09:00:00Z" } }, 201);
+    }
+    if (url.endsWith("/posts/new-post") && options?.method === "DELETE") return reply({ id: "new-post" });
+    if (url.endsWith("/posts")) return reply({ items: [], nextCursor: null });
+    return reply(context);
+  });
+  await screen.findByText("Your organization has no published posts yet.");
+  const field = screen.getByRole("textbox", { name: "Write an organization post" });
+  await f.user.type(field, body);
+  const publish = screen.getByRole("button", { name: "Publish post" });
+  await f.user.click(publish);
+  await screen.findByText("Try again shortly.");
+  expect(field.value).toBe(body);
+  await f.user.click(publish);
+  await screen.findByText("Post published.");
+  expect(screen.getByText(body)).toBeTruthy();
+  expect(field.value).toBe("");
+  await f.user.click(screen.getByRole("button", { name: "Withdraw post" }));
+  await f.user.click(screen.getByRole("button", { name: "Confirm withdrawal" }));
+  await screen.findByText("Post withdrawn.");
+  expect(screen.queryByText(body)).toBeNull();
+});
+
+it("Explore separates recent posts from posts by organizations the viewer follows", async () => {
+  const body = "Registration opens today.";
+  const f = mount("/explore", url => {
+    if (url.endsWith("/explore/posts?view=for-you")) return reply({
+      items: [{ id: "recent-post", organization, body, createdAt: "2026-11-05T09:00:00Z" }],
+      nextCursor: null,
+    });
+    if (url.endsWith("/explore/posts?view=following")) return reply({ items: [], nextCursor: null });
+    return reply(context);
+  });
+  await screen.findByText(body);
+  const following = screen.getByRole("button", { name: "Following", exact: true });
+  await f.user.click(following);
+  expect(following.getAttribute("aria-pressed")).toBe("true");
+  await screen.findByText("Posts from organizations you follow will appear here.");
+  expect(screen.queryByText(body)).toBeNull();
 });
 
 it("Dashboard refresh cannot duplicate a pending read and clears analytics when membership is revoked", async () => {
@@ -118,7 +172,7 @@ it("Dashboard refresh cannot duplicate a pending read and clears analytics when 
   expect(button.disabled).toBe(false);
 });
 it("a direct staff URL never exposes staff controls to a member without staff-management permission", async () => {
-  const limited = { ...context, membership: { role: "STAFF" }, permissions: ["organization.posts.publish"], workspace: { available: available.slice(0, 2), planned: planned.slice(0, 1), campusActive: false } };
+  const limited = { ...context, membership: { role: "STAFF" }, permissions: ["organization.posts.publish"], workspace: { available: [...available.slice(0, 2), postsTool], planned: [], campusActive: false } };
   const f = mount(base + "/staff", url => url.endsWith("/staff") ? reply({ staffVersion: 1, members: [{ id: "private", username: "private_staff" }], invitations: [] }) : reply(limited));
   await screen.findByRole("heading", { name: "This tool is not available to your role" });
   expect(screen.queryByText("Private Staff Member")).toBeNull();
@@ -207,7 +261,7 @@ it("Dashboard attention links open a server-filtered issuer queue and keep that 
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/credential-reviews"))).toBe(true);
 });
 
-it("the organization menu exposes planned tools without changing the mobile bottom destinations and closes with Escape or navigation", async () => {
+it("the organization menu exposes planned tools while the mobile navigation includes only available destinations", async () => {
   const f = mount(); await screen.findByRole("navigation", { name: "Planned organization tools" });
   const toggle = screen.getByRole("button", { name: "Toggle navigation" }); await f.user.click(toggle);
   expect(toggle.getAttribute("aria-expanded")).toBe("true"); expect(screen.getByRole("complementary", { name: "Organization navigation" }).classList.contains("bw-design-sidebar-open")).toBe(true);
@@ -215,7 +269,7 @@ it("the organization menu exposes planned tools without changing the mobile bott
   await f.user.click(toggle); await f.user.click(within(screen.getByRole("navigation", { name: "Organization tools" })).getByRole("link", { name: "Dashboard" }));
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" });
-  expect(within(mobile).getAllByRole("link")).toHaveLength(5); expect(within(mobile).queryByRole("button", { name: /Coming soon/ })).toBeNull();
+  expect(within(mobile).getAllByRole("link")).toHaveLength(6); expect(within(mobile).queryByRole("button", { name: /Coming soon/ })).toBeNull();
 });
 
 it("keeps the same organization navigation mounted while switching tabs and clears it only on confirmed access loss", async () => {
@@ -231,16 +285,16 @@ it("keeps the same organization navigation mounted while switching tabs and clea
   await f.user.click(within(nav).getByRole("link", { name: "Staff" }));
   await waitFor(() => expect(release).toBeTypeOf("function"));
   expect(nav.isConnected).toBe(true);
-  expect(within(nav).getAllByRole("link")).toHaveLength(4);
+  expect(within(nav).getAllByRole("link")).toHaveLength(5);
   expect(within(nav).getByRole("link", { name: "Staff" }).getAttribute("aria-current")).toBe("page");
   expect(screen.queryByText("Organization access is checked before tools are shown.")).toBeNull();
   await act(async () => release(reply(context)));
   // The subsequent staff read must also leave navigation intact while pending.
-  expect(within(nav).getAllByRole("link")).toHaveLength(4);
+  expect(within(nav).getAllByRole("link")).toHaveLength(5);
   await act(async () => release(reply({ members: [], invitations: [], staffVersion: 1 })));
   await f.user.click(within(nav).getByRole("link", { name: "Credential Review" }));
   await waitFor(() => expect(f.fetch.mock.calls.some(([url]) => url.includes("credential-reviews"))).toBe(true));
-  expect(within(nav).getAllByRole("link")).toHaveLength(4);
+  expect(within(nav).getAllByRole("link")).toHaveLength(5);
   await act(async () => release(reply("Organization access revoked", 403)));
   await screen.findByRole("alert");
   expect(within(nav).queryByRole("link", { name: "Staff" })).toBeNull();
@@ -249,7 +303,7 @@ it("keeps the same organization navigation mounted while switching tabs and clea
 it("leaving an organization hides its navigation and name in the real account layout", async () => {
   const f = mount(); await screen.findByRole("heading", { name: "Dashboard", level: 2 });
   await f.user.click(within(screen.getByRole("navigation", { name: "Account contexts" })).getByRole("link", { name: "Return to Personal" }));
-  await screen.findByText("Personal destination");
+  await screen.findByRole("heading", { name: "Explore" });
   expect(screen.queryByRole("navigation", { name: "Organization tools" })).toBeNull();
   expect(screen.queryByRole("navigation", { name: "Mobile organization navigation" })).toBeNull();
   expect(document.querySelector(".bw-design-personal").textContent).not.toContain(organization.name);

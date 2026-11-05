@@ -5,6 +5,7 @@ import { organizationWorkspace } from "../../../shared/organization-workspace.mj
 import CampusSetupOverview from "../components/organizations/CampusSetupOverview";
 import OrganizationProfile from "../components/organizations/OrganizationProfile";
 import OrganizationOverview from "../components/organizations/OrganizationOverview";
+import PostsPanel from "../components/posts/PostsPanel";
 import WorkspaceIcon from "../components/workspace/WorkspaceIcon";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useOutletContext, useParams } from "react-router-dom";
@@ -103,7 +104,10 @@ function Workspace({ actor, usernameLabel, id, section }) {
     finally { if (life.current === current) { lock.current = false; setBusy(false); } }
   }
   const campusAllowed = view?.membership?.role === "PRIMARY_ADMIN" && (view.organization.type === "SCHOOL" || view.organization.offersTraining);
-  const sectionAllowed = !id || !view || section === "overview" || section === "profile" || (section === "staff" && view.permissions.includes(MANAGE)) || (section === "campus" && campusAllowed);
+  const sectionAllowed = !id || !view || section === "overview" || section === "profile" ||
+    (section === "staff" && view.permissions.includes(MANAGE)) ||
+    (section === "posts" && view.permissions.includes("organization.posts.publish")) ||
+    (section === "campus" && campusAllowed);
   return <section className={`bw-org-page${section === "profile" ? " bw-org-profile-page" : section === "overview" ? " bw-org-dashboard-page" : section === "staff" ? " bw-org-staff-page" : ""}`} aria-label={section === "profile" ? "Organization profile" : undefined}>
     {(section === "overview" || section === "staff") && <header className="bw-dashboard-page-heading"><nav className="bw-dashboard-breadcrumb" aria-label="Workspace breadcrumb"><Link to="/work">My Workspace</Link><span aria-hidden="true">/</span><span>{section === "staff" ? "Staff" : "Organization workspace"}</span></nav><div className="bw-dashboard-heading-row"><div className="bw-dashboard-heading-identity"><span className="bw-dashboard-heading-icon"><WorkspaceIcon name="building" size={24} /></span><div><h1>{view?.organization.name || "Organization workspace"}</h1><p>Your organization workspace</p></div></div><div className="bw-dashboard-heading-actions"><Link className="bw-dashboard-personal-link" to="/explore">Personal account</Link><button className="bw-dashboard-refresh" type="button" disabled={busy} onClick={reload} aria-label="Reload account workspace" aria-busy={busy}><WorkspaceIcon name="refresh" size={16} /><span>{busy ? "Refreshing…" : "Refresh"}</span></button></div></div></header>}
     {section !== "profile" && section !== "overview" && section !== "staff" && <><h1>{id && view ? view.organization.name : "Organization workspace"}</h1><p><Link to="/explore">Personal account</Link>{id && <> · <Link to="/work">Back to My Workspace</Link></>} · <Link to="/security">Account security</Link></p></>}
@@ -115,6 +119,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
     {id && view && sectionAllowed && section === "profile" && <OrganizationProfile key={`${id}:${generation}`} organization={view.organization} role={view.membership?.role} canEdit={view.membership?.role === "PRIMARY_ADMIN" || view.permissions.includes("organization.profile.manage")} />}
     {id && view && sectionAllowed && section === "overview" && <OrganizationOverview organization={view.organization} role={view.membership?.role} refreshVersion={`${generation}:${view.staffVersion}:${view.permissions.join(",")}`} />}
     {id && view && sectionAllowed && section === "campus" && <CampusSetupOverview organization={view.organization} />}
+    {id && view && sectionAllowed && section === "posts" && <PostsPanel key={actor + ":" + id} organization={view.organization} disabled={stale || Boolean(error)} />}
     {id && view && sectionAllowed && section === "staff" && <OrganizationStaff organization={view.organization} actorUsername={usernameLabel} staff={staff} filters={filters} onFilter={filterStaff}
       username={username} permissions={permissions} onUsername={setUsername} onPermissions={setPermissions} catalog={view.permissionCatalog} grantableCatalog={view.permissionCatalog.filter(p => view.permissions.includes(p.key))}
       busy={busy} stale={stale} retrying={retrying} error={error} generation={generation} isBusy={() => lock.current} onDirty={changeEditorDirty}

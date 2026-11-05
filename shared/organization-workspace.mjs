@@ -8,8 +8,8 @@ export function organizationWorkspace(organization, permissions = [], role = "ST
   ];
   if (has("organization.members.manage")) available.push({ key: "staff", label: "Staff", shortLabel: "Staff", icon: "network", to: `${base}/staff`, sensitive: true, description: "Invite staff, manage permissions and revoke access." });
   if (["education", "experience"].some(kind => has(`organization.credentials.${kind}.review`))) available.push({ key: "credentials", label: "Credential Review", shortLabel: "Reviews", icon: "learning", to: `${base}/credentials`, sensitive: true, description: "Review education or experience claims submitted to this issuer." });
+  if (has("organization.posts.publish")) available.push({ key: "posts", label: "Posts", shortLabel: "Posts", icon: "post", to: `${base}/posts`, sensitive: true, description: "Publish or withdraw posts from your organization." });
   const planned = [];
-  if (has("organization.posts.publish")) planned.push({ key: "posts", label: "Posts & content", sprint: 5, description: "Publish organization content and manage its interactions." });
   if (has("organization.opportunities.manage")) planned.push(
     { key: "opportunities", label: "Opportunities", sprint: 6, description: "Publish jobs, scholarships, challenges and events." },
     { key: "applications", label: "Applications", sprint: 6, description: "Review on-BrightWay applications, participation and registrations." },
