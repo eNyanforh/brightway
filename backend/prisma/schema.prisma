@@ -38,6 +38,7 @@ enum PersonGender {
 }
 
 model Account {
+  organizationPosts OrganizationPost[]
   follows NetworkFollow[] @relation("NetworkFollower")
   followers NetworkFollow[] @relation("NetworkFollowTarget")
   followEvents NetworkFollowEvent[]
@@ -903,6 +904,7 @@ model OrganizationRequestAudit {
   @@index([requestId, createdAt, id])
 }
 model Organization {
+  posts OrganizationPost[]
   followers NetworkFollow[]
   accessVersion Int @default(0)
   username String? @unique @db.VarChar(30)
@@ -933,6 +935,22 @@ model Organization {
   issuedCredentialReviews CredentialReview[] @relation("CredentialIssuer")
   issuedCredentialAttempts CredentialAttempt[] @relation("CredentialAttemptIssuer")
 }
+model OrganizationPost {
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  authorId String
+  author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  requestKey String
+  body String @db.VarChar(2000)
+  createdAt DateTime @default(now())
+  withdrawnAt DateTime?
+  @@unique([organizationId, authorId, requestKey])
+  @@index([withdrawnAt, createdAt, id])
+  @@index([organizationId, withdrawnAt, createdAt, id])
+  @@index([authorId, createdAt])
+}
+
 model OrganizationOperatingLocation {
   id String @id @default(uuid())
   organizationId String

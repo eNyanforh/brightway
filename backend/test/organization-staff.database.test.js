@@ -2,9 +2,10 @@ import { seedOrganizationProfile, clearOrganizationProfiles } from "../test-supp
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { createOrganizationPosts } from "../src/modules/posts/organization-posts.service.js";
 import { createOrganizationStaffService } from "../src/modules/organizations/organization-staff.service.js";
 const POSTS = "organization.posts.publish", MANAGE = "organization.members.manage";
-test("database staffing preserves consent, one-winner acceptance, scoped grants, revocation and transactional audits", { skip: !process.env.TEST_DATABASE_URL && "Set TEST_DATABASE_URL to a separate migrated test database" }, async () => {
+test("database staffing preserves consent, one-winner acceptance, scoped grants, revocation and transactional audits for staffing and publishing", { skip: !process.env.TEST_DATABASE_URL && "Set TEST_DATABASE_URL to a separate migrated test database" }, async () => {
   const { PrismaClient } = await import("@prisma/client"), { PrismaPg } = await import("@prisma/adapter-pg");
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }), transactionOptions: { maxWait: 10000, timeout: 15000 } });
   const accounts = [], sessions = [], marker = randomUUID(), now = new Date(), orgIds = [], requestIds = [];
@@ -84,10 +85,59 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     const restored = await db.organizationMembership.findUnique({ where: { id: member.id } });
     await service.change(owner.id, sessions[0].id, organization.id, member.id, { expectedStaffVersion: (await context()).staffVersion, expectedVersion: restored.version, permissions: revoked.members[0].assignedPermissions, enabled: true });
     assert.deepEqual((await service.context(staff.id, sessions[1].id, organization.id)).permissions, [POSTS]);
-    await db.organization.update({ where: { id: organization.id }, data: { status: "SUSPENDED" } }); await assert.rejects(context(), { status: 404 });
+    const posts = createOrganizationPosts({ prisma: db, now: () => now });
+    const actor = (index) => ({ accountId: accounts[index].id, sessionId: sessions[index].id });
+    const draft = { body: "  Our next workshop is open.  ", requestKey: randomUUID() };
+    await assert.rejects(posts.publish(actor(2), organization.id, draft), { status: 403 });
+    await assert.rejects(posts.publish(actor(0), otherOrg.id, draft), { status: 403 });
+    await assert.rejects(posts.publish({ ...actor(1), sessionId: sessions[2].id }, organization.id, draft), { status: 401 });
+    await db.mfaFactor.update({ where: { accountId: staff.id }, data: { enabled: false } });
+    await assert.rejects(posts.publish(actor(1), organization.id, draft), { status: 403 });
+    await db.mfaFactor.update({ where: { accountId: staff.id }, data: { enabled: true } });
+    const [first, retry] = await Promise.all([
+      posts.publish(actor(1), organization.id, draft),
+      posts.publish(actor(1), organization.id, draft),
+    ]);
+    const { post } = first;
+    assert.equal(post.id, retry.post.id);
+    assert.equal(post.body, draft.body.trim());
+    assert.deepEqual(Object.keys(post).sort(), ["body", "createdAt", "id", "organization"]);
+    await assert.rejects(posts.publish(actor(1), organization.id, { ...draft, body: "Different content" }), { status: 409 });
+    await assert.rejects(posts.withdraw(actor(1), otherOrg.id, post.id), { status: 404 });
+    assert.equal((await posts.list(actor(0), organization.id, {})).items[0].id, post.id);
+
+    const visible = async view => (await posts.feed(actor(2), { view })).items.some(item => item.id === post.id);
+    assert.equal(await visible("for-you"), true);
+    assert.equal(await visible("following"), false);
+    await db.networkFollow.create({ data: { followerId: agent.id, targetOrganizationId: organization.id, active: true } });
+    assert.equal(await visible("following"), true);
+    const [leftAccountId, rightAccountId] = [staff.id, agent.id].sort();
+    const block = await db.networkPair.create({ data: { leftAccountId, rightAccountId, leftBlocked: true } });
+    assert.equal(await visible("for-you"), false);
+    assert.equal(await visible("following"), false);
+    await db.networkPair.delete({ where: { id: block.id } });
+
+    await db.organization.update({ where: { id: organization.id }, data: { status: "SUSPENDED" } });
+    await assert.rejects(context(), { status: 404 });
+    assert.equal(await visible("for-you"), false);
+    await db.organization.update({ where: { id: organization.id }, data: { status: "ACTIVE" } });
+    await posts.withdraw(actor(0), organization.id, post.id);
+    await posts.withdraw(actor(0), organization.id, post.id);
+    assert.equal(await visible("for-you"), false);
+    assert.equal(await visible("following"), false);
+    assert.equal((await posts.list(actor(0), organization.id, {})).items.length, 0);
+    const actions = await db.organizationStaffAudit.findMany({
+      where: { organizationId: organization.id, entityId: post.id },
+      orderBy: { action: "asc" },
+      select: { action: true },
+    });
+    assert.deepEqual(actions.map(row => row.action), ["POST_PUBLISHED", "POST_WITHDRAWN"]);
     assert.equal((await db.account.findUnique({ where: { id: staff.id } })).platformRole, "MEMBER");
   } finally {
     try {
+      await db.organizationPost.deleteMany({ where: { organizationId: { in: orgIds } } });
+      await db.networkFollow.deleteMany({ where: { targetOrganizationId: { in: orgIds } } });
+      await db.networkPair.deleteMany({ where: { leftAccountId: { in: accounts.map(account => account.id) } } });
       await clearOrganizationProfiles(db, orgIds);
       await db.organizationStaffAudit.deleteMany({ where: { organizationId: { in: orgIds } } }); await db.organizationInvitation.deleteMany({ where: { organizationId: { in: orgIds } } });
       await db.organizationMembership.deleteMany({ where: { organizationId: { in: orgIds } } }); await db.organization.deleteMany({ where: { id: { in: orgIds } } }); await db.organizationRequest.deleteMany({ where: { id: { in: requestIds } } });
