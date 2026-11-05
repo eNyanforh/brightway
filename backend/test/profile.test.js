@@ -80,7 +80,12 @@ test("profile validation rejects privilege injection, empty patches, duplicate e
 test("read is side-effect free and returns a virtual empty draft for existing accounts", async () => {
   const db = database();
   const service = createProfileService({ prisma: db });
-  assert.deepEqual(await service.read("owner"), profileView(null));
+  assert.deepEqual(await service.read("owner"), {
+    ...profileView(null),
+    profileViewSharingEnabled: false,
+    profileViewNotificationsEnabled: false,
+    profilePublicEnabled: false,
+  });
   assert.equal(db.rows.size, 0);
   assert.equal(db.calls[0][1].where.personId, "owner");
   assert.deepEqual(db.calls[0][1].select.person, { select: { phoneNumber: true, account: { select: { email: true, emailVerifiedAt: true, photoReviewRequired: true } } } });

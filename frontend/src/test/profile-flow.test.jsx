@@ -583,7 +583,8 @@ it("shows sidebar navigation without a profile card or another profile request",
   expect(within(sidebar).getByRole("link", { name: "Opportunities", exact: true }).getAttribute("href"))
     .toBe("/opportunities");
   expect(within(sidebar).getByRole("button", { name: "Messages", exact: true }).disabled).toBe(true);
-  expect(within(sidebar).getByRole("button", { name: "Notifications", exact: true }).disabled).toBe(true);
+  expect(within(sidebar).getByRole("link", { name: "Notifications", exact: true }).getAttribute("href"))
+    .toBe("/notifications");
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profile/me"))).toHaveLength(1);
 });
 
@@ -610,9 +611,11 @@ it("provides the five mobile destinations and header utilities without another p
   ]);
   expect(within(navigation).getByRole("button", { name: "Post", exact: true }).disabled).toBe(true);
   const header = screen.getByRole("banner");
-  for (const name of ["Search — coming soon", "Messages — coming soon", "Notifications — coming soon"]) {
+  for (const name of ["Search — coming soon", "Messages — coming soon"]) {
     expect(within(header).getByRole("button", { name, exact: true }).disabled).toBe(true);
   }
+  expect(within(header).getByRole("link", { name: "Notifications", exact: true }).getAttribute("href"))
+    .toBe("/notifications");
   expect(within(header).getByRole("button", { name: "Open account menu" })).toBeTruthy();
   const network = within(navigation).getByRole("link", { name: "Network", exact: true });
   await userEvent.setup().click(network);

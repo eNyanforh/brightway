@@ -36,13 +36,19 @@ test("credential input is strict and requires unique supporting evidence and att
 });
 
 test("submitting snapshots a saved claim, privately binds evidence and atomically changes profile status", async () => {
-  const f = fixture(), { asset, result } = await submit(f);
+  const f = fixture();
+  f.state.profile[0].profilePublicEnabled = true;
+  f.state.profile[0].profileViewSharingEnabled = true;
+  const { asset, result } = await submit(f);
   assert.equal(f.state.profile[0].version, 2);
   assert.equal(f.state.educationRecord[0].status, "SUBMITTED");
   assert.equal(f.state.credentialEvidence[0].state, "ATTACHED");
   assert.equal(f.state.credentialAttempt[0].snapshot.institution, "School");
   assert.equal(f.state.credentialAuditEvent[0].actorId, f.ownerId);
   assert.equal(result.profile.completion.eligibleToRequestVerification, false);
+  assert.equal(result.profile.profilePublicEnabled, true);
+  assert.equal(result.profile.profileViewSharingEnabled, true);
+  assert.equal(result.profile.profileViewNotificationsEnabled, false);
   const owner = await f.service.owner(f.personId, "education", f.recordId);
   assert.equal(owner.review.events[0].actorId, undefined);
   assert(!JSON.stringify(owner).includes("credential-evidence/"));

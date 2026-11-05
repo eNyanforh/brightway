@@ -5,7 +5,7 @@ import { assertMfaSession } from "../auth/mfa.service.js";
 import { authorizeCredentialReviewer, credentialReviewerScope, credentialIssuer, requireReviewScope, reviewerStillAuthorized, lockCredentialActors } from "./credential-issuer.js";
 import { randomUUID } from "node:crypto";
 import { educationSelect, experienceSelect } from "../profile/profile-history.service.js";
-import { ownerProfileSelect, profileView } from "../profile/profile.service.js";
+import { privateProfileSelect, privateProfileView } from "../profile/profile.service.js";
 import { historySchema } from "../profile/profile-history.schema.js";
 import { processEvidence } from "./evidence.process.js";
 
@@ -165,7 +165,7 @@ export function createCredentialService({ prisma, storage, process = processEvid
         const updated = await tx[modelFor(kind)].updateMany({ where: { id: recordId, profileId: profile.id, revision: input.revision, status: previousStatus }, data: { status: "SUBMITTED" } });
         if (updated.count !== 1) throw conflict();
         await tx.credentialAuditEvent.create({ data: { reviewId: review.id, actorId, action: "SUBMITTED", revision: record.revision, fromStatus: previousStatus, toStatus: "SUBMITTED" } });
-        return { profile: profileView(await tx.profile.findUnique({ where: { personId }, select: ownerProfileSelect })) };
+        return { profile: privateProfileView(await tx.profile.findUnique({ where: { personId }, select: privateProfileSelect })) };
       });
     },
     async queue(actorId, cursor, sessionId, organizationId, filters = {}) {
