@@ -123,10 +123,10 @@ email or deployment acceptance is asserted by this implementation.
 
 Following people and organizations is implemented in the subsequent slice
 documented in SPRINT-4-FOLLOWING.md; its real acceptance remains separate.
-Profile-view notification privacy/consent and the notification delivery surface
-remain later slices. This
-change introduces neither fake notification counters nor a public profile-view
-tracking policy. Preserve issuer-review/revocation acceptance work still pending
+Published individual profiles and consent-based view notifications are documented
+in SPRINT-4-PROFILE-VIEW-NOTIFICATIONS.md. This network foundation introduces
+neither fake notification counters nor profile-view tracking.
+Preserve issuer-review/revocation acceptance work still pending
 under SPRINT-3-ISSUER-REVIEWS.md; earlier owner-reported passes are not restarted.
 Content/feed/Explore/search and downstream Opportunity/Campus/payment modules keep
 their existing dependencies and gates. Exceptional credential issuer rerouting

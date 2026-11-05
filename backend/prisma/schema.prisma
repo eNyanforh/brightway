@@ -41,6 +41,8 @@ model Account {
   follows NetworkFollow[] @relation("NetworkFollower")
   followers NetworkFollow[] @relation("NetworkFollowTarget")
   followEvents NetworkFollowEvent[]
+  profileViewsReceived ProfileViewNotification[] @relation("ProfileViewRecipient")
+  profileViewsGenerated ProfileViewNotification[] @relation("ProfileViewViewer")
   networkLeft NetworkPair[] @relation("NetworkLeft")
   networkRight NetworkPair[] @relation("NetworkRight")
   networkRequests NetworkPair[] @relation("NetworkRequester")
@@ -117,6 +119,9 @@ model Session {
 
 // Owner-only draft data. No verification or publishing state is client editable.
 model Profile {
+  profileViewSharingEnabled Boolean @default(false)
+  profileViewNotificationsEnabled Boolean @default(false)
+  profilePublicEnabled Boolean @default(false)
   latestPhotoReviewId String? @unique
   latestPhotoReview ProfilePhotoReview? @relation("LatestPhotoReview", fields: [latestPhotoReviewId], references: [id], onDelete: Restrict)
   photoReviews ProfilePhotoReview[] @relation("ProfilePhotoReviewHistory")
@@ -1267,4 +1272,18 @@ model NetworkFollowEvent {
   @@index([actorId, action, createdAt])
   @@index([actorId, createdAt])
   @@index([followId, createdAt])
+}
+
+model ProfileViewNotification {
+  id String @id @default(uuid())
+  recipientId String
+  recipient Account @relation("ProfileViewRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+  viewerId String
+  viewer Account @relation("ProfileViewViewer", fields: [viewerId], references: [id], onDelete: Restrict)
+  viewedOn DateTime @db.Date
+  createdAt DateTime @default(now())
+  readAt DateTime?
+  @@unique([recipientId, viewerId, viewedOn])
+  @@index([recipientId, readAt, createdAt, id])
+  @@index([viewerId, createdAt])
 }

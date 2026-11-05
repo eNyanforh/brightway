@@ -12,7 +12,7 @@ const navigation = [
   { label: "Network", to: "/network", icon: "network" },
   { label: "Learning", to: "/learning", icon: "learning" },
   { label: "Messages", icon: "messages" },
-  { label: "Notifications", icon: "notifications" },
+  { label: "Notifications", to: "/notifications", icon: "notifications" },
 ];
 
 export default function AppSidebar({ id, open, onNavigate, hasWork = false }) {

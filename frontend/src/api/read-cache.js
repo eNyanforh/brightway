@@ -40,7 +40,7 @@ export function resourceFetch(url, options = {}, realm = "personal") {
   const key = `${url}:${JSON.stringify(options.headers || {})}:${scope?.key || "unscoped"}`;
   // Access context is always fresh. A recent tenant snapshot is reusable only
   // under a server-returned current membership/permission scope.
-  const privateAccess = /\/(?:admin|management|network)(?:\/|\?|$)/.test(url) || Boolean(organization && (!organization[2] || !scope));
+  const privateAccess = /\/(?:admin|management|network|notifications)(?:\/|\?|$)/.test(url) || Boolean(organization && (!organization[2] || !scope));
   const ttl = privateAccess ? 0 : 10000;
   let entry = store.entries.get(key);
   if (entry?.done && Date.now() - entry.at >= ttl) { store.entries.delete(key); entry = null; }

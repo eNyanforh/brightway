@@ -55,12 +55,19 @@ function conflict() {
 }
 
 export function createProfileService({ prisma, relationshipFor, contactReader }) {
+  const ownerView = (row, person) => ({
+    ...profileView(row, person),
+    profileViewSharingEnabled: row?.profileViewSharingEnabled === true,
+    profileViewNotificationsEnabled: row?.profileViewNotificationsEnabled === true,
+    profilePublicEnabled: row?.profilePublicEnabled === true,
+  });
+  const ownerSelect = { ...ownerProfileSelect, profileViewSharingEnabled: true, profileViewNotificationsEnabled: true, profilePublicEnabled: true };
   return {
     visibleContact: contactReader ?? createContactReader({ prisma, relationshipFor }),
     async read(personId) {
-      const row = await prisma.profile.findUnique({ where: { personId }, select: ownerProfileSelect });
+      const row = await prisma.profile.findUnique({ where: { personId }, select: ownerSelect });
       const person = row ? row.person : await prisma.person.findUnique({ where: { id: personId }, select: personContactSelect });
-      return profileView(row, person);
+      return ownerView(row, person);
     },
     async patch(personId, input) {
       const data = profileUpdateData(input.changes);
@@ -86,8 +93,8 @@ export function createProfileService({ prisma, relationshipFor, contactReader })
           if (input.changes.contact && Object.hasOwn(input.changes.contact, "phoneNumber")) {
             await tx.person.update({ where: { id: personId }, data: { phoneNumber: input.changes.contact.phoneNumber } });
           }
-          const row = await tx.profile.findUnique({ where: { personId }, select: ownerProfileSelect });
-          return profileView(row);
+          const row = await tx.profile.findUnique({ where: { personId }, select: ownerSelect });
+          return ownerView(row);
         });
       } catch (error) {
         if (error.code === "P2002") throw conflict();
@@ -95,7 +102,7 @@ export function createProfileService({ prisma, relationshipFor, contactReader })
       }
     },
     async saveHistory(personId, kind, input) {
-      return profileView(await saveProfileHistory({ prisma, personId, kind, input, select: ownerProfileSelect }));
+      return ownerView(await saveProfileHistory({ prisma, personId, kind, input, select: ownerSelect }));
     },
     async completion(personId) {
       return (await this.read(personId)).completion;
