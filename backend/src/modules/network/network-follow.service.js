@@ -28,7 +28,7 @@ export function createFollowingService({ prisma, now = () => new Date() }) {
       unblocked(relationship);
       if (!target.available && !row?.active) throw fail(404, "This person or organization is unavailable.");
       await authority(prisma, actor);
-      return { kind, person: { username: target.username, fullName: kind === "PERSON" ? fullName(target.person) : target.name }, available: target.available,
+      return { kind, person: { username: target.username, fullName: !target.available ? kind === "PERSON" ? "Unavailable account" : "Unavailable organization" : kind === "PERSON" ? fullName(target.person) : target.name }, available: target.available,
         relationship: kind === "PERSON" ? relationshipView(relationship, actor.accountId) : { state: "NONE", version: 0 },
         follow: { active: row?.active === true, version: row?.version || 0, targetRef: followRef(kind, target.id) },
         ...(kind === "ORGANIZATION" && target.available ? { publicUrl: `/organizations/${target.id}` } : {}) };
@@ -79,7 +79,10 @@ export function createFollowingService({ prisma, now = () => new Date() }) {
             AND np."leftAccountId" = LEAST(f."followerId", f."targetAccountId") AND np."rightAccountId" = GREATEST(f."followerId", f."targetAccountId") AND (np."leftBlocked" OR np."rightBlocked"))
           ${boundary} ORDER BY f."updatedAt" DESC, f."id" DESC LIMIT 21`);
       await authority(prisma, actor);
-      const items = rows.slice(0, 20).map(row => ({ kind: row.organizationId ? "ORGANIZATION" : "PERSON", person: { username: row.organizationId ? row.organizationUsername : row.username, fullName: row.organizationId ? row.organizationName : fullName(row) }, available: row.organizationId ? row.organizationStatus === "ACTIVE" && row.requestStatus === "APPROVED" : row.status === "ACTIVE", relationship: { state: following ? "FOLLOWING" : "FOLLOWS_YOU", version: 0 }, updatedAt: row.updatedAt }));
+      const items = rows.slice(0, 20).map(row => {
+        const kind = row.organizationId ? "ORGANIZATION" : "PERSON", available = row.organizationId ? row.organizationStatus === "ACTIVE" && row.requestStatus === "APPROVED" : row.status === "ACTIVE";
+        return { kind, person: { username: row.organizationId ? row.organizationUsername : row.username, fullName: !available ? kind === "PERSON" ? "Unavailable account" : "Unavailable organization" : row.organizationId ? row.organizationName : fullName(row) }, available, relationship: { state: following ? "FOLLOWING" : "FOLLOWS_YOU", version: 0 }, updatedAt: row.updatedAt };
+      });
       const last = rows[19]; return { view: query.view, items, nextCursor: rows.length > 20 ? Buffer.from(JSON.stringify({ owner: actor.accountId, view: query.view, at: last.updatedAt.toISOString(), id: last.id })).toString("base64url") : null };
     },
   };

@@ -28,7 +28,8 @@ connection/request. Follow records remain with incremented versions; unblocking
 restores neither follows nor connections. A new explicit follow is needed.
 Blocked relationships are also filtered on reads. Existing consenting follows to
 suspended accounts/organizations remain visible to their follower as unavailable
-so they can unfollow; unavailable targets cannot receive new follows. This does
+so they can unfollow; their current names are withheld behind generic unavailable
+labels. Unavailable targets cannot receive new follows. This does
 not bypass workspace suspension or approval. All eligibility must still be checked
 when future feed/content modules read follows.
 
