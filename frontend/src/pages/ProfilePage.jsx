@@ -93,6 +93,7 @@ export default function ProfilePage() {
 
   const profile = draft?.profile;
   const busy = draft?.busy || profileLoading;
+  const privacySettingsDisabled = busy || [401, 409].includes(draft?.error?.status);
   const { identityStatus, identityError, refreshIdentityStatus } = useIdentityStatus(profile?.version);
   const identityVerified = hasVerifiedIdentity(identityStatus);
   const photoReviewRequired = profile?.photoReview?.required === true || identityVerified;
@@ -429,14 +430,14 @@ export default function ProfilePage() {
   }
 
   async function saveProfileViewSetting(field, value) {
-    if (busy || mutation.current || !["profilePublicEnabled", "profileViewSharingEnabled", "profileViewNotificationsEnabled"].includes(field)) return;
+    if (privacySettingsDisabled || mutation.current) return;
     mutation.current = true;
     setDraft((previous) => ({ ...previous, busy: true, error: null, notice: "" }));
     try {
       const next = await profileApi.save(profile.version, { [field]: value });
       setDraft((previous) => ({
         ...previous,
-        profile: { ...previous.profile, version: next.version, [field]: next[field] === true },
+        profile: next,
         notice: "Privacy setting saved.",
       }));
     } catch (error) {
@@ -556,16 +557,16 @@ export default function ProfilePage() {
             <h2 id="profile-view-privacy-title">Profile view choices</h2>
             <p>Publishing is optional. Contact details remain controlled by their separate visibility settings. Only opening a person’s published profile counts as a profile view.</p>
             <label>
-              <input type="checkbox" checked={profile.profilePublicEnabled === true} disabled={busy} onChange={(event) => void saveProfileViewSetting("profilePublicEnabled", event.target.checked)} />
+              <input type="checkbox" checked={profile.profilePublicEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profilePublicEnabled", event.target.checked)} />
               <span>Publish my basic profile so signed-in BrightWay members can view it by username</span>
             </label>
             <small>Published details are your name, headline, about text, location, career direction and goals, skills, and interests. Education, experience, and contact details stay off this page.</small>
             <label>
-              <input type="checkbox" checked={profile.profileViewSharingEnabled === true} disabled={busy} onChange={(event) => void saveProfileViewSetting("profileViewSharingEnabled", event.target.checked)} />
+              <input type="checkbox" checked={profile.profileViewSharingEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profileViewSharingEnabled", event.target.checked)} />
               <span>Share my name when I choose to view another person’s profile</span>
             </label>
             <label>
-              <input type="checkbox" checked={profile.profileViewNotificationsEnabled === true} disabled={busy} onChange={(event) => void saveProfileViewSetting("profileViewNotificationsEnabled", event.target.checked)} />
+              <input type="checkbox" checked={profile.profileViewNotificationsEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profileViewNotificationsEnabled", event.target.checked)} />
               <span>Let me know when someone who shares their visit views my profile</span>
             </label>
             <small>Profile view notifications are created only when the viewer has enabled sharing and the profile owner has enabled notifications. Repeat views from the same person are combined into one daily notification. Turning sharing off stops future notifications; it cannot remove a notification already delivered. All three settings are off until you turn them on.</small>

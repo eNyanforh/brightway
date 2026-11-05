@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { expect, it, vi } from "vitest";
 import { AuthContext } from "../auth/auth-context";
 import { setReadIdentity } from "../api/read-cache";
@@ -20,7 +21,11 @@ function mount({ state = "NONE", handler, strict = false } = {}) {
     return reply({ view, items: f.state === "NONE" ? [] : [{ person, relationship: { state: f.state, version: f.version } }], nextCursor: null });
   });
   vi.stubGlobal("fetch", fetch); setReadIdentity("personal", one);
-  const tree = id => <AuthContext.Provider value={{ account: { id, username: "owner" } }}><NetworkPage /></AuthContext.Provider>;
+  const tree = id => (
+    <MemoryRouter><AuthContext.Provider value={{ account: { id, username: "owner" } }}>
+      <NetworkPage />
+    </AuthContext.Provider></MemoryRouter>
+  );
   const view = render(strict ? <StrictMode>{tree(one)}</StrictMode> : tree(one));
   return { ...f, data: f, fetch, user: userEvent.setup(), switchAccount(id) { setReadIdentity("personal", id); view.rerender(tree(id)); } };
 }
@@ -36,6 +41,8 @@ it("Strict Mode and overlapping focus events share initial reads and preserve ex
 it("looks up an exact username and submits one cookie-bound versioned request without ownership or trust flags", async () => {
   let release; const pending = new Promise(resolve => { release = resolve; });
   const f = mount({ handler(url, options, state) { if (options.method === "POST") { state.writes.push(JSON.parse(options.body)); return pending; } } }); await find(f);
+  expect(screen.getByRole("link", { name: "View published profile" }).getAttribute("href")).toBe("/people/grace");
+  expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/profiles/grace/view"))).toBe(false);
   const button = screen.getByRole("button", { name: "Connect", exact: true }); fireEvent.click(button); fireEvent.click(button);
   await waitFor(() => expect(f.data.writes).toHaveLength(1)); expect(f.data.writes[0]).toEqual({ action: "REQUEST", expectedVersion: 0, requestKey: expect.any(String) });
   const [, options] = f.fetch.mock.calls.find(([, o]) => o?.method === "POST"); expect(options.credentials).toBe("include"); expect(button.disabled).toBe(true);

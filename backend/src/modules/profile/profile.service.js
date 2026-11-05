@@ -50,24 +50,34 @@ export function profileView(row, person = row?.person) {
   return { ...view, completion: evaluateProfileCompletion(view) };
 }
 
+// Only account-owner responses include the publishing and notification choices.
+export const privateProfileSelect = {
+  ...ownerProfileSelect,
+  profileViewSharingEnabled: true,
+  profileViewNotificationsEnabled: true,
+  profilePublicEnabled: true,
+};
+
+export function privateProfileView(row, person) {
+  return {
+    ...profileView(row, person),
+    profileViewSharingEnabled: row?.profileViewSharingEnabled === true,
+    profileViewNotificationsEnabled: row?.profileViewNotificationsEnabled === true,
+    profilePublicEnabled: row?.profilePublicEnabled === true,
+  };
+}
+
 function conflict() {
   return Object.assign(new Error("Your profile changed. Reload it before saving again."), { status: 409 });
 }
 
 export function createProfileService({ prisma, relationshipFor, contactReader }) {
-  const ownerView = (row, person) => ({
-    ...profileView(row, person),
-    profileViewSharingEnabled: row?.profileViewSharingEnabled === true,
-    profileViewNotificationsEnabled: row?.profileViewNotificationsEnabled === true,
-    profilePublicEnabled: row?.profilePublicEnabled === true,
-  });
-  const ownerSelect = { ...ownerProfileSelect, profileViewSharingEnabled: true, profileViewNotificationsEnabled: true, profilePublicEnabled: true };
   return {
     visibleContact: contactReader ?? createContactReader({ prisma, relationshipFor }),
     async read(personId) {
-      const row = await prisma.profile.findUnique({ where: { personId }, select: ownerSelect });
+      const row = await prisma.profile.findUnique({ where: { personId }, select: privateProfileSelect });
       const person = row ? row.person : await prisma.person.findUnique({ where: { id: personId }, select: personContactSelect });
-      return ownerView(row, person);
+      return privateProfileView(row, person);
     },
     async patch(personId, input) {
       const data = profileUpdateData(input.changes);
@@ -93,8 +103,8 @@ export function createProfileService({ prisma, relationshipFor, contactReader })
           if (input.changes.contact && Object.hasOwn(input.changes.contact, "phoneNumber")) {
             await tx.person.update({ where: { id: personId }, data: { phoneNumber: input.changes.contact.phoneNumber } });
           }
-          const row = await tx.profile.findUnique({ where: { personId }, select: ownerSelect });
-          return ownerView(row);
+          const row = await tx.profile.findUnique({ where: { personId }, select: privateProfileSelect });
+          return privateProfileView(row);
         });
       } catch (error) {
         if (error.code === "P2002") throw conflict();
@@ -102,7 +112,7 @@ export function createProfileService({ prisma, relationshipFor, contactReader })
       }
     },
     async saveHistory(personId, kind, input) {
-      return ownerView(await saveProfileHistory({ prisma, personId, kind, input, select: ownerSelect }));
+      return privateProfileView(await saveProfileHistory({ prisma, personId, kind, input, select: privateProfileSelect }));
     },
     async completion(personId) {
       return (await this.read(personId)).completion;

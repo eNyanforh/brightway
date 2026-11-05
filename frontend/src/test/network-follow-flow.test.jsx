@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { expect, it, vi } from "vitest";
 import { AuthContext } from "../auth/auth-context";
 import { setReadIdentity } from "../api/read-cache";
@@ -9,7 +10,18 @@ const reply=(data,status=200)=>new Response(JSON.stringify(status<400?{success:t
 function mount(handler){const state={active:false,version:0,status:200,writes:[]};const person={username:"grace",fullName:"Grace Johnson"},org={username:"school",fullName:"Synthetic School"};
  const target=kind=>({kind,person:kind==="PERSON"?person:org,available:true,relationship:{state:"NONE",version:0},follow:{active:state.active,version:state.version,targetRef:ref},...(kind==="ORGANIZATION"?{publicUrl:"/organizations/synthetic-school"}:{})});
  const fetch=vi.fn(async(url,options={})=>{const custom=handler?.(url,options,state);if(custom!==undefined)return custom;if(options.method==="POST"){state.writes.push({url,body:JSON.parse(options.body)});state.active=JSON.parse(options.body).action==="FOLLOW";state.version++;return reply({saved:true});}if(state.status!==200)return reply("Synthetic follow access unavailable",state.status);if(url.endsWith("/contact"))return reply({});if(url.includes("/people/"))return reply(target("PERSON"));if(url.includes("/organizations/"))return reply(target("ORGANIZATION"));const view=new URL(url,"http://localhost").searchParams.get("view");return reply({view,items:view==="followers"||view==="following"&&state.active?[{kind:"PERSON",person,available:true,relationship:{state:view==="followers"?"FOLLOWS_YOU":"FOLLOWING",version:0}}]:[],nextCursor:null});});
- vi.stubGlobal("fetch",fetch);setReadIdentity("personal",id);const tree=actor=><AuthContext.Provider value={{account:{id:actor,username:"owner"}}}><NetworkPage/></AuthContext.Provider>;const view=render(tree(id));return{state,fetch,user:userEvent.setup(),switchAccount(){setReadIdentity("personal",other);view.rerender(tree(other));}};
+ vi.stubGlobal("fetch", fetch);
+ setReadIdentity("personal", id);
+ const tree = actor => (
+   <MemoryRouter><AuthContext.Provider value={{ account: { id: actor, username: "owner" } }}>
+     <NetworkPage />
+   </AuthContext.Provider></MemoryRouter>
+ );
+ const view = render(tree(id));
+ return { state, fetch, user: userEvent.setup(), switchAccount() {
+   setReadIdentity("personal", other);
+   view.rerender(tree(other));
+ } };
 }
 async function lookup(f,organization=false){await waitFor(()=>expect(screen.getByRole("button",{name:"Find person",exact:true}).disabled).toBe(false));if(organization)await f.user.selectOptions(screen.getByLabelText("Look for"),"ORGANIZATION");await f.user.type(screen.getByLabelText(organization?"Organization username":"Connect by BrightWay username"),organization?"school":"grace");await f.user.click(screen.getByRole("button",{name:organization?"Find organization":"Find person",exact:true}));await screen.findByRole("heading",{name:organization?"Synthetic School":"Grace Johnson",exact:true});}
 it("submits a single target-bound follow and never invents a connection or private contact access",async()=>{let release;const pending=new Promise(resolve=>{release=resolve;});const f=mount((url,options,state)=>{if(options.method==="POST"){state.writes.push({url,body:JSON.parse(options.body)});return pending;}});await lookup(f);const button=screen.getByRole("button",{name:"Follow",exact:true});fireEvent.click(button);fireEvent.click(button);await waitFor(()=>expect(f.state.writes).toHaveLength(1));expect(f.state.writes[0]).toMatchObject({url:"/api/v1/network/follows/people/grace/actions",body:{action:"FOLLOW",expectedVersion:0,targetRef:ref,requestKey:expect.any(String)}});const[,options]=f.fetch.mock.calls.find(([,o])=>o.method==="POST");expect(options.credentials).toBe("include");await act(async()=>{f.state.active=true;f.state.version=1;release(reply({saved:true}));});await screen.findByRole("button",{name:"Unfollow",exact:true});expect(screen.getByRole("button",{name:"Connect",exact:true})).toBeTruthy();await f.user.click(screen.getByRole("button",{name:"View shared contact"}));await screen.findByText("No contact details are shared with you.");});

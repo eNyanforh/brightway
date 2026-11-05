@@ -10,27 +10,27 @@ function locationLabel(location) {
   return [location.locality, location.region, location.countryCode ? regionNames?.of(location.countryCode) || location.countryCode : null].filter(Boolean).join(", ");
 }
 
-export default function PublicPersonPage() {
-  const { username = "" } = useParams();
-  const { account } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+function PublishedPerson({ username }) {
+  const [result, setResult] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    let live = true;
-    setProfile(null); setError(null); setLoading(true);
-    notificationsApi.viewProfile(username, controller.signal)
-      .then(value => { if (live) setProfile(value); })
-      .catch(value => { if (live && value.name !== "AbortError") setError(value); })
-      .finally(() => { if (live) setLoading(false); });
-    return () => { live = false; controller.abort(); };
-  }, [account.id, username]);
+    const { signal } = controller;
+    queueMicrotask(async () => {
+      if (signal.aborted) return;
+      try {
+        const profile = await notificationsApi.viewProfile(username, signal);
+        if (!signal.aborted) setResult({ profile });
+      } catch (error) {
+        if (!signal.aborted) setResult({ error });
+      }
+    });
+    return () => controller.abort();
+  }, [username]);
 
-  if (loading) return <section className="bw-public-person"><p role="status">Opening profile…</p></section>;
+  if (!result) return <section className="bw-public-person"><p role="status">Opening profile…</p></section>;
+  const { profile, error } = result;
   if (error) return <section className="bw-public-person"><Link to="/network">Back to Network</Link><h1>Profile unavailable</h1><p role="alert">{error.message}</p></section>;
-  if (!profile) return null;
 
   const field = profile.careerField?.mode === "EXPLORING" ? "Exploring career options" : profile.careerField?.label;
   const location = locationLabel(profile.location);
@@ -47,4 +47,10 @@ export default function PublicPersonPage() {
     {profile.interests.length > 0 && <section><h2>Interests</h2><ul>{profile.interests.map(item => <li key={item}>{item}</li>)}</ul></section>}
     <p className="bw-public-person-note">Contact details are not displayed on this page.</p>
   </article>;
+}
+
+export default function PublicPersonPage() {
+  const { username = "" } = useParams();
+  const { account } = useAuth();
+  return <PublishedPerson key={JSON.stringify([account.id, username])} username={username} />;
 }
