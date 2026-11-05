@@ -59,8 +59,9 @@ export function createProfileService({ prisma, relationshipFor, contactReader })
     ...profileView(row, person),
     profileViewSharingEnabled: row?.profileViewSharingEnabled === true,
     profileViewNotificationsEnabled: row?.profileViewNotificationsEnabled === true,
+    profilePublicEnabled: row?.profilePublicEnabled === true,
   });
-  const ownerSelect = { ...ownerProfileSelect, profileViewSharingEnabled: true, profileViewNotificationsEnabled: true };
+  const ownerSelect = { ...ownerProfileSelect, profileViewSharingEnabled: true, profileViewNotificationsEnabled: true, profilePublicEnabled: true };
   return {
     visibleContact: contactReader ?? createContactReader({ prisma, relationshipFor }),
     async read(personId) {

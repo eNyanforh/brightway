@@ -100,7 +100,10 @@ export function createNetworkService({ prisma, now = () => new Date() }) {
             changes = { [ownKey]: false }; break;
         }
         const saved = existing ? await tx.networkPair.update({ where: { id: existing.id }, data: { ...changes, version: { increment: 1 }, updatedAt: now() } }) : await tx.networkPair.create({ data: { ...key, ...changes, version: 1, updatedAt: now() } });
-        if (data.action === "BLOCK") await tx.networkFollow.updateMany({ where: { active: true, OR: [{ followerId: actor.accountId, targetAccountId: account.id }, { followerId: account.id, targetAccountId: actor.accountId }] }, data: { active: false, version: { increment: 1 }, updatedAt: now() } });
+        if (data.action === "BLOCK") {
+          await tx.networkFollow.updateMany({ where: { active: true, OR: [{ followerId: actor.accountId, targetAccountId: account.id }, { followerId: account.id, targetAccountId: actor.accountId }] }, data: { active: false, version: { increment: 1 }, updatedAt: now() } });
+          await tx.profileViewNotification.deleteMany({ where: { OR: [{ recipientId: actor.accountId, viewerId: account.id }, { recipientId: account.id, viewerId: actor.accountId }] } });
+        }
         await tx.networkEvent.create({ data: { pairId: saved.id, actorId: actor.accountId, action: data.action, requestKey: data.requestKey, requestHash, resultVersion: saved.version, createdAt: now() } });
         await authority(tx, actor);
         return { saved: true, action: data.action, version: saved.version };

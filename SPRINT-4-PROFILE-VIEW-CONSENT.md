@@ -1,12 +1,13 @@
 # Sprint 4 — profile-view consent settings
 
-This change adds two owner-controlled settings to the private individual profile:
+This work adds owner-controlled settings to the private individual profile:
 
 - `profileViewSharingEnabled` lets the account holder opt in to showing their identity when they explicitly view another individual profile.
 - `profileViewNotificationsEnabled` lets the account holder opt in to receiving profile-view notifications.
+- `profilePublicEnabled` lets the account holder publish a basic profile for signed-in members who know the exact username.
 
-Both settings default to off. Saving either setting uses the current profile version and the existing authenticated, trusted-origin profile update path. A stale profile version is rejected by the existing conflict handling. Settings do not change profile visibility, contact access, account status, or network relationships.
+All three settings default to off. Saving a setting uses the current profile version and the existing authenticated, trusted-origin profile update path. A stale profile version is rejected by the existing conflict handling. Publishing does not change contact access, account status, or network relationships. Contact details are not included in the public profile response.
 
-The explicit public individual profile and notification inbox are not implemented yet. Therefore no profile visits are recorded or notifications created by this settings slice. Future tracking must be initiated only by an explicit profile-view action, and may create an identifiable notification only when both viewer sharing and recipient notification preferences are enabled at that time. Background lookup, relationship refresh, contact access, and organization profile visits must not create these events. Turning either preference off must stop future identifiable notifications; it must not delete or restore relationships or access.
+The public profile is available only through an explicit “View published profile” action in Network. Loading a person in Network, refreshing relationship state, checking contact visibility, and viewing an organization never record a visit. A notification is created only when the visitor has enabled sharing and the profile owner has enabled notifications at the time of the view. One visitor-owner pair produces at most one notification per UTC day. The inbox is owner-only and omits inactive visitors. Blocking deletes prior view notifications between the two people, so unblocking does not restore them. Turning off either preference stops future identifiable notifications. Marking a notification read changes its read status; it does not erase the record. No email or push notification is sent.
 
-The additive migration is `20261105140000_profile_view_consent_settings`. It adds two non-null Boolean columns with `false` defaults; existing profile records remain opted out. Apply it through the ordinary development migration workflow after updating the local checkout. Deployment remains paused.
+The additive migrations are `20261105140000_profile_view_consent_settings` and `20261105153000_profile_views_notifications`. They add three non-null Boolean columns with `false` defaults and an owner-scoped, daily-coalesced notification table. Apply them through the ordinary development migration workflow after updating the local checkout. Deployment remains paused.

@@ -76,15 +76,15 @@ export default function AppHeader({
             <NavigationIcon name="messages" />
           </button>
 
-          <button
-            className="bw-design-utility bw-design-mobile-action"
-            type="button"
-            disabled
-            aria-label="Notifications — coming soon"
-            title="Notifications are coming soon"
-          >
-            <NavigationIcon name="notifications" />
-          </button>
+          {workspaceLabel || actingOrganization ? (
+            <button className="bw-design-utility bw-design-mobile-action" type="button" disabled aria-label="Notifications unavailable in this workspace" title="Switch to your personal account to view notifications">
+              <NavigationIcon name="notifications" />
+            </button>
+          ) : (
+            <Link className="bw-design-utility bw-design-mobile-action" to="/notifications" aria-label="Notifications" title="Notifications">
+              <NavigationIcon name="notifications" />
+            </Link>
+          )}
 
           <HeaderProfileMenu
             hasWork={hasWork}

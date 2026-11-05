@@ -35,6 +35,7 @@ export const profilePatchSchema = z.strictObject({
     interests: entries.optional(),
     profileViewSharingEnabled: z.boolean().optional(),
     profileViewNotificationsEnabled: z.boolean().optional(),
+    profilePublicEnabled: z.boolean().optional(),
   }).refine((value) => Object.keys(value).length > 0, "Provide at least one change"),
 });
 
