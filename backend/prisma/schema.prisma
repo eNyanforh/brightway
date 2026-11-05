@@ -38,6 +38,9 @@ enum PersonGender {
 }
 
 model Account {
+  follows NetworkFollow[] @relation("NetworkFollower")
+  followers NetworkFollow[] @relation("NetworkFollowTarget")
+  followEvents NetworkFollowEvent[]
   networkLeft NetworkPair[] @relation("NetworkLeft")
   networkRight NetworkPair[] @relation("NetworkRight")
   networkRequests NetworkPair[] @relation("NetworkRequester")
@@ -895,6 +898,7 @@ model OrganizationRequestAudit {
   @@index([requestId, createdAt, id])
 }
 model Organization {
+  followers NetworkFollow[]
   accessVersion Int @default(0)
   username String? @unique @db.VarChar(30)
   profileVersion Int @default(0)
@@ -1227,4 +1231,40 @@ model NetworkEvent {
   @@index([actorId, action, createdAt])
   @@index([actorId, createdAt])
   @@index([pairId, createdAt])
+}
+
+model NetworkFollow {
+  id String @id @default(uuid())
+  followerId String
+  follower Account @relation("NetworkFollower", fields: [followerId], references: [id], onDelete: Restrict)
+  targetAccountId String?
+  targetAccount Account? @relation("NetworkFollowTarget", fields: [targetAccountId], references: [id], onDelete: Restrict)
+  targetOrganizationId String?
+  targetOrganization Organization? @relation(fields: [targetOrganizationId], references: [id], onDelete: Restrict)
+  active Boolean @default(false)
+  version Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events NetworkFollowEvent[]
+  @@unique([followerId, targetAccountId])
+  @@unique([followerId, targetOrganizationId])
+  @@index([followerId, active, updatedAt, id])
+  @@index([targetAccountId, active, updatedAt, id])
+  @@index([targetOrganizationId, active])
+}
+model NetworkFollowEvent {
+  id String @id @default(uuid())
+  followId String
+  follow NetworkFollow @relation(fields: [followId], references: [id], onDelete: Restrict)
+  actorId String
+  actor Account @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action String @db.VarChar(16)
+  requestKey String @db.VarChar(36)
+  requestHash String @db.VarChar(64)
+  resultVersion Int
+  createdAt DateTime @default(now())
+  @@unique([actorId, requestKey])
+  @@index([actorId, action, createdAt])
+  @@index([actorId, createdAt])
+  @@index([followId, createdAt])
 }

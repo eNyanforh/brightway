@@ -6,7 +6,7 @@ export const networkActionSchema = z.strictObject({
   requestKey: z.uuid(),
 });
 export const networkQuerySchema = z.strictObject({
-  view: z.enum(["connections", "incoming", "outgoing", "blocked"]).default("connections"),
+  view: z.enum(["connections", "incoming", "outgoing", "blocked", "following", "followers"]).default("connections"),
   cursor: z.string().min(1).max(700).optional(),
 });
 export const networkCursorSchema = z.strictObject({ owner: z.uuid(), view: networkQuerySchema.shape.view, at: z.iso.datetime(), id: z.uuid() });

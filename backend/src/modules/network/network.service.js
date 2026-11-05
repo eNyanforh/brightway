@@ -1,3 +1,6 @@
+import { assertNetworkSession, lockNetworkAccounts } from "./network-authority.js";
+import { createFollowingService } from "./network-follow.service.js";
+import { followRef } from "./network-follow.schema.js";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { projectContact } from "../profile/profile-contact.js";
@@ -6,16 +9,8 @@ const personSelect = { id: true, username: true, status: true, person: { select:
 const personView = row => ({ username: row.username, fullName: [row.person.firstName, row.person.middleName, row.person.lastName].filter(Boolean).join(" ") });
 const digest = value => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 export function createNetworkService({ prisma, now = () => new Date() }) {
-  async function authority(db, actor) {
-    if (!actor || !networkCursorSchema.shape.owner.safeParse(actor.accountId).success || !networkCursorSchema.shape.owner.safeParse(actor.sessionId).success) throw fail(401, "Sign in to your personal BrightWay account.");
-    const rows = await db.$queryRaw(Prisma.sql`
-      SELECT s."id" FROM "Session" s JOIN "Account" a ON a."id" = s."accountId"
-      LEFT JOIN "MfaFactor" mf ON mf."accountId" = a."id"
-      WHERE s."id" = ${actor.sessionId} AND s."accountId" = ${actor.accountId}
-        AND s."expiresAt" > ${now()} AND a."status" = 'ACTIVE'
-        AND (mf."enabled" IS NOT TRUE OR (s."mfaVerifiedAt" IS NOT NULL AND s."mfaVersion" = mf."version")) LIMIT 1`);
-    if (!rows.length) throw fail(401, "Your personal session changed. Sign in again.");
-  }
+  const authority = (db, actor) => assertNetworkSession(db, actor, now);
+  const following = createFollowingService({ prisma, now });
   const pairKey = (a, b) => { const [leftAccountId, rightAccountId] = [a, b].sort(); return { leftAccountId, rightAccountId }; };
   const pairRead = (db, key) => db.networkPair.findUnique({ where: { leftAccountId_rightAccountId: key } });
   async function target(db, username) {
@@ -32,11 +27,14 @@ export function createNetworkService({ prisma, now = () => new Date() }) {
       const ownBlock = pair && (pair.leftAccountId === actor.accountId ? pair.leftBlocked : pair.rightBlocked);
       if (account.status !== "ACTIVE" && !ownBlock) throw fail(404, "This person is unavailable.");
       const relationship = relationshipView(pair, actor.accountId);
+      const follow = await prisma.networkFollow.findUnique({ where: { followerId_targetAccountId: { followerId: actor.accountId, targetAccountId: account.id } } });
       await authority(prisma, actor);
-      return { person: personView(account), relationship };
+      return { kind: "PERSON", person: personView(account), relationship, available: account.status === "ACTIVE", follow: { active: follow?.active === true, version: follow?.version || 0, targetRef: followRef("PERSON", account.id) } };
     },
     async list(actor, input) {
-      const query = parse(networkQuerySchema, input); await authority(prisma, actor);
+      const query = parse(networkQuerySchema, input);
+      if (["following", "followers"].includes(query.view)) return following.list(actor, query);
+      await authority(prisma, actor);
       const id = actor.accountId;
       const visibleSide = side => ({ [`${side}AccountId`]: id, [`${side}Account`]: { status: "ACTIVE" }, ...(query.view === "blocked" ? { [`${side}Blocked`]: true } : { [`${side === "left" ? "right" : "left"}Account`]: { status: "ACTIVE" }, leftBlocked: false, rightBlocked: false }) });
       const where = { OR: [visibleSide("left"), visibleSide("right")], ...(query.view !== "blocked" ? { status: query.view === "connections" ? "CONNECTED" : "PENDING", ...(query.view === "incoming" ? { NOT: { requestedById: id } } : query.view === "outgoing" ? { requestedById: id } : {}) } : {}) };
@@ -60,7 +58,7 @@ export function createNetworkService({ prisma, now = () => new Date() }) {
       return prisma.$transaction(async tx => {
         // The same sorted Account row locks serialize both directions and access
         // suspension. No locks or interactive transactions are used for reads.
-        for (const id of [key.leftAccountId, key.rightAccountId]) await tx.account.updateMany({ where: { id }, data: { accessVersion: { increment: 0 } } });
+        await lockNetworkAccounts(tx, [key.leftAccountId, key.rightAccountId]);
         await authority(tx, actor);
         const account = await target(tx, username);
         if (account.id !== initial.id) throw fail(409, "This username changed. Look up the person again.");
@@ -102,6 +100,7 @@ export function createNetworkService({ prisma, now = () => new Date() }) {
             changes = { [ownKey]: false }; break;
         }
         const saved = existing ? await tx.networkPair.update({ where: { id: existing.id }, data: { ...changes, version: { increment: 1 }, updatedAt: now() } }) : await tx.networkPair.create({ data: { ...key, ...changes, version: 1, updatedAt: now() } });
+        if (data.action === "BLOCK") await tx.networkFollow.updateMany({ where: { active: true, OR: [{ followerId: actor.accountId, targetAccountId: account.id }, { followerId: account.id, targetAccountId: actor.accountId }] }, data: { active: false, version: { increment: 1 }, updatedAt: now() } });
         await tx.networkEvent.create({ data: { pairId: saved.id, actorId: actor.accountId, action: data.action, requestKey: data.requestKey, requestHash, resultVersion: saved.version, createdAt: now() } });
         await authority(tx, actor);
         return { saved: true, action: data.action, version: saved.version };
