@@ -1,3 +1,4 @@
+import { createFollowingService } from "../modules/network/network-follow.service.js";
 import { createNetworkService } from "../modules/network/network.service.js";
 import { createNetworkRoutes } from "../modules/network/network.routes.js";
 import { createManagementOperations } from "../modules/management/management-operations.service.js";
@@ -60,7 +61,7 @@ router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIEN
 const mfa = createMfaService({ prisma });
 const sessions = createSessionService({ prisma, mfa });
 const network = createNetworkService({ prisma });
-router.use(createNetworkRoutes({ network, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createNetworkRoutes({ network, following: createFollowingService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const managementCases = createManagementCases({ prisma });
 const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
 router.use(createManagementAuthRoutes({ authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));

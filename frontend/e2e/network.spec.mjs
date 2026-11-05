@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 const id = "11111111-1111-4111-8111-111111111111";
 async function fixture(page) {
-  const state = { connection: "NONE", version: 0, writes: [], unexpected: [], errors: [], reads: 0, delay: 0, status: 200 };
+  const state = { connection: "NONE", version: 0, following: false, followedBy: true, followVersion: 0, organizationFollowing: false, organizationVersion: 0, followWrites: [], writes: [], unexpected: [], errors: [], reads: 0, delay: 0, status: 200 };
   page.on("pageerror", error => state.errors.push(error.message));
   await page.route("**/*", async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname;
@@ -12,16 +12,28 @@ async function fixture(page) {
     if (path === "/api/v1/auth/me") return reply({ account });
     if (path === "/api/v1/profile/me") return reply({ profile: { id: "profile", version: 1, photo: null, location: {}, interests: [], skills: [] } });
     if (path === "/api/v1/work/access") return reply({ hasWork: false });
+    if (path.startsWith("/api/v1/network/follows/") && path.endsWith("/actions")) {
+      const body = request.postDataJSON(), org = path.includes("/organizations/"); state.followWrites.push({ path, body });
+      if (org) { state.organizationFollowing = body.action === "FOLLOW"; state.organizationVersion++; } else { state.following = body.action === "FOLLOW"; state.followVersion++; }
+      return reply({ saved: true });
+    }
     if (path === "/api/v1/network/people/grace/actions") {
       const body = request.postDataJSON(); state.writes.push(body); state.version++;
+      if (body.action === "BLOCK") { state.followedBy = false; if (state.following) { state.following = false; state.followVersion++; } }
       state.connection = { REQUEST: "OUTGOING", CANCEL: "NONE", ACCEPT: "CONNECTED", REMOVE: "NONE", BLOCK: "BLOCKED", UNBLOCK: "NONE" }[body.action]; return reply({ saved: true, version: state.version });
     }
     if (path.startsWith("/api/v1/network")) {
       if (state.status !== 200) return reply("Synthetic network outage", state.status);
       const person = { username: "grace", fullName: "Grace Johnson" }, relationship = { state: state.connection, version: state.version };
-      if (path.endsWith("/contact")) return reply(state.connection === "BLOCKED" ? {} : { phoneNumber: "+231770000000" });
-      if (path === "/api/v1/network/people/grace") return reply({ person, relationship });
-      if (path === "/api/v1/network") { state.reads++; if (state.delay) await new Promise(resolve => setTimeout(resolve, state.delay)); return reply({ view: url.searchParams.get("view"), items: state.connection === "NONE" ? [] : [{ person, relationship }], nextCursor: null }); }
+      if (path.endsWith("/contact")) return reply(state.connection === "CONNECTED" ? { phoneNumber: "+231770000000" } : {});
+      const follow = { active: state.following, version: state.followVersion, targetRef: "b".repeat(64) };
+      if (["/api/v1/network/people/grace", "/api/v1/network/follows/people/grace"].includes(path)) return reply({ kind: "PERSON", person, relationship, available: true, follow });
+      if (path === "/api/v1/network/follows/organizations/school") return reply({ kind: "ORGANIZATION", person: { username: "school", fullName: "Synthetic Learning Centre" }, relationship: { state: "NONE", version: 0 }, available: true, follow: { active: state.organizationFollowing, version: state.organizationVersion, targetRef: "c".repeat(64) }, publicUrl: "/organizations/22222222-2222-4222-8222-222222222222" });
+      if (path === "/api/v1/network") { state.reads++; if (state.delay) await new Promise(resolve => setTimeout(resolve, state.delay)); const view = url.searchParams.get("view");
+        let items = state.connection === "NONE" ? [] : [{ person, relationship }];
+        if (view === "following") items = [...(state.following ? [{ kind: "PERSON", person, relationship: { state: "FOLLOWING", version: 0 } }] : []), ...(state.organizationFollowing ? [{ kind: "ORGANIZATION", person: { username: "school", fullName: "Synthetic Learning Centre" }, relationship: { state: "FOLLOWING", version: 0 } }] : [])];
+        if (view === "followers") items = state.followedBy ? [{ kind: "PERSON", person, relationship: { state: "FOLLOWS_YOU", version: 0 } }] : [];
+        return reply({ view, items, nextCursor: null }); }
     }
     state.unexpected.push(path); return reply("Unexpected synthetic request", 500);
   }); return state;
@@ -55,4 +67,28 @@ test("network focus refresh shares reads, retains safe content and clears contac
   state.status = 503; await page.evaluate(() => window.dispatchEvent(new Event("focus"))); await expect(page.getByRole("alert")).toContainText("Synthetic network outage"); await expect(page.getByRole("heading", { name: "Grace Johnson", exact: true })).toBeVisible(); await expect(page.getByRole("button", { name: "Remove connection", exact: true })).toBeDisabled();
   state.status = 401; await page.getByRole("button", { name: "Reload saved state", exact: true }).click(); await expect(page.getByRole("heading", { name: "Grace Johnson", exact: true })).toHaveCount(0);
   await layout(page); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
+});
+
+test("people and organization following stay separate from connections and private contacts", async ({ page }, info) => {
+  const state = await fixture(page); await page.goto("/network");
+  await page.getByLabel("Connect by BrightWay username").fill("grace"); await page.getByRole("button", { name: "Find person", exact: true }).click();
+  await page.getByRole("button", { name: "Follow", exact: true }).click(); await expect(page.getByRole("button", { name: "Unfollow", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect", exact: true })).toBeVisible(); await page.getByRole("button", { name: "View shared contact", exact: true }).click(); await expect(page.getByText("No contact details are shared with you.", { exact: true })).toBeVisible();
+  expect(state.followWrites[0]).toMatchObject({ path: "/api/v1/network/follows/people/grace/actions", body: { action: "FOLLOW", expectedVersion: 0, targetRef: "b".repeat(64) } });
+  await page.getByLabel("Look for").selectOption("ORGANIZATION"); await page.getByLabel("Organization username").fill("school"); await page.getByRole("button", { name: "Find organization", exact: true }).click(); await expect(page.getByRole("heading", { name: "Synthetic Learning Centre", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect", exact: true })).toHaveCount(0); await expect(page.getByRole("button", { name: "View shared contact", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Follow", exact: true }).click(); await expect(page.getByRole("button", { name: "Unfollow", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Following", exact: true }).click(); await expect(page.getByRole("button", { name: /Synthetic Learning Centre/ })).toBeVisible(); await expect(page.getByRole("button", { name: /Grace Johnson/ })).toBeVisible();
+  await page.getByRole("button", { name: /Synthetic Learning Centre/ }).click(); await expect(page.getByRole("link", { name: /View organization profile/ })).toHaveAttribute("target", "_blank");
+  await layout(page); await page.evaluate(() => window.scrollTo(0, 0)); await info.attach(`following-${info.project.name}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+  await page.getByRole("button", { name: "Unfollow", exact: true }).click(); await expect(page.getByRole("button", { name: "Follow", exact: true })).toBeVisible();
+  expect(state.organizationFollowing).toBe(false); expect(state.following).toBe(true); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
+});
+test("blocking clears follows and unblocking never restores them; Followers is a separate view", async ({ page }) => {
+  const state = await fixture(page); state.following = true; state.followVersion = 1; await page.goto("/network");
+  await page.getByLabel("Connect by BrightWay username").fill("grace"); await page.getByRole("button", { name: "Find person", exact: true }).click(); await expect(page.getByRole("button", { name: "Unfollow", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Block person", exact: true }).click(); await page.getByRole("button", { name: "Confirm block", exact: true }).click(); await expect(page.getByRole("button", { name: "Unblock person", exact: true })).toBeVisible(); await expect(page.getByRole("button", { name: "Follow", exact: true })).toHaveCount(0); expect(state.following).toBe(false);
+  await page.getByRole("button", { name: "Unblock person", exact: true }).click(); await expect(page.getByRole("button", { name: "Follow", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Followers", exact: true }).click(); await expect(page.getByText("Nothing here yet", { exact: true })).toBeVisible(); await expect(page.getByRole("button", { name: /Grace Johnson/ })).toHaveCount(0);
+  expect(state.followWrites).toHaveLength(0); await layout(page); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });

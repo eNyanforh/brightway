@@ -30,7 +30,7 @@ checks, not end-to-end acceptance of real credentials or provider delivery.
 Organization navigation also stays mounted during delayed tab access checks,
 then clears on confirmed membership denial. This runs in both viewport projects.
 
-GitHub workflow `Management browser acceptance` runs all 22 cases on PRs. Reports
+GitHub workflow `Management browser acceptance` runs all 26 cases on PRs. Reports
 and failure screenshots/traces are retained for seven days as CI artifacts.
 `frontend/playwright-report/` and `frontend/test-results/` are ignored by Git.
 The existing Vitest suite remains separate under `frontend/src/test`.
@@ -67,7 +67,7 @@ service projections and transactions; the browser fixture is not a live API test
 
 ## Personal network coverage
 
-`network.spec.mjs` adds two scenarios per viewport (22 total browser cases across
+The initial `network.spec.mjs` scenarios cover two journeys per viewport (26 total browser cases across
 the suite). Synthetic responses exercise exact-username requests/cancellation,
 shared-contact reading, confirmed blocking, Escape cancellation, unblocking without
 restoring consent, desktop/mobile layout, shared focus reads, safe background
@@ -75,3 +75,11 @@ content, outage write denial and private clearing on session loss. Screenshots
 are synthetic. The separate PostgreSQL suite checks actual relationship/contact
 queries and transactional races. Neither fixture browser coverage nor SQL tests
 prove real application acceptance or deployment.
+
+## Following coverage
+
+Two further scenarios per viewport cover explicit people/organization target
+selection, versioned follow/unfollow, private Following/Followers lists, contact
+privacy separation, no organization-authority controls, and block/unblock consent.
+The full suite has 26 cases. Screenshots and HTTP responses are synthetic; the
+separate PostgreSQL suite executes actual relationship/privacy queries and races.

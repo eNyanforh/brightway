@@ -20,5 +20,7 @@ export const networkApi = {
   },
   person: (username, signal) => request(person(username), { signal }),
   action: (username, body) => request(person(username) + "/actions", { body }),
+  followTarget: (kind, username, signal) => request(`/network/follows/${kind === "ORGANIZATION" ? "organizations" : "people"}/${encodeURIComponent(username)}`, { signal }),
+  followAction: (kind, username, body) => request(`/network/follows/${kind === "ORGANIZATION" ? "organizations" : "people"}/${encodeURIComponent(username)}/actions`, { body }),
   contact: (username, signal) => request(person(username) + "/contact", { signal }),
 };

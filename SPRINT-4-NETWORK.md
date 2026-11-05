@@ -121,8 +121,10 @@ email or deployment acceptance is asserted by this implementation.
 
 ## Remaining plan
 
-Following (including the agreed organization scope), profile-view notification
-privacy/consent and the notification delivery surface remain later slices. This
+Following people and organizations is implemented in the subsequent slice
+documented in SPRINT-4-FOLLOWING.md; its real acceptance remains separate.
+Profile-view notification privacy/consent and the notification delivery surface
+remain later slices. This
 change introduces neither fake notification counters nor a public profile-view
 tracking policy. Preserve issuer-review/revocation acceptance work still pending
 under SPRINT-3-ISSUER-REVIEWS.md; earlier owner-reported passes are not restarted.
