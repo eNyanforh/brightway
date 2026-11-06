@@ -1,30 +1,35 @@
 import { lazy, Suspense, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+import ExploreBillboard from "../components/discovery/ExploreBillboard";
 import PostsPanel from "../components/posts/PostsPanel";
 import "../components/discovery/people-suggestions.css";
+import "./explore.css";
 
 const PeopleSuggestions = lazy(() => import("../components/discovery/PeopleSuggestions"));
+const views = [["for-you", "For You"], ["following", "Following"], ["saved", "Saved"]];
 
 export default function ExplorePage() {
   const { account } = useAuth();
+  const outlet = useOutletContext();
   const [view, setView] = useState("for-you");
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   return (
-    <section className="bw-explore-posts">
-      <header className="bw-explore-heading">
-        <p>BRIGHTWAY DISCOVERY</p>
-        <h1>Explore</h1>
-        <p>See recent updates from verified members and organizations.</p>
-        <Link className="bw-explore-create" to="/posts">Create a post</Link>
-      </header>
-      <nav className="bw-explore-filters" aria-label="Explore feed">
-        <button type="button" aria-pressed={view === "for-you"} onClick={() => setView("for-you")}>For You</button>
-        <button type="button" aria-pressed={view === "following"} onClick={() => setView("following")}>Following</button>
-        <button type="button" aria-pressed={view === "saved"} onClick={() => setView("saved")}>Saved</button>
-      </nav>
-      {view === "for-you" && (
+    <section className="bw-explore" aria-label="Explore">
+      <div className="bw-explore-main">
+        <ExploreBillboard />
+        <div className="bw-explore-timeline">
+          <nav className="bw-explore-filters" aria-label="Explore feed">
+            {views.map(([key, label]) => (
+              <button type="button" key={key} aria-pressed={view === key} onClick={() => setView(key)}><span>{label}</span></button>
+            ))}
+          </nav>
+          <PostsPanel key={account.id + ":" + view} view={view} timeline
+            composerAccount={view === "for-you" ? account : null} composerPhotoId={outlet?.profileDraft?.profile.photo?.id} />
+        </div>
+      </div>
+      <aside className="bw-explore-right" aria-label="Explore sidebar">
         <details className="bw-suggestions" open={suggestionsOpen} onToggle={event => setSuggestionsOpen(event.currentTarget.open)}>
           <summary>Suggested people</summary>
           {suggestionsOpen && (
@@ -33,8 +38,11 @@ export default function ExplorePage() {
             </Suspense>
           )}
         </details>
-      )}
-      <PostsPanel key={account.id + ":" + view} view={view} />
+        <div className="bw-explore-sidebar-links">
+          <Link to="/search">Search the directory</Link>
+          <Link to="/posts">My posts</Link>
+        </div>
+      </aside>
     </section>
   );
 }

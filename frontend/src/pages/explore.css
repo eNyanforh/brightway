@@ -1,0 +1,183 @@
+.bw-explore {
+  display: grid;
+  grid-template-columns: minmax(0, 600px) minmax(240px, 320px);
+  align-items: start;
+  justify-content: center;
+  gap: clamp(16px, 2.4vw, 32px);
+  min-width: 0;
+}
+.bw-explore-main, .bw-explore-right { min-width: 0; }
+.bw-explore-right { position: sticky; top: 103px; }
+.bw-explore-sidebar-links { display: grid; gap: .55rem; padding: 0 .85rem; }
+.bw-explore-sidebar-links a { color: #465978; font-size: .9rem; }
+
+.bw-explore-billboard {
+  overflow: hidden;
+  isolation: isolate;
+  margin-bottom: 1rem;
+  border: 1px solid #1c3f73;
+  border-radius: 17px;
+  background: #0b2146;
+  color: white;
+}
+.bw-billboard-stage { display: grid; }
+.bw-billboard-slide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(95px, 28%);
+  align-items: center;
+  gap: 1rem;
+  min-height: 218px;
+  padding: clamp(1rem, 4vw, 1.65rem);
+  background: radial-gradient(circle at 100% 0%, #24499a 0%, transparent 55%);
+  animation: bw-billboard-enter .3s ease-out both;
+}
+.bw-billboard-winners { background-image: radial-gradient(circle at 100% 0%, #5c3e82, transparent 58%); }
+.bw-billboard-campus { background-image: radial-gradient(circle at 100% 0%, #116d75, transparent 58%); }
+@keyframes bw-billboard-enter {
+  from { opacity: .45; transform: translateX(7px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.bw-billboard-copy { min-width: 0; }
+.bw-billboard-label { margin: 0 0 .55rem; color: #c4dbff; font-size: .72rem; font-weight: 750; text-transform: uppercase; letter-spacing: .11em; }
+.bw-billboard-copy h2 { margin: 0; max-width: 14ch; font-size: clamp(1.48rem, 3.5vw, 2.25rem); line-height: 1.1; letter-spacing: -.035em; color: white; }
+.bw-billboard-description { margin: .65rem 0 0; max-width: 35ch; color: #dde9fc; font-size: .9rem; line-height: 1.45; }
+.bw-billboard-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  margin-top: .85rem;
+  min-height: 38px;
+  padding: .3rem .7rem;
+  border-radius: 999px;
+  background: white;
+  color: #102449;
+  text-decoration: none;
+  font-size: .8rem;
+  font-weight: 750;
+}
+.bw-billboard-cta:hover { background: #e8f2ff; color: #102449; }
+.bw-billboard-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid #b5d3ff55;
+  background: #77aaff1c;
+  color: #dfecff;
+}
+.bw-billboard-art::before, .bw-billboard-art::after { position: absolute; content: ""; border: 1px solid #b5d3ff33; border-radius: 50%; inset: 9%; }
+.bw-billboard-art::after { inset: -9%; }
+.bw-billboard-controls { display: flex; justify-content: space-between; align-items: center; gap: .65rem; border-top: 1px solid #b5d3ff33; padding: .3rem .7rem; }
+.bw-billboard-dots, .bw-billboard-buttons { display: flex; align-items: center; }
+.bw-billboard-controls button { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; color: white; background: transparent; cursor: pointer; }
+.bw-billboard-controls button:hover { background: #ffffff21; }
+.bw-billboard-controls button:focus-visible, .bw-billboard-cta:focus-visible { outline-color: white; }
+.bw-billboard-dots button { width: 31px; }
+.bw-billboard-dots span { width: 7px; height: 7px; border-radius: 999px; background: #a5bee8; }
+.bw-billboard-dots button[aria-pressed="true"] span { width: 16px; background: white; }
+
+.bw-explore-timeline { background: white; color: #0f1419; border: 1px solid #eff3f4; }
+.bw-explore-timeline .bw-explore-filters { display: flex; margin: 0; gap: 0; border-bottom: 1px solid #eff3f4; }
+.bw-explore-timeline .bw-explore-filters button {
+  flex: 1;
+  min-height: 49px;
+  padding: 0 .5rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #536471;
+  font: inherit;
+  font-size: .9rem;
+  cursor: pointer;
+}
+.bw-explore-timeline .bw-explore-filters button:hover { background: #f7f9f9; }
+.bw-explore-timeline .bw-explore-filters button[aria-pressed="true"] { color: #0f1419; font-weight: 750; }
+.bw-explore-filters button span { position: relative; display: inline-grid; align-items: center; min-height: 49px; }
+.bw-explore-filters button[aria-pressed="true"] span::after { position: absolute; inset: auto 0 0; height: 4px; border-radius: 999px; background: #175cd3; content: ""; }
+
+.bw-timeline-panel { max-width: none; gap: 0; }
+.bw-timeline-post, .bw-timeline-composer {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  column-gap: .75rem;
+  padding: .75rem 1rem .4rem;
+  border-bottom: 1px solid #eff3f4;
+  min-width: 0;
+}
+.bw-timeline-post:hover { background: #fafafa; }
+.bw-timeline-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #e7f0ff;
+  color: #164cad;
+  font-weight: 750;
+  text-decoration: none;
+}
+.bw-timeline-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.bw-timeline-composer-main, .bw-timeline-post-main { min-width: 0; }
+.bw-timeline-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 54px;
+  padding: .25rem 0;
+  resize: vertical;
+  border: 0;
+  background: transparent;
+  color: #0f1419;
+  font: inherit;
+  font-size: 1.15rem;
+}
+.bw-timeline-composer textarea::placeholder { color: #536471; }
+.bw-timeline-composer-footer { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 48px; border-top: 1px solid #eff3f4; color: #536471; font-size: .8rem; }
+.bw-timeline-panel .bw-timeline-publish { min-width: 64px; padding: .45rem .9rem; border: 0; border-radius: 999px; background: #0f1419; color: white; font-size: .9rem; font-weight: 750; }
+.bw-timeline-refresh { display: flex; justify-content: center; border-bottom: 1px solid #eff3f4; }
+.bw-timeline-panel .bw-timeline-refresh button { padding: .55rem; border: 0; background: transparent; color: #175cd3; font-size: .82rem; }
+.bw-timeline-panel > .bw-post-error, .bw-timeline-panel > .bw-post-empty, .bw-timeline-panel > p[role="status"] { margin: .6rem 1rem; }
+.bw-timeline-panel > button { justify-self: center; margin: .75rem; }
+.bw-timeline-byline, .bw-timeline-repost { display: flex; flex-wrap: wrap; align-items: baseline; gap: .28rem; color: #536471; font-size: .875rem; overflow-wrap: anywhere; }
+.bw-timeline-byline a { color: #0f1419; font-weight: 750; text-decoration: none; }
+.bw-timeline-byline a:hover, .bw-timeline-repost a:hover { text-decoration: underline; }
+.bw-timeline-repost { grid-column: 2; align-items: center; margin: 0 0 .35rem; font-size: .78rem; }
+.bw-timeline-repost a { color: inherit; font-weight: 700; text-decoration: none; }
+.bw-timeline-post .bw-post-text { margin: .2rem 0 .2rem; line-height: 1.4; font-size: .94rem; }
+.bw-timeline-post .bw-post-comments { margin-top: .2rem; }
+.bw-timeline-actions { display: flex; justify-content: space-between; align-items: center; max-width: 420px; margin-left: -.38rem; }
+.bw-timeline-panel .bw-timeline-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .25rem;
+  min-width: 36px;
+  min-height: 40px;
+  padding: .3rem .38rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #536471;
+  font-size: .78rem;
+  font-weight: 500;
+}
+.bw-timeline-panel .bw-timeline-action:hover, .bw-timeline-panel .bw-timeline-save-action[aria-pressed="true"] { color: #175cd3; background: #edf4ff; }
+.bw-timeline-panel .bw-timeline-repost-action:hover, .bw-timeline-panel .bw-timeline-repost-action[data-active="true"] { color: #08784c; background: #eaf8f2; }
+.bw-timeline-panel .bw-timeline-like-action:hover, .bw-timeline-panel .bw-timeline-like-action[aria-pressed="true"] { color: #bb155c; background: #fff0f7; }
+.bw-timeline-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (max-width: 1000px) {
+  .bw-explore { grid-template-columns: minmax(0, 600px); }
+  .bw-explore-right { position: static; }
+}
+@media (max-width: 440px) {
+  .bw-explore-billboard { border-radius: 13px; }
+  .bw-billboard-slide { grid-template-columns: minmax(0, 1fr) 64px; min-height: 200px; gap: .55rem; }
+  .bw-billboard-art svg { width: 32px; height: 32px; }
+  .bw-timeline-post, .bw-timeline-composer { padding-inline: .65rem; column-gap: .55rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-billboard-slide { animation: none; }
+}

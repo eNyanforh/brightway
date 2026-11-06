@@ -173,7 +173,7 @@ it("keeps unsaved edits across editor close and app navigation without refetchin
     screen.getByRole("button", { name: "Close editor and keep edits" }),
   );
   await user.click(screen.getByRole("link", { name: "BrightWay, go to Explore" }));
-  await screen.findByRole("heading", { name: "Explore" });
+  await screen.findByRole("region", { name: "Explore" });
   await openProfile();
   await ready();
   await user.click(screen.getByRole("button", { name: "Resume editing" }));
@@ -431,7 +431,7 @@ it("warns before closing the document when drafts exist on another app page", as
     screen.getByRole("button", { name: "Close editor and keep edits" }),
   );
   await user.click(screen.getByRole("link", { name: "BrightWay, go to Explore" }));
-  await screen.findByRole("heading", { name: "Explore" });
+  await screen.findByRole("region", { name: "Explore" });
   const event = new Event("beforeunload", { cancelable: true });
   window.dispatchEvent(event);
   expect(event.defaultPrevented).toBe(true);
@@ -480,7 +480,7 @@ it("returns to the profile after logging into a protected profile URL", async ()
   await user.type(screen.getByLabelText("Password"), "a test password");
   await user.click(screen.getByRole("button", { name: "Log in" }));
   await ready();
-  expect(screen.queryByRole("heading", { name: "Explore" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Explore" })).toBeNull();
 });
 
 it("handles Escape by keeping the draft rather than silently discarding it", async () => {

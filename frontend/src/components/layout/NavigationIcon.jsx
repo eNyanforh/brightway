@@ -103,6 +103,33 @@ export default function NavigationIcon({
       );
       break;
 
+    case "awards":
+      shape = <path d="M8 4h8v7a4 4 0 0 1-8 0V4ZM8 6H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4m-4 3v5m-4 0h8" />;
+      break;
+    case "chevron-left":
+      shape = <path d="m15 6-6 6 6 6" />;
+      break;
+    case "chevron-right":
+      shape = <path d="m9 6 6 6-6 6" />;
+      break;
+    case "pause":
+      shape = <path d="M9 5v14m6-14v14" />;
+      break;
+    case "play":
+      shape = <path d="m9 5 10 7-10 7Z" />;
+      break;
+    case "reply":
+      shape = <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-3.8-.85L3 21l1.85-5.7a9 9 0 0 1-.85-3.8A8.5 8.5 0 0 1 12.5 3h.5A8.5 8.5 0 0 1 21 11.5Z" />;
+      break;
+    case "repost":
+      shape = <path d="m3 8 4-4 4 4M7 4v11a2 2 0 0 0 2 2h4m8-1-4 4-4-4m4 4V9a2 2 0 0 0-2-2h-3" />;
+      break;
+    case "like":
+      shape = <path d="M20.7 5.8a5.1 5.1 0 0 0-7.2 0L12 7.3l-1.5-1.5a5.1 5.1 0 0 0-7.2 7.2l8.7 8 8.7-8a5.1 5.1 0 0 0 0-7.2Z" />;
+      break;
+    case "bookmark":
+      shape = <path d="M6 4h12v17l-6-4-6 4Z" />;
+      break;
     case "menu":
       shape = <path d="M4 6h16M4 12h16M4 18h16" />;
       break;
@@ -113,7 +140,7 @@ export default function NavigationIcon({
 
   const filled =
     active &&
-    ["explore", "opportunities", "network", "learning"].includes(name);
+    ["explore", "opportunities", "network", "learning", "like", "bookmark"].includes(name);
 
   return (
     <svg
