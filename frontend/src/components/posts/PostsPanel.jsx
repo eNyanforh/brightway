@@ -4,6 +4,7 @@ import { organizationPostsApi as api } from "../../api/organization-posts";
 import NavigationIcon from "../layout/NavigationIcon";
 import PersonalPostComposer, { PersonalPostTypeLabel, PostTopicTags } from "./PersonalPostComposer";
 import PostComments from "./PostComments";
+import QuestionAnswers from "./QuestionAnswers";
 import "./posts.css";
 
 const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -79,58 +80,199 @@ function PostStory({ post, topicTags }) {
   );
 }
 
-function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }) {
+function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, onRegister }) {
   const [confirming, setConfirming] = useState(false);
+  const [answersOpen, setAnswersOpen] = useState(false);
+  const [answerCount, setAnswerCount] = useState(post.answerCount ?? 0);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reported, setReported] = useState(false);
+  const [reason, setReason] = useState("SPAM");
+  const [details, setDetails] = useState("");
+  const [reportBusy, setReportBusy] = useState(false);
+  const [cardError, setCardError] = useState("");
+  const [shareNotice, setShareNotice] = useState("");
+  const [viewCount, setViewCount] = useState(post.views);
+  const cardRef = useRef(null);
+  const viewed = useRef(null);
   const publisher = post.organization || post.member;
+  const source = postSource(post);
+  const type = post.member ? post.type ?? "POST" : "ORGANIZATION";
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
   const topicTags = post.member && <PostTopicTags tags={post.tags} />;
+  const answerCountChanged = useCallback(delta => setAnswerCount(current => Math.max(0, current + delta)), []);
+
+  useEffect(() => {
+    if (!timeline || typeof post.views !== "number" || !cardRef.current ||
+      typeof IntersectionObserver === "undefined") return undefined;
+    const target = cardRef.current;
+    const controller = new AbortController();
+    const observer = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting) || viewed.current === postKey(post)) return;
+      viewed.current = postKey(post);
+      observer.disconnect();
+      void api.recordView(source, post.id, controller.signal)
+        .then(data => { if (!controller.signal.aborted) setViewCount(data.views); })
+        .catch(() => {});
+    }, { threshold: 0.55 });
+    observer.observe(target);
+    return () => { observer.disconnect(); controller.abort(); };
+  }, [timeline, post.id, post.views, source]);
+
+  async function sharePost() {
+    setShareNotice("");
+    const url = new URL("/explore", window.location.origin);
+    url.searchParams.set("post", post.id);
+    url.searchParams.set("source", source);
+    try {
+      if (navigator.share) await navigator.share({ title: "BrightWay " + type.toLowerCase(), url: url.toString() });
+      else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url.toString());
+        setShareNotice("Post link copied.");
+      } else setShareNotice("Share this link: " + url.toString());
+    } catch (error) {
+      if (error.name !== "AbortError") setShareNotice("Could not share this post.");
+    }
+  }
+
+  async function reportQuestion(event) {
+    event.preventDefault();
+    if (reportBusy) return;
+    setReportBusy(true); setCardError("");
+    try {
+      await api.reportQuestion(post.id, { reason, ...(details.trim() ? { details: details.trim() } : {}) });
+      setReported(true); setReportOpen(false);
+    } catch (error) { setCardError(error.message); }
+    finally { setReportBusy(false); }
+  }
+
+  const controls = (
+    <>
+      {type === "QUESTION" && (
+        <button type="button" className="bw-timeline-action" aria-label="Answer" title="Answer"
+          aria-expanded={answersOpen} onClick={() => setAnswersOpen(open => !open)}>
+          <NavigationIcon name="answer" size={19} /><span className="bw-action-count">{answerCount || ""}</span>
+        </button>
+      )}
+      {type === "EVENT" && (
+        <button type="button" className="bw-timeline-action bw-signup-action" disabled={busy}
+          aria-label={post.registration?.registered ? "Registered" : "Sign Up"}
+          aria-pressed={Boolean(post.registration?.registered)}
+          title={post.registration?.registered ? "Cancel registration" : "Sign Up"}
+          onClick={() => onRegister(post)}>
+          <NavigationIcon name="ticket" size={19} />
+          <span>{post.registration?.registered ? "Registered" : "Sign Up"}</span>
+          {post.registration?.count > 0 && <span className="bw-action-count">{post.registration.count}</span>}
+        </button>
+      )}
+      {post.reaction && ["ACHIEVEMENT", "POST", "ORGANIZATION"].includes(type) && (
+        <button type="button" className="bw-timeline-action bw-timeline-like-action" disabled={busy}
+          aria-label={type === "ACHIEVEMENT" ? "Celebrate" : "Like"}
+          title={type === "ACHIEVEMENT" ? "Celebrate" : "Like"}
+          aria-pressed={post.reaction.liked} onClick={() => onLike(post)}>
+          <NavigationIcon name={type === "ACHIEVEMENT" ? "celebrate" : "like"} size={19} active={post.reaction.liked} />
+          <span aria-live="polite" className="bw-action-count">
+            <span className="bw-timeline-sr">{post.reaction.count} {type === "ACHIEVEMENT" ? (post.reaction.count === 1 ? "celebration" : "celebrations") : (post.reaction.count === 1 ? "like" : "likes")}</span>
+            {post.reaction.count > 0 && <span aria-hidden="true">{post.reaction.count}</span>}
+          </span>
+        </button>
+      )}
+      {typeof post.reposted === "boolean" && type !== "QUESTION" && (
+        <button type="button" className="bw-timeline-action bw-timeline-repost-action" disabled={busy}
+          aria-label={post.reposted ? "Undo repost" : "Repost"}
+          title={post.reposted ? "Undo repost" : "Repost"}
+          data-active={post.reposted} onClick={() => onRepost(post)}>
+          <NavigationIcon name="repost" size={19} />
+        </button>
+      )}
+      <button type="button" className="bw-timeline-action" aria-label="Share" title="Share"
+        onClick={() => void sharePost()}><NavigationIcon name="share" size={19} /></button>
+      {type === "QUESTION" && (
+        <button type="button" className="bw-timeline-action" aria-label="Report question" title="Report"
+          aria-expanded={reportOpen} disabled={reported} onClick={() => setReportOpen(open => !open)}>
+          <NavigationIcon name="flag" size={19} />
+        </button>
+      )}
+      {typeof viewCount === "number" && (
+        <span className="bw-post-view-metric" aria-label={viewCount + " views"} title={viewCount + " views"}>
+          <NavigationIcon name="analytics" size={19} /> <span>{viewCount.toLocaleString()}</span>
+        </span>
+      )}
+      {typeof post.saved === "boolean" && ["POST", "ORGANIZATION"].includes(type) && (
+        <button type="button" className="bw-timeline-action bw-timeline-save-action" disabled={busy}
+          aria-label="Save post" title={post.saved ? "Remove bookmark" : "Bookmark"}
+          aria-pressed={post.saved} onClick={() => onSave(post)}>
+          <NavigationIcon name="bookmark" size={19} active={post.saved} />
+        </button>
+      )}
+    </>
+  );
+
+  const extras = (
+    <>
+      {shareNotice && <p className="bw-post-action-notice" role="status">{shareNotice}</p>}
+      {cardError && <p className="bw-post-error" role="alert">{cardError}</p>}
+      {reported && <p className="bw-post-action-notice" role="status">Report submitted for moderation.</p>}
+      {reportOpen && !reported && (
+        <form className="bw-question-report" aria-label="Report question" onSubmit={event => void reportQuestion(event)}>
+          <label>Reason
+            <select value={reason} onChange={e => setReason(e.target.value)} disabled={reportBusy}>
+              <option value="SPAM">Spam</option>
+              <option value="HARASSMENT">Harassment</option>
+              <option value="MISINFORMATION">Misinformation</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </label>
+          <label>Additional details (optional)
+            <textarea rows={2} maxLength={500} value={details} disabled={reportBusy}
+              onChange={e => setDetails(e.target.value)} />
+          </label>
+          <div className="bw-post-actions">
+            <button type="submit" disabled={reportBusy}>Submit report</button>
+            <button type="button" disabled={reportBusy} onClick={() => setReportOpen(false)}>Cancel</button>
+          </div>
+        </form>
+      )}
+      {answersOpen && type === "QUESTION" && (
+        <QuestionAnswers questionId={post.id} onClose={() => setAnswersOpen(false)} onCountChange={answerCountChanged} />
+      )}
+    </>
+  );
+
   if (timeline) {
     return (
-      <article className="bw-timeline-post" data-post-type={post.member ? post.type ?? "POST" : undefined}>
+      <article className="bw-timeline-post" data-post-type={type} ref={cardRef} id={"post-" + source + "-" + post.id}>
         {post.repost && (
           <p className="bw-timeline-repost">
             <NavigationIcon name="repost" size={15} />
-            <Link to={post.repost.mine ? "/profile" : "/people/" + encodeURIComponent(post.repost.member.username)}>{post.repost.mine ? "You" : post.repost.member.name}</Link>
+            <Link to={post.repost.mine ? "/profile" : "/people/" + encodeURIComponent(post.repost.member.username)}>
+              {post.repost.mine ? "You" : post.repost.member.name}
+            </Link>
             <span>reposted</span>
           </p>
         )}
-        <Link className="bw-timeline-avatar" to={profileUrl} aria-hidden="true" tabIndex={-1}>{publisher.name.slice(0, 1).toUpperCase()}</Link>
+        <Link className="bw-timeline-avatar" to={profileUrl} aria-hidden="true" tabIndex={-1}>
+          {publisher.name.slice(0, 1).toUpperCase()}
+        </Link>
         <div className="bw-timeline-post-main">
           <header className="bw-timeline-byline">
             <Link to={profileUrl}>{publisher.name}</Link>
             {publisher.username && <span>@{publisher.username}</span>}
             <span aria-hidden="true">·</span>
-            <time dateTime={post.createdAt} title={time.format(new Date(post.createdAt))}>{timelineDate.format(new Date(post.createdAt))}</time>
+            <time dateTime={post.createdAt} title={time.format(new Date(post.createdAt))}>
+              {timelineDate.format(new Date(post.createdAt))}
+            </time>
           </header>
           <PostStory post={post} topicTags={topicTags} />
-          <PostComments postId={post.id} source={postSource(post)}>
-            {typeof post.reposted === "boolean" && (
-              <button type="button" className="bw-timeline-action bw-timeline-repost-action" disabled={busy}
-                aria-label={post.reposted ? "Undo repost" : "Repost"} title={post.reposted ? "Undo repost" : "Repost"}
-                data-active={post.reposted} onClick={() => onRepost(post)}><NavigationIcon name="repost" size={19} /></button>
-            )}
-            {post.reaction && (
-              <button type="button" className="bw-timeline-action bw-timeline-like-action" disabled={busy}
-                aria-label="Like" title="Like" aria-pressed={post.reaction.liked} onClick={() => onLike(post)}>
-                <NavigationIcon name="like" size={19} active={post.reaction.liked} />
-                <span aria-live="polite">
-                  <span className="bw-timeline-sr">{post.reaction.count} {post.reaction.count === 1 ? "like" : "likes"}</span>
-                  {post.reaction.count > 0 && <span aria-hidden="true">{post.reaction.count}</span>}
-                </span>
-              </button>
-            )}
-            {typeof post.saved === "boolean" && (
-              <button type="button" className="bw-timeline-action bw-timeline-save-action" disabled={busy}
-                aria-label="Save post" title={post.saved ? "Remove bookmark" : "Bookmark"} aria-pressed={post.saved}
-                onClick={() => onSave(post)}><NavigationIcon name="bookmark" size={19} active={post.saved} /></button>
-            )}
+          <PostComments postId={post.id} source={source}>
+            {controls}
           </PostComments>
+          {extras}
         </div>
       </article>
     );
   }
   return (
-    <article className="bw-post-card" data-post-type={post.member ? post.type ?? "POST" : undefined}>
+    <article className="bw-post-card" data-post-type={type}>
       <header>
         <span className="bw-post-badge" aria-hidden="true">{publisher.name.slice(0, 1).toUpperCase()}</span>
         <div>
@@ -191,14 +333,33 @@ export default function PostsPanel({ organization, personal = false, view = "for
   }, []);
 
   const load = useCallback(cursor => run(
-    signal => organizationId ? api.list(organizationId, cursor, signal) : personal ? api.memberList(cursor, signal) : api.feed(view, cursor, signal),
+    async signal => {
+      const data = await (organizationId ? api.list(organizationId, cursor, signal)
+        : personal ? api.memberList(cursor, signal) : api.feed(view, cursor, signal));
+      if (timeline && !cursor && !organizationId && !personal) {
+        const params = new URLSearchParams(window.location.search);
+        const source = params.get("source");
+        const id = params.get("post");
+        if (["member", "organization"].includes(source) &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id || "")) {
+          try {
+            const { post } = await api.readPost(source, id, signal);
+            if (!data.items.some(item => postKey(item) === postKey(post))) data.items.unshift(post);
+          } catch (error) {
+            // A deleted or inaccessible shared post must not hide the rest of Explore.
+            if (error.status !== 403 && error.status !== 404) throw error;
+          }
+        }
+      }
+      return data;
+    },
     data => setPage(previous => {
       if (!cursor || !previous) return data;
       const items = new Map(previous.items.map(item => [cardKey(item), item]));
       for (const item of data.items) items.set(cardKey(item), item);
       return { ...data, items: [...items.values()] };
     }),
-  ), [organizationId, personal, run, view]);
+  ), [organizationId, personal, run, view, timeline]);
 
   useEffect(() => {
     let mounted = true;
@@ -246,7 +407,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
     void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags, ...(type === "EVENT" && eventDetails ? { eventDetails } : {}), ...(type === "QUESTION" && questionDetails ? { questionDetails } : {}) }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
-      const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false } : post;
+      const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false, views: 0, ...(type === "EVENT" ? { registration: { registered: false, count: 0 } } : {}), ...(type === "QUESTION" ? { answerCount: 0 } : {}) } : post;
       setPage(previous => ({
         ...previous,
         items: [published, ...(previous?.items || []).filter(item => cardKey(item) !== cardKey(published))],
@@ -274,6 +435,11 @@ export default function PostsPanel({ organization, personal = false, view = "for
   function like(post) {
     updateFeedPost(post, (source, signal) => api.setLike(source, post.id, !post.reaction.liked, signal),
       (items, key, { reaction }) => items.map(item => postKey(item) === key ? { ...item, reaction } : item));
+  }
+
+  function register(post) {
+    updateFeedPost(post, (_source, signal) => api.registerEvent(post.id, !post.registration?.registered, signal),
+      (items, key, { registration }) => items.map(item => postKey(item) === key ? { ...item, registration } : item));
   }
 
   function save(post) {
@@ -344,7 +510,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
             view === "saved" ? "Save a post to find it here later." :
               view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
       )}
-      {page?.items.map(post => <PostCard key={cardKey(post)} post={post} timeline={timeline} busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} onRepost={repost} />)}
+      {page?.items.map(post => <PostCard key={cardKey(post)} post={post} timeline={timeline} busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} onRepost={repost} onRegister={register} />)}
       {page?.nextCursor && <button type="button" disabled={pending || disabled} onClick={() => void load(page.nextCursor)}>Load older posts</button>}
     </section>
   );

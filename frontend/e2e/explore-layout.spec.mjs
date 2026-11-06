@@ -311,6 +311,83 @@ test("The feed renders different presentation cards for stored achievements, eve
   await expect(legacyCard.locator(".bw-post-story")).toHaveCount(0);
 });
 
+test("purpose-driven post cards expose distinct actions and functional signup and answer voting", async ({ page }) => {
+  const [achievement, event, question] = formats.map((format, index) => ({
+    ...fixturePost,
+    id: "44444444-4444-4444-8444-44444444444" + index,
+    type: format.type,
+    body: format.body,
+    tags: ["Education"],
+    views: 8,
+    ...(format.type === "EVENT" ? { registration: { registered: false, count: 0 }, eventDetails: {
+      title: "Community Coding Workshop", startAt: "2027-01-15T12:00:00Z",
+      endAt: "2027-01-15T14:00:00Z", timezone: "UTC",
+      format: "ONLINE", meetingUrl: "https://meet.example.org/workshop", coverTheme: "NAVY",
+    } } : {}),
+    ...(format.type === "QUESTION" ? { answerCount: 1, questionDetails: {
+      title: format.body, intent: "GUIDANCE",
+    } } : {}),
+  }));
+  await fixture(page, [achievement, event, question]);
+  const calls = [];
+  await page.route("**/api/v1/explore/**", async route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const pathname = url.pathname;
+    const response = (data, status = 200) =>
+      route.fulfill({ status, json: { success: true, data } });
+    if (/\/view$/.test(pathname)) return response({ views: 9 });
+    if (/\/register$/.test(pathname)) {
+      calls.push(request.postDataJSON());
+      const registered = request.postDataJSON().registered;
+      return response({ registration: { registered, count: registered ? 1 : 0 } });
+    }
+    if (/\/report$/.test(pathname)) return response({ reported: true }, 201);
+    if (/\/answers$/.test(pathname) && request.method() === "GET") {
+      return response({ items: [{
+        id: "55555555-5555-4555-8555-555555555555", username: "maya",
+        body: "Start with the official React documentation.", createdAt: "2026-11-06T10:00:00Z",
+        score: 0, myVote: 0, commentCount: 0, canDelete: false,
+      }], sort: url.searchParams.get("sort") });
+    }
+    if (/\/vote$/.test(pathname)) {
+      calls.push(request.postDataJSON());
+      return response({ score: request.postDataJSON().value, myVote: request.postDataJSON().value });
+    }
+    return route.fallback();
+  });
+  await page.goto("/explore");
+  const explore = page.getByRole("region", { name: "Explore", exact: true });
+  const achievementCard = explore.getByRole("article").filter({ hasText: achievement.body });
+  const eventCard = explore.getByRole("article").filter({ hasText: "Community Coding Workshop" });
+  const questionCard = explore.getByRole("article").filter({ hasText: question.body });
+  await expect(achievementCard.getByRole("button", { name: "Celebrate" })).toBeVisible();
+  await expect(achievementCard.getByRole("button", { name: "Like" })).toHaveCount(0);
+  await expect(achievementCard.getByRole("button", { name: "Repost" })).toBeVisible();
+  await expect(achievementCard.getByRole("button", { name: "Share" })).toBeVisible();
+  await expect(achievementCard.getByLabel(/views$/)).toBeVisible();
+
+  await expect(eventCard.getByRole("button", { name: "Like" })).toHaveCount(0);
+  await eventCard.getByRole("button", { name: "Sign Up" }).click();
+  await expect(eventCard.getByRole("button", { name: "Registered" })).toBeVisible();
+  expect(calls).toContainEqual({ registered: true });
+
+  await expect(questionCard.getByRole("button", { name: "Like" })).toHaveCount(0);
+  await expect(questionCard.getByRole("button", { name: "Repost" })).toHaveCount(0);
+  await expect(questionCard.getByRole("button", { name: "Answer" })).toBeVisible();
+  await expect(questionCard.getByRole("button", { name: /Upvote answer/ })).toHaveCount(0);
+  await questionCard.getByRole("button", { name: "Answer" }).click();
+  const answers = questionCard.getByRole("region", { name: "Answers" });
+  await expect(answers.getByText("Start with the official React documentation.")).toBeVisible();
+  await answers.getByRole("button", { name: "Upvote answer by maya" }).click();
+  await expect(answers.getByLabel("Answer score 1")).toBeVisible();
+  expect(calls).toContainEqual({ value: 1 });
+  await questionCard.getByRole("button", { name: "Report question" }).click();
+  const report = questionCard.getByRole("form", { name: "Report question" });
+  await report.getByRole("button", { name: "Submit report" }).click();
+  await expect(questionCard.getByText("Report submitted for moderation.")).toBeVisible();
+});
+
 test("the billboard rotates and stops when the member pauses it", async ({ page }) => {
   await fixture(page);
   await page.emulateMedia({ reducedMotion: "no-preference" });

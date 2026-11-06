@@ -136,6 +136,30 @@ export default function NavigationIcon({
     case "like":
       shape = <path d="M20.7 5.8a5.1 5.1 0 0 0-7.2 0L12 7.3l-1.5-1.5a5.1 5.1 0 0 0-7.2 7.2l8.7 8 8.7-8a5.1 5.1 0 0 0 0-7.2Z" />;
       break;
+    case "celebrate":
+      shape = <><path d="M4 20 15 9l3 3L7 23l-3-3ZM13 4V2m7 8h2M17 6l2-2M9 3l1 3m9 10 3 1M4 10l-2-1" /><path d="m13 9 2-3 3 3-3 3" /></>;
+      break;
+    case "analytics":
+      shape = <><rect x="3" y="13" width="4" height="8" rx="1" /><rect x="10" y="8" width="4" height="13" rx="1" /><rect x="17" y="3" width="4" height="18" rx="1" /></>;
+      break;
+    case "share":
+      shape = <><path d="M12 16V3m0 0-5 5m5-5 5 5M5 13H3v8h18v-8h-2" /></>;
+      break;
+    case "upvote":
+      shape = <><path d="M12 3 3 12h5v9h8v-9h5L12 3Z" /></>;
+      break;
+    case "downvote":
+      shape = <><path d="m12 21 9-9h-5V3H8v9H3l9 9Z" /></>;
+      break;
+    case "flag":
+      shape = <><path d="M5 22V3m0 1c6-4 8 4 16 0v12c-8 4-10-4-16 0" /></>;
+      break;
+    case "ticket":
+      shape = <><path d="M3 8h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4V8ZM14 8v12" /></>;
+      break;
+    case "answer":
+      shape = <><path d="M21 12a8 8 0 0 1-8 8H4l2-4a8 8 0 1 1 15-4Z" /><path d="m9 12 2 2 4-4" /></>;
+      break;
     case "bookmark":
       shape = <path d="M6 4h12v17l-6-4-6 4Z" />;
       break;

@@ -28,6 +28,13 @@ const sourceInput = z.enum(["organization", "member"]);
 const likeInput = z.strictObject({ liked: z.boolean() });
 const repostInput = z.strictObject({ reposted: z.boolean() });
 const saveInput = z.strictObject({ saved: z.boolean() });
+const registrationInput = z.strictObject({ registered: z.boolean() });
+const voteInput = z.strictObject({ value: z.union([z.literal(-1), z.literal(0), z.literal(1)]) });
+const answerSortInput = z.strictObject({ sort: z.enum(["top", "newest"]).default("top") });
+const reportInput = z.strictObject({
+  reason: z.enum(["SPAM", "HARASSMENT", "MISINFORMATION", "OTHER"]),
+  details: z.string().trim().max(500).optional(),
+});
 const textInput = max => z.strictObject({
   body: z.string().trim().min(1).max(max).refine(value => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)),
   requestKey: identifier,
@@ -159,7 +166,7 @@ function visibleMember(accountId) {
 }
 
 function likeSelect(accountId) {
-  return { _count: { select: { likes: true } }, likes: { where: { accountId }, select: { id: true } } };
+  return { _count: { select: { likes: true, views: true } }, likes: { where: { accountId }, select: { id: true } } };
 }
 
 function likeSummary({ likes, _count }) {
@@ -171,10 +178,13 @@ function memberAttribution({ username, person }) {
   return { username, name: [firstName, middleName, lastName].filter(Boolean).join(" ") };
 }
 
-function feedPost({ likes, _count, saves, reposts, ...post }) {
+function feedPost({ likes, _count, saves, reposts, registrations, ...post }) {
   return {
     ...(post.author ? memberPost(post) : post),
     reaction: likeSummary({ likes, _count }),
+    views: _count.views ?? 0,
+    ...(registrations && { registration: { registered: registrations.length > 0, count: _count.registrations ?? 0 } }),
+    ...(post.type === "QUESTION" && { answerCount: _count.answers ?? 0 }),
     saved: saves.length > 0,
     reposted: reposts.length > 0,
   };
@@ -272,7 +282,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     return items;
   }
 
-  async function savedFeed(accountId, position, select) {
+  async function savedFeed(accountId, position, select, memberEngagementSelect) {
     const rows = await prisma.postSave.findMany({
       where: {
         accountId,
@@ -288,7 +298,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       select: {
         id: true,
         createdAt: true,
-        memberPost: { select: { ...memberPostSelect, ...select } },
+        memberPost: { select: { ...memberPostSelect, ...memberEngagementSelect } },
         organizationPost: { select: { ...postSelect, ...select } },
       },
       take: pageSize + 1,
@@ -399,15 +409,255 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     });
   }
 
+  async function requireQuestion(db, actor, questionId) {
+    const id = parse(identifier, questionId, "Choose a valid question.");
+    const target = await visiblePost(db, actor.accountId, { source: "member", id });
+    const question = await db.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true } });
+    if (question.type !== "QUESTION") throw fail(400, "Answers are only available for questions.");
+    return { id, target };
+  }
+
+  async function requireAnswer(db, actor, answerId) {
+    const id = parse(identifier, answerId, "Choose a valid answer.");
+    const answer = await db.questionAnswer.findFirst({ where: { id, deletedAt: null },
+      select: { id: true, authorId: true, questionId: true } });
+    if (!answer) throw fail(404, "This answer is unavailable.");
+    await requireQuestion(db, actor, answer.questionId);
+    return answer;
+  }
+
+  async function verifiedContributor(db, accountId) {
+    await lockMemberProfile(db, accountId);
+    const access = await memberEligibility(db, accountId);
+    if (!access.identityVerified || !access.profilePublic) {
+      throw fail(403, "Verify your identity and publish your public profile before answering questions.");
+    }
+  }
+
+  function answerPublic(row, viewerId) {
+    return {
+      id: row.id, body: row.body, createdAt: row.createdAt,
+      username: row.author.username, canDelete: row.author.id === viewerId,
+      score: row.score, myVote: row.votes?.[0]?.value ?? 0,
+      commentCount: row._count?.comments ?? 0,
+    };
+  }
+
   return {
+    async readPost(actor, sourceValue, idValue) {
+      const ref = postRef(sourceValue, idValue);
+      await assertNetworkSession(prisma, actor, now);
+      await visiblePost(prisma, actor.accountId, ref);
+      const ownActivity = { where: { accountId: actor.accountId }, select: { id: true } };
+      const select = { ...likeSelect(actor.accountId), saves: ownActivity, reposts: ownActivity };
+      const memberSelectEngagement = {
+        ...memberPostSelect, ...select,
+        _count: { select: { likes: true, views: true, registrations: true, answers: { where: { deletedAt: null } } } },
+        registrations: { where: { accountId: actor.accountId }, select: { id: true } },
+      };
+      const row = await postModel(prisma, ref.source).findUniqueOrThrow({
+        where: { id: ref.id },
+        select: ref.source === "member" ? memberSelectEngagement : { ...postSelect, ...select },
+      });
+      await assertNetworkSession(prisma, actor, now);
+      return { post: feedPost(row) };
+    },
+
+    async registerEvent(actor, idValue, input) {
+      const id = parse(identifier, idValue, "Choose a valid event.");
+      const { registered } = parse(registrationInput, input, "Choose whether to register.");
+      return writeVisiblePost(actor, { source: "member", id }, async tx => {
+        const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true, eventDetails: true } });
+        if (post.type !== "EVENT" || !post.eventDetails) throw fail(400, "Registration is only available for events.");
+        if (registered && Date.parse(post.eventDetails.endAt) <= +now()) throw fail(409, "Registration is closed for this event.");
+        const key = { memberPostId: id, accountId: actor.accountId };
+        if (registered) await tx.eventRegistration.createMany({ data: [key], skipDuplicates: true });
+        else await tx.eventRegistration.deleteMany({ where: key });
+        const count = await tx.eventRegistration.count({ where: { memberPostId: id } });
+        return { registration: { registered, count } };
+      });
+    },
+
+    async recordView(actor, sourceValue, idValue) {
+      const ref = postRef(sourceValue, idValue);
+      return writeVisiblePost(actor, ref, async tx => {
+        const target = await postModel(tx, ref.source).findUniqueOrThrow({
+          where: { id: ref.id }, select: { authorId: true },
+        });
+        if (target.authorId !== actor.accountId) {
+          await tx.postView.createMany({
+            data: [{ accountId: actor.accountId, ...postTarget(ref) }], skipDuplicates: true,
+          });
+        }
+        return { views: await tx.postView.count({ where: postTarget(ref) }) };
+      });
+    },
+
+    async reportQuestion(actor, idValue, input) {
+      const id = parse(identifier, idValue, "Choose a valid question.");
+      const { reason, details } = parse(reportInput, input, "Choose a report reason.");
+      return writeVisiblePost(actor, { source: "member", id }, async tx => {
+        const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true, authorId: true } });
+        if (post.type !== "QUESTION") throw fail(400, "Only questions can be reported here.");
+        if (post.authorId === actor.accountId) throw fail(400, "You cannot report your own question.");
+        await tx.postReport.createMany({
+          data: [{ memberPostId: id, reporterId: actor.accountId, reason, details: details || null }],
+          skipDuplicates: true,
+        });
+        return { reported: true };
+      });
+    },
+
+    async answers(actor, idValue, input) {
+      const { sort } = parse(answerSortInput, input, "Choose a valid answer order.");
+      await assertNetworkSession(prisma, actor, now);
+      const { id, target } = await requireQuestion(prisma, actor, idValue);
+      const rows = await prisma.questionAnswer.findMany({
+        where: { questionId: id, deletedAt: null,
+          author: { status: "ACTIVE", AND: [unblockedAuthor(actor.accountId), unblockedAuthor(target.authorId)] } },
+        orderBy: sort === "top" ? [{ score: "desc" }, { createdAt: "desc" }, { id: "desc" }]
+          : [{ createdAt: "desc" }, { id: "desc" }],
+        select: { id: true, body: true, score: true, createdAt: true,
+          author: { select: { id: true, username: true } },
+          votes: { where: { accountId: actor.accountId }, select: { value: true } },
+          _count: { select: { comments: { where: { deletedAt: null } } } },
+        },
+        take: 50,
+      });
+      await assertNetworkSession(prisma, actor, now);
+      return { items: rows.map(row => answerPublic(row, actor.accountId)), sort };
+    },
+
+    async addAnswer(actor, idValue, input) {
+      const id = parse(identifier, idValue, "Choose a valid question.");
+      const { body, requestKey } = parse(textInput(2000), input, "Write an answer between 1 and 2,000 characters.");
+      return writeVisiblePost(actor, { source: "member", id }, async tx => {
+        const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true } });
+        if (post.type !== "QUESTION") throw fail(400, "Answers are only available for questions.");
+        await verifiedContributor(tx, actor.accountId);
+        const key = { authorId: actor.accountId, requestKey };
+        const previous = await tx.questionAnswer.findUnique({ where: { authorId_requestKey: key } });
+        if (previous) {
+          if (previous.questionId !== id || previous.body !== body || previous.deletedAt)
+            throw fail(409, "This request belongs to another answer.");
+          const author = await tx.account.findUniqueOrThrow({
+            where: { id: actor.accountId }, select: { username: true },
+          });
+          const commentCount = await tx.answerComment.count({ where: { answerId: previous.id, deletedAt: null } });
+          const vote = await tx.answerVote.findUnique({
+            where: { answerId_accountId: { answerId: previous.id, accountId: actor.accountId } },
+            select: { value: true },
+          });
+          return { answer: { id: previous.id, body: previous.body, createdAt: previous.createdAt,
+            username: author.username, canDelete: true, score: previous.score, myVote: vote?.value ?? 0, commentCount } };
+        }
+        const recent = await tx.questionAnswer.count({
+          where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } },
+        });
+        if (recent >= 10) throw fail(429, "You have reached the answer limit. Try again later.");
+        const answer = await tx.questionAnswer.create({
+          data: { questionId: id, ...key, body, createdAt: now() },
+          select: { id: true, body: true, createdAt: true, score: true,
+            author: { select: { id: true, username: true } } },
+        });
+        return { answer: { id: answer.id, body: answer.body, createdAt: answer.createdAt,
+          username: answer.author.username, canDelete: true, score: 0, myVote: 0, commentCount: 0 } };
+      });
+    },
+
+    async voteAnswer(actor, answerId, input) {
+      const id = parse(identifier, answerId, "Choose a valid answer.");
+      const { value } = parse(voteInput, input, "Choose upvote, downvote, or remove vote.");
+      const answer = await requireAnswer(prisma, actor, id);
+      return writeVisiblePost(actor, { source: "member", id: answer.questionId }, async tx => {
+        await tx.$queryRaw`SELECT "id" FROM "QuestionAnswer" WHERE "id" = ${id} FOR UPDATE`;
+        const current = await tx.questionAnswer.findUniqueOrThrow({
+          where: { id }, select: { authorId: true, deletedAt: true },
+        });
+        if (current.deletedAt) throw fail(404, "This answer is unavailable.");
+        if (current.authorId === actor.accountId) throw fail(400, "You cannot vote on your own answer.");
+        const key = { answerId: id, accountId: actor.accountId };
+        const previous = await tx.answerVote.findUnique({ where: { answerId_accountId: key } });
+        const oldValue = previous?.value ?? 0;
+        if (value === 0) await tx.answerVote.deleteMany({ where: key });
+        else await tx.answerVote.upsert({
+          where: { answerId_accountId: key },
+          create: { ...key, value, createdAt: now() },
+          update: { value },
+        });
+        const updated = await tx.questionAnswer.update({
+          where: { id }, data: { score: { increment: value - oldValue } },
+          select: { score: true },
+        });
+        return { score: updated.score, myVote: value };
+      });
+    },
+
+    async answerComments(actor, answerId) {
+      const answer = await requireAnswer(prisma, actor, answerId);
+      const rows = await prisma.answerComment.findMany({
+        where: { answerId: answer.id, deletedAt: null,
+          author: { status: "ACTIVE", AND: [unblockedAuthor(actor.accountId), unblockedAuthor(answer.authorId)] } },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        take: 50,
+        select: commentSelect,
+      });
+      await assertNetworkSession(prisma, actor, now);
+      return { items: rows.map(row => commentView(row, actor.accountId)) };
+    },
+
+    async addAnswerComment(actor, answerId, input) {
+      const { body, requestKey } = parse(textInput(1000), input, "Write a comment between 1 and 1,000 characters.");
+      const answer = await requireAnswer(prisma, actor, answerId);
+      return writeVisiblePost(actor, { source: "member", id: answer.questionId }, async tx => {
+        const key = { authorId: actor.accountId, requestKey };
+        const old = await tx.answerComment.findUnique({ where: { authorId_requestKey: key },
+          select: { ...commentSelect, answerId: true, deletedAt: true } });
+        if (old) {
+          if (old.answerId !== answer.id || old.body !== body || old.deletedAt)
+            throw fail(409, "This request belongs to another comment.");
+          return { comment: commentView(old, actor.accountId) };
+        }
+        const row = await tx.answerComment.create({
+          data: { ...key, answerId: answer.id, body, createdAt: now() }, select: commentSelect,
+        });
+        return { comment: commentView(row, actor.accountId) };
+      });
+    },
+
+    async deleteAnswer(actor, answerId) {
+      const answer = await requireAnswer(prisma, actor, answerId);
+      if (answer.authorId !== actor.accountId) throw fail(403, "You can only remove your own answer.");
+      return writeVisiblePost(actor, { source: "member", id: answer.questionId }, async tx => {
+        await tx.questionAnswer.update({ where: { id: answer.id }, data: { deletedAt: now() } });
+        return { id: answer.id };
+      });
+    },
+
+    async deleteAnswerComment(actor, answerId, commentId) {
+      const answer = await requireAnswer(prisma, actor, answerId);
+      const id = parse(identifier, commentId, "Choose a valid comment.");
+      return writeVisiblePost(actor, { source: "member", id: answer.questionId }, async tx => {
+        const comment = await tx.answerComment.findFirst({ where: { id, answerId: answer.id, authorId: actor.accountId } });
+        if (!comment) throw fail(404, "This comment is unavailable.");
+        if (!comment.deletedAt) await tx.answerComment.update({ where: { id }, data: { deletedAt: now(), body: "" } });
+        return { id };
+      });
+    },
+
     async feed(actor, query) {
       const { view, cursor } = parse(feedQuery, query, "Choose a valid Explore view.");
       await assertNetworkSession(prisma, actor, now);
       const position = readCursor(cursor, actor.accountId, view);
       const ownActivity = { where: { accountId: actor.accountId }, select: { id: true } };
       const select = { ...likeSelect(actor.accountId), saves: ownActivity, reposts: ownActivity };
+      const memberEngagementSelect = {
+        ...select,
+        _count: { select: { likes: true, views: true, registrations: true, answers: { where: { deletedAt: null } } } },
+        registrations: { where: { accountId: actor.accountId }, select: { id: true } },
+      };
       if (view === "saved") {
-        const page = await savedFeed(actor.accountId, position, select);
+        const page = await savedFeed(actor.accountId, position, select, memberEngagementSelect);
         await assertNetworkSession(prisma, actor, now);
         return page;
       }
@@ -422,7 +672,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       }
       const [organizations, members, reposts] = await Promise.all([
         findPosts(prisma.organizationPost, { ...postSelect, ...select }, { organization, author: unblockedAuthor(actor.accountId) }, position, "organization"),
-        findPosts(prisma.memberPost, { ...memberPostSelect, ...select }, { author: member }, position, "member"),
+        findPosts(prisma.memberPost, { ...memberPostSelect, ...memberEngagementSelect }, { author: member }, position, "member"),
         prisma.postRepost.findMany({
           where: {
             account: reposter,
@@ -436,7 +686,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
           },
           select: {
             ...repostSelect,
-            memberPost: { select: { ...memberPostSelect, ...select } },
+            memberPost: { select: { ...memberPostSelect, ...memberEngagementSelect } },
             organizationPost: { select: { ...postSelect, ...select, authorId: true } },
           },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -455,8 +705,14 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
 
     async setLike(actor, sourceValue, idValue, input) {
       const ref = postRef(sourceValue, idValue);
-      const { liked } = parse(likeInput, input, "Choose whether to like this post.");
+      const { liked } = parse(likeInput, input, "Choose whether to celebrate this achievement.");
       return writeVisiblePost(actor, ref, async tx => {
+        if (ref.source === "member") {
+          const target = await tx.memberPost.findUniqueOrThrow({ where: { id: ref.id }, select: { type: true } });
+          if (target.type !== "ACHIEVEMENT" && target.type !== "POST") {
+            throw fail(400, "Only achievements can receive celebrations.");
+          }
+        }
         const data = { accountId: actor.accountId, ...postTarget(ref) };
         if (liked) await tx.postLike.createMany({ data: [data], skipDuplicates: true });
         else await tx.postLike.deleteMany({ where: data });
@@ -494,6 +750,10 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       }
 
       return writeVisiblePost(actor, ref, async tx => {
+        if (ref.source === "member") {
+          const original = await tx.memberPost.findUniqueOrThrow({ where: { id: ref.id }, select: { type: true } });
+          if (original.type === "QUESTION") throw fail(400, "Questions cannot be reposted. Share a link instead.");
+        }
         await lockMemberProfile(tx, actor.accountId);
         const access = await memberEligibility(tx, actor.accountId);
         if (!access.identityVerified || !access.profilePublic) {

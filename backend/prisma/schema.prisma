@@ -42,6 +42,12 @@ model Account {
   savedPosts PostSave[]
   postComments PostComment[]
   postLikes PostLike[]
+  eventRegistrations EventRegistration[]
+  questionAnswers QuestionAnswer[]
+  answerVotes AnswerVote[]
+  answerComments AnswerComment[]
+  postViews PostView[]
+  postReports PostReport[]
   memberPosts MemberPost[]
   organizationPosts OrganizationPost[]
   follows NetworkFollow[] @relation("NetworkFollower")
@@ -941,6 +947,7 @@ model Organization {
   issuedCredentialAttempts CredentialAttempt[] @relation("CredentialAttemptIssuer")
 }
 model OrganizationPost {
+  views PostView[]
   reposts PostRepost[]
   saves PostSave[]
   comments PostComment[]
@@ -968,6 +975,10 @@ enum MemberPostType {
 }
 
 model MemberPost {
+  views PostView[]
+  reports PostReport[]
+  registrations EventRegistration[]
+  answers QuestionAnswer[]
   reposts PostRepost[]
   saves PostSave[]
   comments PostComment[]
@@ -987,6 +998,95 @@ model MemberPost {
   @@index([withdrawnAt, createdAt, id])
   @@index([authorId, withdrawnAt, createdAt, id])
   @@index([authorId, createdAt])
+}
+
+// Event registrations are one per account and event, toggled with an idempotent PUT.
+model EventRegistration {
+  id String @id @default(uuid())
+  memberPostId String
+  memberPost MemberPost @relation(fields: [memberPostId], references: [id], onDelete: Cascade)
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([memberPostId, accountId])
+  @@index([accountId, createdAt])
+}
+
+model QuestionAnswer {
+  id String @id @default(uuid())
+  questionId String
+  question MemberPost @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  authorId String
+  author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  requestKey String
+  body String @db.VarChar(2000)
+  score Int @default(0)
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+  votes AnswerVote[]
+  comments AnswerComment[]
+  @@unique([authorId, requestKey])
+  @@index([questionId, deletedAt, createdAt, id])
+}
+
+model AnswerVote {
+  id String @id @default(uuid())
+  answerId String
+  answer QuestionAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  value Int
+  createdAt DateTime @default(now())
+  @@unique([answerId, accountId])
+  @@index([accountId])
+}
+
+model AnswerComment {
+  id String @id @default(uuid())
+  answerId String
+  answer QuestionAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  authorId String
+  author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  requestKey String
+  body String @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+  @@unique([authorId, requestKey])
+  @@index([answerId, deletedAt, createdAt, id])
+}
+
+model PostView {
+  id String @id @default(uuid())
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  memberPostId String?
+  memberPost MemberPost? @relation(fields: [memberPostId], references: [id], onDelete: Cascade)
+  organizationPostId String?
+  organizationPost OrganizationPost? @relation(fields: [organizationPostId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([memberPostId, accountId])
+  @@unique([organizationPostId, accountId])
+  @@index([accountId])
+}
+
+enum PostReportReason {
+  SPAM
+  HARASSMENT
+  MISINFORMATION
+  OTHER
+}
+
+model PostReport {
+  id String @id @default(uuid())
+  memberPostId String
+  memberPost MemberPost @relation(fields: [memberPostId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter Account @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  reason PostReportReason
+  details String? @db.VarChar(500)
+  createdAt DateTime @default(now())
+  @@unique([memberPostId, reporterId])
+  @@index([createdAt])
 }
 
 model PostLike {

@@ -127,6 +127,45 @@ test("database manual identity requests serialize retries and decisions, revoke 
       assert.deepEqual(visible?.tags, typedDraft.tags);
       if (type === "EVENT") assert.deepEqual(visible?.eventDetails, post.eventDetails);
       if (type === "QUESTION") assert.deepEqual(visible?.questionDetails, typedDraft.questionDetails);
+      assert.equal((await posts.recordView(viewerActor, "member", post.id)).views, 1);
+      assert.equal((await posts.recordView(viewerActor, "member", post.id)).views, 1, "Repeat views cannot inflate counts.");
+      assert.equal((await posts.recordView(actor, "member", post.id)).views, 1, "Self-views are excluded.");
+      if (type === "ACHIEVEMENT") {
+        assert.deepEqual(await posts.setLike(viewerActor, "member", post.id, { liked: true }), { reaction: { liked: true, count: 1 } });
+      } else {
+        await assert.rejects(posts.setLike(viewerActor, "member", post.id, { liked: true }), { status: 400 });
+      }
+      if (type === "EVENT") {
+        assert.deepEqual(await posts.registerEvent(viewerActor, post.id, { registered: true }),
+          { registration: { registered: true, count: 1 } });
+        assert.deepEqual(await posts.registerEvent(viewerActor, post.id, { registered: true }),
+          { registration: { registered: true, count: 1 } });
+        assert.equal((await posts.feed(viewerActor, {})).items.find(item => item.id === post.id)?.registration?.registered, true);
+        assert.deepEqual(await posts.registerEvent(viewerActor, post.id, { registered: false }),
+          { registration: { registered: false, count: 0 } });
+      }
+      if (type === "QUESTION") {
+        await assert.rejects(posts.setReposted(viewerActor, "member", post.id, { reposted: true }), { status: 400 });
+        await assert.rejects(posts.reportQuestion(actor, post.id, { reason: "SPAM" }), { status: 400 });
+        assert.deepEqual(await posts.reportQuestion(viewerActor, post.id, { reason: "SPAM" }), { reported: true });
+        assert.deepEqual(await posts.reportQuestion(viewerActor, post.id, { reason: "SPAM" }), { reported: true });
+        const answerDraft = { body: "Start with the research question and a realistic plan.", requestKey: randomUUID() };
+        const { answer } = await posts.addAnswer(actor, post.id, answerDraft);
+        assert.equal((await posts.addAnswer(actor, post.id, answerDraft)).answer.id, answer.id);
+        assert.equal((await posts.answers(viewerActor, post.id, { sort: "top" })).items[0].id, answer.id);
+        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 1 }), { score: 1, myVote: 1 });
+        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 1 }), { score: 1, myVote: 1 });
+        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: -1 }), { score: -1, myVote: -1 });
+        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 0 }), { score: 0, myVote: 0 });
+        await assert.rejects(posts.voteAnswer(actor, answer.id, { value: 1 }), { status: 400 });
+        const { comment } = await posts.addAnswerComment(viewerActor, answer.id,
+          { body: "Can you give an example?", requestKey: randomUUID() });
+        assert.equal((await posts.answerComments(actor, answer.id)).items[0].id, comment.id);
+        await posts.deleteAnswerComment(viewerActor, answer.id, comment.id);
+        assert.equal((await posts.answerComments(actor, answer.id)).items.length, 0);
+        await posts.deleteAnswer(actor, answer.id);
+        await assert.rejects(posts.voteAnswer(viewerActor, answer.id, { value: 1 }), { status: 404 });
+      }
       await posts.memberWithdraw(actor, post.id);
     }
     await assert.rejects(posts.memberPublish(actor, {
