@@ -174,7 +174,7 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
                   onChange={e => { setTopicDraft(e.target.value); setTopicError(""); }} maxLength={MAX_POST_TOPIC_LENGTH+1}
                   placeholder="e.g. Education" disabled={disabled || limit}
                   onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); addTopic(); } }} />
-                  <button type="button" disabled={!topicDraft.trim() || limit || disabled} onClick={addTopic}>Add tag</button></div>
+                  <button type="button" disabled={!topicDraft.trim() || limit || disabled} onClick={() => addTopic()}>Add tag</button></div>
                 {topicError && <p role="alert" className="bw-event-error">{topicError}</p>}
                 <ul className="bw-event-selected-tags" aria-label="Selected topic tags">
                   {tags.map(tag => <li key={tag}>{tag}<button type="button" aria-label={"Remove tag " + tag} disabled={disabled}
