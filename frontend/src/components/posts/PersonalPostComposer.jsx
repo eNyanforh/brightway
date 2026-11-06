@@ -1,17 +1,33 @@
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { MAX_POST_TOPICS, MAX_POST_TOPIC_LENGTH, normalizePostTopic } from "../../../../shared/post-topics.mjs";
 import { photoUrl } from "../../api/profile";
 import Icon from "../layout/Icon";
 import NavigationIcon from "../layout/NavigationIcon";
 
 const types = [
-  { type: "POST", label: "Post", choice: "Share a Post", icon: "post", editor: "Write a post", prompt: "Share a learning or career update…" },
-  { type: "ACHIEVEMENT", label: "Achievement", choice: "Share an Achievement", icon: "awards", editor: "Write an achievement", prompt: "What did you achieve, and what did you learn?" },
-  { type: "EVENT", label: "Event", choice: "Share an Event", icon: "calendar", editor: "Write an event", prompt: "Tell us about the event. Include the date, time, and location or link." },
+  {
+    type: "ACHIEVEMENT", label: "Achievement", choice: "Share an Achievement", icon: "awards",
+    editor: "Write an achievement", heading: "Celebrate your achievement",
+    prompt: "What did you accomplish? Share what you learned along the way.",
+    publish: "Publish achievement",
+  },
+  {
+    type: "EVENT", label: "Event", choice: "Create an Event", icon: "calendar",
+    editor: "Write an event", heading: "Create a community event",
+    prompt: "Tell people what is happening. Include the date, time, location, or a joining link.",
+    publish: "Publish event",
+  },
+  {
+    type: "QUESTION", label: "Question", choice: "Ask a Question", icon: "question",
+    editor: "Write a question", heading: "Ask the community",
+    prompt: "What would you like to learn or understand? Give enough context for people to help.",
+    publish: "Publish question",
+  },
 ];
+const legacyType = { type: "POST", label: "Post", icon: "post" };
 
 export function PersonalPostTypeLabel({ type }) {
-  const format = types.find(option => option.type === type) ?? types[0];
+  const format = types.find(option => option.type === type) ?? legacyType;
   return (
     <span className="bw-post-type-label" data-post-type={format.type}>
       <NavigationIcon name={format.icon} size={13} /> {format.label}
@@ -33,16 +49,38 @@ export function PostTopicTags({ tags, onRemove, disabled }) {
   );
 }
 
-export default function PersonalPostComposer({ account, photoId, body, type, tags, disabled, submitLabel, onBodyChange, onTypeChange, onTagsChange, onSubmit }) {
-  const radioName = useId();
+export default function PersonalPostComposer({
+  account, photoId, body, type, tags, open, disabled,
+  onSelect, onCancel, onBodyChange, onTagsChange, onSubmit,
+}) {
   const topicId = useId();
+  const editorId = useId();
   const topicInput = useRef(null);
+  const bodyInput = useRef(null);
   const [topicDraft, setTopicDraft] = useState("");
   const [topicError, setTopicError] = useState("");
   const hasTopicDraft = Boolean(topicDraft.trim());
   const topicLimit = tags.length >= MAX_POST_TOPICS;
   const format = types.find(option => option.type === type) ?? types[0];
   const initial = (account?.person?.firstName || account?.username || "B").slice(0, 1).toUpperCase();
+
+  useEffect(() => {
+    if (open) bodyInput.current?.focus();
+  }, [open, type]);
+
+  function selectType(nextType) {
+    if (disabled) return;
+    setTopicDraft("");
+    setTopicError("");
+    onSelect(nextType);
+  }
+
+  function closeEditor() {
+    if (disabled) return;
+    setTopicDraft("");
+    setTopicError("");
+    onCancel();
+  }
 
   function addTopic() {
     if (disabled || topicLimit || !hasTopicDraft) return;
@@ -74,29 +112,39 @@ export default function PersonalPostComposer({ account, photoId, body, type, tag
       return;
     }
     onSubmit(event);
+    // The parent closes the editor only after the server accepts the post.
   }
 
   return (
-    <form className="bw-personal-composer" aria-label="Create a post" onSubmit={submit}>
-      <fieldset className="bw-post-types" disabled={disabled}>
-        <legend className="bw-post-type-legend">Post type</legend>
-        {types.map(option => (
-          <label className="bw-post-type-choice" data-post-type={option.type} key={option.type}>
-            <input type="radio" name={radioName} value={option.type} checked={type === option.type}
-              onChange={() => onTypeChange(option.type)} />
-            <span className="bw-post-type-content">
-              <NavigationIcon name={option.icon} size={18} />
-              <span>{option.choice}</span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
-      <div className="bw-personal-composer-editor">
-        <div className="bw-timeline-avatar" aria-hidden="true">
+    <div className="bw-personal-composer" aria-label="Community contribution composer">
+      <div className="bw-post-quick-actions" role="group" aria-label="Choose how to contribute">
+        <div className="bw-timeline-avatar bw-post-quick-avatar" role="img" aria-label="Your profile photo">
           {photoId ? <img src={photoUrl(photoId)} alt="" /> : initial}
         </div>
-        <div className="bw-personal-composer-main">
-          <textarea aria-label={format.editor} placeholder={format.prompt} rows={2} maxLength={2000}
+        {types.map(option => (
+          <button type="button" key={option.type} className="bw-post-quick-action"
+            data-post-type={option.type} aria-expanded={open && type === option.type}
+            aria-controls={open ? editorId : undefined} disabled={disabled}
+            onClick={() => selectType(option.type)}>
+            <span className="bw-post-quick-icon"><NavigationIcon name={option.icon} size={20} /></span>
+            <span className="bw-post-quick-label">{option.choice}</span>
+          </button>
+        ))}
+      </div>
+
+      {open && (
+        <form id={editorId} className="bw-personal-composer-form" aria-label="Create a post" onSubmit={submit}>
+          <div className="bw-post-editor-heading" data-post-type={format.type}>
+            <span className="bw-post-editor-icon"><NavigationIcon name={format.icon} size={22} /></span>
+            <div>
+              <span className="bw-post-editor-eyebrow">{format.label}</span>
+              <h3>{format.heading}</h3>
+            </div>
+            <button className="bw-post-editor-close" type="button" disabled={disabled} aria-label="Close editor" onClick={closeEditor}>
+              <Icon name="x" />
+            </button>
+          </div>
+          <textarea ref={bodyInput} aria-label={format.editor} placeholder={format.prompt} rows={4} maxLength={2000}
             value={body} disabled={disabled} onChange={event => onBodyChange(event.target.value)} />
           <div className="bw-post-topic-editor">
             <div className="bw-post-topic-heading">
@@ -119,11 +167,14 @@ export default function PersonalPostComposer({ account, photoId, body, type, tag
             <PostTopicTags tags={tags} onRemove={removeTopic} disabled={disabled} />
           </div>
           <div className="bw-personal-composer-footer">
-            <span>{body.length ? body.length + " / 2,000" : ""}</span>
-            <button className="bw-personal-composer-submit" type="submit" disabled={disabled || !body.trim() || !tags.length || hasTopicDraft}>{submitLabel}</button>
+            <span>{body.length} / 2,000</span>
+            <div className="bw-post-editor-actions">
+              <button type="button" className="bw-post-editor-cancel" disabled={disabled} onClick={closeEditor}>Cancel</button>
+              <button className="bw-personal-composer-submit" type="submit" disabled={disabled || !body.trim() || !tags.length || hasTopicDraft}>{format.publish}</button>
+            </div>
           </div>
-        </div>
-      </div>
-    </form>
+        </form>
+      )}
+    </div>
   );
 }
