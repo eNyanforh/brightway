@@ -168,6 +168,46 @@ test("The feed renders different presentation cards for stored achievements, eve
   await expect(legacyCard.locator(".bw-post-story")).toHaveCount(0);
 });
 
+test("all billboard slides keep identical height with no clipped content", async ({ page, isMobile }) => {
+  await fixture(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/explore");
+
+  const billboard = page.getByRole("region", { name: "BrightWay billboard" });
+  const stage = billboard.locator(".bw-billboard-stage");
+  const height = async () => {
+    const stageRect = await stage.boundingBox();
+    const billboardRect = await billboard.boundingBox();
+    const slide = stage.locator(".bw-billboard-slide");
+    const excess = await slide.evaluate(element => {
+      const stageBox = element.getBoundingClientRect();
+      const content = element.querySelector(".bw-billboard-copy");
+      const copyBox = content.getBoundingClientRect();
+      return Math.max(0, copyBox.bottom - stageBox.bottom, stageBox.top - copyBox.top);
+    });
+    expect(excess).toBeLessThan(2);
+    expect(await slide.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThan(2);
+    return { stage: stageRect.height, billboard: billboardRect.height };
+  };
+
+  const initial = await height();
+  const titles = [
+    ["Past challenge winners", "Celebrate the winners"],
+    ["Virtual Campus spotlight", "Recognize student achievement"],
+    ["Current challenges", "Find your next challenge"],
+  ];
+  for (const [dot, title] of titles) {
+    await billboard.getByRole("button", { name: dot }).click();
+    await expect(billboard.getByRole("heading", { name: title })).toBeVisible();
+    const dimensions = await height();
+    expect(dimensions.stage).toBe(initial.stage);
+    expect(dimensions.billboard).toBe(initial.billboard);
+  }
+  expect(initial.stage).toBeGreaterThan(isMobile ? 300 : 250);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+});
+
 test("the billboard rotates and stops when the member pauses it", async ({ page }) => {
   await fixture(page);
   await page.emulateMedia({ reducedMotion: "no-preference" });
