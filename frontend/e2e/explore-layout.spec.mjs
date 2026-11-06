@@ -111,6 +111,7 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   await expect(eventDialog).toHaveCount(0);
   await expect(event).toBeFocused();
   await question.click();
+  editor = explore.getByRole("form", { name: "Create a post" });
   await expect(editor.getByRole("textbox", { name: "Write a question" })).toHaveValue("");
   await editor.getByRole("button", { name: "Cancel" }).click();
   await expect(explore.getByRole("form", { name: "Create a post" })).toHaveCount(0);
