@@ -101,7 +101,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     accounts.push(viewer);
     const viewerSession = await db.session.create({ data: { accountId: viewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000) } });
     const viewerActor = { accountId: viewer.id, sessionId: viewerSession.id };
-    for (const type of ["ACHIEVEMENT", "EVENT"]) {
+    for (const type of ["ACHIEVEMENT", "EVENT", "QUESTION"]) {
       const typedDraft = { body: "A member update.", requestKey: randomUUID(), type, tags: ["Research", "Community"] };
       const { post } = await posts.memberPublish(actor, typedDraft);
       assert.equal(post.type, type);
