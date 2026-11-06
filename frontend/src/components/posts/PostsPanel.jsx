@@ -418,6 +418,11 @@ export default function PostsPanel({ organization, personal = false, view = "for
       (items, key, { reaction }) => items.map(item => postKey(item) === key ? { ...item, reaction } : item));
   }
 
+  function register(post) {
+    updateFeedPost(post, (_source, signal) => api.registerEvent(post.id, !post.registration?.registered, signal),
+      (items, key, { registration }) => items.map(item => postKey(item) === key ? { ...item, registration } : item));
+  }
+
   function save(post) {
     updateFeedPost(post, (source, signal) => api.setSaved(source, post.id, !post.saved, signal),
       (items, key, { saved }) => view === "saved" && !saved
@@ -486,7 +491,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
             view === "saved" ? "Save a post to find it here later." :
               view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
       )}
-      {page?.items.map(post => <PostCard key={cardKey(post)} post={post} timeline={timeline} busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} onRepost={repost} />)}
+      {page?.items.map(post => <PostCard key={cardKey(post)} post={post} timeline={timeline} busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} onRepost={repost} onRegister={register} />)}
       {page?.nextCursor && <button type="button" disabled={pending || disabled} onClick={() => void load(page.nextCursor)}>Load older posts</button>}
     </section>
   );
