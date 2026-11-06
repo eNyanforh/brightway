@@ -1020,6 +1020,7 @@ model QuestionAnswer {
   author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
   requestKey String
   body String @db.VarChar(2000)
+  score Int @default(0)
   createdAt DateTime @default(now())
   deletedAt DateTime?
   votes AnswerVote[]
