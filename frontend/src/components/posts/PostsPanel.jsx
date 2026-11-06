@@ -70,7 +70,9 @@ function PostStory({ post, topicTags }) {
           <h3>{post.questionDetails.title}</h3>
         </div>
       )}
-      <p className="bw-post-text bw-post-story-body">{post.body}</p>
+      {!(post.type === "QUESTION" && post.questionDetails?.title?.trim() === post.body?.trim()) && (
+        <p className="bw-post-text bw-post-story-body">{post.body}</p>
+      )}
       {topicTags}
       <p className="bw-post-story-note">{format.note}</p>
     </div>
