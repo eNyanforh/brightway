@@ -8,13 +8,21 @@ const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle
 
 const postSource = post => post.organization ? "organization" : "member";
 const postKey = post => postSource(post) + ":" + post.id;
+const cardKey = post => post.repost ? "repost:" + post.repost.id : postKey(post);
 
-function PostCard({ post, editable, busy, onWithdraw, onLike, onSave }) {
+function PostCard({ post, editable, busy, onWithdraw, onLike, onSave, onRepost }) {
   const [confirming, setConfirming] = useState(false);
   const publisher = post.organization || post.member;
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
   return (
     <article className="bw-post-card">
+      {post.repost && (
+        <p className="bw-post-attribution">
+          <Link to={post.repost.mine ? "/profile" : "/people/" + encodeURIComponent(post.repost.member.username)}>{post.repost.mine ? "You" : post.repost.member.name}</Link>
+          {" reposted · "}
+          <time dateTime={post.repost.createdAt}>{time.format(new Date(post.repost.createdAt))}</time>
+        </p>
+      )}
       <header>
         <span className="bw-post-badge" aria-hidden="true">{publisher.name.slice(0, 1).toUpperCase()}</span>
         <div>
@@ -29,6 +37,11 @@ function PostCard({ post, editable, busy, onWithdraw, onLike, onSave }) {
             Like
           </button>
           <span aria-live="polite">{post.reaction.count} {post.reaction.count === 1 ? "like" : "likes"}</span>
+          {typeof post.reposted === "boolean" && (
+            <button type="button" disabled={busy} onClick={() => onRepost(post)}>
+              {post.reposted ? "Undo repost" : "Repost"}
+            </button>
+          )}
           {typeof post.saved === "boolean" && (
             <button type="button" aria-label="Save post" aria-pressed={post.saved} disabled={busy} onClick={() => onSave(post)}>
               {post.saved ? "Saved" : "Save"}
@@ -75,7 +88,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     } catch (failure) {
       if (!signal.aborted) {
         if (failure.status === 404 && unavailable) unavailable();
-        else if ([401, 403, 404].includes(failure.status)) setPage(null);
+        else if (failure.status === 401 || (!unavailable && [403, 404].includes(failure.status))) setPage(null);
         setError(failure);
       }
     } finally {
@@ -88,9 +101,12 @@ export default function PostsPanel({ organization, personal = false, view = "for
 
   const load = useCallback(cursor => run(
     signal => organizationId ? api.list(organizationId, cursor, signal) : personal ? api.memberList(cursor, signal) : api.feed(view, cursor, signal),
-    data => setPage(previous => cursor && previous
-      ? { ...data, items: [...previous.items, ...data.items] }
-      : data),
+    data => setPage(previous => {
+      if (!cursor || !previous) return data;
+      const items = new Map(previous.items.map(item => [cardKey(item), item]));
+      for (const item of data.items) items.set(cardKey(item), item);
+      return { ...data, items: [...items.values()] };
+    }),
   ), [organizationId, personal, run, view]);
 
   useEffect(() => {
@@ -140,6 +156,19 @@ export default function PostsPanel({ organization, personal = false, view = "for
         : items.map(item => postKey(item) === key ? { ...item, saved } : item));
   }
 
+  function repost(post) {
+    updateFeedPost(post, (source, signal) => api.setReposted(source, post.id, !post.reposted, signal),
+      (items, key, { reposted, repost: attribution }) => {
+        const updated = items
+          .filter(item => reposted || postKey(item) !== key || !item.repost?.mine)
+          .map(item => postKey(item) === key ? { ...item, reposted } : item);
+        if (view === "for-you" && attribution && !updated.some(item => item.repost?.id === attribution.id)) {
+          updated.unshift({ ...post, reposted: true, repost: attribution });
+        }
+        return updated;
+      });
+  }
+
   function withdraw(id) {
     if (!page || disabled || active.current) return;
     setNotice("");
@@ -182,7 +211,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
             view === "saved" ? "Save a post to find it here later." :
               view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
       )}
-      {page?.items.map(post => <PostCard key={postKey(post)} post={post} editable={editable} busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} />)}
+      {page?.items.map(post => <PostCard key={cardKey(post)} post={post} editable={editable} busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} onRepost={repost} />)}
       {page?.nextCursor && <button type="button" disabled={pending || disabled} onClick={() => void load(page.nextCursor)}>Load older posts</button>}
     </section>
   );

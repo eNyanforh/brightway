@@ -39,6 +39,7 @@ const query = params => "?" + new URLSearchParams(params);
 export const organizationPostsApi = {
   feed: (view, cursor, signal) => readPage("/explore/posts" + query({ view, ...(cursor ? { cursor } : {}) }), signal),
   setLike: (source, id, liked, signal) => request(explorePost(source, id) + "/like", signal, "PUT", { liked }),
+  setReposted: (source, id, reposted, signal) => request(explorePost(source, id) + "/repost", signal, "PUT", { reposted }),
   setSaved: (source, id, saved, signal) => request(explorePost(source, id) + "/save", signal, "PUT", { saved }),
   comments: (source, id, cursor, signal) => readPage(explorePost(source, id) + "/comments" + (cursor ? query({ cursor }) : ""), signal),
   addComment: (source, id, draft, signal) => request(explorePost(source, id) + "/comments", signal, "POST", draft),

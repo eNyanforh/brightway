@@ -218,6 +218,39 @@ it("Explore saves a post privately and removes it from Saved without reloading t
   expect(f.fetch.mock.calls.filter(([url]) => url.endsWith("/explore/posts?view=saved"))).toHaveLength(1);
 });
 
+it("Explore attributes reposts and undo removes only the repost card", async () => {
+  const id = "organization-post", body = "Apply for the workshop.";
+  const createdAt = "2026-11-06T10:00:00Z";
+  const original = { id, organization, body, createdAt, saved: false, reposted: false, reaction: { liked: false, count: 0 } };
+  let denied = true;
+  const f = mount("/explore", (url, options) => {
+    if (url.endsWith("/explore/posts?view=for-you")) return reply({ items: [original], nextCursor: null });
+    if (url.endsWith("/explore/posts/organization/" + id + "/repost")) {
+      expect(options.method).toBe("PUT");
+      if (denied) return reply("Verify your identity before reposting.", 403);
+      const { reposted } = JSON.parse(options.body);
+      return reply(reposted ? {
+        reposted, repost: { id: "repost", createdAt, member: { username: "owner", name: "Test Owner" }, mine: true },
+      } : { reposted });
+    }
+    return reply(context);
+  });
+  const action = await screen.findByRole("button", { name: "Repost", exact: true });
+  await f.user.click(action);
+  await screen.findByRole("alert");
+  expect(screen.getByText(body)).toBeTruthy();
+  denied = false;
+  await f.user.click(action);
+  await screen.findByRole("link", { name: "You" });
+  const cards = screen.getAllByRole("article");
+  expect(cards).toHaveLength(2);
+  await f.user.click(within(cards[0]).getByRole("button", { name: "Undo repost" }));
+  await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(1));
+  expect(screen.getByText(body)).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Repost", exact: true })).toBeTruthy();
+  expect(f.fetch.mock.calls.filter(([url]) => url.endsWith("/explore/posts?view=for-you"))).toHaveLength(1);
+});
+
 it("Explore loads comments on demand and retries a draft without refreshing the feed", async () => {
   const id = "organization-post";
   const createdAt = "2026-11-06T10:00:00Z";

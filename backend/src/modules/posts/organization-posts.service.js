@@ -19,13 +19,13 @@ const postSelect = {
   id: true, body: true, createdAt: true,
   organization: { select: { id: true, name: true, username: true } },
 };
-const memberPostSelect = {
-  id: true, body: true, createdAt: true,
-  author: { select: { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true } } } },
-};
+const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true } } };
+const memberPostSelect = { id: true, body: true, createdAt: true, author: { select: memberSelect } };
+const repostSelect = { id: true, createdAt: true, account: { select: memberSelect } };
 const identifier = z.uuid();
 const sourceInput = z.enum(["organization", "member"]);
 const likeInput = z.strictObject({ liked: z.boolean() });
+const repostInput = z.strictObject({ reposted: z.boolean() });
 const saveInput = z.strictObject({ saved: z.boolean() });
 const textInput = max => z.strictObject({
   body: z.string().trim().min(1).max(max).refine(value => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)),
@@ -40,7 +40,7 @@ const commentSelect = {
 const cursorInput = z.string().min(1).max(700).optional();
 const feedQuery = z.strictObject({ view: z.enum(["for-you", "following", "saved"]).default("for-you"), cursor: cursorInput });
 const workspaceQuery = z.strictObject({ cursor: cursorInput });
-const cursorSchema = z.strictObject({ viewer: identifier, scope: z.string(), at: z.iso.datetime(), id: identifier, source: z.enum(["organization", "member", "saved"]).default("organization") });
+const cursorSchema = z.strictObject({ viewer: identifier, scope: z.string(), at: z.iso.datetime(), id: identifier, source: z.enum(["organization", "member", "repost", "saved"]).default("organization") });
 
 function parse(schema, data, message) {
   const result = schema.safeParse(data);
@@ -83,10 +83,15 @@ function boundary(cursor, source) {
   ] };
 }
 
+function feedSource(row) {
+  if (row.account) return "repost";
+  return row.author ? "member" : "organization";
+}
+
 function cursorFor(rows, viewer, scope, source) {
   if (rows.length <= pageSize) return null;
   const last = rows[pageSize - 1];
-  const kind = source ?? (last.author ? "member" : "organization");
+  const kind = source ?? feedSource(last);
   return Buffer.from(JSON.stringify({ viewer, scope, at: last.createdAt.toISOString(), id: last.id, source: kind })).toString("base64url");
 }
 
@@ -115,13 +120,35 @@ function likeSummary({ likes, _count }) {
   return { liked: likes.length > 0, count: _count.likes };
 }
 
-function feedPost({ likes, _count, saves, ...post }) {
-  return { ...(post.author ? memberPost(post) : post), reaction: likeSummary({ likes, _count }), saved: saves.length > 0 };
+function memberAttribution({ username, person }) {
+  const { firstName, middleName, lastName } = person;
+  return { username, name: [firstName, middleName, lastName].filter(Boolean).join(" ") };
+}
+
+function feedPost({ likes, _count, saves, reposts, ...post }) {
+  return {
+    ...(post.author ? memberPost(post) : post),
+    reaction: likeSummary({ likes, _count }),
+    saved: saves.length > 0,
+    reposted: reposts.length > 0,
+  };
 }
 
 function memberPost({ author, ...post }) {
-  const { firstName, middleName, lastName } = author.person;
-  return { ...post, member: { username: author.username, name: [firstName, middleName, lastName].filter(Boolean).join(" ") } };
+  return { ...post, member: memberAttribution(author) };
+}
+
+function repostAttribution(row, viewer) {
+  return { id: row.id, createdAt: row.createdAt, member: memberAttribution(row.account), mine: row.account.id === viewer };
+}
+
+function blockPair(left, right) {
+  const [leftAccountId, rightAccountId] = [left, right].sort();
+  return { leftAccountId, rightAccountId };
+}
+
+function pairKey({ leftAccountId, rightAccountId }) {
+  return leftAccountId + ":" + rightAccountId;
 }
 
 function findPosts(model, select, where, cursor, source) {
@@ -141,13 +168,29 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     return { identityVerified: status === "APPROVED", profilePublic: ctx.profilePublic };
   }
 
-  async function projectVisiblePosts(candidates) {
-    // Approval can become invalid when identity details or verified records change.
-    // Inspect each candidate author once and advance past hidden rows on the next page.
-    const authorIds = [...new Set(candidates.filter(post => post.author).map(post => post.author.id))];
+  async function projectVisiblePosts(candidates, viewer) {
+    // Reuse one identity check per author across original and reposted cards.
+    const entries = candidates.map(row => ({ row, post: row.account ? row.memberPost ?? row.organizationPost : row }))
+      .filter(entry => entry.post);
+    const authorIds = new Set();
+    const pairs = new Map();
+    for (const { row, post } of entries) {
+      if (post.author) authorIds.add(post.author.id);
+      if (row.account) {
+        authorIds.add(row.account.id);
+        const pair = blockPair(row.account.id, post.author?.id ?? post.authorId);
+        if (pair.leftAccountId !== pair.rightAccountId) pairs.set(pairKey(pair), pair);
+      }
+    }
+    const blocked = pairs.size ? await prisma.networkPair.findMany({
+      where: { AND: [{ OR: [...pairs.values()] }, { OR: [{ leftBlocked: true }, { rightBlocked: true }] }] },
+      select: { leftAccountId: true, rightAccountId: true },
+    }) : [];
+    const blockedKeys = new Set(blocked.map(pairKey));
     const eligible = new Set();
-    for (let offset = 0; offset < authorIds.length; offset += 4) {
-      await Promise.all(authorIds.slice(offset, offset + 4).map(async id => {
+    const authors = [...authorIds];
+    for (let offset = 0; offset < authors.length; offset += 4) {
+      await Promise.all(authors.slice(offset, offset + 4).map(async id => {
         try {
           const access = await memberEligibility(prisma, id);
           if (access.identityVerified && access.profilePublic) eligible.add(id);
@@ -156,7 +199,18 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         }
       }));
     }
-    return candidates.filter(post => !post.author || eligible.has(post.author.id)).map(feedPost);
+    const items = [];
+    for (const { row, post } of entries) {
+      if (post.author && !eligible.has(post.author.id)) continue;
+      const { authorId, ...original } = post;
+      if (!row.account) {
+        items.push(feedPost(original));
+        continue;
+      }
+      if (!eligible.has(row.account.id) || blockedKeys.has(pairKey(blockPair(row.account.id, post.author?.id ?? authorId)))) continue;
+      items.push({ ...feedPost(original), repost: repostAttribution(row, viewer) });
+    }
+    return items;
   }
 
   async function savedFeed(accountId, position, select) {
@@ -183,7 +237,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     const posts = rows.slice(0, pageSize)
       .map(row => row.memberPost ?? row.organizationPost)
       .filter(post => post?.saves.length);
-    return { items: await projectVisiblePosts(posts), nextCursor: cursorFor(rows, accountId, "saved", "saved") };
+    return { items: await projectVisiblePosts(posts, accountId), nextCursor: cursorFor(rows, accountId, "saved", "saved") };
   }
 
   async function lockMemberProfile(db, id) {
@@ -291,7 +345,8 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const { view, cursor } = parse(feedQuery, query, "Choose a valid Explore view.");
       await assertNetworkSession(prisma, actor, now);
       const position = readCursor(cursor, actor.accountId, view);
-      const select = { ...likeSelect(actor.accountId), saves: { where: { accountId: actor.accountId }, select: { id: true } } };
+      const ownActivity = { where: { accountId: actor.accountId }, select: { id: true } };
+      const select = { ...likeSelect(actor.accountId), saves: ownActivity, reposts: ownActivity };
       if (view === "saved") {
         const page = await savedFeed(actor.accountId, position, select);
         await assertNetworkSession(prisma, actor, now);
@@ -299,18 +354,39 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       }
       const organization = { ...readyFilter };
       const member = visibleMember(actor.accountId);
+      const reposter = { ...member };
       if (view === "following") {
         const followers = { some: { followerId: actor.accountId, active: true } };
         organization.followers = followers;
         member.followers = followers;
+        reposter.followers = followers;
       }
-      const [organizations, members] = await Promise.all([
+      const [organizations, members, reposts] = await Promise.all([
         findPosts(prisma.organizationPost, { ...postSelect, ...select }, { organization, author: unblockedAuthor(actor.accountId) }, position, "organization"),
         findPosts(prisma.memberPost, { ...memberPostSelect, ...select }, { author: member }, position, "member"),
+        prisma.postRepost.findMany({
+          where: {
+            account: reposter,
+            AND: [
+              boundary(position, "repost"),
+              { OR: [
+                { memberPost: { withdrawnAt: null, author: visibleMember(actor.accountId) } },
+                { organizationPost: { withdrawnAt: null, organization: readyFilter, author: unblockedAuthor(actor.accountId) } },
+              ] },
+            ],
+          },
+          select: {
+            ...repostSelect,
+            memberPost: { select: { ...memberPostSelect, ...select } },
+            organizationPost: { select: { ...postSelect, ...select, authorId: true } },
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: pageSize + 1,
+        }),
       ]);
-      const rows = [...organizations, ...members].sort((a, b) =>
-        b.createdAt - a.createdAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : Number(Boolean(a.author)) - Number(Boolean(b.author))));
-      const items = await projectVisiblePosts(rows.slice(0, pageSize));
+      const rows = [...organizations, ...members, ...reposts].sort((a, b) =>
+        b.createdAt - a.createdAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : feedSource(b).localeCompare(feedSource(a))));
+      const items = await projectVisiblePosts(rows.slice(0, pageSize), actor.accountId);
       await assertNetworkSession(prisma, actor, now);
       return {
         items,
@@ -344,6 +420,29 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       return writeVisiblePost(actor, ref, async tx => {
         await tx.postSave.createMany({ data: [{ ...data, createdAt: now() }], skipDuplicates: true });
         return { saved: true };
+      });
+    },
+
+    async setReposted(actor, sourceValue, idValue, input) {
+      const ref = postRef(sourceValue, idValue);
+      const { reposted } = parse(repostInput, input, "Choose whether to repost this post.");
+      const data = { ...postTarget(ref), accountId: actor?.accountId };
+      if (!reposted) {
+        return memberWrite(actor, async tx => {
+          await tx.postRepost.deleteMany({ where: data });
+          return { reposted: false };
+        });
+      }
+
+      return writeVisiblePost(actor, ref, async tx => {
+        await lockMemberProfile(tx, actor.accountId);
+        const access = await memberEligibility(tx, actor.accountId);
+        if (!access.identityVerified || !access.profilePublic) {
+          throw fail(403, "Verify your identity and publish your public profile before reposting.");
+        }
+        await tx.postRepost.createMany({ data: [{ ...data, createdAt: now() }], skipDuplicates: true });
+        const row = await tx.postRepost.findFirstOrThrow({ where: data, select: repostSelect });
+        return { reposted: true, repost: repostAttribution(row, actor.accountId) };
       });
     },
 
