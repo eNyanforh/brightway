@@ -47,7 +47,7 @@ test("Explore opens with a billboard above its composer and icon-based feed", as
   const explore = page.getByRole("region", { name: "Explore", exact: true });
   const billboard = explore.getByRole("region", { name: "BrightWay billboard" });
   const composer = explore.getByRole("form", { name: "Create a post" });
-  await expect(explore.getByRole("heading", { name: "Discover what’s possible." })).toBeVisible();
+  await expect(explore.getByRole("heading", { name: "Discover what’s possible" })).toBeVisible();
   await expect(explore.getByRole("heading", { name: "Stories & progress" })).toBeVisible();
   for (const [label, destination] of [["Opportunities", "/opportunities"], ["Your network", "/network"], ["Keep learning", "/learning"]]) {
     await expect(explore.getByRole("navigation", { name: "Explore shortcuts" }).getByRole("link", { name: new RegExp(label) }))
