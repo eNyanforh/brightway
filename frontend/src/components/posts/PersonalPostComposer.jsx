@@ -62,6 +62,7 @@ export default function PersonalPostComposer({
   const hasTopicDraft = Boolean(topicDraft.trim());
   const topicLimit = tags.length >= MAX_POST_TOPICS;
   const format = types.find(option => option.type === type) ?? types[0];
+  const isAchievement = type === "ACHIEVEMENT";
   const initial = (account?.person?.firstName || account?.username || "B").slice(0, 1).toUpperCase();
 
   useEffect(() => {
@@ -133,7 +134,7 @@ export default function PersonalPostComposer({
       </div>
 
       {open && (
-        <form id={editorId} className="bw-personal-composer-form" aria-label="Create a post" onSubmit={submit}>
+        <form id={editorId} className={"bw-personal-composer-form" + (isAchievement ? " bw-achievement-composer" : "")} aria-label="Create a post" onSubmit={submit}>
           <div className="bw-post-editor-heading" data-post-type={format.type}>
             <span className="bw-post-editor-icon"><NavigationIcon name={format.icon} size={22} /></span>
             <div>
@@ -144,9 +145,33 @@ export default function PersonalPostComposer({
               <Icon name="x" />
             </button>
           </div>
-          <textarea ref={bodyInput} aria-label={format.editor} placeholder={format.prompt} rows={4} maxLength={2000}
-            value={body} disabled={disabled} onChange={event => onBodyChange(event.target.value)} />
-          <div className="bw-post-topic-editor">
+          {isAchievement && (
+            <div className="bw-achievement-intro">
+              <div className="bw-achievement-intro-copy">
+                <span className="bw-achievement-kicker"><NavigationIcon name="awards" size={15} /> YOUR MOMENT</span>
+                <h4>Every milestone deserves to be seen.</h4>
+                <p>Share what you achieved, the work behind it, and what others can learn from your journey.</p>
+              </div>
+              <span className="bw-achievement-trophy" aria-hidden="true"><NavigationIcon name="awards" size={43} /></span>
+            </div>
+          )}
+          <div className={isAchievement ? "bw-achievement-writing" : undefined}>
+            {isAchievement && (
+              <div className="bw-achievement-writing-heading">
+                <label htmlFor={editorId + "-body"}>Tell your achievement story</label>
+                <span>Make it meaningful</span>
+              </div>
+            )}
+            <textarea ref={bodyInput} id={editorId + "-body"} aria-label={format.editor} placeholder={isAchievement ? "I’m proud to share that…\n\nHere’s what I accomplished, what it took, and what I learned along the way." : format.prompt} rows={isAchievement ? 6 : 4} maxLength={2000}
+              value={body} disabled={disabled} onChange={event => onBodyChange(event.target.value)} />
+            {isAchievement && (
+              <div className="bw-achievement-writing-foot">
+                <span>Tip: Mention the milestone, the effort, and the lesson.</span>
+                <span aria-label={body.length + " of 2,000 characters"}>{body.length.toLocaleString()} / 2,000</span>
+              </div>
+            )}
+          </div>
+          <div className={"bw-post-topic-editor" + (isAchievement ? " bw-achievement-topic-editor" : "")}>
             <div className="bw-post-topic-heading">
               <label htmlFor={topicId}>Topic tags</label>
               <span id={topicId + "-hint"}>Add 1–{MAX_POST_TOPICS} topics</span>
@@ -167,7 +192,7 @@ export default function PersonalPostComposer({
             <PostTopicTags tags={tags} onRemove={removeTopic} disabled={disabled} />
           </div>
           <div className="bw-personal-composer-footer">
-            <span>{body.length} / 2,000</span>
+            <span>{isAchievement ? "Your achievement will be shared with the BrightWay community." : body.length + " / 2,000"}</span>
             <div className="bw-post-editor-actions">
               <button type="button" className="bw-post-editor-cancel" disabled={disabled} onClick={closeEditor}>Cancel</button>
               <button className="bw-personal-composer-submit" type="submit" disabled={disabled || !body.trim() || !tags.length || hasTopicDraft}>{format.publish}</button>

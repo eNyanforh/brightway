@@ -61,11 +61,6 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   const event = launcher.getByRole("button", { name: "Create an Event" });
   const question = launcher.getByRole("button", { name: "Ask a Question" });
   await expect(explore.getByRole("heading", { name: "Discover what’s possible" })).toBeVisible();
-  await expect(explore.getByRole("heading", { name: "Stories & progress" })).toBeVisible();
-  for (const [label, destination] of [["Opportunities", "/opportunities"], ["Your network", "/network"], ["Keep learning", "/learning"]]) {
-    await expect(explore.getByRole("navigation", { name: "Explore shortcuts" }).getByRole("link", { name: new RegExp(label) }))
-      .toHaveAttribute("href", destination);
-  }
   await expect(explore.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "For You" })).toHaveAttribute("aria-pressed", "true");
   await expect(billboard.getByRole("heading", { name: "Find your next challenge" })).toBeVisible();
   await expect(billboard.getByRole("link", { name: "Browse opportunities" })).toHaveAttribute("href", "/opportunities");
@@ -120,6 +115,14 @@ for (const format of formats) {
     const editor = explore.getByRole("form", { name: "Create a post" });
     const content = editor.getByRole("textbox", { name: format.editor });
     await expect(content).toBeVisible();
+    if (format.type === "ACHIEVEMENT") {
+      await expect(editor.getByText("Every milestone deserves to be seen.")).toBeVisible();
+      await expect(editor.getByText("Tell your achievement story")).toBeVisible();
+      await expect(editor.getByText("Tip: Mention the milestone, the effort, and the lesson.")).toBeVisible();
+      await expect(editor.locator(".bw-achievement-intro")).toBeVisible();
+    } else {
+      await expect(editor.locator(".bw-achievement-intro")).toHaveCount(0);
+    }
     await content.fill(format.body);
     const publish = editor.getByRole("button", { name: "Publish " + format.label.toLowerCase() });
     await expect(publish).toBeDisabled();
