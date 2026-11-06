@@ -1,3 +1,4 @@
+import { seedOrganizationProfile, clearOrganizationProfiles } from "../test-support/organization-profile-seed.js";
 import { managementStaffFixture, managementSessionFixture, cleanupManagementFixtures } from "../test-support/management-database-fixture.js";
 import { createOrganizationPosts } from "../src/modules/posts/organization-posts.service.js";
 import { hashPassword } from "../src/modules/auth/password.js";
@@ -13,7 +14,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
 }, async () => {
   const { PrismaClient } = await import("@prisma/client"), { PrismaPg } = await import("@prisma/adapter-pg");
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.TEST_DATABASE_URL }), transactionOptions: { maxWait: 10000, timeout: 15000 } });
-  let date = new Date(), photo;
+  let date = new Date(), photo, organization, organizationRequest;
   const ownerPassword = "fixture-only legacy completion password";
   const passwordHash = await hashPassword(ownerPassword);
   const accounts = [], marker = randomUUID(), objects = new Map();
@@ -147,18 +148,56 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(savedSecond.nextCursor, null);
     assert.deepEqual([...savedFirst.items, ...savedSecond.items].map(item => item.id), [...extraPosts.map(post => post.id).reverse(), postId]);
     await db.memberPost.deleteMany({ where: { id: { in: extraPosts.map(post => post.id) } } });
+    organizationRequest = await db.organizationRequest.create({ data: {
+      applicantId: viewer.id, idempotencyKey: randomUUID(), inputHash: "a".repeat(64), fingerprint: marker,
+      name: "Synthetic Repost Organization", type: "SCHOOL", representativeRole: "Director",
+      countryCode: "LR", region: "Montserrado", city: "Monrovia", address: "Synthetic address",
+      offersTraining: true, status: "APPROVED", decidedAt: date, targetAt: date,
+    } });
+    organization = await db.organization.create({ data: {
+      requestId: organizationRequest.id, name: organizationRequest.name, type: "SCHOOL", offersTraining: true, verifiedAt: date,
+    } });
+    await seedOrganizationProfile(db, organization.id, date);
+    const original = await db.organizationPost.create({ data: {
+      organizationId: organization.id, authorId: viewer.id, requestKey: randomUUID(), body: "Synthetic school update.",
+      createdAt: new Date(+date - 1000),
+    } });
+    const repost = reposted => posts.setReposted(actor, "organization", original.id, { reposted });
+    await assert.rejects(posts.setReposted(viewerActor, "member", postId, { reposted: true }), { status: 403 });
+    const copies = await Promise.all([repost(true), repost(true)]);
+    assert.deepEqual(copies[0], copies[1]);
+    assert.equal(await db.postRepost.count({ where: { organizationPostId: original.id } }), 1);
+    const repostId = copies[0].repost.id;
+    const republished = async view => (await posts.feed(viewerActor, { view })).items.find(item => item.repost?.id === repostId);
+    const copy = await republished("following");
+    assert.equal(copy.id, original.id);
+    assert.equal(copy.body, original.body);
+    assert.equal(copy.repost.mine, false);
+    assert.equal(copy.repost.member.username, owner.username);
+    assert.equal(copy.reposted, false);
+    assert.equal(copy.authorId, undefined);
+    assert.equal((await posts.feed(viewerActor, { view: "following" })).items.some(item => item.id === original.id && !item.repost), false);
+    const selfRepost = await posts.setReposted(actor, "member", postId, { reposted: true });
+    assert.equal((await posts.feed(viewerActor, {})).items.find(item => item.repost?.id === selfRepost.repost.id).id, postId);
+    await posts.setReposted(actor, "member", postId, { reposted: false });
+    await db.organizationPost.update({ where: { id: original.id }, data: { withdrawnAt: date } });
+    assert.equal(await republished("following"), undefined);
+    await db.organizationPost.update({ where: { id: original.id }, data: { withdrawnAt: null } });
+    assert.ok(await republished("following"));
     await assert.rejects(posts.memberWithdraw(viewerActor, postId), { status: 404 });
     const [leftAccountId, rightAccountId] = [viewer.id, owner.id].sort();
     const block = await db.networkPair.create({ data: { leftAccountId, rightAccountId, rightBlocked: true } });
     assert.equal(await seesPost("for-you"), false);
     assert.equal(await seesPost("following"), false);
     await assert.rejects(like(true), { status: 404 });
+    assert.equal(await republished("for-you"), undefined);
     await db.networkPair.delete({ where: { id: block.id } });
     await db.profile.update({ where: { id: profile.id }, data: { profilePublicEnabled: false } });
     assert.equal(await seesPost("for-you"), false);
     assert.equal((await posts.memberList(actor, {})).items[0].id, postId);
     await assert.rejects(commentsAsViewer(), { status: 404 });
     assert.deepEqual((await savedFeed()).items, []);
+    assert.equal(await republished("for-you"), undefined);
     await assert.rejects(like(true), { status: 404 });
     await db.profile.update({ where: { id: profile.id }, data: { profilePublicEnabled: true } });
     assert.equal(await seesPost("for-you"), true);
@@ -171,8 +210,12 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal((await reviews.status(owner.id)).identityVerified, false);
     assert.equal(await seesPost("for-you"), false);
     assert.deepEqual((await savedFeed()).items, []);
+    assert.equal(await republished("for-you"), undefined);
     await assert.rejects(like(true), { status: 404 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, requestKey: randomUUID() }), { status: 403 });
+    assert.deepEqual(await repost(false), { reposted: false });
+    assert.deepEqual(await repost(false), { reposted: false });
+    assert.equal(await db.postRepost.count({ where: { id: repostId } }), 0);
     await posts.memberWithdraw(actor, postId);
     await posts.memberWithdraw(actor, postId);
     assert.equal((await posts.memberList(actor, {})).items.length, 0);
@@ -206,6 +249,12 @@ test("database manual identity requests serialize retries and decisions, revoke 
       const requests = await db.manualIdentityRequest.findMany({ where: { accountId: { in: ids } }, select: { id: true } });
       const requestIds = requests.map((r) => r.id);
       await db.memberPost.deleteMany({ where: { authorId: { in: ids } } });
+      if (organization) {
+        await db.organizationPost.deleteMany({ where: { organizationId: organization.id } });
+        await clearOrganizationProfiles(db, [organization.id]);
+        await db.organization.delete({ where: { id: organization.id } });
+      }
+      if (organizationRequest) await db.organizationRequest.delete({ where: { id: organizationRequest.id } });
       await db.networkFollow.deleteMany({ where: { followerId: { in: ids } } });
       await db.networkPair.deleteMany({ where: { leftAccountId: { in: ids } } });
       await db.manualIdentityEvidence.deleteMany({ where: { accountId: { in: ids } } });
