@@ -86,8 +86,9 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(publication.post.type, "POST");
     assert.deepEqual(publication.post.tags, ["Learning Journeys"]);
     assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner" });
-    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "member", "tags", "type"]);
+    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "member", "questionDetails", "tags", "type"]);
     assert.equal(publication.post.eventDetails, null);
+    assert.equal(publication.post.questionDetails, null);
     await assert.rejects(posts.memberPublish(actor, { ...draft, body: "Different content" }), { status: 409 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, type: "EVENT", eventDetails: { title: "Learning meetup", startAt: "2027-01-15T12:00:00Z", endAt: "2027-01-15T14:00:00Z", timezone: "UTC", format: "IN_PERSON", venue: "Campus hall", coverTheme: "NAVY" } }), { status: 409 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, tags: ["Skills"] }), { status: 409 });
@@ -110,11 +111,13 @@ test("database manual identity requests serialize retries and decisions, revoke 
       };
       const typedDraft = { body: "A member update.", requestKey: randomUUID(), type, tags: ["Research", "Community"],
         ...(type === "EVENT" ? { eventDetails: details } : {}),
+        ...(type === "QUESTION" ? { questionDetails: { title: "How do I plan my first research project?", intent: "GUIDANCE" } } : {}),
       };
       const { post } = await posts.memberPublish(actor, typedDraft);
       assert.equal(post.type, type);
       assert.deepEqual(post.tags, typedDraft.tags);
       if (type === "EVENT") assert.deepEqual(post.eventDetails, { ...details, venue: "University campus", meetingUrl: "https://meet.example.org/student-research" });
+      if (type === "QUESTION") assert.deepEqual(post.questionDetails, typedDraft.questionDetails);
       assert.deepEqual(await posts.memberPublish(actor, typedDraft), { post });
       const owned = (await posts.memberList(actor, {})).items.find(item => item.id === post.id);
       const visible = (await posts.feed(viewerActor, {})).items.find(item => item.id === post.id);
@@ -123,12 +126,24 @@ test("database manual identity requests serialize retries and decisions, revoke 
       assert.deepEqual(owned?.tags, typedDraft.tags);
       assert.deepEqual(visible?.tags, typedDraft.tags);
       if (type === "EVENT") assert.deepEqual(visible?.eventDetails, post.eventDetails);
+      if (type === "QUESTION") assert.deepEqual(visible?.questionDetails, typedDraft.questionDetails);
       await posts.memberWithdraw(actor, post.id);
     }
     await assert.rejects(posts.memberPublish(actor, {
       body: "Invalid event.", requestKey: randomUUID(), type: "EVENT", tags: ["Research"],
       eventDetails: { title: "Invalid event", startAt: "2027-01-15T14:00:00Z", endAt: "2027-01-15T12:00:00Z",
         timezone: "UTC", format: "ONLINE", meetingUrl: "https://meet.example.org/room", coverTheme: "NAVY" },
+    }), { status: 400 });
+    await assert.rejects(posts.memberPublish(actor, {
+      body: "Some details", requestKey: randomUUID(), type: "QUESTION", tags: ["Research"],
+    }), { status: 400 });
+    await assert.rejects(posts.memberPublish(actor, {
+      body: "Some details", requestKey: randomUUID(), type: "QUESTION", tags: ["Research"],
+      questionDetails: { title: "Short", intent: "GUIDANCE" },
+    }), { status: 400 });
+    await assert.rejects(posts.memberPublish(actor, {
+      body: "Some details", requestKey: randomUUID(), type: "ACHIEVEMENT", tags: ["Research"],
+      questionDetails: { title: "How do I plan a research project?", intent: "GUIDANCE" },
     }), { status: 400 });
     const like = liked => posts.setLike(viewerActor, "member", postId, { liked });
     assert.deepEqual(await like(true), { reaction: { liked: true, count: 1 } });
