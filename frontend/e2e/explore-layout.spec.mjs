@@ -200,6 +200,33 @@ for (const format of formats) {
   });
 }
 
+test("achievement, event and question composers offer the same subject categories", async ({ page }) => {
+  await fixture(page);
+  await page.goto("/explore");
+  const launcher = page.getByRole("group", { name: "Choose how to contribute" });
+  const categories = ["Coding", "Art", "Education", "Technology", "Science", "Design",
+    "Business", "Engineering", "Health", "Research", "Entrepreneurship", "Community"];
+  for (const [choice, dialogLabel] of [
+    ["Share an Achievement", "Share an Achievement"],
+    ["Create an Event", "Create an Event"],
+    ["Ask a Question", "Ask a Question"],
+  ]) {
+    await launcher.getByRole("button", { name: choice }).click();
+    const dialog = page.getByRole("dialog", { name: dialogLabel });
+    const editor = dialog.getByRole("form", { name: "Create a post" });
+    for (const category of categories) {
+      await expect(editor.getByRole("button", { name: category, exact: true })).toBeVisible();
+    }
+    await editor.getByRole("button", { name: "Community", exact: true }).click();
+    await expect(editor.getByRole("list", { name: "Selected topic tags" }).getByText("Community", { exact: true })).toBeVisible();
+    await expect(editor.getByRole("button", { name: "Community", exact: true })).toHaveCount(0);
+    await editor.getByRole("button", { name: "Remove tag Community" }).click();
+    await expect(editor.getByRole("button", { name: "Community", exact: true })).toBeVisible();
+    await editor.getByRole("button", { name: "Close editor" }).click();
+    await expect(dialog).toHaveCount(0);
+  }
+});
+
 test("achievement modal supports suggested topics, close button and mobile-friendly sizing", async ({ page, isMobile }) => {
   await fixture(page);
   await page.goto("/explore");
