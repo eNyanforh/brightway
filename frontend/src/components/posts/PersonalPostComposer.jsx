@@ -5,13 +5,16 @@ import Icon from "../layout/Icon";
 import NavigationIcon from "../layout/NavigationIcon";
 
 const types = [
-  { type: "POST", label: "Post", choice: "Share a Post", icon: "post", editor: "Write a post", prompt: "Share a learning or career update…" },
   { type: "ACHIEVEMENT", label: "Achievement", choice: "Share an Achievement", icon: "awards", editor: "Write an achievement", prompt: "What did you achieve, and what did you learn?" },
   { type: "EVENT", label: "Event", choice: "Share an Event", icon: "calendar", editor: "Write an event", prompt: "Tell us about the event. Include the date, time, and location or link." },
+  { type: "QUESTION", label: "Question", choice: "Ask a Question", icon: "question", editor: "Write a question", prompt: "What would you like to ask the BrightWay community?" },
 ];
+// Existing POST records remain readable, but are not a new-composer option.
+const legacyPost = { type: "POST", label: "Post", icon: "post" };
+
 
 export function PersonalPostTypeLabel({ type }) {
-  const format = types.find(option => option.type === type) ?? types[0];
+  const format = types.find(option => option.type === type) ?? legacyPost;
   return (
     <span className="bw-post-type-label" data-post-type={format.type}>
       <NavigationIcon name={format.icon} size={13} /> {format.label}
@@ -85,7 +88,7 @@ export default function PersonalPostComposer({ account, photoId, body, type, tag
             <input type="radio" name={radioName} value={option.type} checked={type === option.type}
               onChange={() => onTypeChange(option.type)} />
             <span className="bw-post-type-content">
-              <NavigationIcon name={option.icon} size={18} />
+              <span className="bw-post-type-icon"><NavigationIcon name={option.icon} size={22} /></span>
               <span>{option.choice}</span>
             </span>
           </label>

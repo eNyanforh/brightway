@@ -964,6 +964,7 @@ enum MemberPostType {
   POST
   ACHIEVEMENT
   EVENT
+  QUESTION
 }
 
 model MemberPost {
