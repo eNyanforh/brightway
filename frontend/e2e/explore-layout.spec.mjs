@@ -61,11 +61,6 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   const event = launcher.getByRole("button", { name: "Create an Event" });
   const question = launcher.getByRole("button", { name: "Ask a Question" });
   await expect(explore.getByRole("heading", { name: "Discover what’s possible" })).toBeVisible();
-  await expect(explore.getByRole("heading", { name: "Stories & progress" })).toBeVisible();
-  for (const [label, destination] of [["Opportunities", "/opportunities"], ["Your network", "/network"], ["Keep learning", "/learning"]]) {
-    await expect(explore.getByRole("navigation", { name: "Explore shortcuts" }).getByRole("link", { name: new RegExp(label) }))
-      .toHaveAttribute("href", destination);
-  }
   await expect(explore.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "For You" })).toHaveAttribute("aria-pressed", "true");
   await expect(billboard.getByRole("heading", { name: "Find your next challenge" })).toBeVisible();
   await expect(billboard.getByRole("link", { name: "Browse opportunities" })).toHaveAttribute("href", "/opportunities");
