@@ -14,15 +14,45 @@ const postSource = post => post.organization ? "organization" : "member";
 const postKey = post => postSource(post) + ":" + post.id;
 const cardKey = post => post.repost ? "repost:" + post.repost.id : postKey(post);
 
+const storyFormats = {
+  ACHIEVEMENT: { icon: "awards", heading: "A milestone worth celebrating", note: "Progress shared with the community" },
+  EVENT: { icon: "calendar", heading: "What's happening", note: "Community event" },
+  QUESTION: { icon: "question", heading: "Let's learn together", note: "Join the discussion in the comments" },
+};
+
+function PostStory({ post, topicTags }) {
+  const format = post.member && storyFormats[post.type];
+  if (!format) return (
+    <>
+      {post.member && <PersonalPostTypeLabel type={post.type} />}
+      <p className="bw-post-text">{post.body}</p>
+      {topicTags}
+    </>
+  );
+  return (
+    <div className="bw-post-story" data-post-type={post.type}>
+      <div className="bw-post-story-heading">
+        <span className="bw-post-story-icon"><NavigationIcon name={format.icon} size={23} /></span>
+        <div className="bw-post-story-heading-copy">
+          <PersonalPostTypeLabel type={post.type} />
+          <strong>{format.heading}</strong>
+        </div>
+      </div>
+      <p className="bw-post-text bw-post-story-body">{post.body}</p>
+      {topicTags}
+      <p className="bw-post-story-note">{format.note}</p>
+    </div>
+  );
+}
+
 function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }) {
   const [confirming, setConfirming] = useState(false);
   const publisher = post.organization || post.member;
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
-  const typeLabel = post.member && <PersonalPostTypeLabel type={post.type} />;
   const topicTags = post.member && <PostTopicTags tags={post.tags} />;
   if (timeline) {
     return (
-      <article className="bw-timeline-post">
+      <article className="bw-timeline-post" data-post-type={post.member ? post.type ?? "POST" : undefined}>
         {post.repost && (
           <p className="bw-timeline-repost">
             <NavigationIcon name="repost" size={15} />
@@ -38,9 +68,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }
             <span aria-hidden="true">·</span>
             <time dateTime={post.createdAt} title={time.format(new Date(post.createdAt))}>{timelineDate.format(new Date(post.createdAt))}</time>
           </header>
-          {typeLabel}
-          <p className="bw-post-text">{post.body}</p>
-          {topicTags}
+          <PostStory post={post} topicTags={topicTags} />
           <PostComments postId={post.id} source={postSource(post)}>
             {typeof post.reposted === "boolean" && (
               <button type="button" className="bw-timeline-action bw-timeline-repost-action" disabled={busy}
@@ -68,7 +96,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }
     );
   }
   return (
-    <article className="bw-post-card">
+    <article className="bw-post-card" data-post-type={post.member ? post.type ?? "POST" : undefined}>
       <header>
         <span className="bw-post-badge" aria-hidden="true">{publisher.name.slice(0, 1).toUpperCase()}</span>
         <div>
@@ -76,9 +104,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }
           <p><time dateTime={post.createdAt}>{time.format(new Date(post.createdAt))}</time></p>
         </div>
       </header>
-      {typeLabel}
-      <p className="bw-post-text">{post.body}</p>
-      {topicTags}
+      <PostStory post={post} topicTags={topicTags} />
       {confirming ? <div className="bw-post-actions">
         <span>Withdraw this post from Explore?</span>
         <button type="button" disabled={busy} onClick={() => onWithdraw(post.id)}>Confirm withdrawal</button>
@@ -95,7 +121,8 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const [page, setPage] = useState(null);
   const canPublish = !disabled && Boolean(personal ? page?.access?.identityVerified && page.access.profilePublic : inlineComposer || page);
   const [body, setBody] = useState("");
-  const [type, setType] = useState("POST");
+  const [type, setType] = useState("ACHIEVEMENT");
+  const [composerOpen, setComposerOpen] = useState(false);
   const [tags, setTags] = useState([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
@@ -154,9 +181,23 @@ export default function PostsPanel({ organization, personal = false, view = "for
     setBody(value);
   }
 
-  function changeType(value) {
+  function selectComposer(value) {
     publishKey.current = null;
     setType(value);
+    setBody("");
+    setTags([]);
+    setError(null);
+    setComposerOpen(true);
+  }
+
+  function cancelComposer() {
+    if (pending) return;
+    publishKey.current = null;
+    setBody("");
+    setTags([]);
+    setType("ACHIEVEMENT");
+    setComposerOpen(false);
+    setError(null);
   }
 
   function changeTags(value) {
@@ -166,7 +207,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
 
   function publish(event) {
     event.preventDefault();
-    if (!canPublish || !body.trim() || (memberComposer && !tags.length) || active.current) return;
+    if (!canPublish || !body.trim() || (memberComposer && (!composerOpen || !tags.length)) || active.current) return;
     setNotice("");
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
@@ -178,9 +219,10 @@ export default function PostsPanel({ organization, personal = false, view = "for
       }));
       publishKey.current = null;
       setBody("");
-      setType("POST");
+      setType("ACHIEVEMENT");
       setTags([]);
-      setNotice("Post published.");
+      setComposerOpen(false);
+      setNotice(memberComposer ? (type === "QUESTION" ? "Question published." : type === "EVENT" ? "Event published." : "Achievement published.") : "Post published.");
     }, { preserveOnDenied: inlineComposer });
   }
 
@@ -233,8 +275,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
     <section className={timeline ? "bw-post-panel bw-timeline-panel" : "bw-post-panel"} aria-label={organization ? "Organization posts" : personal ? "Your posts" : "Explore posts"}>
       {memberComposer && (!personal || canPublish) && (
         <PersonalPostComposer account={composerAccount} photoId={composerPhotoId} body={body} type={type} tags={tags}
-          disabled={!canPublish || pending} submitLabel={personal ? "Publish post" : "Post"}
-          onBodyChange={changeBody} onTypeChange={changeType} onTagsChange={changeTags} onSubmit={publish} />
+          open={composerOpen} disabled={!canPublish || pending}
+          onSelect={selectComposer} onCancel={cancelComposer} onBodyChange={changeBody}
+          onTagsChange={changeTags} onSubmit={publish} />
       )}
       {personal && page && !canPublish && (
         <div className="bw-post-empty">
