@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { organizationPostsApi as api } from "../../api/organization-posts";
+import PostComments from "./PostComments";
 import "./posts.css";
 
 const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -27,6 +28,7 @@ function PostCard({ post, editable, busy, onWithdraw, onLike }) {
           <span aria-live="polite">{post.reaction.count} {post.reaction.count === 1 ? "like" : "likes"}</span>
         </div>
       )}
+      {!editable && <PostComments postId={post.id} source={post.organization ? "organization" : "member"} />}
       {editable && (
         confirming ? <div className="bw-post-actions">
           <span>Withdraw this post from Explore?</span>

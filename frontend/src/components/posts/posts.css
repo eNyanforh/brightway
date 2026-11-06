@@ -26,3 +26,11 @@
 .bw-post-reactions { margin-top: .85rem; }
 .bw-post-reactions button[aria-pressed="true"] { color: #164cad; background: #edf4ff; border-color: #164cad; }
 .bw-post-reactions span { color: #465978; font-size: .875rem; }
+.bw-post-comments { margin-top: .65rem; }
+.bw-post-comments section { margin-top: .85rem; border-top: 1px solid #dce5f4; padding-top: .85rem; }
+.bw-post-comments form { display: grid; justify-items: start; gap: .55rem; }
+.bw-post-comments textarea { width: 100%; min-width: 0; resize: vertical; border: 1px solid #c5d5ef; border-radius: .55rem; padding: .65rem; color: inherit; font: inherit; }
+.bw-post-comments ul { padding: 0; list-style: none; }
+.bw-post-comments li { padding: .7rem 0; border-top: 1px solid #dce5f4; }
+.bw-post-comment-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem; overflow-wrap: anywhere; }
+.bw-post-comment-meta time { font-size: .8rem; color: #465978; }
