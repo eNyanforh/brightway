@@ -29,6 +29,27 @@ export function createOrganizationPostRoutes({ posts, sessions, clientUrl, nodeE
   router.put("/explore/posts/:source/:id/like", access, trustedOrigin, writes, respond((req, actor) => posts.setLike(actor, req.params.source, req.params.id, req.body)));
   router.put("/explore/posts/:source/:id/save", access, trustedOrigin, writes, respond((req, actor) => posts.setSaved(actor, req.params.source, req.params.id, req.body)));
   router.put("/explore/posts/:source/:id/repost", access, trustedOrigin, writes, respond((req, actor) => posts.setReposted(actor, req.params.source, req.params.id, req.body)));
+  router.put("/explore/posts/member/:id/register", access, trustedOrigin, writes,
+    respond((req, actor) => posts.registerEvent(actor, req.params.id, req.body)));
+  router.put("/explore/posts/:source/:id/view", access, trustedOrigin, writes,
+    respond((req, actor) => posts.recordView(actor, req.params.source, req.params.id)));
+  router.post("/explore/posts/member/:id/report", access, trustedOrigin, writes,
+    respond((req, actor) => posts.reportQuestion(actor, req.params.id, req.body), 201));
+
+  const answers = "/explore/posts/member/:id/answers";
+  router.get(answers, access, respond((req, actor) => posts.answers(actor, req.params.id, req.query)));
+  router.post(answers, access, trustedOrigin, writes,
+    respond((req, actor) => posts.addAnswer(actor, req.params.id, req.body), 201));
+  router.put("/explore/answers/:answerId/vote", access, trustedOrigin, writes,
+    respond((req, actor) => posts.voteAnswer(actor, req.params.answerId, req.body)));
+  router.delete("/explore/answers/:answerId", access, trustedOrigin, writes,
+    respond((req, actor) => posts.deleteAnswer(actor, req.params.answerId)));
+  router.get("/explore/answers/:answerId/comments", access,
+    respond((req, actor) => posts.answerComments(actor, req.params.answerId)));
+  router.post("/explore/answers/:answerId/comments", access, trustedOrigin, writes,
+    respond((req, actor) => posts.addAnswerComment(actor, req.params.answerId, req.body), 201));
+  router.delete("/explore/answers/:answerId/comments/:commentId", access, trustedOrigin, writes,
+    respond((req, actor) => posts.deleteAnswerComment(actor, req.params.answerId, req.params.commentId)));
   const comments = "/explore/posts/:source/:id/comments";
   router.get(comments, access, respond((req, actor) => posts.comments(actor, req.params.source, req.params.id, req.query)));
   router.post(comments, access, trustedOrigin, writes, respond((req, actor) => posts.addComment(actor, req.params.source, req.params.id, req.body), 201));
