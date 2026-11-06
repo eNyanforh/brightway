@@ -81,7 +81,7 @@ export default function ExplorePage() {
           <p className="bw-explore-aside-description">Meet people who share your interests, skills, and ambitions.</p>
           <details className="bw-suggestions" open={suggestionsOpen}
             onToggle={event => setSuggestionsOpen(event.currentTarget.open)}>
-            <summary>Suggested people <span aria-hidden="true">⌄</span></summary>
+            <summary><span>Suggested people</span><span aria-hidden="true">⌄</span></summary>
             {suggestionsOpen && (
               <Suspense fallback={<p role="status">Opening suggestions…</p>}>
                 <PeopleSuggestions key={account.id} />
