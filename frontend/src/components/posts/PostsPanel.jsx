@@ -95,7 +95,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const [page, setPage] = useState(null);
   const canPublish = !disabled && Boolean(personal ? page?.access?.identityVerified && page.access.profilePublic : inlineComposer || page);
   const [body, setBody] = useState("");
-  const [type, setType] = useState("ACHIEVEMENT");
+  const [type, setType] = useState("POST");
   const [tags, setTags] = useState([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
@@ -178,7 +178,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
       }));
       publishKey.current = null;
       setBody("");
-      setType("ACHIEVEMENT");
+      setType("POST");
       setTags([]);
       setNotice("Post published.");
     }, { preserveOnDenied: inlineComposer });
