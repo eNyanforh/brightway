@@ -26,7 +26,7 @@ const types = [
   },
 ];
 const legacyType = { type: "POST", label: "Post", icon: "post" };
-const achievementTopicSuggestions = ["Graduation", "Certification", "New skills", "Projects", "Career growth", "Research"];
+const achievementTopicSuggestions = ["Coding", "Art", "Education", "Technology", "Science", "Design", "Business", "Engineering", "Health", "Research", "Entrepreneurship", "Community"];
 
 export function PersonalPostTypeLabel({ type }) {
   const format = types.find(option => option.type === type) ?? legacyType;
@@ -204,7 +204,7 @@ export default function PersonalPostComposer({
           <div className={"bw-post-topic-editor" + (isAchievement ? " bw-achievement-topic-editor" : "")}>
             {isAchievement && <div className="bw-achievement-topic-head">
               <span className="bw-achievement-topic-icon"><NavigationIcon name="tag" size={19} /></span>
-              <div><h4>Connect your achievement</h4><p>Choose topics so the right people can discover your story.</p></div>
+              <div><h4>Connect your achievement</h4><p>Choose the fields your achievement relates to so the right people can discover your story.</p></div>
               <span className="bw-achievement-topic-count">{tags.length}/{MAX_POST_TOPICS}</span>
             </div>}
             <div className="bw-post-topic-heading">
@@ -213,7 +213,7 @@ export default function PersonalPostComposer({
             </div>
             <div className="bw-post-topic-entry">
               <input ref={topicInput} id={topicId} value={topicDraft} maxLength={MAX_POST_TOPIC_LENGTH + 1}
-                placeholder={topicLimit ? "Topic limit reached" : "e.g. Research"} disabled={disabled} readOnly={topicLimit}
+                placeholder={topicLimit ? "Topic limit reached" : "Add another topic, e.g. Music"} disabled={disabled} readOnly={topicLimit}
                 aria-invalid={Boolean(topicError)} aria-describedby={topicId + "-hint" + (topicError ? " " + topicId + "-error" : "")}
                 onChange={event => { setTopicDraft(event.target.value); setTopicError(""); }}
                 onKeyDown={event => {
@@ -226,7 +226,7 @@ export default function PersonalPostComposer({
             {topicError && <p id={topicId + "-error"} className="bw-post-topic-error" role="alert">{topicError}</p>}
             <PostTopicTags tags={tags} onRemove={removeTopic} disabled={disabled} />
             {isAchievement && <div className="bw-achievement-topic-suggestions">
-              <span>Suggested topics</span>
+              <span>Explore subjects</span>
               <div className="bw-achievement-topic-suggestion-list">
                 {achievementTopicSuggestions.filter(item => !tags.some(tag => tag.toLowerCase() === item.toLowerCase())).map(item => (
                   <button type="button" key={item} className="bw-achievement-topic-suggestion"

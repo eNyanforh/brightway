@@ -130,7 +130,7 @@ for (const format of formats) {
       await expect(editor.getByText("Tip: Mention the milestone, the effort, and the lesson.")).toBeVisible();
       await expect(editor.locator(".bw-achievement-intro")).toBeVisible();
       await expect(editor.getByRole("heading", { name: "Connect your achievement" })).toBeVisible();
-      await expect(editor.getByRole("button", { name: "Graduation" })).toBeVisible();
+      await expect(editor.getByRole("button", { name: "Coding" })).toBeVisible();
     } else {
       await expect(editor.locator(".bw-achievement-intro")).toHaveCount(0);
     }
@@ -171,10 +171,10 @@ test("achievement modal supports suggested topics, close button and mobile-frien
   const dialog = page.getByRole("dialog", { name: "Share an Achievement" });
   const editor = dialog.getByRole("form", { name: "Create a post" });
   await expect(dialog).toBeVisible();
-  await editor.getByRole("button", { name: "Certification" }).click();
-  await expect(editor.getByRole("list", { name: "Selected topic tags" }).getByText("Certification")).toBeVisible();
+  await editor.getByRole("button", { name: "Art" }).click();
+  await expect(editor.getByRole("list", { name: "Selected topic tags" }).getByText("Art")).toBeVisible();
   await expect(editor.getByText("1/5")).toBeVisible();
-  await editor.getByRole("button", { name: "Remove tag Certification" }).click();
+  await editor.getByRole("button", { name: "Remove tag Art" }).click();
   await expect(editor.getByText("0/5")).toBeVisible();
   const rect = await dialog.boundingBox();
   const viewport = page.viewportSize();
