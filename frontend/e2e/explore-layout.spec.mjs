@@ -113,7 +113,8 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   await question.click();
   const questionDialog = page.getByRole("dialog", { name: "Ask a Question" });
   editor = questionDialog.getByRole("form", { name: "Create a post" });
-  await expect(editor.getByRole("textbox", { name: "Write a question" })).toHaveValue("");
+  await expect(editor.getByLabel("Question title")).toHaveValue("");
+  await expect(editor.getByText("Give some context")).toHaveCount(0);
   await expect(editor.getByLabel("Question title")).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(questionDialog).toHaveCount(0);
@@ -134,7 +135,7 @@ for (const format of formats) {
       : format.type === "EVENT"
         ? page.getByRole("dialog", { name: "Create an Event" }).getByRole("form", { name: "Create a post" })
         : page.getByRole("dialog", { name: "Ask a Question" }).getByRole("form", { name: "Create a post" });
-    const content = editor.getByRole("textbox", { name: format.editor });
+    const content = format.type === "QUESTION" ? editor.getByLabel("Question title") : editor.getByRole("textbox", { name: format.editor });
     await expect(content).toBeVisible();
     if (format.type === "ACHIEVEMENT") {
       await expect(editor.getByText("Every milestone deserves to be seen.")).toBeVisible();
@@ -148,7 +149,8 @@ for (const format of formats) {
     }
     await content.fill(format.body);
     if (format.type === "QUESTION") {
-      await editor.getByLabel("Question title").fill("How can I find a mentor for my first programming project?");
+      await expect(editor.getByText("Give some context")).toHaveCount(0);
+      await expect(editor.locator("textarea")).toHaveCount(0);
       await editor.getByRole("group", { name: "Question type" }).getByRole("button", { name: /Get feedback/ }).click();
       await expect(editor.getByRole("complementary", { name: "Question preview" })).toBeVisible();
     }
@@ -178,6 +180,10 @@ for (const format of formats) {
     await expect(published.locator(".bw-post-story")).toHaveAttribute("data-post-type", format.type);
     await expect(published.getByText(format.heading)).toBeVisible();
     await expect(published.getByText(format.label, { exact: true })).toBeVisible();
+    if (format.type === "QUESTION") {
+      await expect(published.getByRole("heading", { name: format.body })).toBeVisible();
+      await expect(published.locator(".bw-post-story-body")).toHaveCount(0);
+    }
     await expect(published.getByRole("list", { name: "Topic tags" }).getByText("Community work")).toBeVisible();
     await expect(page.getByRole("form", { name: "Create a post" })).toHaveCount(0);
     await expect(launcher).toBeVisible();
