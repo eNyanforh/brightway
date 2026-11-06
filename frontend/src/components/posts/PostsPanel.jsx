@@ -61,6 +61,15 @@ function PostStory({ post, topicTags }) {
         </div>
       </div>
       {post.type === "EVENT" && <EventInfoCard details={post.eventDetails} />}
+      {post.type === "QUESTION" && post.questionDetails?.title && (
+        <div className="bw-question-feed-content">
+          <span className="bw-question-feed-intent">{({
+            EXPLANATION: "Concept explanation", FEEDBACK: "Feedback requested",
+            GUIDANCE: "Looking for guidance", DISCUSSION: "Open discussion",
+          })[post.questionDetails.intent] || "Community question"}</span>
+          <h3>{post.questionDetails.title}</h3>
+        </div>
+      )}
       <p className="bw-post-text bw-post-story-body">{post.body}</p>
       {topicTags}
       <p className="bw-post-story-note">{format.note}</p>
@@ -228,13 +237,13 @@ export default function PostsPanel({ organization, personal = false, view = "for
     setTags(value);
   }
 
-  function publish(event, eventDetails) {
+  function publish(event, eventDetails, questionDetails) {
     event.preventDefault();
     if (!canPublish || !body.trim() || (memberComposer && (!composerOpen || !tags.length)) || active.current) return;
     setNotice("");
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
-    void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags, ...(type === "EVENT" && eventDetails ? { eventDetails } : {}) }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
+    void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags, ...(type === "EVENT" && eventDetails ? { eventDetails } : {}), ...(type === "QUESTION" && questionDetails ? { questionDetails } : {}) }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
       const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false } : post;
       setPage(previous => ({
         ...previous,
