@@ -492,3 +492,143 @@
   .bw-achievement-intro p { font-size: .76rem; }
   .bw-achievement-composer .bw-personal-composer-footer { flex-wrap: wrap; }
 }
+
+
+/* Dedicated achievement dialog: rendered in a portal above app navigation. */
+.bw-achievement-modal-backdrop.bw-post-panel {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  height: 100dvh;
+  padding: 1.25rem;
+  background: #07152bc7;
+  backdrop-filter: blur(5px);
+}
+.bw-achievement-modal-dialog {
+  display: block;
+  width: min(100%, 690px);
+  max-height: calc(100dvh - 2.5rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: 22px;
+  background: #fff;
+  color: #183253;
+  box-shadow: 0 30px 100px #020c2499;
+}
+.bw-achievement-modal-dialog .bw-personal-composer-form {
+  margin: 0;
+  padding: 1.25rem;
+  border: 0;
+}
+.bw-achievement-modal-dialog .bw-post-editor-heading { margin-bottom: 1rem; }
+.bw-achievement-modal-dialog .bw-achievement-intro { margin-bottom: 1rem; }
+.bw-achievement-modal-dialog .bw-achievement-topic-editor {
+  padding: 1rem;
+  border-color: #dbe5f3;
+  background: #f7faff;
+}
+.bw-achievement-topic-head {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  margin-bottom: .9rem;
+}
+.bw-achievement-topic-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: #1954a7;
+  background: #e7f0ff;
+}
+.bw-achievement-topic-head > div { flex: 1; min-width: 0; }
+.bw-achievement-topic-head h4 { margin: 0 0 .2rem; font-size: .95rem; color: #19365d; }
+.bw-achievement-topic-head p { margin: 0; color: #697a91; font-size: .76rem; line-height: 1.45; }
+.bw-achievement-topic-count {
+  border-radius: 999px;
+  padding: .3rem .6rem;
+  background: #e6eefc;
+  color: #1c4c96;
+  font-size: .73rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.bw-achievement-topic-editor .bw-post-topic-heading { margin-bottom: .45rem; }
+.bw-achievement-topic-editor .bw-post-topic-heading label { font-size: .77rem; }
+.bw-achievement-topic-editor .bw-post-topic-entry { gap: .5rem; }
+.bw-achievement-topic-editor .bw-post-topic-entry input {
+  min-height: 43px;
+  border-radius: 10px;
+  border-color: #cedcf0;
+  background: white;
+  padding: .65rem .75rem;
+}
+.bw-post-panel .bw-achievement-topic-editor .bw-post-topic-entry button {
+  border-radius: 10px;
+  padding: .55rem .95rem;
+  background: #1d56a9;
+  border-color: #1d56a9;
+  color: #fff;
+}
+.bw-achievement-topic-editor .bw-post-topic-tags { margin: .6rem 0 .2rem; gap: .4rem; }
+.bw-achievement-topic-editor .bw-post-topic-tags li {
+  border: 1px solid #c7d9f7;
+  background: #e7f0ff;
+  padding: .2rem .35rem .2rem .7rem;
+  color: #154b9e;
+  font-size: .78rem;
+}
+.bw-achievement-topic-suggestions { margin-top: .85rem; padding-top: .8rem; border-top: 1px solid #e1e9f6; }
+.bw-achievement-topic-suggestions > span { display: block; margin-bottom: .55rem; color: #5c708c; font-size: .75rem; font-weight: 750; }
+.bw-achievement-topic-suggestion-list { display: flex; flex-wrap: wrap; gap: .45rem; }
+.bw-post-panel .bw-achievement-topic-suggestion {
+  border: 1px solid #d6e2f3;
+  border-radius: 999px;
+  padding: .4rem .65rem;
+  background: white;
+  color: #31557f;
+  font-size: .76rem;
+  font-weight: 650;
+}
+.bw-post-panel .bw-achievement-topic-suggestion:hover:enabled {
+  background: #eaf2ff;
+  border-color: #9dbdec;
+  color: #184d9e;
+}
+.bw-achievement-modal-dialog .bw-personal-composer-footer {
+  position: sticky;
+  bottom: -1.25rem;
+  z-index: 1;
+  margin: 0 -1.25rem -1.25rem;
+  padding: .8rem 1.25rem;
+  background: #fff;
+  border-top: 1px solid #e3eaf4;
+}
+@media (max-width: 600px) {
+  .bw-achievement-modal-backdrop.bw-post-panel { padding: 0; align-items: flex-end; }
+  .bw-achievement-modal-dialog {
+    width: 100%;
+    max-height: min(94dvh, 100%);
+    border-radius: 20px 20px 0 0;
+  }
+  .bw-achievement-modal-dialog .bw-personal-composer-form { padding: 1rem; }
+  .bw-achievement-modal-dialog .bw-personal-composer-footer {
+    bottom: -1rem;
+    margin: 0 -1rem -1rem;
+    padding: .7rem 1rem;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bw-achievement-modal-dialog { animation: bw-achievement-modal-in .18s ease-out; }
+  @keyframes bw-achievement-modal-in {
+    from { opacity: .85; transform: translateY(12px) scale(.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+}
