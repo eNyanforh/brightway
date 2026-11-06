@@ -99,7 +99,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
   const type = post.member ? post.type ?? "POST" : "ORGANIZATION";
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
   const topicTags = post.member && <PostTopicTags tags={post.tags} />;
-  const answerCountChanged = useCallback(count => setAnswerCount(count), []);
+  const answerCountChanged = useCallback(delta => setAnswerCount(current => Math.max(0, current + delta)), []);
 
   useEffect(() => {
     if (!timeline || typeof post.views !== "number" || !cardRef.current ||
