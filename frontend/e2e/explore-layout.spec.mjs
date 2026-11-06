@@ -38,7 +38,7 @@ async function fixture(page, posts = [fixturePost]) {
         const draft = request.postDataJSON();
         writes.push(draft);
         return reply({ post: {
-          id: "new-post", body: draft.body, type: draft.type, tags: draft.tags, eventDetails: draft.eventDetails || null,
+          id: "new-post", body: draft.body, type: draft.type, tags: draft.tags, eventDetails: draft.eventDetails || null, questionDetails: draft.questionDetails || null,
           createdAt: fixturePost.createdAt,
           member: { name: "Synthetic Member", username: "synthetic" },
         } }, 201);
@@ -111,9 +111,13 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   await expect(eventDialog).toHaveCount(0);
   await expect(event).toBeFocused();
   await question.click();
-  editor = explore.getByRole("form", { name: "Create a post" });
+  const questionDialog = page.getByRole("dialog", { name: "Ask a Question" });
+  editor = questionDialog.getByRole("form", { name: "Create a post" });
   await expect(editor.getByRole("textbox", { name: "Write a question" })).toHaveValue("");
-  await editor.getByRole("button", { name: "Cancel" }).click();
+  await expect(editor.getByLabel("Question title")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(questionDialog).toHaveCount(0);
+  await expect(question).toBeFocused();
   await expect(explore.getByRole("form", { name: "Create a post" })).toHaveCount(0);
   expect(writes).toEqual([]);
 });
@@ -129,7 +133,7 @@ for (const format of formats) {
       ? page.getByRole("dialog", { name: "Share an Achievement" }).getByRole("form", { name: "Create a post" })
       : format.type === "EVENT"
         ? page.getByRole("dialog", { name: "Create an Event" }).getByRole("form", { name: "Create a post" })
-        : explore.getByRole("form", { name: "Create a post" });
+        : page.getByRole("dialog", { name: "Ask a Question" }).getByRole("form", { name: "Create a post" });
     const content = editor.getByRole("textbox", { name: format.editor });
     await expect(content).toBeVisible();
     if (format.type === "ACHIEVEMENT") {
@@ -143,6 +147,11 @@ for (const format of formats) {
       await expect(editor.locator(".bw-achievement-intro")).toHaveCount(0);
     }
     await content.fill(format.body);
+    if (format.type === "QUESTION") {
+      await editor.getByLabel("Question title").fill("How can I find a mentor for my first programming project?");
+      await editor.getByRole("group", { name: "Question type" }).getByRole("button", { name: /Get feedback/ }).click();
+      await expect(editor.getByRole("complementary", { name: "Question preview" })).toBeVisible();
+    }
     if (format.type === "EVENT") {
       await editor.getByLabel("Event title").fill("Student Research Workshop");
       await editor.getByLabel("Venue or address").fill("Monrovia University Campus");
@@ -174,6 +183,9 @@ for (const format of formats) {
     await expect(launcher).toBeVisible();
     expect(writes).toEqual([expect.objectContaining({
       body: format.body, type: format.type, tags: ["Community work"],
+      ...(format.type === "QUESTION" ? { questionDetails: {
+        title: "How can I find a mentor for my first programming project?", intent: "FEEDBACK",
+      } } : {}),
       ...(format.type === "EVENT" ? { eventDetails: expect.objectContaining({
         title: "Student Research Workshop", format: "IN_PERSON", venue: "Monrovia University Campus", coverTheme: "FOREST",
         startAt: expect.any(String), endAt: expect.any(String),
@@ -206,11 +218,38 @@ test("achievement modal supports suggested topics, close button and mobile-frien
   await expect(trigger).toBeFocused();
 });
 
+test("question modal supports topic suggestions, focus restoration and mobile layout", async ({ page, isMobile }) => {
+  await fixture(page);
+  await page.goto("/explore");
+  const trigger = page.getByRole("group", { name: "Choose how to contribute" })
+    .getByRole("button", { name: "Ask a Question" });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Ask a Question" });
+  const editor = dialog.getByRole("form", { name: "Create a post" });
+  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  await expect(editor.getByLabel("Question title")).toBeFocused();
+  await editor.getByRole("button", { name: "Coding" }).click();
+  await expect(editor.getByRole("list", { name: "Selected topic tags" }).getByText("Coding")).toBeVisible();
+  await editor.getByRole("button", { name: "Remove tag Coding" }).click();
+  await expect(editor.getByRole("list", { name: "Selected topic tags" }).getByText("Coding")).toHaveCount(0);
+  const rect = await dialog.boundingBox();
+  const viewport = page.viewportSize();
+  expect(rect.width).toBeLessThanOrEqual(viewport.width);
+  expect(rect.height).toBeLessThanOrEqual(viewport.height);
+  if (isMobile) expect(rect.width).toBeGreaterThan(viewport.width * .9);
+  await editor.getByRole("button", { name: "Close editor" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
 test("The feed renders different presentation cards for stored achievements, events and questions", async ({ page }) => {
   const typed = formats.map((format, index) => ({
     ...fixturePost,
     id: "33333333-3333-4333-8333-33333333333" + index,
     type: format.type, body: format.body, tags: ["Learning"],
+    ...(format.type === "QUESTION" ? { questionDetails: {
+      title: "How do I find a mentor for my first project?", intent: "GUIDANCE",
+    } } : {}),
     ...(format.type === "EVENT" ? { eventDetails: {
       title: "Student Research Workshop", startAt: "2027-01-15T12:00:00Z", endAt: "2027-01-15T14:00:00Z",
       timezone: "Africa/Monrovia", format: "IN_PERSON", venue: "Monrovia University Campus",
@@ -224,6 +263,10 @@ test("The feed renders different presentation cards for stored achievements, eve
     const card = explore.getByRole("article").filter({ hasText: format.body });
     await expect(card.locator(".bw-post-story")).toHaveAttribute("data-post-type", format.type);
     await expect(card.getByText(format.heading)).toBeVisible();
+    if (format.type === "QUESTION") {
+      await expect(card.getByRole("heading", { name: "How do I find a mentor for my first project?" })).toBeVisible();
+      await expect(card.getByText("Looking for guidance")).toBeVisible();
+    }
     if (format.type === "EVENT") {
       await expect(card.getByRole("heading", { name: "Student Research Workshop" })).toBeVisible();
       await expect(card.getByText(/Monrovia University Campus/)).toBeVisible();
