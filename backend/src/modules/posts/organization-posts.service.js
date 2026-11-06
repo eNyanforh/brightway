@@ -521,7 +521,16 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         if (previous) {
           if (previous.questionId !== id || previous.body !== body || previous.deletedAt)
             throw fail(409, "This request belongs to another answer.");
-          return { answer: { ...previous, username: undefined } };
+          const author = await tx.account.findUniqueOrThrow({
+            where: { id: actor.accountId }, select: { username: true },
+          });
+          const commentCount = await tx.answerComment.count({ where: { answerId: previous.id, deletedAt: null } });
+          const vote = await tx.answerVote.findUnique({
+            where: { answerId_accountId: { answerId: previous.id, accountId: actor.accountId } },
+            select: { value: true },
+          });
+          return { answer: { id: previous.id, body: previous.body, createdAt: previous.createdAt,
+            username: author.username, canDelete: true, score: previous.score, myVote: vote?.value ?? 0, commentCount } };
         }
         const recent = await tx.questionAnswer.count({
           where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } },
