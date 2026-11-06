@@ -978,6 +978,7 @@ model MemberPost {
   requestKey String
   type MemberPostType @default(POST)
   tags String[] @default([])
+  eventDetails Json?
   body String @db.VarChar(2000)
   createdAt DateTime @default(now())
   withdrawnAt DateTime?
