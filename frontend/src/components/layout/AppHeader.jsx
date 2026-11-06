@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import HeaderProfileMenu from "./HeaderProfileMenu";
 import NavigationIcon from "./NavigationIcon";
 import "./app-header.css";
@@ -15,6 +15,14 @@ export default function AppHeader({
   onToggleNavigation,
   navigationToggleRef,
 }) {
+  const navigate = useNavigate();
+  const personalSearch = !workspaceLabel && !actingOrganization;
+  function submitSearch(event) {
+    event.preventDefault();
+    const q = new FormData(event.currentTarget).get("q").trim();
+    if (q.length >= 2 && q.length <= 80) navigate("/search?" + new URLSearchParams({ q }));
+  }
+
   return (
     <header className="bw-design-header">
       <div className="bw-design-header-inner">
@@ -33,22 +41,13 @@ export default function AppHeader({
           </span>
         </Link>
 
-        <div
-          className="bw-design-search"
-          title="Search is coming soon"
-        >
-          <NavigationIcon name="search" size={19} />
-
-          <input
-            aria-label="Search — coming soon"
-            placeholder="People, opportunities, ideas…"
-            disabled
-          />
-
-          <button type="button" disabled>
-            Search
-          </button>
-        </div>
+        {personalSearch && (
+          <form className="bw-design-search" role="search" aria-label="Header search" onSubmit={submitSearch}>
+            <NavigationIcon name="search" size={19} />
+            <input name="q" type="search" aria-label="Search people and organizations" placeholder="People and organizations…" minLength={2} maxLength={80} required />
+            <button type="submit">Search</button>
+          </form>
+        )}
 
         <div className="bw-design-account">
           <span className="bw-design-personal">
@@ -56,15 +55,11 @@ export default function AppHeader({
             {actingOrganization?.name || workspaceLabel || "Personal account"}
           </span>
 
-          <button
-            className="bw-design-utility bw-design-mobile-action"
-            type="button"
-            disabled
-            aria-label="Search — coming soon"
-            title="Search is coming soon"
-          >
-            <NavigationIcon name="search" />
-          </button>
+          {personalSearch && (
+            <Link className="bw-design-utility bw-design-mobile-action" to="/search" aria-label="Search BrightWay" title="Search BrightWay">
+              <NavigationIcon name="search" />
+            </Link>
+          )}
 
           <button
             className="bw-design-utility bw-design-mobile-action"

@@ -50,6 +50,8 @@ import { createR2Storage } from "../modules/photos/photo.storage.js";
 import { createPhotoRoutes } from "../modules/photos/photo.routes.js";
 import { createNotificationsService } from "../modules/notifications/notifications.service.js";
 import { createNotificationsRoutes } from "../modules/notifications/notifications.routes.js";
+import { createDirectorySearch } from "../modules/search/directory-search.service.js";
+import { createDirectorySearchRoutes } from "../modules/search/directory-search.routes.js";
 import { createOrganizationPosts } from "../modules/posts/organization-posts.service.js";
 import { createOrganizationPostRoutes } from "../modules/posts/organization-posts.routes.js";
 
@@ -67,6 +69,7 @@ const sessions = createSessionService({ prisma, mfa });
 const network = createNetworkService({ prisma });
 router.use(createNetworkRoutes({ network, following: createFollowingService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createNotificationsRoutes({ notifications: createNotificationsService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createDirectorySearchRoutes({ search: createDirectorySearch({ prisma }), sessions, nodeEnv: env.NODE_ENV }));
 router.use(createOrganizationPostRoutes({ posts: createOrganizationPosts({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const managementCases = createManagementCases({ prisma });
 const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
