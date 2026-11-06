@@ -171,7 +171,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
           aria-pressed={post.reaction.liked} onClick={() => onLike(post)}>
           <NavigationIcon name={type === "ACHIEVEMENT" ? "celebrate" : "like"} size={19} active={post.reaction.liked} />
           <span aria-live="polite" className="bw-action-count">
-            <span className="bw-timeline-sr">{post.reaction.count} {type === "ACHIEVEMENT" ? "celebrations" : "likes"}</span>
+            <span className="bw-timeline-sr">{post.reaction.count} {type === "ACHIEVEMENT" ? (post.reaction.count === 1 ? "celebration" : "celebrations") : (post.reaction.count === 1 ? "like" : "likes")}</span>
             {post.reaction.count > 0 && <span aria-hidden="true">{post.reaction.count}</span>}
           </span>
         </button>
