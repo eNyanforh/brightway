@@ -97,7 +97,7 @@
 .bw-explore-filters button[aria-pressed="true"] span::after { position: absolute; inset: auto 0 0; height: 4px; border-radius: 999px; background: #175cd3; content: ""; }
 
 .bw-timeline-panel { max-width: none; gap: 0; }
-.bw-timeline-post, .bw-timeline-composer {
+.bw-timeline-post {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
   align-items: start;
@@ -107,35 +107,7 @@
   min-width: 0;
 }
 .bw-timeline-post:hover { background: #fafafa; }
-.bw-timeline-avatar {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  overflow: hidden;
-  border-radius: 50%;
-  background: #e7f0ff;
-  color: #164cad;
-  font-weight: 750;
-  text-decoration: none;
-}
-.bw-timeline-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.bw-timeline-composer-main, .bw-timeline-post-main { min-width: 0; }
-.bw-timeline-composer textarea {
-  display: block;
-  width: 100%;
-  min-height: 54px;
-  padding: .25rem 0;
-  resize: vertical;
-  border: 0;
-  background: transparent;
-  color: #0f1419;
-  font: inherit;
-  font-size: 1.15rem;
-}
-.bw-timeline-composer textarea::placeholder { color: #536471; }
-.bw-timeline-composer-footer { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 48px; border-top: 1px solid #eff3f4; color: #536471; font-size: .8rem; }
-.bw-timeline-panel .bw-timeline-publish { min-width: 64px; padding: .45rem .9rem; border: 0; border-radius: 999px; background: #0f1419; color: white; font-size: .9rem; font-weight: 750; }
+.bw-timeline-post-main { min-width: 0; }
 .bw-timeline-refresh { display: flex; justify-content: center; border-bottom: 1px solid #eff3f4; }
 .bw-timeline-panel .bw-timeline-refresh button { padding: .55rem; border: 0; background: transparent; color: #175cd3; font-size: .82rem; }
 .bw-timeline-panel > .bw-post-error, .bw-timeline-panel > .bw-post-empty, .bw-timeline-panel > p[role="status"] { margin: .6rem 1rem; }
@@ -176,7 +148,7 @@
   .bw-explore-billboard { border-radius: 13px; }
   .bw-billboard-slide { grid-template-columns: minmax(0, 1fr) 64px; min-height: 200px; gap: .55rem; }
   .bw-billboard-art svg { width: 32px; height: 32px; }
-  .bw-timeline-post, .bw-timeline-composer { padding-inline: .65rem; column-gap: .55rem; }
+  .bw-timeline-post { padding-inline: .65rem; column-gap: .55rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bw-billboard-slide { animation: none; }

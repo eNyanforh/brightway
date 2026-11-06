@@ -106,6 +106,9 @@ export default function NavigationIcon({
     case "awards":
       shape = <path d="M8 4h8v7a4 4 0 0 1-8 0V4ZM8 6H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4m-4 3v5m-4 0h8" />;
       break;
+    case "calendar":
+      shape = <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4m10-4v4M3 10h18m-13 5h2m4 0h2" /></>;
+      break;
     case "chevron-left":
       shape = <path d="m15 6-6 6 6 6" />;
       break;

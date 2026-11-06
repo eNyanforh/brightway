@@ -32,7 +32,7 @@ async function fixture(page) {
       case "/api/v1/posts/me": {
         const draft = request.postDataJSON();
         writes.push(draft);
-        return reply({ post: { id: "new-post", body: draft.body, createdAt: fixturePost.createdAt, member: { name: "Synthetic Member", username: "synthetic" } } }, 201);
+        return reply({ post: { id: "new-post", body: draft.body, type: draft.type, createdAt: fixturePost.createdAt, member: { name: "Synthetic Member", username: "synthetic" } } }, 201);
       }
       default: throw Error("Unexpected synthetic request " + url.pathname);
     }
@@ -52,7 +52,13 @@ test("Explore opens with a billboard above its composer and icon-based feed", as
   await expect(billboard.getByRole("link", { name: "Browse opportunities" })).toHaveAttribute("href", "/opportunities");
   await expect(billboard.getByRole("button", { name: "Play slideshow" })).toBeVisible();
   await expect(composer).toBeVisible();
+  const postChoice = composer.getByRole("radio", { name: "Share a Post" });
+  const achievementChoice = composer.getByRole("radio", { name: "Share an Achievement" });
+  await expect(postChoice).toBeChecked();
+  await expect(achievementChoice).toBeVisible();
+  await expect(composer.getByRole("radio", { name: "Share an Event" })).toBeVisible();
   const card = explore.getByRole("article").first();
+  await expect(card.getByText("Post", { exact: true })).toBeVisible();
   for (const action of ["Comments", "Repost", "Like", "Save post"]) {
     await expect(card.getByRole("button", { name: action, exact: true })).toBeVisible();
   }
@@ -67,10 +73,17 @@ test("Explore opens with a billboard above its composer and icon-based feed", as
   await expect(billboard.getByRole("heading", { name: "Celebrate the winners" })).toBeVisible();
   await billboard.getByRole("button", { name: "Virtual Campus spotlight" }).click();
   await expect(billboard.getByRole("link", { name: "Explore learning" })).toHaveAttribute("href", "/learning");
-  await composer.getByRole("textbox", { name: "Write a post" }).fill("My first BrightWay project update.");
+  const body = "I completed my first BrightWay project.";
+  await composer.getByRole("textbox", { name: "Write a post" }).fill(body);
+  await postChoice.press("ArrowRight");
+  await expect(achievementChoice).toBeChecked();
+  await expect(composer.getByRole("textbox", { name: "Write an achievement" })).toHaveValue(body);
+  await testInfo.attach("Achievement composer", { body: await composer.screenshot(), contentType: "image/png" });
   await composer.getByRole("button", { name: "Post", exact: true }).click();
-  await expect(explore.getByText("My first BrightWay project update.")).toBeVisible();
-  expect(writes).toHaveLength(1);
+  const published = explore.getByRole("article").filter({ hasText: body });
+  await expect(published.getByText("Achievement", { exact: true })).toBeVisible();
+  await expect(postChoice).toBeChecked();
+  expect(writes).toEqual([expect.objectContaining({ body, type: "ACHIEVEMENT" })]);
 });
 
 test("the billboard rotates and stops when the member pauses it", async ({ page }) => {

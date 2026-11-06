@@ -114,6 +114,7 @@ it("a publisher can retry a failed organization post and withdraw it from the wo
     if (url.endsWith("/posts") && options?.method === "POST") {
       const draft = JSON.parse(options.body);
       expect(draft.body).toBe(body);
+      expect(draft).not.toHaveProperty("type");
       if (!requestKey) { requestKey = draft.requestKey; return reply("Try again shortly.", 503); }
       expect(draft.requestKey).toBe(requestKey);
       return reply({ post: { id: "new-post", organization, body, createdAt: "2026-11-05T09:00:00Z" } }, 201);
@@ -123,6 +124,7 @@ it("a publisher can retry a failed organization post and withdraw it from the wo
     return reply(context);
   });
   await screen.findByText("Your organization has no published posts yet.");
+  expect(screen.queryByRole("group", { name: "Post type" })).toBeNull();
   const field = screen.getByRole("textbox", { name: "Write an organization post" });
   await f.user.type(field, body);
   const publish = screen.getByRole("button", { name: "Publish post" });
@@ -299,12 +301,12 @@ it("Explore loads comments on demand and retries a draft without refreshing the 
 
 it("the personal Post destination checks verification and lets authors withdraw after unpublishing their profile", async () => {
   let verified = false, published = true;
-  const body = "I finished my first research project.";
-  const post = { id: "personal-post", body, createdAt: "2026-11-05T10:00:00Z", member: { username: "owner", name: "Test Owner" } };
+  const body = "Join our research showcase on November 12 at 10 a.m. in the campus library.";
+  const post = { id: "personal-post", body, type: "EVENT", createdAt: "2026-11-05T10:00:00Z", member: { username: "owner", name: "Test Owner" } };
   const f = mount("/explore", (url, options) => {
     if (url.includes("/explore/posts?")) return reply({ items: [], nextCursor: null });
     if (url.endsWith("/posts/me") && options?.method === "POST") {
-      expect(JSON.parse(options.body).body).toBe(body);
+      expect(JSON.parse(options.body)).toMatchObject({ body, type: "EVENT" });
       return reply({ post }, 201);
     }
     if (url.endsWith("/posts/me/personal-post") && options?.method === "DELETE") return reply({ id: post.id });
@@ -320,10 +322,12 @@ it("the personal Post destination checks verification and lets authors withdraw 
   verified = true;
   const refresh = screen.getByRole("button", { name: "Refresh posts" });
   await f.user.click(refresh);
-  await f.user.type(await screen.findByRole("textbox", { name: "Share a learning or career update" }), body);
+  await f.user.click(await screen.findByRole("radio", { name: "Share an Event" }));
+  await f.user.type(screen.getByRole("textbox", { name: "Write an event" }), body);
   await f.user.click(screen.getByRole("button", { name: "Publish post" }));
   await screen.findByText("Post published.");
   expect(screen.getByRole("link", { name: "Test Owner" }).getAttribute("href")).toBe("/people/owner");
+  expect(within(screen.getByRole("article")).getByText("Event", { exact: true })).toBeTruthy();
   published = false;
   await f.user.click(refresh);
   await screen.findByRole("link", { name: "Publish your public profile" });

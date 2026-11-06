@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { organizationPostsApi as api } from "../../api/organization-posts";
-import { photoUrl } from "../../api/profile";
 import NavigationIcon from "../layout/NavigationIcon";
+import PersonalPostComposer, { PersonalPostTypeLabel } from "./PersonalPostComposer";
 import PostComments from "./PostComments";
 import "./posts.css";
 
@@ -18,6 +18,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }
   const [confirming, setConfirming] = useState(false);
   const publisher = post.organization || post.member;
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
+  const typeLabel = post.member && <PersonalPostTypeLabel type={post.type} />;
   if (timeline) {
     return (
       <article className="bw-timeline-post">
@@ -36,6 +37,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }
             <span aria-hidden="true">·</span>
             <time dateTime={post.createdAt} title={time.format(new Date(post.createdAt))}>{timelineDate.format(new Date(post.createdAt))}</time>
           </header>
+          {typeLabel}
           <p className="bw-post-text">{post.body}</p>
           <PostComments postId={post.id} source={postSource(post)}>
             {typeof post.reposted === "boolean" && (
@@ -72,6 +74,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }
           <p><time dateTime={post.createdAt}>{time.format(new Date(post.createdAt))}</time></p>
         </div>
       </header>
+      {typeLabel}
       <p className="bw-post-text">{post.body}</p>
       {confirming ? <div className="bw-post-actions">
         <span>Withdraw this post from Explore?</span>
@@ -84,10 +87,12 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }
 
 export default function PostsPanel({ organization, personal = false, view = "for-you", disabled = false, timeline = false, composerAccount, composerPhotoId }) {
   const organizationId = organization?.id;
-  const editable = Boolean(organization) || personal;
+  const inlineComposer = timeline && Boolean(composerAccount);
+  const memberComposer = personal || inlineComposer;
   const [page, setPage] = useState(null);
-  const canPublish = !disabled && (composerAccount || (page && (!personal || (page.access?.identityVerified && page.access?.profilePublic))));
+  const canPublish = !disabled && Boolean(personal ? page?.access?.identityVerified && page.access.profilePublic : inlineComposer || page);
   const [body, setBody] = useState("");
+  const [type, setType] = useState("POST");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState("");
@@ -140,13 +145,23 @@ export default function PostsPanel({ organization, personal = false, view = "for
     };
   }, [load]);
 
+  function changeBody(value) {
+    publishKey.current = null;
+    setBody(value);
+  }
+
+  function changeType(value) {
+    publishKey.current = null;
+    setType(value);
+  }
+
   function publish(event) {
     event.preventDefault();
     if (!canPublish || !body.trim() || active.current) return;
     setNotice("");
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
-    void run(signal => personal || composerAccount ? api.memberPublish(draft, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
+    void run(signal => memberComposer ? api.memberPublish({ ...draft, type }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
       const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false } : post;
       setPage(previous => ({
         ...previous,
@@ -154,8 +169,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
       }));
       publishKey.current = null;
       setBody("");
+      setType("POST");
       setNotice("Post published.");
-    }, { preserveOnDenied: Boolean(composerAccount) });
+    }, { preserveOnDenied: inlineComposer });
   }
 
   function updateFeedPost(post, operation, transform) {
@@ -205,20 +221,10 @@ export default function PostsPanel({ organization, personal = false, view = "for
 
   return (
     <section className={timeline ? "bw-post-panel bw-timeline-panel" : "bw-post-panel"} aria-label={organization ? "Organization posts" : personal ? "Your posts" : "Explore posts"}>
-      {composerAccount && (
-        <form className="bw-timeline-composer" aria-label="Create a post" onSubmit={publish}>
-          <div className="bw-timeline-avatar" aria-hidden="true">
-            {composerPhotoId ? <img src={photoUrl(composerPhotoId)} alt="" /> : (composerAccount.person?.firstName || composerAccount.username || "B").slice(0, 1).toUpperCase()}
-          </div>
-          <div className="bw-timeline-composer-main">
-            <textarea aria-label="Write a post" placeholder="What’s happening?" rows={2} maxLength={2000} value={body} disabled={pending || disabled}
-              onChange={event => { publishKey.current = null; setBody(event.target.value); }} />
-            <div className="bw-timeline-composer-footer">
-              <span>{body.length ? body.length + " / 2,000" : ""}</span>
-              <button className="bw-timeline-publish" type="submit" disabled={!body.trim() || pending}>Post</button>
-            </div>
-          </div>
-        </form>
+      {memberComposer && (!personal || canPublish) && (
+        <PersonalPostComposer account={composerAccount} photoId={composerPhotoId} body={body} type={type}
+          disabled={!canPublish || pending} submitLabel={personal ? "Publish post" : "Post"}
+          onBodyChange={changeBody} onTypeChange={changeType} onSubmit={publish} />
       )}
       {personal && page && !canPublish && (
         <div className="bw-post-empty">
@@ -226,13 +232,13 @@ export default function PostsPanel({ organization, personal = false, view = "for
           {!page.access?.profilePublic && <p><Link to="/profile">Publish your public profile</Link> so readers can see who shared the post.</p>}
         </div>
       )}
-      {editable && (!personal || canPublish) && (
+      {organization && (
         <form className="bw-post-card bw-post-form" onSubmit={publish}>
-          <h2>{personal ? "Write a post" : "Posts"}</h2>
-          {organization && <p>Publish as <strong>{organization.name}</strong>.</p>}
-          <label htmlFor="post-body">{personal ? "Share a learning or career update" : "Write an organization post"}</label>
+          <h2>Posts</h2>
+          <p>Publish as <strong>{organization.name}</strong>.</p>
+          <label htmlFor="post-body">Write an organization post</label>
           <textarea id="post-body" rows={5} maxLength={2000} value={body} disabled={pending || disabled}
-            onChange={event => { publishKey.current = null; setBody(event.target.value); }} />
+            onChange={event => changeBody(event.target.value)} />
           <div className="bw-post-actions">
             <button type="submit" className="bw-post-primary" disabled={!canPublish || !body.trim() || pending}>Publish post</button>
             <span>{body.length} / 2,000</span>
@@ -240,7 +246,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
         </form>
       )}
       {notice && <p role="status">{notice}</p>}
-      {error && <p className="bw-post-error" role="alert">{error.message}{composerAccount && error.status === 403 && <> <Link to="/profile">Open your profile</Link></>}</p>}
+      {error && <p className="bw-post-error" role="alert">{error.message}{inlineComposer && error.status === 403 && <> <Link to="/profile">Open your profile</Link></>}</p>}
       {!page && !error && <p role="status">Loading posts…</p>}
       <div className={timeline ? "bw-timeline-refresh" : "bw-post-actions"}>
         <button type="button" disabled={pending || disabled} onClick={() => void load()}>{timeline ? "Refresh feed" : "Refresh posts"}</button>

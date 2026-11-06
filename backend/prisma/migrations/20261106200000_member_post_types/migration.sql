@@ -1,0 +1,4 @@
+CREATE TYPE "MemberPostType" AS ENUM ('POST', 'ACHIEVEMENT', 'EVENT');
+
+ALTER TABLE "MemberPost"
+  ADD COLUMN "type" "MemberPostType" NOT NULL DEFAULT 'POST';
