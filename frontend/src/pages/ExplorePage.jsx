@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import PostsPanel from "../components/posts/PostsPanel";
+import "../components/discovery/people-suggestions.css";
+
+const PeopleSuggestions = lazy(() => import("../components/discovery/PeopleSuggestions"));
 
 export default function ExplorePage() {
   const { account } = useAuth();
   const [view, setView] = useState("for-you");
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   return (
     <section className="bw-explore-posts">
@@ -20,6 +24,16 @@ export default function ExplorePage() {
         <button type="button" aria-pressed={view === "following"} onClick={() => setView("following")}>Following</button>
         <button type="button" aria-pressed={view === "saved"} onClick={() => setView("saved")}>Saved</button>
       </nav>
+      {view === "for-you" && (
+        <details className="bw-suggestions" open={suggestionsOpen} onToggle={event => setSuggestionsOpen(event.currentTarget.open)}>
+          <summary>Suggested people</summary>
+          {suggestionsOpen && (
+            <Suspense fallback={<p role="status">Opening suggestions…</p>}>
+              <PeopleSuggestions key={account.id} />
+            </Suspense>
+          )}
+        </details>
+      )}
       <PostsPanel key={account.id + ":" + view} view={view} />
     </section>
   );
