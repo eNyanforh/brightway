@@ -149,7 +149,8 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.deepEqual([...savedFirst.items, ...savedSecond.items].map(item => item.id), [...extraPosts.map(post => post.id).reverse(), postId]);
     await db.memberPost.deleteMany({ where: { id: { in: extraPosts.map(post => post.id) } } });
     organizationRequest = await db.organizationRequest.create({ data: {
-      applicantId: viewer.id, idempotencyKey: randomUUID(), inputHash: "a".repeat(64), fingerprint: marker,
+      applicantId: viewer.id, assignedAgentId: reviewer.id, decidedById: owner.id,
+      idempotencyKey: randomUUID(), inputHash: "a".repeat(64), fingerprint: marker,
       name: "Synthetic Repost Organization", type: "SCHOOL", representativeRole: "Director",
       countryCode: "LR", region: "Montserrado", city: "Monrovia", address: "Synthetic address",
       offersTraining: true, status: "APPROVED", decidedAt: date, targetAt: date,
