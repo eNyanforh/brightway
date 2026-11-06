@@ -109,6 +109,25 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.deepEqual((await inbox(owner)).items, []);
 
     await preferences(visitor, published);
+    const suggestionPath = "/explore/suggestions/people";
+    await request(null, suggestionPath, { status: 401 });
+    await request(visitor, suggestionPath + "?viewer=" + owner.id, { status: 400 });
+    assert.deepEqual((await request(visitor, suggestionPath)).items, []);
+    await prisma.profile.update({ where: { personId: owner.personId }, data: {
+      skills: ["JavaScript"], interests: ["Technology"], careerField: "Engineering",
+    } });
+    await prisma.profile.update({ where: { personId: visitor.personId }, data: {
+      skills: ["JavaScript"], interests: ["Technology"], careerField: "engineering",
+    } });
+    await prisma.profile.create({ data: { personId: other.personId, skills: ["JavaScript"], interests: ["Technology"] } });
+    const suggestion = { name: "Synthetic owner", username: owner.username, reasons: ["Shared skills", "Shared interests", "Same career field"] };
+    assert.deepEqual((await request(visitor, suggestionPath)).items, [suggestion]);
+    const follow = await prisma.networkFollow.create({ data: { followerId: visitor.id, targetAccountId: owner.id, active: true } });
+    try {
+      assert.deepEqual((await request(visitor, suggestionPath)).items, []);
+    } finally {
+      await prisma.networkFollow.delete({ where: { id: follow.id } });
+    }
     await preferences(owner, { profileViewNotificationsEnabled: false });
     await view(visitor, owner);
     assert.deepEqual((await inbox(owner)).items, []);
@@ -138,6 +157,8 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.deepEqual((await inbox(visitor)).items, []);
     await view(visitor, owner, { status: 404 });
     await view(owner, visitor, { status: 404 });
+    assert.deepEqual((await request(visitor, suggestionPath)).items, []);
+    assert.deepEqual((await request(owner, suggestionPath)).items, []);
     assert.deepEqual((await search(visitor, owner.username)).items, []);
     assert.deepEqual((await search(owner, visitor.username)).items, []);
     await post(visitor, networkAction, { action: "UNBLOCK", expectedVersion: block.version, requestKey: randomUUID() });
@@ -150,6 +171,7 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.deepEqual(await post(owner, "/notifications/" + notice.id + "/dismiss"), { dismissed: true });
     assert.deepEqual((await inbox(owner)).items, []);
     await preferences(owner, { profilePublicEnabled: false });
+    assert.deepEqual((await request(visitor, suggestionPath)).items, []);
     assert.deepEqual((await search(visitor, owner.username)).items, []);
   } finally {
     try {
