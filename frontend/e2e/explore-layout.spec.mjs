@@ -18,6 +18,7 @@ const fixturePost = {
 
 async function fixture(page) {
   const writes = [];
+  let submission;
   await page.route("**/*", async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -28,20 +29,30 @@ async function fixture(page) {
       case "/api/v1/auth/me": return reply({ account });
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
       case "/api/v1/work/access": return reply({ hasWork: false });
-      case "/api/v1/explore/posts": return reply({ items: [fixturePost], nextCursor: null });
+      case "/api/v1/explore/posts": {
+        const published = submission?.moderationStatus === "PUBLISHED"
+          ? [{ ...submission, reaction: { liked: false, count: 0 }, reposted: false, saved: false }]
+          : [];
+        return reply({ items: [...published, fixturePost], nextCursor: null });
+      }
       case "/api/v1/posts/me": {
+        if (request.method() === "GET") return reply({
+          access: { identityVerified: true, profilePublic: true }, items: submission ? [submission] : [], nextCursor: null,
+        });
         const draft = request.postDataJSON();
         writes.push(draft);
-        return reply({ post: { id: "new-post", body: draft.body, type: draft.type, tags: draft.tags, createdAt: fixturePost.createdAt, member: { name: "Synthetic Member", username: "synthetic" } } }, 201);
+        submission = { id: "new-post", body: draft.body, type: draft.type, tags: draft.tags, moderationStatus: "PENDING",
+          createdAt: fixturePost.createdAt, member: { name: "Synthetic Member", username: "synthetic" } };
+        return reply({ post: submission }, 201);
       }
       default: throw Error("Unexpected synthetic request " + url.pathname);
     }
   });
-  return writes;
+  return { writes, approve: () => { submission.moderationStatus = "PUBLISHED"; } };
 }
 
 test("Explore opens with a billboard above its composer and icon-based feed", async ({ page, isMobile }, testInfo) => {
-  const writes = await fixture(page);
+  const { writes, approve } = await fixture(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/explore");
   const explore = page.getByRole("region", { name: "Explore", exact: true });
@@ -78,7 +89,7 @@ test("Explore opens with a billboard above its composer and icon-based feed", as
   await postChoice.press("ArrowRight");
   await expect(achievementChoice).toBeChecked();
   await expect(composer.getByRole("textbox", { name: "Write an achievement" })).toHaveValue(body);
-  const publish = composer.getByRole("button", { name: "Post", exact: true });
+  const publish = composer.getByRole("button", { name: "Submit for review", exact: true });
   await expect(publish).toBeDisabled();
   const topics = composer.getByRole("textbox", { name: "Topic tags" });
   await topics.fill("#Research");
@@ -92,11 +103,18 @@ test("Explore opens with a billboard above its composer and icon-based feed", as
   await expect(publish).toBeEnabled();
   await testInfo.attach("Achievement composer", { body: await composer.screenshot(), contentType: "image/png" });
   await publish.click();
+  await expect(explore.getByRole("status").filter({ hasText: "Post submitted for review." })).toBeVisible();
+  await expect(explore.getByRole("article").filter({ hasText: body })).toHaveCount(0);
+  await expect(postChoice).toBeChecked();
+  expect(writes).toEqual([expect.objectContaining({ body, type: "ACHIEVEMENT", tags: ["Community work"] })]);
+  await explore.getByRole("link", { name: "Track your submissions" }).click();
+  const pending = page.getByRole("article").filter({ hasText: body });
+  await expect(pending.getByText("Pending review")).toBeVisible();
+  approve();
+  await page.getByRole("link", { name: "Back to Explore" }).click();
   const published = explore.getByRole("article").filter({ hasText: body });
   await expect(published.getByText("Achievement", { exact: true })).toBeVisible();
   await expect(published.getByRole("list", { name: "Topic tags" }).getByText("Community work")).toBeVisible();
-  await expect(postChoice).toBeChecked();
-  expect(writes).toEqual([expect.objectContaining({ body, type: "ACHIEVEMENT", tags: ["Community work"] })]);
 });
 
 test("the billboard rotates and stops when the member pauses it", async ({ page }) => {

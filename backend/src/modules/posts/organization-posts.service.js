@@ -22,6 +22,7 @@ const postSelect = {
 };
 const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true } } };
 const memberPostSelect = { id: true, type: true, tags: true, body: true, createdAt: true, author: { select: memberSelect } };
+const ownMemberPostSelect = { ...memberPostSelect, moderationStatus: true, moderationFeedback: true };
 const repostSelect = { id: true, createdAt: true, account: { select: memberSelect } };
 const identifier = z.uuid();
 const sourceInput = z.enum(["organization", "member"]);
@@ -118,6 +119,10 @@ function visibleMember(accountId) {
     manualIdentityRequest: { state: "APPROVED" },
     person: { profile: { profilePublicEnabled: true } },
   };
+}
+
+function visibleMemberPost(accountId) {
+  return { moderationStatus: "PUBLISHED", withdrawnAt: null, author: visibleMember(accountId) };
 }
 
 function likeSelect(accountId) {
@@ -228,7 +233,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         AND: [
           boundary(position, "saved"),
           { OR: [
-            { memberPost: { withdrawnAt: null, author: visibleMember(accountId) } },
+            { memberPost: visibleMemberPost(accountId) },
             { organizationPost: { withdrawnAt: null, organization: readyFilter, author: unblockedAuthor(accountId) } },
           ] },
         ],
@@ -264,8 +269,9 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
 
   async function visiblePost(db, viewer, { source, id }) {
     const member = source === "member";
-    const author = member ? visibleMember(viewer) : unblockedAuthor(viewer);
-    const where = { id, withdrawnAt: null, author, ...(!member && { organization: readyFilter }) };
+    const where = member
+      ? { id, ...visibleMemberPost(viewer) }
+      : { id, withdrawnAt: null, organization: readyFilter, author: unblockedAuthor(viewer) };
     const target = await postModel(db, source).findFirst({ where, select: { authorId: true } });
     if (!target) throw unavailable();
     if (member) {
@@ -361,24 +367,24 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         return page;
       }
       const organization = { ...readyFilter };
-      const member = visibleMember(actor.accountId);
-      const reposter = { ...member };
+      const member = visibleMemberPost(actor.accountId);
+      const reposter = { ...member.author };
       if (view === "following") {
         const followers = { some: { followerId: actor.accountId, active: true } };
         organization.followers = followers;
-        member.followers = followers;
+        member.author.followers = followers;
         reposter.followers = followers;
       }
       const [organizations, members, reposts] = await Promise.all([
         findPosts(prisma.organizationPost, { ...postSelect, ...select }, { organization, author: unblockedAuthor(actor.accountId) }, position, "organization"),
-        findPosts(prisma.memberPost, { ...memberPostSelect, ...select }, { author: member }, position, "member"),
+        findPosts(prisma.memberPost, { ...memberPostSelect, ...select }, member, position, "member"),
         prisma.postRepost.findMany({
           where: {
             account: reposter,
             AND: [
               boundary(position, "repost"),
               { OR: [
-                { memberPost: { withdrawnAt: null, author: visibleMember(actor.accountId) } },
+                { memberPost: visibleMemberPost(actor.accountId) },
                 { organizationPost: { withdrawnAt: null, organization: readyFilter, author: unblockedAuthor(actor.accountId) } },
               ] },
             ],
@@ -524,7 +530,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const position = readCursor(cursor, actor.accountId, "my-posts");
       const [access, rows] = await Promise.all([
         memberEligibility(prisma, actor.accountId),
-        findPosts(prisma.memberPost, memberPostSelect, { authorId: actor.accountId }, position, "member"),
+        findPosts(prisma.memberPost, ownMemberPostSelect, { authorId: actor.accountId }, position, "member"),
       ]);
       await assertNetworkSession(prisma, actor, now);
       return { access, items: rows.slice(0, pageSize).map(memberPost), nextCursor: cursorFor(rows, actor.accountId, "my-posts") };
@@ -539,7 +545,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         if (!access.identityVerified) throw fail(403, "Verify your identity before publishing a personal post.");
         if (!access.profilePublic) throw fail(403, "Publish your public profile before sharing personal posts.");
         const key = { authorId: actor.accountId, requestKey: data.requestKey };
-        const previous = await tx.memberPost.findUnique({ where: { authorId_requestKey: key }, select: { ...memberPostSelect, withdrawnAt: true } });
+        const previous = await tx.memberPost.findUnique({ where: { authorId_requestKey: key }, select: { ...ownMemberPostSelect, withdrawnAt: true } });
         if (previous) {
           const { withdrawnAt, ...post } = previous;
           const sameTags = post.tags.length === data.tags.length && post.tags.every((tag, index) => tag === data.tags[index]);
@@ -550,7 +556,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
-        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, body: data.body, createdAt: now() }, select: memberPostSelect });
+        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, body: data.body, createdAt: now() }, select: ownMemberPostSelect });
         return { post: memberPost(post) };
       });
     },

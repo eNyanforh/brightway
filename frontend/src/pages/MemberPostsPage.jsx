@@ -10,7 +10,7 @@ export default function MemberPostsPage() {
       <header className="bw-explore-heading">
         <Link to="/explore">Back to Explore</Link>
         <h1>My posts</h1>
-        <p>Share a learning or career update with the BrightWay community.</p>
+        <p>Share a learning or career update and follow its review status here.</p>
       </header>
       <PostsPanel key={account.id} personal composerAccount={account} composerPhotoId={outlet?.profileDraft?.profile.photo?.id} />
     </section>

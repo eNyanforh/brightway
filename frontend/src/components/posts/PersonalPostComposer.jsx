@@ -33,7 +33,7 @@ export function PostTopicTags({ tags, onRemove, disabled }) {
   );
 }
 
-export default function PersonalPostComposer({ account, photoId, body, type, tags, disabled, submitLabel, onBodyChange, onTypeChange, onTagsChange, onSubmit }) {
+export default function PersonalPostComposer({ account, photoId, body, type, tags, disabled, onBodyChange, onTypeChange, onTagsChange, onSubmit }) {
   const radioName = useId();
   const topicId = useId();
   const topicInput = useRef(null);
@@ -120,7 +120,7 @@ export default function PersonalPostComposer({ account, photoId, body, type, tag
           </div>
           <div className="bw-personal-composer-footer">
             <span>{body.length ? body.length + " / 2,000" : ""}</span>
-            <button className="bw-personal-composer-submit" type="submit" disabled={disabled || !body.trim() || !tags.length || hasTopicDraft}>{submitLabel}</button>
+            <button className="bw-personal-composer-submit" type="submit" disabled={disabled || !body.trim() || !tags.length || hasTopicDraft}>Submit for review</button>
           </div>
         </div>
       </div>

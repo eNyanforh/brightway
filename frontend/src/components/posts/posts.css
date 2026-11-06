@@ -252,6 +252,20 @@
 }
 .bw-post-card .bw-post-type-label { margin-top: .65rem; }
 .bw-post-card .bw-post-type-label + .bw-post-text { margin-top: .35rem; }
+.bw-post-review-status {
+  display: inline-block;
+  margin-inline-start: .4rem;
+  padding: .15rem .45rem;
+  border-radius: 999px;
+  background: #fff2d9;
+  color: #88540a;
+  font-size: .72rem;
+  font-weight: 700;
+}
+.bw-post-review-status[data-status="PUBLISHED"] { background: #e1f6f1; color: #0b695d; }
+.bw-post-review-status[data-status="REJECTED"] { background: #fff0ed; color: #9b2416; }
+.bw-post-review-feedback { margin-top: .55rem; padding: .65rem .8rem; border-radius: .55rem; background: #fff5f2; font-size: .9rem; overflow-wrap: anywhere; }
+.bw-post-review-feedback p { margin: .25rem 0 0; white-space: pre-wrap; }
 
 @container (max-width: 27rem) {
   .bw-post-type-content {

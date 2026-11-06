@@ -10,6 +10,13 @@ const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle
 
 const timelineDate = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
 
+const reviewLabels = { PENDING: "Pending review", PUBLISHED: "Published", REJECTED: "Declined" };
+const submissionNotices = {
+  PENDING: "Post submitted for review.",
+  PUBLISHED: "Post published.",
+  REJECTED: "The review decision is available in My Posts.",
+};
+
 const postSource = post => post.organization ? "organization" : "member";
 const postKey = post => postSource(post) + ":" + post.id;
 const cardKey = post => post.repost ? "repost:" + post.repost.id : postKey(post);
@@ -77,10 +84,12 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }
         </div>
       </header>
       {typeLabel}
+      {reviewLabels[post.moderationStatus] && <span className="bw-post-review-status" data-status={post.moderationStatus}>{reviewLabels[post.moderationStatus]}</span>}
       <p className="bw-post-text">{post.body}</p>
       {topicTags}
+      {post.moderationFeedback && <div className="bw-post-review-feedback"><strong>Review feedback</strong><p>{post.moderationFeedback}</p></div>}
       {confirming ? <div className="bw-post-actions">
-        <span>Withdraw this post from Explore?</span>
+        <span>{post.member ? "Withdraw this post?" : "Withdraw this post from Explore?"}</span>
         <button type="button" disabled={busy} onClick={() => onWithdraw(post.id)}>Confirm withdrawal</button>
         <button type="button" disabled={busy} onClick={() => setConfirming(false)}>Cancel</button>
       </div> : <button type="button" className="bw-post-quiet" disabled={busy} onClick={() => setConfirming(true)}>Withdraw post</button>}
@@ -171,16 +180,18 @@ export default function PostsPanel({ organization, personal = false, view = "for
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
     void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
-      const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false } : post;
-      setPage(previous => ({
-        ...previous,
-        items: [published, ...(previous?.items || []).filter(item => cardKey(item) !== cardKey(published))],
-      }));
+      if (!timeline || post.moderationStatus === "PUBLISHED") {
+        const item = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false } : post;
+        setPage(previous => ({
+          ...previous,
+          items: [item, ...(previous?.items || []).filter(previousItem => cardKey(previousItem) !== cardKey(item))],
+        }));
+      }
       publishKey.current = null;
       setBody("");
       setType("POST");
       setTags([]);
-      setNotice("Post published.");
+      setNotice(memberComposer ? submissionNotices[post.moderationStatus] ?? submissionNotices.PENDING : "Post published.");
     }, { preserveOnDenied: inlineComposer });
   }
 
@@ -233,7 +244,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     <section className={timeline ? "bw-post-panel bw-timeline-panel" : "bw-post-panel"} aria-label={organization ? "Organization posts" : personal ? "Your posts" : "Explore posts"}>
       {memberComposer && (!personal || canPublish) && (
         <PersonalPostComposer account={composerAccount} photoId={composerPhotoId} body={body} type={type} tags={tags}
-          disabled={!canPublish || pending} submitLabel={personal ? "Publish post" : "Post"}
+          disabled={!canPublish || pending}
           onBodyChange={changeBody} onTypeChange={changeType} onTagsChange={changeTags} onSubmit={publish} />
       )}
       {personal && page && !canPublish && (
@@ -255,7 +266,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
           </div>
         </form>
       )}
-      {notice && <p role="status">{notice}</p>}
+      {notice && <p role="status">{notice}{inlineComposer && <> <Link to="/posts">Track your submissions</Link></>}</p>}
       {error && <p className="bw-post-error" role="alert">{error.message}{inlineComposer && error.status === 403 && <> <Link to="/profile">Open your profile</Link></>}</p>}
       {!page && !error && <p role="status">Loading posts…</p>}
       <div className={timeline ? "bw-timeline-refresh" : "bw-post-actions"}>

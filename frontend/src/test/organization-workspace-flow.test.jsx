@@ -304,7 +304,7 @@ it("Explore loads comments on demand and retries a draft without refreshing the 
 it("the personal Post destination checks verification and lets authors withdraw after unpublishing their profile", async () => {
   let verified = false, published = true;
   const body = "Join our research showcase on November 12 at 10 a.m. in the campus library.";
-  const post = { id: "personal-post", body, type: "EVENT", tags: ["Research"], createdAt: "2026-11-05T10:00:00Z", member: { username: "owner", name: "Test Owner" } };
+  const post = { id: "personal-post", body, type: "EVENT", tags: ["Research"], moderationStatus: "PENDING", createdAt: "2026-11-05T10:00:00Z", member: { username: "owner", name: "Test Owner" } };
   const f = mount("/explore", (url, options) => {
     if (url.includes("/explore/posts?")) return reply({ items: [], nextCursor: null });
     if (url.endsWith("/posts/me") && options?.method === "POST") {
@@ -320,24 +320,29 @@ it("the personal Post destination checks verification and lets authors withdraw 
   });
   await f.user.click(screen.getByRole("link", { name: "My posts" }));
   expect((await screen.findByRole("link", { name: "Verify your identity" })).getAttribute("href")).toBe("/manual-identity");
-  expect(screen.queryByRole("button", { name: "Publish post" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Submit for review" })).toBeNull();
   verified = true;
   const refresh = screen.getByRole("button", { name: "Refresh posts" });
   await f.user.click(refresh);
   await f.user.click(await screen.findByRole("radio", { name: "Share an Event" }));
   await f.user.type(screen.getByRole("textbox", { name: "Write an event" }), body);
-  const publish = screen.getByRole("button", { name: "Publish post" });
+  const publish = screen.getByRole("button", { name: "Submit for review" });
   expect(publish.disabled).toBe(true);
   await f.user.type(screen.getByRole("textbox", { name: "Topic tags" }), "Research{Enter}");
   await f.user.click(publish);
-  await screen.findByText("Post published.");
+  await screen.findByText("Post submitted for review.");
   expect(screen.getByRole("link", { name: "Test Owner" }).getAttribute("href")).toBe("/people/owner");
   expect(within(screen.getByRole("article")).getByText("Event", { exact: true })).toBeTruthy();
   expect(within(screen.getByRole("list", { name: "Topic tags" })).getByText("Research")).toBeTruthy();
+  expect(within(screen.getByRole("article")).getByText("Pending review")).toBeTruthy();
   published = false;
+  post.moderationStatus = "REJECTED";
+  post.moderationFeedback = "Add more context about the audience and registration.";
   await f.user.click(refresh);
   await screen.findByRole("link", { name: "Publish your public profile" });
-  expect(screen.queryByRole("button", { name: "Publish post" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Submit for review" })).toBeNull();
+  expect(within(screen.getByRole("article")).getByText("Declined")).toBeTruthy();
+  expect(screen.getByText(post.moderationFeedback)).toBeTruthy();
   await f.user.click(screen.getByRole("button", { name: "Withdraw post" }));
   await f.user.click(screen.getByRole("button", { name: "Confirm withdrawal" }));
   await screen.findByText("Post withdrawn.");
