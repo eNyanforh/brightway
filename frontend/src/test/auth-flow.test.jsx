@@ -106,7 +106,7 @@ it("restores an existing session and leaves protected pages after logout", async
     )
   );
 
-  await screen.findByRole("heading", {
+  await screen.findByRole("region", {
     name: "Explore",
   });
 
@@ -212,7 +212,7 @@ it("shows a failed login without granting access", async () => {
     .toContain("Invalid username/email or password.");
 
   expect(
-    screen.queryByRole("heading", { name: "Explore" })
+    screen.queryByRole("region", { name: "Explore" })
   ).toBeNull();
 });
 

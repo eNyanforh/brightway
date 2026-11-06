@@ -314,7 +314,7 @@ it("the personal Post destination checks verification and lets authors withdraw 
     });
     return reply(context);
   });
-  await f.user.click(screen.getByRole("link", { name: "Create a post" }));
+  await f.user.click(screen.getByRole("link", { name: "My posts" }));
   expect((await screen.findByRole("link", { name: "Verify your identity" })).getAttribute("href")).toBe("/manual-identity");
   expect(screen.queryByRole("button", { name: "Publish post" })).toBeNull();
   verified = true;
@@ -482,7 +482,7 @@ it("keeps the same organization navigation mounted while switching tabs and clea
 it("leaving an organization hides its navigation and name in the real account layout", async () => {
   const f = mount(); await screen.findByRole("heading", { name: "Dashboard", level: 2 });
   await f.user.click(within(screen.getByRole("navigation", { name: "Account contexts" })).getByRole("link", { name: "Return to Personal" }));
-  await screen.findByRole("heading", { name: "Explore" });
+  await screen.findByRole("region", { name: "Explore" });
   expect(screen.queryByRole("navigation", { name: "Organization tools" })).toBeNull();
   expect(screen.queryByRole("navigation", { name: "Mobile organization navigation" })).toBeNull();
   expect(document.querySelector(".bw-design-personal").textContent).not.toContain(organization.name);

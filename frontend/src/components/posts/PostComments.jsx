@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
+import NavigationIcon from "../layout/NavigationIcon";
 import { organizationPostsApi as api } from "../../api/organization-posts";
 
 const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
-export default function PostComments({ source, postId }) {
+export default function PostComments({ source, postId, children }) {
   const regionId = useId();
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(null);
@@ -72,7 +73,13 @@ export default function PostComments({ source, postId }) {
 
   return (
     <div className="bw-post-comments">
-      <button type="button" aria-expanded={expanded} aria-controls={regionId} disabled={pending} onClick={toggle}>Comments</button>
+      <div className="bw-timeline-actions">
+        <button type="button" className="bw-timeline-action" aria-label="Comments" title="Comments"
+          aria-expanded={expanded} aria-controls={regionId} disabled={pending} onClick={toggle}>
+          <NavigationIcon name="reply" size={19} />
+        </button>
+        {children}
+      </div>
       <section id={regionId} hidden={!expanded} aria-label="Post comments">
         {error && <p className="bw-post-error" role="alert">{error}</p>}
         {!page && pending && <p role="status">Loading comments…</p>}

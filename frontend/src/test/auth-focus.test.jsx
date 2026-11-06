@@ -139,13 +139,13 @@ it("keeps the account visible during background checks but rejects a revoked ses
 
   mount("/explore", fetchMock);
 
-  await screen.findByRole("heading", {
+  await screen.findByRole("region", {
     name: "Explore",
   });
 
   fireEvent.focus(window);
 
-  expect(screen.getByRole("heading", { name: "Explore" })).toBeTruthy();
+  expect(screen.getByRole("region", { name: "Explore" })).toBeTruthy();
 
   expect(screen.getByRole("button", { name: "Open account menu" })).toBeTruthy();
 

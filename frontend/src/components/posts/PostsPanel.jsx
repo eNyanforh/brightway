@@ -1,28 +1,70 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { organizationPostsApi as api } from "../../api/organization-posts";
+import { photoUrl } from "../../api/profile";
+import NavigationIcon from "../layout/NavigationIcon";
 import PostComments from "./PostComments";
 import "./posts.css";
 
 const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
+const timelineDate = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+
 const postSource = post => post.organization ? "organization" : "member";
 const postKey = post => postSource(post) + ":" + post.id;
 const cardKey = post => post.repost ? "repost:" + post.repost.id : postKey(post);
 
-function PostCard({ post, editable, busy, onWithdraw, onLike, onSave, onRepost }) {
+function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }) {
   const [confirming, setConfirming] = useState(false);
   const publisher = post.organization || post.member;
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
+  if (timeline) {
+    return (
+      <article className="bw-timeline-post">
+        {post.repost && (
+          <p className="bw-timeline-repost">
+            <NavigationIcon name="repost" size={15} />
+            <Link to={post.repost.mine ? "/profile" : "/people/" + encodeURIComponent(post.repost.member.username)}>{post.repost.mine ? "You" : post.repost.member.name}</Link>
+            <span>reposted</span>
+          </p>
+        )}
+        <Link className="bw-timeline-avatar" to={profileUrl} aria-hidden="true" tabIndex={-1}>{publisher.name.slice(0, 1).toUpperCase()}</Link>
+        <div className="bw-timeline-post-main">
+          <header className="bw-timeline-byline">
+            <Link to={profileUrl}>{publisher.name}</Link>
+            {publisher.username && <span>@{publisher.username}</span>}
+            <span aria-hidden="true">·</span>
+            <time dateTime={post.createdAt} title={time.format(new Date(post.createdAt))}>{timelineDate.format(new Date(post.createdAt))}</time>
+          </header>
+          <p className="bw-post-text">{post.body}</p>
+          <PostComments postId={post.id} source={postSource(post)}>
+            {typeof post.reposted === "boolean" && (
+              <button type="button" className="bw-timeline-action bw-timeline-repost-action" disabled={busy}
+                aria-label={post.reposted ? "Undo repost" : "Repost"} title={post.reposted ? "Undo repost" : "Repost"}
+                data-active={post.reposted} onClick={() => onRepost(post)}><NavigationIcon name="repost" size={19} /></button>
+            )}
+            {post.reaction && (
+              <button type="button" className="bw-timeline-action bw-timeline-like-action" disabled={busy}
+                aria-label="Like" title="Like" aria-pressed={post.reaction.liked} onClick={() => onLike(post)}>
+                <NavigationIcon name="like" size={19} active={post.reaction.liked} />
+                <span aria-live="polite">
+                  <span className="bw-timeline-sr">{post.reaction.count} {post.reaction.count === 1 ? "like" : "likes"}</span>
+                  {post.reaction.count > 0 && <span aria-hidden="true">{post.reaction.count}</span>}
+                </span>
+              </button>
+            )}
+            {typeof post.saved === "boolean" && (
+              <button type="button" className="bw-timeline-action bw-timeline-save-action" disabled={busy}
+                aria-label="Save post" title={post.saved ? "Remove bookmark" : "Bookmark"} aria-pressed={post.saved}
+                onClick={() => onSave(post)}><NavigationIcon name="bookmark" size={19} active={post.saved} /></button>
+            )}
+          </PostComments>
+        </div>
+      </article>
+    );
+  }
   return (
     <article className="bw-post-card">
-      {post.repost && (
-        <p className="bw-post-attribution">
-          <Link to={post.repost.mine ? "/profile" : "/people/" + encodeURIComponent(post.repost.member.username)}>{post.repost.mine ? "You" : post.repost.member.name}</Link>
-          {" reposted · "}
-          <time dateTime={post.repost.createdAt}>{time.format(new Date(post.repost.createdAt))}</time>
-        </p>
-      )}
       <header>
         <span className="bw-post-badge" aria-hidden="true">{publisher.name.slice(0, 1).toUpperCase()}</span>
         <div>
@@ -31,41 +73,20 @@ function PostCard({ post, editable, busy, onWithdraw, onLike, onSave, onRepost }
         </div>
       </header>
       <p className="bw-post-text">{post.body}</p>
-      {!editable && post.reaction && (
-        <div className="bw-post-actions bw-post-reactions">
-          <button type="button" aria-pressed={post.reaction.liked} disabled={busy} onClick={() => onLike(post)}>
-            Like
-          </button>
-          <span aria-live="polite">{post.reaction.count} {post.reaction.count === 1 ? "like" : "likes"}</span>
-          {typeof post.reposted === "boolean" && (
-            <button type="button" disabled={busy} onClick={() => onRepost(post)}>
-              {post.reposted ? "Undo repost" : "Repost"}
-            </button>
-          )}
-          {typeof post.saved === "boolean" && (
-            <button type="button" aria-label="Save post" aria-pressed={post.saved} disabled={busy} onClick={() => onSave(post)}>
-              {post.saved ? "Saved" : "Save"}
-            </button>
-          )}
-        </div>
-      )}
-      {!editable && <PostComments postId={post.id} source={postSource(post)} />}
-      {editable && (
-        confirming ? <div className="bw-post-actions">
-          <span>Withdraw this post from Explore?</span>
-          <button type="button" disabled={busy} onClick={() => onWithdraw(post.id)}>Confirm withdrawal</button>
-          <button type="button" disabled={busy} onClick={() => setConfirming(false)}>Cancel</button>
-        </div> : <button type="button" className="bw-post-quiet" disabled={busy} onClick={() => setConfirming(true)}>Withdraw post</button>
-      )}
+      {confirming ? <div className="bw-post-actions">
+        <span>Withdraw this post from Explore?</span>
+        <button type="button" disabled={busy} onClick={() => onWithdraw(post.id)}>Confirm withdrawal</button>
+        <button type="button" disabled={busy} onClick={() => setConfirming(false)}>Cancel</button>
+      </div> : <button type="button" className="bw-post-quiet" disabled={busy} onClick={() => setConfirming(true)}>Withdraw post</button>}
     </article>
   );
 }
 
-export default function PostsPanel({ organization, personal = false, view = "for-you", disabled = false }) {
+export default function PostsPanel({ organization, personal = false, view = "for-you", disabled = false, timeline = false, composerAccount, composerPhotoId }) {
   const organizationId = organization?.id;
   const editable = Boolean(organization) || personal;
   const [page, setPage] = useState(null);
-  const canPublish = Boolean(page) && !disabled && (!personal || (page.access?.identityVerified && page.access?.profilePublic));
+  const canPublish = !disabled && (composerAccount || (page && (!personal || (page.access?.identityVerified && page.access?.profilePublic))));
   const [body, setBody] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
@@ -73,7 +94,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const active = useRef(null);
   const publishKey = useRef(null);
 
-  const run = useCallback(async (operation, receive, unavailable) => {
+  const run = useCallback(async (operation, receive, { unavailable, preserveOnDenied = false } = {}) => {
     if (active.current) return;
     const controller = new AbortController();
     const { signal } = controller;
@@ -88,7 +109,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     } catch (failure) {
       if (!signal.aborted) {
         if (failure.status === 404 && unavailable) unavailable();
-        else if (failure.status === 401 || (!unavailable && [403, 404].includes(failure.status))) setPage(null);
+        else if (failure.status === 401 || (!unavailable && !preserveOnDenied && [403, 404].includes(failure.status))) setPage(null);
         setError(failure);
       }
     } finally {
@@ -125,12 +146,16 @@ export default function PostsPanel({ organization, personal = false, view = "for
     setNotice("");
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
-    void run(signal => personal ? api.memberPublish(draft, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
-      setPage(previous => ({ ...previous, items: [post, ...previous.items.filter(item => item.id !== post.id)] }));
+    void run(signal => personal || composerAccount ? api.memberPublish(draft, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
+      const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false } : post;
+      setPage(previous => ({
+        ...previous,
+        items: [published, ...(previous?.items || []).filter(item => cardKey(item) !== cardKey(published))],
+      }));
       publishKey.current = null;
       setBody("");
       setNotice("Post published.");
-    });
+    }, { preserveOnDenied: Boolean(composerAccount) });
   }
 
   function updateFeedPost(post, operation, transform) {
@@ -140,7 +165,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     void run(
       signal => operation(postSource(post), signal),
       data => setPage(previous => ({ ...previous, items: transform(previous.items, key, data) })),
-      () => setPage(previous => ({ ...previous, items: remove(previous.items) })),
+      { unavailable: () => setPage(previous => ({ ...previous, items: remove(previous.items) })) },
     );
   }
 
@@ -179,7 +204,22 @@ export default function PostsPanel({ organization, personal = false, view = "for
   }
 
   return (
-    <section className="bw-post-panel" aria-label={organization ? "Organization posts" : personal ? "Your posts" : "Explore posts"}>
+    <section className={timeline ? "bw-post-panel bw-timeline-panel" : "bw-post-panel"} aria-label={organization ? "Organization posts" : personal ? "Your posts" : "Explore posts"}>
+      {composerAccount && (
+        <form className="bw-timeline-composer" aria-label="Create a post" onSubmit={publish}>
+          <div className="bw-timeline-avatar" aria-hidden="true">
+            {composerPhotoId ? <img src={photoUrl(composerPhotoId)} alt="" /> : (composerAccount.person?.firstName || composerAccount.username || "B").slice(0, 1).toUpperCase()}
+          </div>
+          <div className="bw-timeline-composer-main">
+            <textarea aria-label="Write a post" placeholder="What’s happening?" rows={2} maxLength={2000} value={body} disabled={pending || disabled}
+              onChange={event => { publishKey.current = null; setBody(event.target.value); }} />
+            <div className="bw-timeline-composer-footer">
+              <span>{body.length ? body.length + " / 2,000" : ""}</span>
+              <button className="bw-timeline-publish" type="submit" disabled={!body.trim() || pending}>Post</button>
+            </div>
+          </div>
+        </form>
+      )}
       {personal && page && !canPublish && (
         <div className="bw-post-empty">
           {!page.access?.identityVerified && <p><Link to="/manual-identity">Verify your identity</Link> to publish personal posts.</p>}
@@ -200,10 +240,10 @@ export default function PostsPanel({ organization, personal = false, view = "for
         </form>
       )}
       {notice && <p role="status">{notice}</p>}
-      {error && <p className="bw-post-error" role="alert">{error.message}</p>}
+      {error && <p className="bw-post-error" role="alert">{error.message}{composerAccount && error.status === 403 && <> <Link to="/profile">Open your profile</Link></>}</p>}
       {!page && !error && <p role="status">Loading posts…</p>}
-      <div className="bw-post-actions">
-        <button type="button" disabled={pending || disabled} onClick={() => void load()}>Refresh posts</button>
+      <div className={timeline ? "bw-timeline-refresh" : "bw-post-actions"}>
+        <button type="button" disabled={pending || disabled} onClick={() => void load()}>{timeline ? "Refresh feed" : "Refresh posts"}</button>
       </div>
       {page?.items.length === 0 && (
         <p className="bw-post-empty">{organization ? "Your organization has no published posts yet." :
@@ -211,7 +251,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
             view === "saved" ? "Save a post to find it here later." :
               view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
       )}
-      {page?.items.map(post => <PostCard key={cardKey(post)} post={post} editable={editable} busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} onRepost={repost} />)}
+      {page?.items.map(post => <PostCard key={cardKey(post)} post={post} timeline={timeline} busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} onRepost={repost} />)}
       {page?.nextCursor && <button type="button" disabled={pending || disabled} onClick={() => void load(page.nextCursor)}>Load older posts</button>}
     </section>
   );

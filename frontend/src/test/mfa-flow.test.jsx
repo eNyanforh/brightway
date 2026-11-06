@@ -38,10 +38,10 @@ it("keeps the user outside protected pages until the second step succeeds and ne
   const form = screen.getByLabelText("Authenticator or backup code").closest("form");
   fireEvent.submit(form); fireEvent.submit(form);
   await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/verify-login"))).toHaveLength(1));
-  expect(screen.queryByRole("heading", { name: "Explore" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Explore" })).toBeNull();
   const options = fetchMock.mock.calls.find(([url]) => url.endsWith("/verify-login"))[1];
   expect(JSON.parse(options.body)).toEqual({ code: "123456" }); expect(options.credentials).toBe("include");
-  release(response({ account })); await screen.findByRole("heading", { name: "Explore" });
+  release(response({ account })); await screen.findByRole("region", { name: "Explore" });
 });
 it("a rejected second factor preserves the code and never grants access", async () => {
   const { user } = loginMount(async (url) => url.endsWith("/auth/login") ? response({ mfaRequired: true }) : url.endsWith("/cancel-login") ? response({}) : response("Invalid or expired authentication code.", 401));
@@ -49,7 +49,7 @@ it("a rejected second factor preserves the code and never grants access", async 
   await user.click(screen.getByRole("button", { name: "Verify and log in" }));
   expect((await screen.findByRole("alert")).textContent).toContain("Invalid or expired");
   expect(screen.getByLabelText("Authenticator or backup code").value).toBe("123456");
-  expect(screen.queryByRole("heading", { name: "Explore" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Explore" })).toBeNull();
   await user.click(screen.getByRole("button", { name: "Use another account" }));
   expect((await screen.findByLabelText("Password")).value).toBe("");
 });
