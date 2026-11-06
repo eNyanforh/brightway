@@ -121,7 +121,7 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     assert.deepEqual(retriedLikes, [{ reaction: { liked: true, count: 1 } }, { reaction: { liked: true, count: 1 } }]);
     const readerFeed = (await posts.feed(actor(2), { view: "following" })).items.find(item => item.id === post.id);
     assert.deepEqual(readerFeed.reaction, { liked: true, count: 1 });
-    assert.deepEqual(Object.keys(readerFeed).sort(), ["body", "createdAt", "id", "organization", "reaction", "reposted", "saved"]);
+    assert.deepEqual(Object.keys(readerFeed).sort(), ["body", "createdAt", "id", "organization", "reaction", "reposted", "saved", "views"]);
     assert.deepEqual((await posts.feed(actor(0), {})).items.find(item => item.id === post.id).reaction, { liked: false, count: 1 });
     assert.deepEqual(await like(0, true), { reaction: { liked: true, count: 2 } });
     assert.deepEqual(await like(2, false), { reaction: { liked: false, count: 1 } });
