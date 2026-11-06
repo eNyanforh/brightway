@@ -318,7 +318,7 @@ it("the personal Post destination checks verification and lets authors withdraw 
     });
     return reply(context);
   });
-  await f.user.click(screen.getByRole("link", { name: "My posts" }));
+  await f.user.click(screen.getByRole("link", { name: "View my posts" }));
   expect((await screen.findByRole("link", { name: "Verify your identity" })).getAttribute("href")).toBe("/manual-identity");
   expect(screen.queryByRole("button", { name: "Create an Event" })).toBeNull();
   verified = true;
