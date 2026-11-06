@@ -750,6 +750,10 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       }
 
       return writeVisiblePost(actor, ref, async tx => {
+        if (ref.source === "member") {
+          const original = await tx.memberPost.findUniqueOrThrow({ where: { id: ref.id }, select: { type: true } });
+          if (original.type === "QUESTION") throw fail(400, "Questions cannot be reposted. Share a link instead.");
+        }
         await lockMemberProfile(tx, actor.accountId);
         const access = await memberEligibility(tx, actor.accountId);
         if (!access.identityVerified || !access.profilePublic) {
