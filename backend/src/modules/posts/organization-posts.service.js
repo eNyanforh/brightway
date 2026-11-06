@@ -444,6 +444,25 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
   }
 
   return {
+    async readPost(actor, sourceValue, idValue) {
+      const ref = postRef(sourceValue, idValue);
+      await assertNetworkSession(prisma, actor, now);
+      await visiblePost(prisma, actor.accountId, ref);
+      const ownActivity = { where: { accountId: actor.accountId }, select: { id: true } };
+      const select = { ...likeSelect(actor.accountId), saves: ownActivity, reposts: ownActivity };
+      const memberSelectEngagement = {
+        ...memberPostSelect, ...select,
+        _count: { select: { likes: true, views: true, registrations: true, answers: { where: { deletedAt: null } } } },
+        registrations: { where: { accountId: actor.accountId }, select: { id: true } },
+      };
+      const row = await postModel(prisma, ref.source).findUniqueOrThrow({
+        where: { id: ref.id },
+        select: ref.source === "member" ? memberSelectEngagement : { ...postSelect, ...select },
+      });
+      await assertNetworkSession(prisma, actor, now);
+      return { post: feedPost(row) };
+    },
+
     async registerEvent(actor, idValue, input) {
       const id = parse(identifier, idValue, "Choose a valid event.");
       const { registered } = parse(registrationInput, input, "Choose whether to register.");
