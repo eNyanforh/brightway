@@ -611,9 +611,8 @@ it("provides the five mobile destinations and header utilities without another p
   ]);
   expect(within(navigation).getByRole("link", { name: "Post", exact: true }).getAttribute("href")).toBe("/posts");
   const header = screen.getByRole("banner");
-  for (const name of ["Search — coming soon", "Messages — coming soon"]) {
-    expect(within(header).getByRole("button", { name, exact: true }).disabled).toBe(true);
-  }
+  expect(within(header).getByRole("link", { name: "Search BrightWay" }).getAttribute("href")).toBe("/search");
+  expect(within(header).getByRole("button", { name: "Messages — coming soon", exact: true }).disabled).toBe(true);
   expect(within(header).getByRole("link", { name: "Notifications", exact: true }).getAttribute("href"))
     .toBe("/notifications");
   expect(within(header).getByRole("button", { name: "Open account menu" })).toBeTruthy();

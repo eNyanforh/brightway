@@ -1,3 +1,4 @@
+import { createDirectorySearch } from "../src/modules/search/directory-search.service.js";
 import { seedOrganizationProfile, clearOrganizationProfiles } from "../test-support/organization-profile-seed.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -87,6 +88,10 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     assert.deepEqual((await service.context(staff.id, sessions[1].id, organization.id)).permissions, [POSTS]);
     const posts = createOrganizationPosts({ prisma: db, now: () => now });
     const actor = (index) => ({ accountId: accounts[index].id, sessionId: sessions[index].id });
+    const search = createDirectorySearch({ prisma: db, now: () => now });
+    const directoryResult = await search(actor(2), { q: "Staff fixt", kind: "organizations" });
+    assert.deepEqual(directoryResult.items.map(item => [item.name, item.href]), [[organization.name, "/organizations/" + organization.id]]);
+    assert.deepEqual((await search(actor(2), { q: "Staff fixt", kind: "people" })).items, []);
     const draft = { body: "  Our next workshop is open.  ", requestKey: randomUUID() };
     await assert.rejects(posts.publish(actor(2), organization.id, draft), { status: 403 });
     await assert.rejects(posts.publish(actor(0), otherOrg.id, draft), { status: 403 });
@@ -168,6 +173,7 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     await save(2, true);
     await db.organization.update({ where: { id: organization.id }, data: { status: "SUSPENDED" } });
     await assert.rejects(context(), { status: 404 });
+    assert.deepEqual((await search(actor(2), { q: "Staff fixt", kind: "organizations" })).items, []);
     assert.equal(await visible("for-you"), false);
     assert.equal(await visible("saved"), false);
     await assert.rejects(like(2, true), { status: 404 });

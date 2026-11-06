@@ -68,6 +68,36 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     };
     await view(visitor, owner, { status: 404 });
     await preferences(owner, { ...published, headline: "Published fixture" });
+    const search = (actor, q, options = {}, status = 200) =>
+      request(actor, "/search?" + new URLSearchParams({ q, kind: "people", ...options }), { status });
+    await search(null, owner.username, {}, 401);
+    await search(visitor, "!!", {}, 400);
+    const hit = { kind: "people", name: "Synthetic owner", username: owner.username, href: "/people/" + owner.username };
+    assert.deepEqual(await search(visitor, "synt own"), { items: [hit], nextCursor: null });
+    assert.deepEqual((await search(visitor, "@" + owner.username)).items, [hit]);
+    assert.deepEqual((await search(owner, owner.username)).items, []);
+    assert.deepEqual((await search(visitor, other.username)).items, []);
+    assert.deepEqual((await search(visitor, owner.email)).items, []);
+    assert.deepEqual((await search(visitor, "x') OR 1=1 --")).items, []);
+
+    const batch = randomUUID().replaceAll("-", "").slice(0, 8);
+    for (let i = 0; i < 22; i++) {
+      const row = await prisma.account.create({ data: {
+        username: `search_${batch}_${String(i).padStart(2, "0")}`,
+        email: `search_${batch}_${i}@example.invalid`, passwordHash: "synthetic-unusable-hash",
+        person: { create: { firstName: "Directory", lastName: batch, profile: { create: { profilePublicEnabled: true } } } },
+      } });
+      accounts.push(row);
+    }
+    const firstPage = await search(visitor, "Directory " + batch);
+    assert.equal(firstPage.items.length, 20);
+    assert.ok(firstPage.nextCursor);
+    await search(owner, "Directory " + batch, { cursor: firstPage.nextCursor }, 400);
+    await search(visitor, "Directory", { cursor: firstPage.nextCursor }, 400);
+    const nextPage = await search(visitor, "Directory " + batch, { cursor: firstPage.nextCursor });
+    assert.equal(nextPage.nextCursor, null);
+    assert.deepEqual([...firstPage.items, ...nextPage.items].map(item => item.username),
+      Array.from({ length: 22 }, (_, i) => `search_${batch}_${String(i).padStart(2, "0")}`));
     await view(null, owner, { status: 401 });
     await view(visitor, owner, { requestOrigin: "https://foreign.invalid", status: 403 });
 
@@ -108,6 +138,8 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.deepEqual((await inbox(visitor)).items, []);
     await view(visitor, owner, { status: 404 });
     await view(owner, visitor, { status: 404 });
+    assert.deepEqual((await search(visitor, owner.username)).items, []);
+    assert.deepEqual((await search(owner, visitor.username)).items, []);
     await post(visitor, networkAction, { action: "UNBLOCK", expectedVersion: block.version, requestKey: randomUUID() });
     assert.deepEqual((await inbox(owner)).items, []);
     assert.deepEqual((await inbox(visitor)).items, []);
@@ -117,6 +149,8 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     const notice = (await inbox(owner)).items[0];
     assert.deepEqual(await post(owner, "/notifications/" + notice.id + "/dismiss"), { dismissed: true });
     assert.deepEqual((await inbox(owner)).items, []);
+    await preferences(owner, { profilePublicEnabled: false });
+    assert.deepEqual((await search(visitor, owner.username)).items, []);
   } finally {
     try {
       await new Promise(resolve => server.close(resolve));

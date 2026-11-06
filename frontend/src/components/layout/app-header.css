@@ -112,7 +112,7 @@
   font: inherit;
   font-weight: 650;
   font-size: 12px;
-  cursor: not-allowed;
+  cursor: pointer;
 }
 
 .bw-design-account {
