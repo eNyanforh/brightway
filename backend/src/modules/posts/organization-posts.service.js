@@ -168,6 +168,13 @@ function feedPost({ likes, _count, saves, reposts, ...post }) {
   };
 }
 
+function sameEventDetails(left, right) {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+  return ["title", "startAt", "endAt", "timezone", "format", "venue", "meetingUrl", "coverTheme"]
+    .every(key => (left[key] ?? null) === (right[key] ?? null));
+}
+
 function memberPost({ author, ...post }) {
   return { ...post, member: memberAttribution(author) };
 }
@@ -569,7 +576,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         if (previous) {
           const { withdrawnAt, ...post } = previous;
           const sameTags = post.tags.length === data.tags.length && post.tags.every((tag, index) => tag === data.tags[index]);
-          const sameEvent = JSON.stringify(post.eventDetails ?? null) === JSON.stringify(data.eventDetails ?? null);
+          const sameEvent = sameEventDetails(post.eventDetails, data.eventDetails);
           if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags || !sameEvent) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
           return { post: memberPost(post) };
         }
