@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { MAX_POST_TOPICS, MAX_POST_TOPIC_LENGTH, normalizePostTopic } from "../../../../shared/post-topics.mjs";
 import { photoUrl } from "../../api/profile";
 import Icon from "../layout/Icon";
@@ -25,6 +26,7 @@ const types = [
   },
 ];
 const legacyType = { type: "POST", label: "Post", icon: "post" };
+const achievementTopicSuggestions = ["Graduation", "Certification", "New skills", "Projects", "Career growth", "Research"];
 
 export function PersonalPostTypeLabel({ type }) {
   const format = types.find(option => option.type === type) ?? legacyType;
@@ -57,6 +59,10 @@ export default function PersonalPostComposer({
   const editorId = useId();
   const topicInput = useRef(null);
   const bodyInput = useRef(null);
+  const modalRef = useRef(null);
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
+  const achievementTrigger = useRef(null);
   const [topicDraft, setTopicDraft] = useState("");
   const [topicError, setTopicError] = useState("");
   const hasTopicDraft = Boolean(topicDraft.trim());
@@ -68,6 +74,40 @@ export default function PersonalPostComposer({
   useEffect(() => {
     if (open) bodyInput.current?.focus();
   }, [open, type]);
+
+  useEffect(() => {
+    if (!open || !isAchievement) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const dialog = modalRef.current;
+    const handleKeyDown = event => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (!disabledRef.current) closeEditor();
+        return;
+      }
+      if (event.key !== "Tab" || !dialog) return;
+      const targets = [...dialog.querySelectorAll('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')]
+        .filter(node => node.getClientRects().length > 0);
+      if (!targets.length) return;
+      const first = targets[0];
+      const last = targets[targets.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      achievementTrigger.current?.focus();
+    };
+    // Focus restoration and scroll locking belong to the modal's open lifecycle.
+  }, [open, isAchievement]);
 
   function selectType(nextType) {
     if (disabled) return;
@@ -100,6 +140,13 @@ export default function PersonalPostComposer({
     topicInput.current?.focus();
   }
 
+  function addSuggestedTopic(suggestion) {
+    if (disabled || topicLimit || tags.some(tag => tag.toLowerCase() === suggestion.toLowerCase())) return;
+    onTagsChange([...tags, suggestion]);
+    setTopicError("");
+    setTopicDraft("");
+  }
+
   function removeTopic(tag) {
     onTagsChange(tags.filter(topic => topic !== tag));
     setTopicError("");
@@ -116,24 +163,7 @@ export default function PersonalPostComposer({
     // The parent closes the editor only after the server accepts the post.
   }
 
-  return (
-    <div className="bw-personal-composer" aria-label="Community contribution composer">
-      <div className="bw-post-quick-actions" role="group" aria-label="Choose how to contribute">
-        <div className="bw-timeline-avatar bw-post-quick-avatar" role="img" aria-label="Your profile photo">
-          {photoId ? <img src={photoUrl(photoId)} alt="" /> : initial}
-        </div>
-        {types.map(option => (
-          <button type="button" key={option.type} className="bw-post-quick-action"
-            data-post-type={option.type} aria-expanded={open && type === option.type}
-            aria-controls={open ? editorId : undefined} disabled={disabled}
-            onClick={() => selectType(option.type)}>
-            <span className="bw-post-quick-icon"><NavigationIcon name={option.icon} size={20} /></span>
-            <span className="bw-post-quick-label">{option.choice}</span>
-          </button>
-        ))}
-      </div>
-
-      {open && (
+  const editor = open ? (
         <form id={editorId} className={"bw-personal-composer-form" + (isAchievement ? " bw-achievement-composer" : "")} aria-label="Create a post" onSubmit={submit}>
           <div className="bw-post-editor-heading" data-post-type={format.type}>
             <span className="bw-post-editor-icon"><NavigationIcon name={format.icon} size={22} /></span>
@@ -172,9 +202,14 @@ export default function PersonalPostComposer({
             )}
           </div>
           <div className={"bw-post-topic-editor" + (isAchievement ? " bw-achievement-topic-editor" : "")}>
+            {isAchievement && <div className="bw-achievement-topic-head">
+              <span className="bw-achievement-topic-icon"><NavigationIcon name="tag" size={19} /></span>
+              <div><h4>Connect your achievement</h4><p>Choose topics so the right people can discover your story.</p></div>
+              <span className="bw-achievement-topic-count">{tags.length}/{MAX_POST_TOPICS}</span>
+            </div>}
             <div className="bw-post-topic-heading">
-              <label htmlFor={topicId}>Topic tags</label>
-              <span id={topicId + "-hint"}>Add 1–{MAX_POST_TOPICS} topics</span>
+              <label htmlFor={topicId}>{isAchievement ? "Topics" : "Topic tags"}</label>
+              <span id={topicId + "-hint"}>{isAchievement ? "At least one topic required" : "Add 1–" + MAX_POST_TOPICS + " topics"}</span>
             </div>
             <div className="bw-post-topic-entry">
               <input ref={topicInput} id={topicId} value={topicDraft} maxLength={MAX_POST_TOPIC_LENGTH + 1}
@@ -190,6 +225,17 @@ export default function PersonalPostComposer({
             </div>
             {topicError && <p id={topicId + "-error"} className="bw-post-topic-error" role="alert">{topicError}</p>}
             <PostTopicTags tags={tags} onRemove={removeTopic} disabled={disabled} />
+            {isAchievement && <div className="bw-achievement-topic-suggestions">
+              <span>Suggested topics</span>
+              <div className="bw-achievement-topic-suggestion-list">
+                {achievementTopicSuggestions.filter(item => !tags.some(tag => tag.toLowerCase() === item.toLowerCase())).map(item => (
+                  <button type="button" key={item} className="bw-achievement-topic-suggestion"
+                    disabled={disabled || topicLimit} onClick={() => addSuggestedTopic(item)}>
+                    <span aria-hidden="true">+</span> {item}
+                  </button>
+                ))}
+              </div>
+            </div>}
           </div>
           <div className="bw-personal-composer-footer">
             <span>{isAchievement ? "Your achievement will be shared with the BrightWay community." : body.length + " / 2,000"}</span>
@@ -199,7 +245,34 @@ export default function PersonalPostComposer({
             </div>
           </div>
         </form>
-      )}
+  ) : null;
+
+  return (
+    <div className="bw-personal-composer" aria-label="Community contribution composer">
+      <div className="bw-post-quick-actions" role="group" aria-label="Choose how to contribute">
+        <div className="bw-timeline-avatar bw-post-quick-avatar" role="img" aria-label="Your profile photo">
+          {photoId ? <img src={photoUrl(photoId)} alt="" /> : initial}
+        </div>
+        {types.map(option => (
+          <button type="button" key={option.type} ref={option.type === "ACHIEVEMENT" ? achievementTrigger : undefined} className="bw-post-quick-action"
+            data-post-type={option.type} aria-expanded={open && type === option.type}
+            aria-controls={open ? editorId : undefined} disabled={disabled}
+            onClick={() => selectType(option.type)}>
+            <span className="bw-post-quick-icon"><NavigationIcon name={option.icon} size={20} /></span>
+            <span className="bw-post-quick-label">{option.choice}</span>
+          </button>
+        ))}
+      </div>
+
+      {open && (isAchievement ? createPortal(
+        <div className="bw-achievement-modal-backdrop bw-post-panel" onMouseDown={event => {
+          if (event.target === event.currentTarget && !disabled) closeEditor();
+        }}>
+          <div className="bw-achievement-modal-dialog" ref={modalRef} role="dialog" aria-modal="true" aria-label="Share an Achievement">
+            {editor}
+          </div>
+        </div>, document.body
+      ) : editor)}
     </div>
   );
 }

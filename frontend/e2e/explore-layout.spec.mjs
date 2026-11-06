@@ -93,10 +93,17 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   await expect(billboard.getByRole("link", { name: "Explore learning" })).toHaveAttribute("href", "/learning");
 
   await achievement.click();
-  let editor = explore.getByRole("form", { name: "Create a post" });
-  await expect(editor.getByRole("textbox", { name: "Write an achievement" })).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "Share an Achievement" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  let editor = dialog.getByRole("form", { name: "Create a post" });
+  await expect(editor.getByRole("textbox", { name: "Write an achievement" })).toBeFocused();
   await editor.getByRole("textbox", { name: "Write an achievement" }).fill("This draft should not become an event.");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(achievement).toBeFocused();
   await event.click();
+  editor = explore.getByRole("form", { name: "Create a post" });
   await expect(editor.getByRole("textbox", { name: "Write an event" })).toHaveValue("");
   await question.click();
   await expect(editor.getByRole("textbox", { name: "Write a question" })).toHaveValue("");
@@ -112,7 +119,9 @@ for (const format of formats) {
     const explore = page.getByRole("region", { name: "Explore", exact: true });
     const launcher = explore.getByRole("group", { name: "Choose how to contribute" });
     await launcher.getByRole("button", { name: format.choice }).click();
-    const editor = explore.getByRole("form", { name: "Create a post" });
+    const editor = format.type === "ACHIEVEMENT"
+      ? page.getByRole("dialog", { name: "Share an Achievement" }).getByRole("form", { name: "Create a post" })
+      : explore.getByRole("form", { name: "Create a post" });
     const content = editor.getByRole("textbox", { name: format.editor });
     await expect(content).toBeVisible();
     if (format.type === "ACHIEVEMENT") {
@@ -120,6 +129,8 @@ for (const format of formats) {
       await expect(editor.getByText("Tell your achievement story")).toBeVisible();
       await expect(editor.getByText("Tip: Mention the milestone, the effort, and the lesson.")).toBeVisible();
       await expect(editor.locator(".bw-achievement-intro")).toBeVisible();
+      await expect(editor.getByRole("heading", { name: "Connect your achievement" })).toBeVisible();
+      await expect(editor.getByRole("button", { name: "Graduation" })).toBeVisible();
     } else {
       await expect(editor.locator(".bw-achievement-intro")).toHaveCount(0);
     }
@@ -127,7 +138,7 @@ for (const format of formats) {
     const publish = editor.getByRole("button", { name: "Publish " + format.label.toLowerCase() });
     await expect(publish).toBeDisabled();
 
-    const topics = editor.getByRole("textbox", { name: "Topic tags" });
+    const topics = editor.getByRole("textbox", { name: format.type === "ACHIEVEMENT" ? "Topics" : "Topic tags" });
     await topics.fill("#Research");
     await topics.press("Enter");
     await topics.fill("research");
@@ -145,11 +156,35 @@ for (const format of formats) {
     await expect(published.getByText(format.heading)).toBeVisible();
     await expect(published.getByText(format.label, { exact: true })).toBeVisible();
     await expect(published.getByRole("list", { name: "Topic tags" }).getByText("Community work")).toBeVisible();
-    await expect(explore.getByRole("form", { name: "Create a post" })).toHaveCount(0);
+    await expect(page.getByRole("form", { name: "Create a post" })).toHaveCount(0);
     await expect(launcher).toBeVisible();
     expect(writes).toEqual([expect.objectContaining({ body: format.body, type: format.type, tags: ["Community work"] })]);
   });
 }
+
+test("achievement modal supports suggested topics, close button and mobile-friendly sizing", async ({ page, isMobile }) => {
+  await fixture(page);
+  await page.goto("/explore");
+  const launcher = page.getByRole("group", { name: "Choose how to contribute" });
+  const trigger = launcher.getByRole("button", { name: "Share an Achievement" });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Share an Achievement" });
+  const editor = dialog.getByRole("form", { name: "Create a post" });
+  await expect(dialog).toBeVisible();
+  await editor.getByRole("button", { name: "Certification" }).click();
+  await expect(editor.getByRole("list", { name: "Selected topic tags" }).getByText("Certification")).toBeVisible();
+  await expect(editor.getByText("1/5")).toBeVisible();
+  await editor.getByRole("button", { name: "Remove tag Certification" }).click();
+  await expect(editor.getByText("0/5")).toBeVisible();
+  const rect = await dialog.boundingBox();
+  const viewport = page.viewportSize();
+  expect(rect.width).toBeLessThanOrEqual(viewport.width);
+  expect(rect.height).toBeLessThanOrEqual(viewport.height);
+  if (isMobile) expect(rect.width).toBeGreaterThan(viewport.width * .9);
+  await editor.getByRole("button", { name: "Close editor" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
 
 test("The feed renders different presentation cards for stored achievements, events and questions", async ({ page }) => {
   const typed = formats.map((format, index) => ({
