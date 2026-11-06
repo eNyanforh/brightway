@@ -161,37 +161,7 @@ export default function PersonalPostComposer({
     // The parent closes the editor only after the server accepts the post.
   }
 
-  return (
-    <div className="bw-personal-composer" aria-label="Community contribution composer">
-      <div className="bw-post-quick-actions" role="group" aria-label="Choose how to contribute">
-        <div className="bw-timeline-avatar bw-post-quick-avatar" role="img" aria-label="Your profile photo">
-          {photoId ? <img src={photoUrl(photoId)} alt="" /> : initial}
-        </div>
-        {types.map(option => (
-          <button type="button" key={option.type} ref={option.type === "ACHIEVEMENT" ? achievementTrigger : undefined} className="bw-post-quick-action"
-            data-post-type={option.type} aria-expanded={open && type === option.type}
-            aria-controls={open ? editorId : undefined} disabled={disabled}
-            onClick={() => selectType(option.type)}>
-            <span className="bw-post-quick-icon"><NavigationIcon name={option.icon} size={20} /></span>
-            <span className="bw-post-quick-label">{option.choice}</span>
-          </button>
-        ))}
-      </div>
-
-      {open && (isAchievement ? createPortal(
-        <div className="bw-achievement-modal-backdrop bw-post-panel" onMouseDown={event => {
-          if (event.target === event.currentTarget && !disabled) closeEditor();
-        }}>
-          <div className="bw-achievement-modal-dialog" ref={modalRef} role="dialog" aria-modal="true" aria-label="Share an Achievement">
-            <AchievementForm />
-          </div>
-        </div>, document.body
-      ) : <AchievementForm />)}
-    </div>
-  );
-
-  function AchievementForm() {
-    return (
+  const editor = open ? (
         <form id={editorId} className={"bw-personal-composer-form" + (isAchievement ? " bw-achievement-composer" : "")} aria-label="Create a post" onSubmit={submit}>
           <div className="bw-post-editor-heading" data-post-type={format.type}>
             <span className="bw-post-editor-icon"><NavigationIcon name={format.icon} size={22} /></span>
@@ -273,6 +243,34 @@ export default function PersonalPostComposer({
             </div>
           </div>
         </form>
-    );
-  }
+  ) : null;
+
+  return (
+    <div className="bw-personal-composer" aria-label="Community contribution composer">
+      <div className="bw-post-quick-actions" role="group" aria-label="Choose how to contribute">
+        <div className="bw-timeline-avatar bw-post-quick-avatar" role="img" aria-label="Your profile photo">
+          {photoId ? <img src={photoUrl(photoId)} alt="" /> : initial}
+        </div>
+        {types.map(option => (
+          <button type="button" key={option.type} ref={option.type === "ACHIEVEMENT" ? achievementTrigger : undefined} className="bw-post-quick-action"
+            data-post-type={option.type} aria-expanded={open && type === option.type}
+            aria-controls={open ? editorId : undefined} disabled={disabled}
+            onClick={() => selectType(option.type)}>
+            <span className="bw-post-quick-icon"><NavigationIcon name={option.icon} size={20} /></span>
+            <span className="bw-post-quick-label">{option.choice}</span>
+          </button>
+        ))}
+      </div>
+
+      {open && (isAchievement ? createPortal(
+        <div className="bw-achievement-modal-backdrop bw-post-panel" onMouseDown={event => {
+          if (event.target === event.currentTarget && !disabled) closeEditor();
+        }}>
+          <div className="bw-achievement-modal-dialog" ref={modalRef} role="dialog" aria-modal="true" aria-label="Share an Achievement">
+            {editor}
+          </div>
+        </div>, document.body
+      ) : editor)}
+    </div>
+  );
 }
