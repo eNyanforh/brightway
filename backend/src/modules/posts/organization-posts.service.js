@@ -37,7 +37,7 @@ const topicTags = z.array(z.string().transform(normalizePostTopic).pipe(z.string
   .max(MAX_POST_TOPICS)
   .refine(tags => new Set(tags.map(tag => tag.toLowerCase())).size === tags.length);
 const memberPostInput = postInput.extend({
-  type: z.enum(["POST", "ACHIEVEMENT", "EVENT"]).default("POST"),
+  type: z.enum(["POST", "ACHIEVEMENT", "EVENT", "QUESTION"]).default("POST"),
   tags: topicTags.default([]),
 });
 const commentInput = textInput(1000);
