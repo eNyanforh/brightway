@@ -345,3 +345,150 @@
   .bw-post-editor-actions { gap: .2rem; }
   .bw-post-panel .bw-personal-composer-submit { padding-inline: .6rem; font-size: .78rem; }
 }
+
+
+/* Achievement editor: visual treatment is confined to achievement mode. */
+.bw-achievement-composer {
+  --achievement-blue: #173c86;
+  border-radius: 19px;
+  padding: .35rem;
+  background: linear-gradient(180deg, #f7faff 0%, #fff 45%);
+}
+.bw-achievement-composer .bw-post-editor-heading {
+  margin: .25rem .25rem .85rem;
+  padding-bottom: .7rem;
+  border-bottom: 1px solid #e3eaf6;
+}
+.bw-achievement-composer .bw-post-editor-icon {
+  background: #fff0cc;
+  border: 1px solid #f1da9b;
+  border-radius: 14px;
+  color: #94610f;
+}
+.bw-achievement-composer .bw-post-editor-eyebrow { color: #906314; }
+.bw-achievement-composer .bw-post-editor-heading h3 {
+  font-size: 1.12rem;
+  letter-spacing: -.025em;
+}
+.bw-achievement-intro {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  overflow: hidden;
+  padding: clamp(1rem, 3vw, 1.35rem);
+  margin-bottom: .95rem;
+  border: 1px solid #1f4d9b;
+  border-radius: 17px;
+  background: radial-gradient(circle at 95% 0%, #396fca 0%, transparent 45%), linear-gradient(130deg, #102852, #1b448b);
+  color: #fff;
+}
+.bw-achievement-intro-copy { position: relative; z-index: 1; max-width: 34rem; min-width: 0; }
+.bw-achievement-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: .38rem;
+  color: #ffdfa3;
+  font-size: .66rem;
+  font-weight: 850;
+  letter-spacing: .14em;
+}
+.bw-achievement-intro h4 {
+  margin: .52rem 0 .4rem;
+  color: #fff;
+  font-size: clamp(1.18rem, 2.5vw, 1.55rem);
+  font-weight: 800;
+  letter-spacing: -.04em;
+  line-height: 1.18;
+}
+.bw-achievement-intro p {
+  max-width: 38ch;
+  margin: 0;
+  color: #d5e4fd;
+  font-size: .83rem;
+  line-height: 1.55;
+}
+.bw-achievement-trophy {
+  display: grid;
+  flex: 0 0 86px;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  border: 1px solid #ffffff35;
+  border-radius: 50%;
+  background: #ffffff13;
+  color: #ffdf9a;
+  box-shadow: 0 0 0 10px #ffffff06;
+}
+.bw-achievement-writing {
+  padding: .75rem .8rem .5rem;
+  border: 1px solid #dbe5f4;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 3px 12px #18397108;
+}
+.bw-achievement-writing-heading, .bw-achievement-writing-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: .35rem .8rem;
+}
+.bw-achievement-writing-heading label { font-size: .84rem; font-weight: 800; color: #183253; }
+.bw-achievement-writing-heading span { font-size: .72rem; color: #7b8ba5; }
+.bw-achievement-composer .bw-achievement-writing textarea {
+  min-height: 145px;
+  margin: .35rem 0 .25rem;
+  padding: .6rem .15rem;
+  border: 0;
+  border-radius: 6px;
+  background: #fff;
+  font-size: .94rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+.bw-achievement-composer .bw-achievement-writing textarea:focus-visible {
+  outline: 2px solid #2b65ca;
+  outline-offset: 2px;
+}
+.bw-achievement-writing-foot {
+  padding: .5rem 0 0;
+  border-top: 1px solid #ecf0f7;
+  color: #75849a;
+  font-size: .7rem;
+}
+.bw-achievement-writing-foot span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bw-achievement-composer .bw-achievement-topic-editor {
+  margin: .85rem 0 .7rem;
+  padding: .8rem;
+  border: 1px solid #e1e8f5;
+  border-radius: 14px;
+  background: #f8faff;
+}
+.bw-achievement-composer .bw-achievement-topic-editor .bw-post-topic-heading label { color: #183253; }
+.bw-achievement-composer .bw-personal-composer-footer {
+  gap: .75rem;
+  padding: .75rem .2rem .2rem;
+  align-items: center;
+}
+.bw-achievement-composer .bw-personal-composer-footer > span {
+  max-width: 42ch;
+  color: #64748b;
+  font-size: .73rem;
+  line-height: 1.4;
+}
+.bw-post-panel .bw-achievement-composer .bw-personal-composer-submit {
+  border-radius: 10px;
+  background: #1859c7;
+  color: #fff;
+  box-shadow: 0 4px 10px #1859c721;
+}
+.bw-post-panel .bw-achievement-composer .bw-personal-composer-submit:hover:enabled { background: #10499f; }
+@container (max-width: 29rem) {
+  .bw-achievement-trophy { flex-basis: 54px; width: 54px; height: 54px; }
+  .bw-achievement-trophy svg { width: 30px; height: 30px; }
+  .bw-achievement-intro { padding: .85rem; gap: .5rem; }
+  .bw-achievement-intro p { font-size: .76rem; }
+  .bw-achievement-composer .bw-personal-composer-footer { flex-wrap: wrap; }
+}
