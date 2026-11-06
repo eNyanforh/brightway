@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MAX_POST_TOPICS, MAX_POST_TOPIC_LENGTH, normalizePostTopic } from "../../../../shared/post-topics.mjs";
+import { MAX_POST_TOPICS, MAX_POST_TOPIC_LENGTH, POST_SUBJECT_CATEGORIES, normalizePostTopic } from "../../../../shared/post-topics.mjs";
 import NavigationIcon from "../layout/NavigationIcon";
 
 const covers = [
@@ -98,8 +98,8 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
     };
   }, [triggerRef]);
 
-  function addTopic() {
-    const normalized = normalizePostTopic(topicDraft);
+  function addTopic(value = topicDraft) {
+    const normalized = normalizePostTopic(value);
     if (!normalized) { setTopicError("Enter a valid topic up to 32 characters."); return; }
     if (tags.some(tag => tag.toLowerCase() === normalized.toLowerCase())) {
       setTopicError("That topic is already added."); return;
@@ -181,6 +181,16 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
                     onClick={() => onTagsChange(tags.filter(item => item !== tag))}>×</button></li>)}
                 </ul>
                 <span className="bw-event-hint">{tags.length}/{MAX_POST_TOPICS} topics selected</span>
+                <div className="bw-event-topic-suggestions">
+                  <span>Explore subjects</span>
+                  <div className="bw-event-topic-suggestion-list">
+                    {POST_SUBJECT_CATEGORIES.filter(item => !tags.some(tag => tag.toLowerCase() === item.toLowerCase())).map(item => (
+                      <button type="button" key={item} disabled={disabled || limit} onClick={() => addTopic(item)}>
+                        <span aria-hidden="true">+</span> {item}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </section>
             </div>
             <aside className="bw-event-preview-panel" aria-label="Event preview">
