@@ -28,6 +28,13 @@ const sourceInput = z.enum(["organization", "member"]);
 const likeInput = z.strictObject({ liked: z.boolean() });
 const repostInput = z.strictObject({ reposted: z.boolean() });
 const saveInput = z.strictObject({ saved: z.boolean() });
+const registrationInput = z.strictObject({ registered: z.boolean() });
+const voteInput = z.strictObject({ value: z.union([z.literal(-1), z.literal(0), z.literal(1)]) });
+const answerSortInput = z.strictObject({ sort: z.enum(["top", "newest"]).default("top") });
+const reportInput = z.strictObject({
+  reason: z.enum(["SPAM", "HARASSMENT", "MISINFORMATION", "OTHER"]),
+  details: z.string().trim().max(500).optional(),
+});
 const textInput = max => z.strictObject({
   body: z.string().trim().min(1).max(max).refine(value => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)),
   requestKey: identifier,
@@ -159,7 +166,7 @@ function visibleMember(accountId) {
 }
 
 function likeSelect(accountId) {
-  return { _count: { select: { likes: true } }, likes: { where: { accountId }, select: { id: true } } };
+  return { _count: { select: { likes: true, views: true } }, likes: { where: { accountId }, select: { id: true } } };
 }
 
 function likeSummary({ likes, _count }) {
@@ -171,10 +178,13 @@ function memberAttribution({ username, person }) {
   return { username, name: [firstName, middleName, lastName].filter(Boolean).join(" ") };
 }
 
-function feedPost({ likes, _count, saves, reposts, ...post }) {
+function feedPost({ likes, _count, saves, reposts, registrations, ...post }) {
   return {
     ...(post.author ? memberPost(post) : post),
     reaction: likeSummary({ likes, _count }),
+    views: _count.views ?? 0,
+    ...(registrations && { registration: { registered: registrations.length > 0, count: _count.registrations ?? 0 } }),
+    ...(post.type === "QUESTION" && { answerCount: _count.answers ?? 0 }),
     saved: saves.length > 0,
     reposted: reposts.length > 0,
   };
@@ -272,7 +282,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     return items;
   }
 
-  async function savedFeed(accountId, position, select) {
+  async function savedFeed(accountId, position, select, memberEngagementSelect) {
     const rows = await prisma.postSave.findMany({
       where: {
         accountId,
@@ -288,7 +298,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       select: {
         id: true,
         createdAt: true,
-        memberPost: { select: { ...memberPostSelect, ...select } },
+        memberPost: { select: { ...memberPostSelect, ...memberEngagementSelect } },
         organizationPost: { select: { ...postSelect, ...select } },
       },
       take: pageSize + 1,
@@ -406,8 +416,13 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const position = readCursor(cursor, actor.accountId, view);
       const ownActivity = { where: { accountId: actor.accountId }, select: { id: true } };
       const select = { ...likeSelect(actor.accountId), saves: ownActivity, reposts: ownActivity };
+      const memberEngagementSelect = {
+        ...select,
+        _count: { select: { likes: true, views: true, registrations: true, answers: { where: { deletedAt: null } } } },
+        registrations: { where: { accountId: actor.accountId }, select: { id: true } },
+      };
       if (view === "saved") {
-        const page = await savedFeed(actor.accountId, position, select);
+        const page = await savedFeed(actor.accountId, position, select, memberEngagementSelect);
         await assertNetworkSession(prisma, actor, now);
         return page;
       }
@@ -422,7 +437,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       }
       const [organizations, members, reposts] = await Promise.all([
         findPosts(prisma.organizationPost, { ...postSelect, ...select }, { organization, author: unblockedAuthor(actor.accountId) }, position, "organization"),
-        findPosts(prisma.memberPost, { ...memberPostSelect, ...select }, { author: member }, position, "member"),
+        findPosts(prisma.memberPost, { ...memberPostSelect, ...memberEngagementSelect }, { author: member }, position, "member"),
         prisma.postRepost.findMany({
           where: {
             account: reposter,
@@ -436,7 +451,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
           },
           select: {
             ...repostSelect,
-            memberPost: { select: { ...memberPostSelect, ...select } },
+            memberPost: { select: { ...memberPostSelect, ...memberEngagementSelect } },
             organizationPost: { select: { ...postSelect, ...select, authorId: true } },
           },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -455,8 +470,14 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
 
     async setLike(actor, sourceValue, idValue, input) {
       const ref = postRef(sourceValue, idValue);
-      const { liked } = parse(likeInput, input, "Choose whether to like this post.");
+      const { liked } = parse(likeInput, input, "Choose whether to celebrate this achievement.");
       return writeVisiblePost(actor, ref, async tx => {
+        if (ref.source === "member") {
+          const target = await tx.memberPost.findUniqueOrThrow({ where: { id: ref.id }, select: { type: true } });
+          if (target.type !== "ACHIEVEMENT" && target.type !== "POST") {
+            throw fail(400, "Only achievements can receive celebrations.");
+          }
+        }
         const data = { accountId: actor.accountId, ...postTarget(ref) };
         if (liked) await tx.postLike.createMany({ data: [data], skipDuplicates: true });
         else await tx.postLike.deleteMany({ where: data });
