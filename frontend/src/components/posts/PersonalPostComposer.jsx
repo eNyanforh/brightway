@@ -60,6 +60,8 @@ export default function PersonalPostComposer({
   const topicInput = useRef(null);
   const bodyInput = useRef(null);
   const modalRef = useRef(null);
+  const disabledRef = useRef(disabled);
+  disabledRef.current = disabled;
   const achievementTrigger = useRef(null);
   const [topicDraft, setTopicDraft] = useState("");
   const [topicError, setTopicError] = useState("");
@@ -81,7 +83,7 @@ export default function PersonalPostComposer({
     const handleKeyDown = event => {
       if (event.key === "Escape") {
         event.preventDefault();
-        if (!disabled) closeEditor();
+        if (!disabledRef.current) closeEditor();
         return;
       }
       if (event.key !== "Tab" || !dialog) return;
@@ -105,7 +107,7 @@ export default function PersonalPostComposer({
       achievementTrigger.current?.focus();
     };
     // Focus restoration and scroll locking belong to the modal's open lifecycle.
-  }, [open, isAchievement, disabled]);
+  }, [open, isAchievement]);
 
   function selectType(nextType) {
     if (disabled) return;
