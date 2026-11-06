@@ -13,7 +13,7 @@ ALTER TABLE "EventRegistration" ADD CONSTRAINT "EventRegistration_accountId_fkey
 
 CREATE TABLE "QuestionAnswer" (
   "id" TEXT NOT NULL, "questionId" TEXT NOT NULL, "authorId" TEXT NOT NULL,
-  "requestKey" TEXT NOT NULL, "body" VARCHAR(2000) NOT NULL,
+  "requestKey" TEXT NOT NULL, "body" VARCHAR(2000) NOT NULL, "score" INTEGER NOT NULL DEFAULT 0,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "deletedAt" TIMESTAMP(3),
   CONSTRAINT "QuestionAnswer_pkey" PRIMARY KEY ("id")
 );
