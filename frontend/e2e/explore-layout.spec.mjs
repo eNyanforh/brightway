@@ -120,6 +120,14 @@ for (const format of formats) {
     const editor = explore.getByRole("form", { name: "Create a post" });
     const content = editor.getByRole("textbox", { name: format.editor });
     await expect(content).toBeVisible();
+    if (format.type === "ACHIEVEMENT") {
+      await expect(editor.getByText("Every milestone deserves to be seen.")).toBeVisible();
+      await expect(editor.getByText("Tell your achievement story")).toBeVisible();
+      await expect(editor.getByText("Tip: Mention the milestone, the effort, and the lesson.")).toBeVisible();
+      await expect(editor.locator(".bw-achievement-intro")).toBeVisible();
+    } else {
+      await expect(editor.locator(".bw-achievement-intro")).toHaveCount(0);
+    }
     await content.fill(format.body);
     const publish = editor.getByRole("button", { name: "Publish " + format.label.toLowerCase() });
     await expect(publish).toBeDisabled();
