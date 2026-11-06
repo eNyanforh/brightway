@@ -43,9 +43,7 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
   const dialogRef = useRef(null);
   const titleRef = useRef(null);
   const disabledRef = useRef(disabled);
-  disabledRef.current = disabled;
   const cancelRef = useRef(onCancel);
-  cancelRef.current = onCancel;
   const [title, setTitle] = useState("");
   const [format, setFormat] = useState("IN_PERSON");
   const [venue, setVenue] = useState("");
@@ -68,7 +66,13 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
   const allZones = zones.includes(timezone) ? zones : [timezone, ...zones];
 
   useEffect(() => {
+    disabledRef.current = disabled;
+    cancelRef.current = onCancel;
+  }, [disabled, onCancel]);
+
+  useEffect(() => {
     titleRef.current?.focus();
+    const trigger = triggerRef?.current;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const keyDown = event => {
@@ -90,7 +94,7 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
     return () => {
       document.removeEventListener("keydown", keyDown);
       document.body.style.overflow = previous;
-      triggerRef?.current?.focus();
+      trigger?.focus();
     };
   }, [triggerRef]);
 
