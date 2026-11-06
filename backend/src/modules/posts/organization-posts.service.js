@@ -26,6 +26,7 @@ const memberPostSelect = {
 const identifier = z.uuid();
 const sourceInput = z.enum(["organization", "member"]);
 const likeInput = z.strictObject({ liked: z.boolean() });
+const saveInput = z.strictObject({ saved: z.boolean() });
 const textInput = max => z.strictObject({
   body: z.string().trim().min(1).max(max).refine(value => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)),
   requestKey: identifier,
@@ -37,9 +38,9 @@ const commentSelect = {
   author: { select: { id: true, username: true } },
 };
 const cursorInput = z.string().min(1).max(700).optional();
-const feedQuery = z.strictObject({ view: z.enum(["for-you", "following"]).default("for-you"), cursor: cursorInput });
+const feedQuery = z.strictObject({ view: z.enum(["for-you", "following", "saved"]).default("for-you"), cursor: cursorInput });
 const workspaceQuery = z.strictObject({ cursor: cursorInput });
-const cursorSchema = z.strictObject({ viewer: identifier, scope: z.string(), at: z.iso.datetime(), id: identifier, source: sourceInput.default("organization") });
+const cursorSchema = z.strictObject({ viewer: identifier, scope: z.string(), at: z.iso.datetime(), id: identifier, source: z.enum(["organization", "member", "saved"]).default("organization") });
 
 function parse(schema, data, message) {
   const result = schema.safeParse(data);
@@ -114,8 +115,8 @@ function likeSummary({ likes, _count }) {
   return { liked: likes.length > 0, count: _count.likes };
 }
 
-function feedPost({ likes, _count, ...post }) {
-  return { ...(post.author ? memberPost(post) : post), reaction: likeSummary({ likes, _count }) };
+function feedPost({ likes, _count, saves, ...post }) {
+  return { ...(post.author ? memberPost(post) : post), reaction: likeSummary({ likes, _count }), saved: saves.length > 0 };
 }
 
 function memberPost({ author, ...post }) {
@@ -138,6 +139,51 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
   async function memberEligibility(db, accountId) {
     const { status, ctx } = await identity.inspectAccount(db, accountId);
     return { identityVerified: status === "APPROVED", profilePublic: ctx.profilePublic };
+  }
+
+  async function projectVisiblePosts(candidates) {
+    // Approval can become invalid when identity details or verified records change.
+    // Inspect each candidate author once and advance past hidden rows on the next page.
+    const authorIds = [...new Set(candidates.filter(post => post.author).map(post => post.author.id))];
+    const eligible = new Set();
+    for (let offset = 0; offset < authorIds.length; offset += 4) {
+      await Promise.all(authorIds.slice(offset, offset + 4).map(async id => {
+        try {
+          const access = await memberEligibility(prisma, id);
+          if (access.identityVerified && access.profilePublic) eligible.add(id);
+        } catch (error) {
+          if (error.status !== 403) throw error;
+        }
+      }));
+    }
+    return candidates.filter(post => !post.author || eligible.has(post.author.id)).map(feedPost);
+  }
+
+  async function savedFeed(accountId, position, select) {
+    const rows = await prisma.postSave.findMany({
+      where: {
+        accountId,
+        AND: [
+          boundary(position, "saved"),
+          { OR: [
+            { memberPost: { withdrawnAt: null, author: visibleMember(accountId) } },
+            { organizationPost: { withdrawnAt: null, organization: readyFilter, author: unblockedAuthor(accountId) } },
+          ] },
+        ],
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        createdAt: true,
+        memberPost: { select: { ...memberPostSelect, ...select } },
+        organizationPost: { select: { ...postSelect, ...select } },
+      },
+      take: pageSize + 1,
+    });
+    const posts = rows.slice(0, pageSize)
+      .map(row => row.memberPost ?? row.organizationPost)
+      .filter(post => post?.saves.length);
+    return { items: await projectVisiblePosts(posts), nextCursor: cursorFor(rows, accountId, "saved", "saved") };
   }
 
   async function lockMemberProfile(db, id) {
@@ -245,38 +291,29 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const { view, cursor } = parse(feedQuery, query, "Choose a valid Explore view.");
       await assertNetworkSession(prisma, actor, now);
       const position = readCursor(cursor, actor.accountId, view);
+      const select = { ...likeSelect(actor.accountId), saves: { where: { accountId: actor.accountId }, select: { id: true } } };
+      if (view === "saved") {
+        const page = await savedFeed(actor.accountId, position, select);
+        await assertNetworkSession(prisma, actor, now);
+        return page;
+      }
       const organization = { ...readyFilter };
       const member = visibleMember(actor.accountId);
-      const reaction = likeSelect(actor.accountId);
       if (view === "following") {
         const followers = { some: { followerId: actor.accountId, active: true } };
         organization.followers = followers;
         member.followers = followers;
       }
       const [organizations, members] = await Promise.all([
-        findPosts(prisma.organizationPost, { ...postSelect, ...reaction }, { organization, author: unblockedAuthor(actor.accountId) }, position, "organization"),
-        findPosts(prisma.memberPost, { ...memberPostSelect, ...reaction }, { author: member }, position, "member"),
+        findPosts(prisma.organizationPost, { ...postSelect, ...select }, { organization, author: unblockedAuthor(actor.accountId) }, position, "organization"),
+        findPosts(prisma.memberPost, { ...memberPostSelect, ...select }, { author: member }, position, "member"),
       ]);
       const rows = [...organizations, ...members].sort((a, b) =>
         b.createdAt - a.createdAt || (a.id < b.id ? 1 : a.id > b.id ? -1 : Number(Boolean(a.author)) - Number(Boolean(b.author))));
-      const candidates = rows.slice(0, pageSize);
-      // Approval can become invalid when identity details or verified records change.
-      // Inspect each candidate author once and advance past hidden rows on the next page.
-      const authorIds = [...new Set(candidates.filter(post => post.author).map(post => post.author.id))];
-      const eligible = new Set();
-      for (let offset = 0; offset < authorIds.length; offset += 4) {
-        await Promise.all(authorIds.slice(offset, offset + 4).map(async id => {
-          try {
-            const access = await memberEligibility(prisma, id);
-            if (access.identityVerified && access.profilePublic) eligible.add(id);
-          } catch (error) {
-            if (error.status !== 403) throw error;
-          }
-        }));
-      }
+      const items = await projectVisiblePosts(rows.slice(0, pageSize));
       await assertNetworkSession(prisma, actor, now);
       return {
-        items: candidates.filter(post => !post.author || eligible.has(post.author.id)).map(feedPost),
+        items,
         nextCursor: cursorFor(rows, actor.accountId, view),
       };
     },
@@ -290,6 +327,23 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         else await tx.postLike.deleteMany({ where: data });
         const post = await postModel(tx, ref.source).findUniqueOrThrow({ where: { id: ref.id }, select: likeSelect(actor.accountId) });
         return { reaction: likeSummary(post) };
+      });
+    },
+
+    async setSaved(actor, sourceValue, idValue, input) {
+      const ref = postRef(sourceValue, idValue);
+      const { saved } = parse(saveInput, input, "Choose whether to save this post.");
+      const data = { ...postTarget(ref), accountId: actor?.accountId };
+      if (!saved) {
+        // Removing a private bookmark remains possible if the original post is hidden.
+        return memberWrite(actor, async tx => {
+          await tx.postSave.deleteMany({ where: data });
+          return { saved: false };
+        });
+      }
+      return writeVisiblePost(actor, ref, async tx => {
+        await tx.postSave.createMany({ data: [{ ...data, createdAt: now() }], skipDuplicates: true });
+        return { saved: true };
       });
     },
 

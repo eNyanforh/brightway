@@ -6,7 +6,10 @@ import "./posts.css";
 
 const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
-function PostCard({ post, editable, busy, onWithdraw, onLike }) {
+const postSource = post => post.organization ? "organization" : "member";
+const postKey = post => postSource(post) + ":" + post.id;
+
+function PostCard({ post, editable, busy, onWithdraw, onLike, onSave }) {
   const [confirming, setConfirming] = useState(false);
   const publisher = post.organization || post.member;
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
@@ -26,9 +29,14 @@ function PostCard({ post, editable, busy, onWithdraw, onLike }) {
             Like
           </button>
           <span aria-live="polite">{post.reaction.count} {post.reaction.count === 1 ? "like" : "likes"}</span>
+          {typeof post.saved === "boolean" && (
+            <button type="button" aria-label="Save post" aria-pressed={post.saved} disabled={busy} onClick={() => onSave(post)}>
+              {post.saved ? "Saved" : "Save"}
+            </button>
+          )}
         </div>
       )}
-      {!editable && <PostComments postId={post.id} source={post.organization ? "organization" : "member"} />}
+      {!editable && <PostComments postId={post.id} source={postSource(post)} />}
       {editable && (
         confirming ? <div className="bw-post-actions">
           <span>Withdraw this post from Explore?</span>
@@ -109,17 +117,27 @@ export default function PostsPanel({ organization, personal = false, view = "for
     });
   }
 
-  function like(post) {
+  function updateFeedPost(post, operation, transform) {
     if (!page || disabled || active.current) return;
-    const source = post.organization ? "organization" : "member";
-    const matches = item => item.id === post.id && Boolean(item.organization) === Boolean(post.organization);
+    const key = postKey(post);
+    const remove = items => items.filter(item => postKey(item) !== key);
     void run(
-      signal => api.setLike(source, post.id, !post.reaction.liked, signal),
-      ({ reaction }) => setPage(previous => ({
-        ...previous, items: previous.items.map(item => matches(item) ? { ...item, reaction } : item),
-      })),
-      () => setPage(previous => ({ ...previous, items: previous.items.filter(item => !matches(item)) })),
+      signal => operation(postSource(post), signal),
+      data => setPage(previous => ({ ...previous, items: transform(previous.items, key, data) })),
+      () => setPage(previous => ({ ...previous, items: remove(previous.items) })),
     );
+  }
+
+  function like(post) {
+    updateFeedPost(post, (source, signal) => api.setLike(source, post.id, !post.reaction.liked, signal),
+      (items, key, { reaction }) => items.map(item => postKey(item) === key ? { ...item, reaction } : item));
+  }
+
+  function save(post) {
+    updateFeedPost(post, (source, signal) => api.setSaved(source, post.id, !post.saved, signal),
+      (items, key, { saved }) => view === "saved" && !saved
+        ? items.filter(item => postKey(item) !== key)
+        : items.map(item => postKey(item) === key ? { ...item, saved } : item));
   }
 
   function withdraw(id) {
@@ -161,9 +179,10 @@ export default function PostsPanel({ organization, personal = false, view = "for
       {page?.items.length === 0 && (
         <p className="bw-post-empty">{organization ? "Your organization has no published posts yet." :
           personal ? "You have no published posts yet." :
-            view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
+            view === "saved" ? "Save a post to find it here later." :
+              view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
       )}
-      {page?.items.map(post => <PostCard key={(post.organization ? "organization:" : "member:") + post.id} post={post} editable={editable} busy={pending || disabled} onWithdraw={withdraw} onLike={like} />)}
+      {page?.items.map(post => <PostCard key={postKey(post)} post={post} editable={editable} busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} />)}
       {page?.nextCursor && <button type="button" disabled={pending || disabled} onClick={() => void load(page.nextCursor)}>Load older posts</button>}
     </section>
   );
