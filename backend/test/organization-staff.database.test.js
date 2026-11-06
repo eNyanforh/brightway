@@ -116,11 +116,20 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     assert.deepEqual(retriedLikes, [{ reaction: { liked: true, count: 1 } }, { reaction: { liked: true, count: 1 } }]);
     const readerFeed = (await posts.feed(actor(2), { view: "following" })).items.find(item => item.id === post.id);
     assert.deepEqual(readerFeed.reaction, { liked: true, count: 1 });
-    assert.deepEqual(Object.keys(readerFeed).sort(), ["body", "createdAt", "id", "organization", "reaction"]);
+    assert.deepEqual(Object.keys(readerFeed).sort(), ["body", "createdAt", "id", "organization", "reaction", "saved"]);
     assert.deepEqual((await posts.feed(actor(0), {})).items.find(item => item.id === post.id).reaction, { liked: false, count: 1 });
     assert.deepEqual(await like(0, true), { reaction: { liked: true, count: 2 } });
     assert.deepEqual(await like(2, false), { reaction: { liked: false, count: 1 } });
     assert.deepEqual(await like(2, false), { reaction: { liked: false, count: 1 } });
+    const save = (viewer, saved) => posts.setSaved(actor(viewer), "organization", post.id, { saved });
+    assert.equal(readerFeed.saved, false);
+    assert.deepEqual(await Promise.all([save(2, true), save(2, true)]), [{ saved: true }, { saved: true }]);
+    assert.equal(await db.postSave.count({ where: { organizationPostId: post.id } }), 1);
+    const savedFeed = await posts.feed(actor(2), { view: "saved" });
+    assert.deepEqual(savedFeed.items.map(item => [item.id, item.saved]), [[post.id, true]]);
+    assert.deepEqual((await posts.feed(actor(0), { view: "saved" })).items, []);
+    assert.equal((await posts.feed(actor(0), {})).items.find(item => item.id === post.id).saved, false);
+    assert.equal((await posts.feed(actor(2), { view: "following" })).items.find(item => item.id === post.id).saved, true);
     const commentDraft = { body: "  Is this workshop open to everyone?  ", requestKey: randomUUID() };
     const commentAs = viewer => posts.addComment(actor(viewer), "organization", post.id, commentDraft);
     const commentsAs = (viewer, query = {}) => posts.comments(actor(viewer), "organization", post.id, query);
@@ -140,6 +149,11 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     assert.equal(await visible("following"), false);
     await assert.rejects(like(2, true), { status: 404 });
     await assert.rejects(commentAs(2), { status: 404 });
+    assert.equal(await visible("saved"), false);
+    await assert.rejects(save(2, true), { status: 404 });
+    assert.deepEqual(await save(2, false), { saved: false });
+    assert.deepEqual(await save(2, false), { saved: false });
+    assert.equal(await db.postSave.count({ where: { organizationPostId: post.id } }), 0);
     await assert.rejects(commentsAs(2), { status: 404 });
     assert.deepEqual((await commentsAs(0)).items, []);
     await db.networkPair.delete({ where: { id: block.id } });
@@ -151,9 +165,11 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     assert.equal((await db.postComment.findUniqueOrThrow({ where: { id: comment.id } })).body, "");
     await assert.rejects(commentAs(2), { status: 409 });
 
+    await save(2, true);
     await db.organization.update({ where: { id: organization.id }, data: { status: "SUSPENDED" } });
     await assert.rejects(context(), { status: 404 });
     assert.equal(await visible("for-you"), false);
+    assert.equal(await visible("saved"), false);
     await assert.rejects(like(2, true), { status: 404 });
     await db.organization.update({ where: { id: organization.id }, data: { status: "ACTIVE" } });
     await posts.withdraw(actor(0), organization.id, post.id);
@@ -162,6 +178,7 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     assert.equal(await visible("following"), false);
     assert.equal((await posts.list(actor(0), organization.id, {})).items.length, 0);
     await assert.rejects(commentsAs(0), { status: 404 });
+    assert.equal(await visible("saved"), false);
     await assert.rejects(like(2, true), { status: 404 });
     const actions = await db.organizationStaffAudit.findMany({
       where: { organizationId: organization.id, entityId: post.id },

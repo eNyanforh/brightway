@@ -18,6 +18,7 @@ export default function ExplorePage() {
       <nav className="bw-explore-filters" aria-label="Explore feed">
         <button type="button" aria-pressed={view === "for-you"} onClick={() => setView("for-you")}>For You</button>
         <button type="button" aria-pressed={view === "following"} onClick={() => setView("following")}>Following</button>
+        <button type="button" aria-pressed={view === "saved"} onClick={() => setView("saved")}>Saved</button>
       </nav>
       <PostsPanel key={account.id + ":" + view} view={view} />
     </section>

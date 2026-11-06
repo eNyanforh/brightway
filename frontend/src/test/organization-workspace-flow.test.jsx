@@ -193,6 +193,31 @@ it("Explore updates likes in place and removes only the post that becomes unavai
   expect(f.fetch.mock.calls.filter(([url]) => url.includes("/explore/posts?"))).toHaveLength(1);
 });
 
+it("Explore saves a post privately and removes it from Saved without reloading that view", async () => {
+  const id = "organization-post", body = "Applications are open.";
+  let saved = false;
+  const post = () => ({ id, body, organization, createdAt: "2026-11-06T10:00:00Z", reaction: { liked: false, count: 0 }, saved });
+  const f = mount("/explore", (url, options) => {
+    if (url.endsWith("/explore/posts?view=for-you")) return reply({ items: [post()], nextCursor: null });
+    if (url.endsWith("/explore/posts?view=saved")) return reply({ items: saved ? [post()] : [], nextCursor: null });
+    if (url.endsWith("/explore/posts/organization/" + id + "/save")) {
+      expect(options.method).toBe("PUT");
+      saved = JSON.parse(options.body).saved;
+      return reply({ saved });
+    }
+    return reply(context);
+  });
+  await f.user.click(await screen.findByRole("button", { name: "Save post", pressed: false }));
+  await screen.findByRole("button", { name: "Save post", pressed: true });
+  expect(f.fetch.mock.calls.filter(([url]) => url.endsWith("/explore/posts?view=for-you"))).toHaveLength(1);
+  await f.user.click(screen.getByRole("button", { name: "Saved", exact: true }));
+  await screen.findByText(body);
+  await f.user.click(screen.getByRole("button", { name: "Save post", pressed: true }));
+  await screen.findByText("Save a post to find it here later.");
+  expect(screen.queryByText(body)).toBeNull();
+  expect(f.fetch.mock.calls.filter(([url]) => url.endsWith("/explore/posts?view=saved"))).toHaveLength(1);
+});
+
 it("Explore loads comments on demand and retries a draft without refreshing the feed", async () => {
   const id = "organization-post";
   const createdAt = "2026-11-06T10:00:00Z";

@@ -97,6 +97,10 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.deepEqual(await like(false), { reaction: { liked: false, count: 0 } });
     assert.deepEqual(await like(true), { reaction: { liked: true, count: 1 } });
     await assert.rejects(posts.setLike(viewerActor, "organization", postId, { liked: true }), { status: 404 });
+    const save = saved => posts.setSaved(viewerActor, "member", postId, { saved });
+    assert.deepEqual(await save(true), { saved: true });
+    const savedFeed = cursor => posts.feed(viewerActor, { view: "saved", ...(cursor && { cursor }) });
+    assert.deepEqual((await savedFeed()).items.map(item => [item.id, item.saved]), [[postId, true]]);
     const commentDraft = { body: "Thanks for sharing.", requestKey: randomUUID() };
     const commentAsViewer = () => posts.addComment(viewerActor, "member", postId, commentDraft);
     const commentsAsViewer = (query = {}) => posts.comments(viewerActor, "member", postId, query);
@@ -131,6 +135,17 @@ test("database manual identity requests serialize retries and decisions, revoke 
     const older = await posts.feed(viewerActor, { view: "following", cursor: page.nextCursor });
     assert.equal(older.nextCursor, null);
     assert.deepEqual([...page.items, ...older.items].map(post => post.id), [postId, ...extraPosts.map(post => post.id)].sort().reverse());
+    const extraSaves = extraPosts.map((post, index) => ({
+      accountId: viewer.id, memberPostId: post.id, createdAt: new Date(+date + index + 1),
+    }));
+    await db.postSave.createMany({ data: extraSaves });
+    const savedFirst = await savedFeed();
+    assert.ok(savedFirst.nextCursor);
+    await assert.rejects(posts.feed(actor, { view: "saved", cursor: savedFirst.nextCursor }), { status: 400 });
+    await assert.rejects(posts.feed(viewerActor, { view: "following", cursor: savedFirst.nextCursor }), { status: 400 });
+    const savedSecond = await savedFeed(savedFirst.nextCursor);
+    assert.equal(savedSecond.nextCursor, null);
+    assert.deepEqual([...savedFirst.items, ...savedSecond.items].map(item => item.id), [...extraPosts.map(post => post.id).reverse(), postId]);
     await db.memberPost.deleteMany({ where: { id: { in: extraPosts.map(post => post.id) } } });
     await assert.rejects(posts.memberWithdraw(viewerActor, postId), { status: 404 });
     const [leftAccountId, rightAccountId] = [viewer.id, owner.id].sort();
@@ -143,6 +158,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(await seesPost("for-you"), false);
     assert.equal((await posts.memberList(actor, {})).items[0].id, postId);
     await assert.rejects(commentsAsViewer(), { status: 404 });
+    assert.deepEqual((await savedFeed()).items, []);
     await assert.rejects(like(true), { status: 404 });
     await db.profile.update({ where: { id: profile.id }, data: { profilePublicEnabled: true } });
     assert.equal(await seesPost("for-you"), true);
@@ -154,6 +170,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal((await db.person.findUnique({ where: { id: owner.personId } })).identityRevision, 3);
     assert.equal((await reviews.status(owner.id)).identityVerified, false);
     assert.equal(await seesPost("for-you"), false);
+    assert.deepEqual((await savedFeed()).items, []);
     await assert.rejects(like(true), { status: 404 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, requestKey: randomUUID() }), { status: 403 });
     await posts.memberWithdraw(actor, postId);

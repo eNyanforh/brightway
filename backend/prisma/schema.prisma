@@ -38,6 +38,7 @@ enum PersonGender {
 }
 
 model Account {
+  savedPosts PostSave[]
   postComments PostComment[]
   postLikes PostLike[]
   memberPosts MemberPost[]
@@ -939,6 +940,7 @@ model Organization {
   issuedCredentialAttempts CredentialAttempt[] @relation("CredentialAttemptIssuer")
 }
 model OrganizationPost {
+  saves PostSave[]
   comments PostComment[]
   likes PostLike[]
   id String @id @default(uuid())
@@ -957,6 +959,7 @@ model OrganizationPost {
 }
 
 model MemberPost {
+  saves PostSave[]
   comments PostComment[]
   likes PostLike[]
   id String @id @default(uuid())
@@ -984,6 +987,20 @@ model PostLike {
   @@unique([memberPostId, accountId])
   @@unique([organizationPostId, accountId])
   @@index([accountId])
+}
+
+model PostSave {
+  id String @id @default(uuid())
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  memberPostId String?
+  memberPost MemberPost? @relation(fields: [memberPostId], references: [id], onDelete: Cascade)
+  organizationPostId String?
+  organizationPost OrganizationPost? @relation(fields: [organizationPostId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([memberPostId, accountId])
+  @@unique([organizationPostId, accountId])
+  @@index([accountId, createdAt, id])
 }
 
 model PostComment {
