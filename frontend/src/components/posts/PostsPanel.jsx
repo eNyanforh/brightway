@@ -407,7 +407,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
     void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags, ...(type === "EVENT" && eventDetails ? { eventDetails } : {}), ...(type === "QUESTION" && questionDetails ? { questionDetails } : {}) }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
-      const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false } : post;
+      const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false, views: 0, ...(type === "EVENT" ? { registration: { registered: false, count: 0 } } : {}), ...(type === "QUESTION" ? { answerCount: 0 } : {}) } : post;
       setPage(previous => ({
         ...previous,
         items: [published, ...(previous?.items || []).filter(item => cardKey(item) !== cardKey(published))],
