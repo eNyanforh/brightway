@@ -59,11 +59,13 @@ test("Explore opens with a billboard above its composer and icon-based feed", as
   await expect(billboard.getByRole("link", { name: "Browse opportunities" })).toHaveAttribute("href", "/opportunities");
   await expect(billboard.getByRole("button", { name: "Play slideshow" })).toBeVisible();
   await expect(composer).toBeVisible();
-  const postChoice = composer.getByRole("radio", { name: "Share a Post" });
   const achievementChoice = composer.getByRole("radio", { name: "Share an Achievement" });
-  await expect(postChoice).toBeChecked();
-  await expect(achievementChoice).toBeVisible();
-  await expect(composer.getByRole("radio", { name: "Share an Event" })).toBeVisible();
+  const eventChoice = composer.getByRole("radio", { name: "Share an Event" });
+  const questionChoice = composer.getByRole("radio", { name: "Ask a Question" });
+  await expect(achievementChoice).toBeChecked();
+  await expect(eventChoice).toBeVisible();
+  await expect(questionChoice).toBeVisible();
+  await expect(composer.getByRole("radio", { name: "Share a Post" })).toHaveCount(0);
   const card = explore.getByRole("article").first();
   await expect(card.getByText("Post", { exact: true })).toBeVisible();
   for (const action of ["Comments", "Repost", "Like", "Save post"]) {
@@ -81,10 +83,15 @@ test("Explore opens with a billboard above its composer and icon-based feed", as
   await billboard.getByRole("button", { name: "Virtual Campus spotlight" }).click();
   await expect(billboard.getByRole("link", { name: "Explore learning" })).toHaveAttribute("href", "/learning");
   const body = "I completed my first BrightWay project.";
-  await composer.getByRole("textbox", { name: "Write a post" }).fill(body);
-  await postChoice.press("ArrowRight");
+  await composer.getByRole("textbox", { name: "Write an achievement" }).fill(body);
+  await achievementChoice.press("ArrowRight");
+  await expect(eventChoice).toBeChecked();
+  await expect(composer.getByRole("textbox", { name: "Write an event" })).toHaveValue(body);
+  await eventChoice.press("ArrowRight");
+  await expect(questionChoice).toBeChecked();
+  await expect(composer.getByRole("textbox", { name: "Write a question" })).toHaveValue(body);
+  await questionChoice.press("ArrowRight");
   await expect(achievementChoice).toBeChecked();
-  await expect(composer.getByRole("textbox", { name: "Write an achievement" })).toHaveValue(body);
   const publish = composer.getByRole("button", { name: "Post", exact: true });
   await expect(publish).toBeDisabled();
   const topics = composer.getByRole("textbox", { name: "Topic tags" });
@@ -102,9 +109,32 @@ test("Explore opens with a billboard above its composer and icon-based feed", as
   const published = explore.getByRole("article").filter({ hasText: body });
   await expect(published.getByText("Achievement", { exact: true })).toBeVisible();
   await expect(published.getByRole("list", { name: "Topic tags" }).getByText("Community work")).toBeVisible();
-  await expect(postChoice).toBeChecked();
+  await expect(achievementChoice).toBeChecked();
   expect(writes).toEqual([expect.objectContaining({ body, type: "ACHIEVEMENT", tags: ["Community work"] })]);
 });
+
+
+for (const item of [
+  { type: "EVENT", choice: "Share an Event", editor: "Write an event", body: "Join our student research workshop next Friday.", label: "Event" },
+  { type: "QUESTION", choice: "Ask a Question", editor: "Write a question", body: "How do I find a mentor for my first programming project?", label: "Question" },
+]) {
+  test(`Explore publishes a tagged ${item.type.toLowerCase()} with its own post type`, async ({ page }) => {
+    const writes = await fixture(page);
+    await page.goto("/explore");
+    const explore = page.getByRole("region", { name: "Explore", exact: true });
+    const composer = explore.getByRole("form", { name: "Create a post" });
+    await composer.getByRole("radio", { name: item.choice }).check();
+    await composer.getByRole("textbox", { name: item.editor }).fill(item.body);
+    await composer.getByRole("textbox", { name: "Topic tags" }).fill("Learning");
+    await composer.getByRole("button", { name: "Add tag" }).click();
+    await composer.getByRole("button", { name: "Post", exact: true }).click();
+    const published = explore.getByRole("article").filter({ hasText: item.body });
+    await expect(published.getByText(item.label, { exact: true })).toBeVisible();
+    await expect(published.getByRole("list", { name: "Topic tags" }).getByText("Learning")).toBeVisible();
+    await expect(composer.getByRole("radio", { name: "Share an Achievement" })).toBeChecked();
+    expect(writes).toEqual([expect.objectContaining({ body: item.body, type: item.type, tags: ["Learning"] })]);
+  });
+}
 
 test("the billboard rotates and stops when the member pauses it", async ({ page }) => {
   await fixture(page);
