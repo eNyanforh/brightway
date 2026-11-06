@@ -883,3 +883,17 @@
   .bw-question-topic-input { flex-wrap: wrap; }
   .bw-question-topic-input button { width: 100%; }
 }
+
+
+/* Shared subject suggestions in the event composer. */
+.bw-event-topic-suggestions { display: grid; gap: .5rem; margin-top: .65rem; padding-top: .75rem; border-top: 1px solid #e2eaf5; }
+.bw-event-topic-suggestions > span { color: #5b708d; font-size: .75rem; font-weight: 750; }
+.bw-event-topic-suggestion-list { display: flex; flex-wrap: wrap; gap: .45rem; }
+.bw-post-panel .bw-event-topic-suggestion-list button {
+  border: 1px solid #d5e1f2; border-radius: 999px; padding: .37rem .64rem;
+  background: #fff; color: #305780; font-size: .76rem; font-weight: 650;
+}
+.bw-post-panel .bw-event-topic-suggestion-list button:hover:enabled {
+  background: #eaf2ff; border-color: #9dbdec; color: #184d9e;
+}
+.bw-post-panel .bw-event-topic-suggestion-list button:disabled { opacity: .5; cursor: not-allowed; }

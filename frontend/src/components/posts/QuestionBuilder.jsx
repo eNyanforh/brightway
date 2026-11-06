@@ -1,9 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MAX_POST_TOPICS, MAX_POST_TOPIC_LENGTH, normalizePostTopic } from "../../../../shared/post-topics.mjs";
+import { MAX_POST_TOPICS, MAX_POST_TOPIC_LENGTH, POST_SUBJECT_CATEGORIES, normalizePostTopic } from "../../../../shared/post-topics.mjs";
 import NavigationIcon from "../layout/NavigationIcon";
 
-const subjects = ["Coding", "Education", "Science", "Art", "Design", "Technology", "Research", "Business", "Engineering", "Health", "Career", "Entrepreneurship"];
 const intents = [
   { id: "EXPLANATION", label: "Understand a concept", detail: "I need something explained" },
   { id: "FEEDBACK", label: "Get feedback", detail: "Review my work or approach" },
@@ -131,9 +130,9 @@ export default function QuestionBuilder({ body, tags, disabled, onBodyChange, on
                 {tags.map(tag => <li key={tag}>{tag}<button type="button" aria-label={"Remove tag " + tag}
                   disabled={disabled} onClick={() => onTagsChange(tags.filter(value => value !== tag))}>×</button></li>)}
               </ul>
-              <span className="bw-question-suggestions-label">Popular subjects</span>
+              <span className="bw-question-suggestions-label">Explore subjects</span>
               <div className="bw-question-suggestions">
-                {subjects.filter(item => !tags.some(tag => tag.toLowerCase() === item.toLowerCase())).map(item =>
+                {POST_SUBJECT_CATEGORIES.filter(item => !tags.some(tag => tag.toLowerCase() === item.toLowerCase())).map(item =>
                   <button type="button" key={item} disabled={disabled || maxed} onClick={() => addTopic(item)}>
                     <span aria-hidden="true">+</span> {item}
                   </button>)}

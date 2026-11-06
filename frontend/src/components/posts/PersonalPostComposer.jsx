@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MAX_POST_TOPICS, MAX_POST_TOPIC_LENGTH, normalizePostTopic } from "../../../../shared/post-topics.mjs";
+import { MAX_POST_TOPICS, MAX_POST_TOPIC_LENGTH, POST_SUBJECT_CATEGORIES, normalizePostTopic } from "../../../../shared/post-topics.mjs";
 import { photoUrl } from "../../api/profile";
 import Icon from "../layout/Icon";
 import EventBuilder from "./EventBuilder";
@@ -28,7 +28,6 @@ const types = [
   },
 ];
 const legacyType = { type: "POST", label: "Post", icon: "post" };
-const achievementTopicSuggestions = ["Coding", "Art", "Education", "Technology", "Science", "Design", "Business", "Engineering", "Health", "Research", "Entrepreneurship", "Community"];
 
 export function PersonalPostTypeLabel({ type }) {
   const format = types.find(option => option.type === type) ?? legacyType;
@@ -232,7 +231,7 @@ export default function PersonalPostComposer({
             {isAchievement && <div className="bw-achievement-topic-suggestions">
               <span>Explore subjects</span>
               <div className="bw-achievement-topic-suggestion-list">
-                {achievementTopicSuggestions.filter(item => !tags.some(tag => tag.toLowerCase() === item.toLowerCase())).map(item => (
+                {POST_SUBJECT_CATEGORIES.filter(item => !tags.some(tag => tag.toLowerCase() === item.toLowerCase())).map(item => (
                   <button type="button" key={item} className="bw-achievement-topic-suggestion"
                     disabled={disabled || topicLimit} onClick={() => addSuggestedTopic(item)}>
                     <span aria-hidden="true">+</span> {item}
