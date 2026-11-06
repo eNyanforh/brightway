@@ -138,7 +138,7 @@ for (const format of formats) {
     const publish = editor.getByRole("button", { name: "Publish " + format.label.toLowerCase() });
     await expect(publish).toBeDisabled();
 
-    const topics = editor.getByRole("textbox", { name: "Topic tags" });
+    const topics = editor.getByRole("textbox", { name: format.type === "ACHIEVEMENT" ? "Topics" : "Topic tags" });
     await topics.fill("#Research");
     await topics.press("Enter");
     await topics.fill("research");
