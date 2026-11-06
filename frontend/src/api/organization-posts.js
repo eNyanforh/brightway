@@ -33,11 +33,15 @@ async function readPage(path, signal) {
 }
 
 const workspacePath = id => "/organization-workspace/" + encodeURIComponent(id) + "/posts";
+const explorePost = (source, id) => `/explore/posts/${source}/${encodeURIComponent(id)}`;
 const query = params => "?" + new URLSearchParams(params);
 
 export const organizationPostsApi = {
   feed: (view, cursor, signal) => readPage("/explore/posts" + query({ view, ...(cursor ? { cursor } : {}) }), signal),
-  setLike: (source, id, liked, signal) => request(`/explore/posts/${source}/${encodeURIComponent(id)}/like`, signal, "PUT", { liked }),
+  setLike: (source, id, liked, signal) => request(explorePost(source, id) + "/like", signal, "PUT", { liked }),
+  comments: (source, id, cursor, signal) => readPage(explorePost(source, id) + "/comments" + (cursor ? query({ cursor }) : ""), signal),
+  addComment: (source, id, draft, signal) => request(explorePost(source, id) + "/comments", signal, "POST", draft),
+  deleteComment: (source, id, commentId, signal) => request(explorePost(source, id) + "/comments/" + encodeURIComponent(commentId), signal, "DELETE"),
   memberList: (cursor, signal) => readPage("/posts/me" + (cursor ? query({ cursor }) : ""), signal),
   memberPublish: (body, signal) => request("/posts/me", signal, "POST", body),
   memberWithdraw: (postId, signal) => request("/posts/me/" + encodeURIComponent(postId), signal, "DELETE"),

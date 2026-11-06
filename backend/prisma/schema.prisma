@@ -38,6 +38,7 @@ enum PersonGender {
 }
 
 model Account {
+  postComments PostComment[]
   postLikes PostLike[]
   memberPosts MemberPost[]
   organizationPosts OrganizationPost[]
@@ -938,6 +939,7 @@ model Organization {
   issuedCredentialAttempts CredentialAttempt[] @relation("CredentialAttemptIssuer")
 }
 model OrganizationPost {
+  comments PostComment[]
   likes PostLike[]
   id String @id @default(uuid())
   organizationId String
@@ -955,6 +957,7 @@ model OrganizationPost {
 }
 
 model MemberPost {
+  comments PostComment[]
   likes PostLike[]
   id String @id @default(uuid())
   authorId String
@@ -981,6 +984,24 @@ model PostLike {
   @@unique([memberPostId, accountId])
   @@unique([organizationPostId, accountId])
   @@index([accountId])
+}
+
+model PostComment {
+  id String @id @default(uuid())
+  authorId String
+  author Account @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  memberPostId String?
+  memberPost MemberPost? @relation(fields: [memberPostId], references: [id], onDelete: Cascade)
+  organizationPostId String?
+  organizationPost OrganizationPost? @relation(fields: [organizationPostId], references: [id], onDelete: Cascade)
+  requestKey String
+  body String @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+  @@unique([authorId, requestKey])
+  @@index([authorId, createdAt])
+  @@index([memberPostId, deletedAt, createdAt, id])
+  @@index([organizationPostId, deletedAt, createdAt, id])
 }
 
 model OrganizationOperatingLocation {

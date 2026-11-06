@@ -27,6 +27,10 @@ export function createOrganizationPostRoutes({ posts, sessions, clientUrl, nodeE
   const path = "/organization-workspace/:organizationId/posts";
   router.get("/explore/posts", access, respond((req, actor) => posts.feed(actor, req.query)));
   router.put("/explore/posts/:source/:id/like", access, trustedOrigin, writes, respond((req, actor) => posts.setLike(actor, req.params.source, req.params.id, req.body)));
+  const comments = "/explore/posts/:source/:id/comments";
+  router.get(comments, access, respond((req, actor) => posts.comments(actor, req.params.source, req.params.id, req.query)));
+  router.post(comments, access, trustedOrigin, writes, respond((req, actor) => posts.addComment(actor, req.params.source, req.params.id, req.body), 201));
+  router.delete(comments + "/:commentId", access, trustedOrigin, writes, respond((req, actor) => posts.deleteComment(actor, req.params.source, req.params.id, req.params.commentId)));
   router.get("/posts/me", access, respond((req, actor) => posts.memberList(actor, req.query)));
   router.post("/posts/me", access, trustedOrigin, writes, respond((req, actor) => posts.memberPublish(actor, req.body), 201));
   router.delete("/posts/me/:id", access, trustedOrigin, writes, respond((req, actor) => posts.memberWithdraw(actor, req.params.id)));

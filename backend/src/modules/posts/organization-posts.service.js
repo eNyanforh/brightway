@@ -26,10 +26,16 @@ const memberPostSelect = {
 const identifier = z.uuid();
 const sourceInput = z.enum(["organization", "member"]);
 const likeInput = z.strictObject({ liked: z.boolean() });
-const postInput = z.strictObject({
-  body: z.string().trim().min(1).max(2000).refine(value => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)),
+const textInput = max => z.strictObject({
+  body: z.string().trim().min(1).max(max).refine(value => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value)),
   requestKey: identifier,
 });
+const postInput = textInput(2000);
+const commentInput = textInput(1000);
+const commentSelect = {
+  id: true, body: true, createdAt: true,
+  author: { select: { id: true, username: true } },
+};
 const cursorInput = z.string().min(1).max(700).optional();
 const feedQuery = z.strictObject({ view: z.enum(["for-you", "following"]).default("for-you"), cursor: cursorInput });
 const workspaceQuery = z.strictObject({ cursor: cursorInput });
@@ -39,6 +45,21 @@ function parse(schema, data, message) {
   const result = schema.safeParse(data);
   if (!result.success) throw fail(400, message);
   return result.data;
+}
+
+function postRef(sourceValue, idValue) {
+  return {
+    source: parse(sourceInput, sourceValue, "Choose a valid post type."),
+    id: parse(identifier, idValue, "Choose a valid post."),
+  };
+}
+
+function postTarget({ source, id }) {
+  return source === "member" ? { memberPostId: id } : { organizationPostId: id };
+}
+
+function commentView({ author, ...comment }, viewerId) {
+  return { ...comment, username: author.username, canDelete: author.id === viewerId };
 }
 
 function readCursor(cursor, viewer, scope) {
@@ -61,11 +82,11 @@ function boundary(cursor, source) {
   ] };
 }
 
-function cursorFor(rows, viewer, scope) {
+function cursorFor(rows, viewer, scope, source) {
   if (rows.length <= pageSize) return null;
   const last = rows[pageSize - 1];
-  const source = last.author ? "member" : "organization";
-  return Buffer.from(JSON.stringify({ viewer, scope, at: last.createdAt.toISOString(), id: last.id, source })).toString("base64url");
+  const kind = source ?? (last.author ? "member" : "organization");
+  return Buffer.from(JSON.stringify({ viewer, scope, at: last.createdAt.toISOString(), id: last.id, source: kind })).toString("base64url");
 }
 
 function unblockedAuthor(accountId) {
@@ -125,6 +146,47 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
 
   async function lockOrganization(db, id) {
     await db.$queryRaw`SELECT "id" FROM "Organization" WHERE "id" = ${id} FOR UPDATE`;
+  }
+
+  const unavailable = () => fail(404, "This post is no longer available.");
+
+  function postModel(db, source) {
+    return source === "member" ? db.memberPost : db.organizationPost;
+  }
+
+  async function visiblePost(db, viewer, { source, id }) {
+    const member = source === "member";
+    const author = member ? visibleMember(viewer) : unblockedAuthor(viewer);
+    const where = { id, withdrawnAt: null, author, ...(!member && { organization: readyFilter }) };
+    const target = await postModel(db, source).findFirst({ where, select: { authorId: true } });
+    if (!target) throw unavailable();
+    if (member) {
+      const access = await memberEligibility(db, target.authorId);
+      if (!access.identityVerified || !access.profilePublic) throw unavailable();
+    }
+    return target;
+  }
+
+  async function writeVisiblePost(actor, ref, operation) {
+    await assertNetworkSession(prisma, actor, now);
+    const { source, id } = ref;
+    const member = source === "member";
+    const select = member ? { authorId: true } : { authorId: true, organizationId: true };
+    const target = await postModel(prisma, source).findUnique({ where: { id }, select });
+    if (!target) throw unavailable();
+
+    return prisma.$transaction(async tx => {
+      // Match block and post mutation lock order before rechecking visibility.
+      await lockNetworkAccounts(tx, [actor.accountId, target.authorId]);
+      await assertNetworkSession(tx, actor, now);
+      if (member) await lockMemberProfile(tx, target.authorId);
+      else await lockOrganization(tx, target.organizationId);
+
+      await visiblePost(tx, actor.accountId, ref);
+      const result = await operation(tx);
+      await assertNetworkSession(tx, actor, now);
+      return result;
+    });
   }
 
   async function memberWrite(actor, operation) {
@@ -220,41 +282,78 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     },
 
     async setLike(actor, sourceValue, idValue, input) {
-      const source = parse(sourceInput, sourceValue, "Choose a valid post type.");
-      const id = parse(identifier, idValue, "Choose a valid post.");
+      const ref = postRef(sourceValue, idValue);
       const { liked } = parse(likeInput, input, "Choose whether to like this post.");
-      await assertNetworkSession(prisma, actor, now);
-
-      const unavailable = () => fail(404, "This post is no longer available.");
-      const member = source === "member";
-      const select = member ? { authorId: true } : { authorId: true, organizationId: true };
-      const model = member ? prisma.memberPost : prisma.organizationPost;
-      const target = await model.findUnique({ where: { id }, select });
-      if (!target) throw unavailable();
-
-      return prisma.$transaction(async tx => {
-        // Match block and post mutation lock order before rechecking visibility.
-        await lockNetworkAccounts(tx, [actor.accountId, target.authorId]);
-        await assertNetworkSession(tx, actor, now);
-        if (member) await lockMemberProfile(tx, target.authorId);
-        else await lockOrganization(tx, target.organizationId);
-
-        const author = member ? visibleMember(actor.accountId) : unblockedAuthor(actor.accountId);
-        const posts = member ? tx.memberPost : tx.organizationPost;
-        const where = { id, authorId: target.authorId, withdrawnAt: null, author,
-          ...(!member && { organizationId: target.organizationId, organization: readyFilter }) };
-        if (!await posts.findFirst({ where, select: { id: true } })) throw unavailable();
-        if (member) {
-          const access = await memberEligibility(tx, target.authorId);
-          if (!access.identityVerified || !access.profilePublic) throw unavailable();
-        }
-
-        const data = { accountId: actor.accountId, [member ? "memberPostId" : "organizationPostId"]: id };
+      return writeVisiblePost(actor, ref, async tx => {
+        const data = { accountId: actor.accountId, ...postTarget(ref) };
         if (liked) await tx.postLike.createMany({ data: [data], skipDuplicates: true });
         else await tx.postLike.deleteMany({ where: data });
-        const reaction = likeSummary(await posts.findUniqueOrThrow({ where: { id }, select: likeSelect(actor.accountId) }));
-        await assertNetworkSession(tx, actor, now);
-        return { reaction };
+        const post = await postModel(tx, ref.source).findUniqueOrThrow({ where: { id: ref.id }, select: likeSelect(actor.accountId) });
+        return { reaction: likeSummary(post) };
+      });
+    },
+
+    async comments(actor, sourceValue, idValue, query) {
+      const ref = postRef(sourceValue, idValue);
+      const { cursor } = parse(workspaceQuery, query, "Reload the comments to get a current page link.");
+      await assertNetworkSession(prisma, actor, now);
+      const scope = `comments:${ref.source}:${ref.id}`;
+      const position = readCursor(cursor, actor.accountId, scope);
+      const target = await visiblePost(prisma, actor.accountId, ref);
+      const author = {
+        status: "ACTIVE",
+        AND: [unblockedAuthor(actor.accountId), unblockedAuthor(target.authorId)],
+      };
+      const rows = await prisma.postComment.findMany({
+        where: { ...postTarget(ref), deletedAt: null, author, ...boundary(position, ref.source) },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: commentSelect,
+        take: pageSize + 1,
+      });
+      await assertNetworkSession(prisma, actor, now);
+      return { items: rows.slice(0, pageSize).map(row => commentView(row, actor.accountId)), nextCursor: cursorFor(rows, actor.accountId, scope, ref.source) };
+    },
+
+    async addComment(actor, sourceValue, idValue, input) {
+      const ref = postRef(sourceValue, idValue);
+      const { body, requestKey } = parse(commentInput, input, "Enter a comment with 1 to 1,000 characters.");
+      return writeVisiblePost(actor, ref, async tx => {
+        const { emailVerifiedAt } = await tx.account.findUniqueOrThrow({ where: { id: actor.accountId }, select: { emailVerifiedAt: true } });
+        if (!emailVerifiedAt) throw fail(403, "Verify your email before commenting.");
+
+        const target = postTarget(ref);
+        const key = { authorId: actor.accountId, requestKey };
+        const previous = await tx.postComment.findUnique({
+          where: { authorId_requestKey: key },
+          select: { ...commentSelect, deletedAt: true, memberPostId: true, organizationPostId: true },
+        });
+        if (previous) {
+          const { deletedAt, memberPostId, organizationPostId, ...comment } = previous;
+          if (deletedAt || comment.body !== body ||
+              (target.memberPostId ?? null) !== memberPostId || (target.organizationPostId ?? null) !== organizationPostId) {
+            throw fail(409, "This request already belongs to another comment. Edit your draft before trying again.");
+          }
+          return { comment: commentView(comment, actor.accountId) };
+        }
+
+        const recent = await tx.postComment.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
+        if (recent >= 20) throw fail(429, "You have reached the commenting limit. Try again in 15 minutes.");
+        const comment = await tx.postComment.create({ data: { ...key, ...target, body, createdAt: now() }, select: commentSelect });
+        return { comment: commentView(comment, actor.accountId) };
+      });
+    },
+
+    async deleteComment(actor, sourceValue, idValue, commentValue) {
+      const ref = postRef(sourceValue, idValue);
+      const id = parse(identifier, commentValue, "Choose a valid comment.");
+      return writeVisiblePost(actor, ref, async tx => {
+        const comment = await tx.postComment.findFirst({
+          where: { id, authorId: actor.accountId, ...postTarget(ref) },
+          select: { deletedAt: true },
+        });
+        if (!comment) throw fail(404, "This comment is unavailable.");
+        if (!comment.deletedAt) await tx.postComment.update({ where: { id }, data: { deletedAt: now(), body: "" } });
+        return { id };
       });
     },
 

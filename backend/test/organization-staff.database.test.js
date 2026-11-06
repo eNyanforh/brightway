@@ -121,12 +121,35 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     assert.deepEqual(await like(0, true), { reaction: { liked: true, count: 2 } });
     assert.deepEqual(await like(2, false), { reaction: { liked: false, count: 1 } });
     assert.deepEqual(await like(2, false), { reaction: { liked: false, count: 1 } });
+    const commentDraft = { body: "  Is this workshop open to everyone?  ", requestKey: randomUUID() };
+    const commentAs = viewer => posts.addComment(actor(viewer), "organization", post.id, commentDraft);
+    const commentsAs = (viewer, query = {}) => posts.comments(actor(viewer), "organization", post.id, query);
+    const [{ comment }, duplicateComment] = await Promise.all([commentAs(2), commentAs(2)]);
+    assert.deepEqual(duplicateComment, { comment });
+    assert.equal(comment.body, commentDraft.body.trim());
+    assert.equal(comment.username, agent.username);
+    assert.equal(comment.canDelete, true);
+    assert.deepEqual(Object.keys(comment).sort(), ["body", "canDelete", "createdAt", "id", "username"]);
+    const commentList = await commentsAs(0);
+    assert.deepEqual(commentList, { items: [{ ...comment, canDelete: false }], nextCursor: null });
+    await assert.rejects(posts.deleteComment(actor(0), "organization", post.id, comment.id), { status: 404 });
+    await assert.rejects(posts.addComment(actor(2), "organization", post.id, { ...commentDraft, body: "Changed" }), { status: 409 });
     const [leftAccountId, rightAccountId] = [staff.id, agent.id].sort();
     const block = await db.networkPair.create({ data: { leftAccountId, rightAccountId, leftBlocked: true } });
     assert.equal(await visible("for-you"), false);
     assert.equal(await visible("following"), false);
     await assert.rejects(like(2, true), { status: 404 });
+    await assert.rejects(commentAs(2), { status: 404 });
+    await assert.rejects(commentsAs(2), { status: 404 });
+    assert.deepEqual((await commentsAs(0)).items, []);
     await db.networkPair.delete({ where: { id: block.id } });
+
+    const deleteComment = () => posts.deleteComment(actor(2), "organization", post.id, comment.id);
+    assert.deepEqual(await deleteComment(), { id: comment.id });
+    assert.deepEqual(await deleteComment(), { id: comment.id });
+    assert.deepEqual((await commentsAs(0)).items, []);
+    assert.equal((await db.postComment.findUniqueOrThrow({ where: { id: comment.id } })).body, "");
+    await assert.rejects(commentAs(2), { status: 409 });
 
     await db.organization.update({ where: { id: organization.id }, data: { status: "SUSPENDED" } });
     await assert.rejects(context(), { status: 404 });
@@ -138,6 +161,7 @@ test("database staffing preserves consent, one-winner acceptance, scoped grants,
     assert.equal(await visible("for-you"), false);
     assert.equal(await visible("following"), false);
     assert.equal((await posts.list(actor(0), organization.id, {})).items.length, 0);
+    await assert.rejects(commentsAs(0), { status: 404 });
     await assert.rejects(like(2, true), { status: 404 });
     const actions = await db.organizationStaffAudit.findMany({
       where: { organizationId: organization.id, entityId: post.id },

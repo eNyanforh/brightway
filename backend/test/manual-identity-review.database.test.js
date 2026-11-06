@@ -97,6 +97,24 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.deepEqual(await like(false), { reaction: { liked: false, count: 0 } });
     assert.deepEqual(await like(true), { reaction: { liked: true, count: 1 } });
     await assert.rejects(posts.setLike(viewerActor, "organization", postId, { liked: true }), { status: 404 });
+    const commentDraft = { body: "Thanks for sharing.", requestKey: randomUUID() };
+    const commentAsViewer = () => posts.addComment(viewerActor, "member", postId, commentDraft);
+    const commentsAsViewer = (query = {}) => posts.comments(viewerActor, "member", postId, query);
+    await assert.rejects(commentAsViewer(), { status: 403 });
+    await db.account.update({ where: { id: viewer.id }, data: { emailVerifiedAt: date } });
+    const { comment } = await commentAsViewer();
+    assert.deepEqual((await commentsAsViewer()).items, [comment]);
+    const extraComments = Array.from({ length: 21 }, (_, index) => ({
+      id: randomUUID(), authorId: viewer.id, memberPostId: postId, requestKey: randomUUID(), body: `Synthetic comment ${index}`, createdAt: date,
+    }));
+    await db.postComment.createMany({ data: extraComments });
+    const commentPage = await commentsAsViewer();
+    const olderComments = await commentsAsViewer({ cursor: commentPage.nextCursor });
+    assert.equal(commentPage.items.length, 20);
+    assert.equal(olderComments.nextCursor, null);
+    assert.deepEqual([...commentPage.items, ...olderComments.items].map(item => item.id), [comment.id, ...extraComments.map(item => item.id)].sort().reverse());
+    await assert.rejects(posts.comments(actor, "member", postId, { cursor: commentPage.nextCursor }), { status: 400 });
+    await db.postComment.deleteMany({ where: { id: { in: extraComments.map(item => item.id) } } });
     const seesPost = async view => (await posts.feed(viewerActor, { view })).items.some(post => post.id === postId);
     assert.equal(await seesPost("for-you"), true);
     assert.equal(await seesPost("following"), false);
@@ -124,6 +142,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     await db.profile.update({ where: { id: profile.id }, data: { profilePublicEnabled: false } });
     assert.equal(await seesPost("for-you"), false);
     assert.equal((await posts.memberList(actor, {})).items[0].id, postId);
+    await assert.rejects(commentsAsViewer(), { status: 404 });
     await assert.rejects(like(true), { status: 404 });
     await db.profile.update({ where: { id: profile.id }, data: { profilePublicEnabled: true } });
     assert.equal(await seesPost("for-you"), true);

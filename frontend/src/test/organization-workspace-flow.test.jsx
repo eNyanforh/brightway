@@ -193,6 +193,52 @@ it("Explore updates likes in place and removes only the post that becomes unavai
   expect(f.fetch.mock.calls.filter(([url]) => url.includes("/explore/posts?"))).toHaveLength(1);
 });
 
+it("Explore loads comments on demand and retries a draft without refreshing the feed", async () => {
+  const id = "organization-post";
+  const createdAt = "2026-11-06T10:00:00Z";
+  const commentBody = "May I bring my project team?";
+  let firstKey;
+  const f = mount("/explore", (url, options) => {
+    if (url.includes("/explore/posts?")) return reply({
+      items: [{ id, organization, body: "Register for the workshop.", createdAt }], nextCursor: null,
+    });
+    if (url.endsWith("/comments/own-comment") && options.method === "DELETE") return reply({ id: "own-comment" });
+    if (url.endsWith("/comments") && options.method === "POST") {
+      const draft = JSON.parse(options.body);
+      expect(draft.body).toBe(commentBody);
+      if (!firstKey) {
+        firstKey = draft.requestKey;
+        return reply("Try again shortly.", 503);
+      }
+      expect(draft.requestKey).toBe(firstKey);
+      return reply({ comment: { id: "own-comment", body: commentBody, username: "owner", createdAt, canDelete: true } });
+    }
+    if (url.endsWith("/comments")) return reply({
+      items: [{ id: "other-comment", body: "I signed up.", username: "other", createdAt, canDelete: false }], nextCursor: null,
+    });
+    return reply(context);
+  });
+  const toggle = await screen.findByRole("button", { name: "Comments" });
+  expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/comments"))).toBe(false);
+  await f.user.click(toggle);
+  await screen.findByText("I signed up.");
+  expect(screen.queryByRole("button", { name: "Delete comment" })).toBeNull();
+  const field = screen.getByRole("textbox", { name: "Write a comment" });
+  await f.user.type(field, commentBody);
+  const send = screen.getByRole("button", { name: "Post comment" });
+  await f.user.click(send);
+  await screen.findByText("Try again shortly.");
+  expect(field.value).toBe(commentBody);
+  await f.user.click(send);
+  await screen.findByText(commentBody);
+  expect(field.value).toBe("");
+  await f.user.click(screen.getByRole("button", { name: "Delete comment" }));
+  await f.user.click(screen.getByRole("button", { name: "Confirm deletion" }));
+  await waitFor(() => expect(screen.queryByText(commentBody)).toBeNull());
+  expect(screen.getByText("I signed up.")).toBeTruthy();
+  expect(f.fetch.mock.calls.filter(([url]) => url.includes("/explore/posts?"))).toHaveLength(1);
+});
+
 it("the personal Post destination checks verification and lets authors withdraw after unpublishing their profile", async () => {
   let verified = false, published = true;
   const body = "I finished my first research project.";
