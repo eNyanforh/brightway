@@ -20,6 +20,28 @@ const storyFormats = {
   QUESTION: { icon: "question", heading: "Let's learn together", note: "Join the discussion in the comments" },
 };
 
+function EventInfoCard({ details }) {
+  if (!details?.title) return null;
+  const date = value => {
+    try { return new Intl.DateTimeFormat("en", {
+      timeZone: details.timezone || "UTC", dateStyle: "medium", timeStyle: "short",
+    }).format(new Date(value)); } catch { return ""; }
+  };
+  const showVenue = details.format !== "ONLINE" && Boolean(details.venue);
+  const showLink = details.format !== "IN_PERSON" && /^https?:\/\//i.test(details.meetingUrl || "");
+  return (
+    <div className="bw-event-feed-card" data-theme={details.coverTheme || "NAVY"} aria-label="Event details">
+      <div className="bw-event-feed-cover"><span>BRIGHTWAY EVENT</span><NavigationIcon name="calendar" size={30} /></div>
+      <div className="bw-event-feed-content">
+        <h3>{details.title}</h3>
+        <p><NavigationIcon name="calendar" size={16} /> {date(details.startAt)} – {date(details.endAt)}</p>
+        <p><NavigationIcon name="pin" size={16} /> {details.format === "ONLINE" ? "Online" : details.format === "HYBRID" ? "Hybrid" : "In person"}{showVenue ? " · " + details.venue : ""}</p>
+        {showLink && <a href={details.meetingUrl} target="_blank" rel="noopener noreferrer">Join online <span aria-hidden="true">↗</span></a>}
+      </div>
+    </div>
+  );
+}
+
 function PostStory({ post, topicTags }) {
   const format = post.member && storyFormats[post.type];
   if (!format) return (
@@ -38,6 +60,7 @@ function PostStory({ post, topicTags }) {
           <strong>{format.heading}</strong>
         </div>
       </div>
+      {post.type === "EVENT" && <EventInfoCard details={post.eventDetails} />}
       <p className="bw-post-text bw-post-story-body">{post.body}</p>
       {topicTags}
       <p className="bw-post-story-note">{format.note}</p>
@@ -205,13 +228,13 @@ export default function PostsPanel({ organization, personal = false, view = "for
     setTags(value);
   }
 
-  function publish(event) {
+  function publish(event, eventDetails) {
     event.preventDefault();
     if (!canPublish || !body.trim() || (memberComposer && (!composerOpen || !tags.length)) || active.current) return;
     setNotice("");
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
-    void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
+    void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags, ...(type === "EVENT" && eventDetails ? { eventDetails } : {}) }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
       const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false } : post;
       setPage(previous => ({
         ...previous,

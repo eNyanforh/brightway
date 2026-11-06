@@ -21,7 +21,7 @@ const postSelect = {
   organization: { select: { id: true, name: true, username: true } },
 };
 const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true } } };
-const memberPostSelect = { id: true, type: true, tags: true, body: true, createdAt: true, author: { select: memberSelect } };
+const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true, body: true, createdAt: true, author: { select: memberSelect } };
 const repostSelect = { id: true, createdAt: true, account: { select: memberSelect } };
 const identifier = z.uuid();
 const sourceInput = z.enum(["organization", "member"]);
@@ -36,9 +36,35 @@ const postInput = textInput(2000);
 const topicTags = z.array(z.string().transform(normalizePostTopic).pipe(z.string()))
   .max(MAX_POST_TOPICS)
   .refine(tags => new Set(tags.map(tag => tag.toLowerCase())).size === tags.length);
+const eventDetailsInput = z.strictObject({
+  title: z.string().trim().min(3).max(120),
+  startAt: z.iso.datetime({ offset: true }),
+  endAt: z.iso.datetime({ offset: true }),
+  timezone: z.string().min(1).max(100).refine(value => {
+    try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; }
+  }),
+  format: z.enum(["IN_PERSON", "ONLINE", "HYBRID"]),
+  venue: z.string().trim().max(240).default(""),
+  meetingUrl: z.union([z.url({ protocol: /^https?$/ }).max(500), z.literal("")]).default(""),
+  coverTheme: z.enum(["NAVY", "SUNSET", "FOREST", "VIOLET"]).default("NAVY"),
+}).superRefine((value, ctx) => {
+  const start = Date.parse(value.startAt);
+  const end = Date.parse(value.endAt);
+  if (!(end > start) || end - start > 1000 * 60 * 60 * 24 * 30) {
+    ctx.addIssue({ code: "custom", path: ["endAt"], message: "The event must end after it starts and within 30 days." });
+  }
+  if (value.format !== "ONLINE" && !value.venue) ctx.addIssue({ code: "custom", path: ["venue"], message: "Add an event venue." });
+  if (value.format !== "IN_PERSON" && !value.meetingUrl) ctx.addIssue({ code: "custom", path: ["meetingUrl"], message: "Add a meeting link." });
+});
 const memberPostInput = postInput.extend({
   type: z.enum(["POST", "ACHIEVEMENT", "EVENT", "QUESTION"]).default("POST"),
   tags: topicTags.default([]),
+  eventDetails: eventDetailsInput.optional(),
+}).superRefine((value, ctx) => {
+  if (value.type !== "EVENT" && value.eventDetails) ctx.addIssue({ code: "custom", path: ["eventDetails"], message: "Event details can only be added to events." });
+  if (value.type === "EVENT" && !value.eventDetails) {
+    ctx.addIssue({ code: "custom", path: ["eventDetails"], message: "Complete event details before publishing." });
+  }
 });
 const commentInput = textInput(1000);
 const commentSelect = {
@@ -140,6 +166,13 @@ function feedPost({ likes, _count, saves, reposts, ...post }) {
     saved: saves.length > 0,
     reposted: reposts.length > 0,
   };
+}
+
+function sameEventDetails(left, right) {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+  return ["title", "startAt", "endAt", "timezone", "format", "venue", "meetingUrl", "coverTheme"]
+    .every(key => (left[key] ?? null) === (right[key] ?? null));
 }
 
 function memberPost({ author, ...post }) {
@@ -543,14 +576,15 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         if (previous) {
           const { withdrawnAt, ...post } = previous;
           const sameTags = post.tags.length === data.tags.length && post.tags.every((tag, index) => tag === data.tags[index]);
-          if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
+          const sameEvent = sameEventDetails(post.eventDetails, data.eventDetails);
+          if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags || !sameEvent) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
           return { post: memberPost(post) };
         }
         // An older tagless post may be retried, but new posts require a topic.
         if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
-        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, body: data.body, createdAt: now() }, select: memberPostSelect });
+        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, body: data.body, createdAt: now() }, select: memberPostSelect });
         return { post: memberPost(post) };
       });
     },

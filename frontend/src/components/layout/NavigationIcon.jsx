@@ -109,6 +109,9 @@ export default function NavigationIcon({
     case "calendar":
       shape = <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4m10-4v4M3 10h18m-13 5h2m4 0h2" /></>;
       break;
+    case "pin":
+      shape = <><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></>;
+      break;
     case "question":
       shape = <><circle cx="12" cy="12" r="9" /><path d="M9.2 9a3.2 3.2 0 1 1 5.2 2.5c-1.4 1-2.4 1.7-2.4 3M12 17.7h.01" /></>;
       break;

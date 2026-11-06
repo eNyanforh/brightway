@@ -308,7 +308,11 @@ it("the personal Post destination checks verification and lets authors withdraw 
   const f = mount("/explore", (url, options) => {
     if (url.includes("/explore/posts?")) return reply({ items: [], nextCursor: null });
     if (url.endsWith("/posts/me") && options?.method === "POST") {
-      expect(JSON.parse(options.body)).toMatchObject({ body, type: "EVENT", tags: ["Research"] });
+      expect(JSON.parse(options.body)).toMatchObject({
+        body, type: "EVENT", tags: ["Research"],
+        eventDetails: { title: "Research Showcase", format: "IN_PERSON", venue: "Campus library",
+          startAt: expect.any(String), endAt: expect.any(String) },
+      });
       return reply({ post }, 201);
     }
     if (url.endsWith("/posts/me/personal-post") && options?.method === "DELETE") return reply({ id: post.id });
@@ -325,6 +329,8 @@ it("the personal Post destination checks verification and lets authors withdraw 
   const refresh = screen.getByRole("button", { name: "Refresh posts" });
   await f.user.click(refresh);
   await f.user.click(await screen.findByRole("button", { name: "Create an Event" }));
+  await f.user.type(screen.getByLabelText("Event title"), "Research Showcase");
+  await f.user.type(screen.getByLabelText("Venue or address"), "Campus library");
   await f.user.type(screen.getByRole("textbox", { name: "Write an event" }), body);
   const publish = screen.getByRole("button", { name: "Publish event" });
   expect(publish.disabled).toBe(true);

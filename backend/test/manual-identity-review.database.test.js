@@ -86,9 +86,10 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(publication.post.type, "POST");
     assert.deepEqual(publication.post.tags, ["Learning Journeys"]);
     assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner" });
-    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "id", "member", "tags", "type"]);
+    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "member", "tags", "type"]);
+    assert.equal(publication.post.eventDetails, null);
     await assert.rejects(posts.memberPublish(actor, { ...draft, body: "Different content" }), { status: 409 });
-    await assert.rejects(posts.memberPublish(actor, { ...draft, type: "EVENT" }), { status: 409 });
+    await assert.rejects(posts.memberPublish(actor, { ...draft, type: "EVENT", eventDetails: { title: "Learning meetup", startAt: "2027-01-15T12:00:00Z", endAt: "2027-01-15T14:00:00Z", timezone: "UTC", format: "IN_PERSON", venue: "Campus hall", coverTheme: "NAVY" } }), { status: 409 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, tags: ["Skills"] }), { status: 409 });
     await assert.rejects(posts.memberPublish(actor, { body: draft.body, requestKey: randomUUID() }), { status: 400, message: "Add at least one topic tag before publishing." });
     await assert.rejects(posts.memberPublish(actor, { ...draft, tags: ["Research", "#research"], requestKey: randomUUID() }), { status: 400 });
@@ -102,10 +103,18 @@ test("database manual identity requests serialize retries and decisions, revoke 
     const viewerSession = await db.session.create({ data: { accountId: viewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000) } });
     const viewerActor = { accountId: viewer.id, sessionId: viewerSession.id };
     for (const type of ["ACHIEVEMENT", "EVENT", "QUESTION"]) {
-      const typedDraft = { body: "A member update.", requestKey: randomUUID(), type, tags: ["Research", "Community"] };
+      const details = {
+        title: "Student Research Workshop", startAt: "2027-01-15T12:00:00Z", endAt: "2027-01-15T14:00:00Z",
+        timezone: "UTC", format: "HYBRID", venue: "University campus",
+        meetingUrl: "https://meet.example.org/student-research", coverTheme: "FOREST",
+      };
+      const typedDraft = { body: "A member update.", requestKey: randomUUID(), type, tags: ["Research", "Community"],
+        ...(type === "EVENT" ? { eventDetails: details } : {}),
+      };
       const { post } = await posts.memberPublish(actor, typedDraft);
       assert.equal(post.type, type);
       assert.deepEqual(post.tags, typedDraft.tags);
+      if (type === "EVENT") assert.deepEqual(post.eventDetails, { ...details, venue: "University campus", meetingUrl: "https://meet.example.org/student-research" });
       assert.deepEqual(await posts.memberPublish(actor, typedDraft), { post });
       const owned = (await posts.memberList(actor, {})).items.find(item => item.id === post.id);
       const visible = (await posts.feed(viewerActor, {})).items.find(item => item.id === post.id);
@@ -113,8 +122,14 @@ test("database manual identity requests serialize retries and decisions, revoke 
       assert.equal(visible?.type, type);
       assert.deepEqual(owned?.tags, typedDraft.tags);
       assert.deepEqual(visible?.tags, typedDraft.tags);
+      if (type === "EVENT") assert.deepEqual(visible?.eventDetails, post.eventDetails);
       await posts.memberWithdraw(actor, post.id);
     }
+    await assert.rejects(posts.memberPublish(actor, {
+      body: "Invalid event.", requestKey: randomUUID(), type: "EVENT", tags: ["Research"],
+      eventDetails: { title: "Invalid event", startAt: "2027-01-15T14:00:00Z", endAt: "2027-01-15T12:00:00Z",
+        timezone: "UTC", format: "ONLINE", meetingUrl: "https://meet.example.org/room", coverTheme: "NAVY" },
+    }), { status: 400 });
     const like = liked => posts.setLike(viewerActor, "member", postId, { liked });
     assert.deepEqual(await like(true), { reaction: { liked: true, count: 1 } });
     assert.deepEqual(await like(false), { reaction: { liked: false, count: 0 } });

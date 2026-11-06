@@ -38,7 +38,7 @@ async function fixture(page, posts = [fixturePost]) {
         const draft = request.postDataJSON();
         writes.push(draft);
         return reply({ post: {
-          id: "new-post", body: draft.body, type: draft.type, tags: draft.tags,
+          id: "new-post", body: draft.body, type: draft.type, tags: draft.tags, eventDetails: draft.eventDetails || null,
           createdAt: fixturePost.createdAt,
           member: { name: "Synthetic Member", username: "synthetic" },
         } }, 201);
@@ -103,9 +103,15 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   await expect(dialog).toHaveCount(0);
   await expect(achievement).toBeFocused();
   await event.click();
-  editor = explore.getByRole("form", { name: "Create a post" });
+  const eventDialog = page.getByRole("dialog", { name: "Create an Event" });
+  editor = eventDialog.getByRole("form", { name: "Create a post" });
   await expect(editor.getByRole("textbox", { name: "Write an event" })).toHaveValue("");
+  await expect(editor.getByLabel("Event title")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(eventDialog).toHaveCount(0);
+  await expect(event).toBeFocused();
   await question.click();
+  editor = explore.getByRole("form", { name: "Create a post" });
   await expect(editor.getByRole("textbox", { name: "Write a question" })).toHaveValue("");
   await editor.getByRole("button", { name: "Cancel" }).click();
   await expect(explore.getByRole("form", { name: "Create a post" })).toHaveCount(0);
@@ -121,7 +127,9 @@ for (const format of formats) {
     await launcher.getByRole("button", { name: format.choice }).click();
     const editor = format.type === "ACHIEVEMENT"
       ? page.getByRole("dialog", { name: "Share an Achievement" }).getByRole("form", { name: "Create a post" })
-      : explore.getByRole("form", { name: "Create a post" });
+      : format.type === "EVENT"
+        ? page.getByRole("dialog", { name: "Create an Event" }).getByRole("form", { name: "Create a post" })
+        : explore.getByRole("form", { name: "Create a post" });
     const content = editor.getByRole("textbox", { name: format.editor });
     await expect(content).toBeVisible();
     if (format.type === "ACHIEVEMENT") {
@@ -135,6 +143,12 @@ for (const format of formats) {
       await expect(editor.locator(".bw-achievement-intro")).toHaveCount(0);
     }
     await content.fill(format.body);
+    if (format.type === "EVENT") {
+      await editor.getByLabel("Event title").fill("Student Research Workshop");
+      await editor.getByLabel("Venue or address").fill("Monrovia University Campus");
+      await editor.getByRole("group", { name: "Event cover style" }).getByRole("button", { name: "Forest" }).click();
+      await expect(editor.getByRole("complementary", { name: "Event preview" })).toBeVisible();
+    }
     const publish = editor.getByRole("button", { name: "Publish " + format.label.toLowerCase() });
     await expect(publish).toBeDisabled();
 
@@ -143,7 +157,7 @@ for (const format of formats) {
     await topics.press("Enter");
     await topics.fill("research");
     await topics.press("Enter");
-    await expect(editor.getByRole("alert")).toHaveText("That topic is already added.");
+    await expect(editor.getByRole("alert").last()).toHaveText("That topic is already added.");
     await topics.fill("Community work");
     await editor.getByRole("button", { name: "Add tag" }).click();
     await editor.getByRole("button", { name: "Remove tag Research" }).click();
@@ -158,7 +172,13 @@ for (const format of formats) {
     await expect(published.getByRole("list", { name: "Topic tags" }).getByText("Community work")).toBeVisible();
     await expect(page.getByRole("form", { name: "Create a post" })).toHaveCount(0);
     await expect(launcher).toBeVisible();
-    expect(writes).toEqual([expect.objectContaining({ body: format.body, type: format.type, tags: ["Community work"] })]);
+    expect(writes).toEqual([expect.objectContaining({
+      body: format.body, type: format.type, tags: ["Community work"],
+      ...(format.type === "EVENT" ? { eventDetails: expect.objectContaining({
+        title: "Student Research Workshop", format: "IN_PERSON", venue: "Monrovia University Campus", coverTheme: "FOREST",
+        startAt: expect.any(String), endAt: expect.any(String),
+      }) } : {}),
+    })]);
   });
 }
 
@@ -191,6 +211,11 @@ test("The feed renders different presentation cards for stored achievements, eve
     ...fixturePost,
     id: "33333333-3333-4333-8333-33333333333" + index,
     type: format.type, body: format.body, tags: ["Learning"],
+    ...(format.type === "EVENT" ? { eventDetails: {
+      title: "Student Research Workshop", startAt: "2027-01-15T12:00:00Z", endAt: "2027-01-15T14:00:00Z",
+      timezone: "Africa/Monrovia", format: "IN_PERSON", venue: "Monrovia University Campus",
+      meetingUrl: "", coverTheme: "FOREST",
+    } } : {}),
   }));
   await fixture(page, [...typed, fixturePost]);
   await page.goto("/explore");
@@ -199,6 +224,10 @@ test("The feed renders different presentation cards for stored achievements, eve
     const card = explore.getByRole("article").filter({ hasText: format.body });
     await expect(card.locator(".bw-post-story")).toHaveAttribute("data-post-type", format.type);
     await expect(card.getByText(format.heading)).toBeVisible();
+    if (format.type === "EVENT") {
+      await expect(card.getByRole("heading", { name: "Student Research Workshop" })).toBeVisible();
+      await expect(card.getByText(/Monrovia University Campus/)).toBeVisible();
+    }
     await expect(card.getByRole("list", { name: "Topic tags" }).getByText("Learning")).toBeVisible();
     await expect(card.getByRole("button", { name: "Comments" })).toBeVisible();
   }
