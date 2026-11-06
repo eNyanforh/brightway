@@ -44,6 +44,8 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
   const titleRef = useRef(null);
   const disabledRef = useRef(disabled);
   disabledRef.current = disabled;
+  const cancelRef = useRef(onCancel);
+  cancelRef.current = onCancel;
   const [title, setTitle] = useState("");
   const [format, setFormat] = useState("IN_PERSON");
   const [venue, setVenue] = useState("");
@@ -72,7 +74,7 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
     const keyDown = event => {
       if (event.key === "Escape") {
         event.preventDefault();
-        if (!disabledRef.current) onCancel();
+        if (!disabledRef.current) cancelRef.current();
       }
       if (event.key !== "Tab" || !dialogRef.current) return;
       const focusables = [...dialogRef.current.querySelectorAll("button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled)")]
@@ -90,7 +92,7 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
       document.body.style.overflow = previous;
       triggerRef?.current?.focus();
     };
-  }, [onCancel, triggerRef]);
+  }, [triggerRef]);
 
   function addTopic() {
     const normalized = normalizePostTopic(topicDraft);
@@ -183,7 +185,7 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
                 <div className="bw-event-cover" data-theme={coverTheme}><span>BRIGHTWAY EVENT</span><NavigationIcon name="calendar" size={48} /></div>
                 <div className="bw-event-preview-details">
                   <strong>{title.trim() || "Your event title"}</strong>
-                  <span><NavigationIcon name="calendar" size={15} /> {start ? new Date(eventStart).toLocaleString("en", { timeZone: timezone, dateStyle: "medium", timeStyle: "short" }) : "Choose a date"}</span>
+                  <span><NavigationIcon name="calendar" size={15} /> {eventStart ? new Date(eventStart).toLocaleString("en", { timeZone: timezone, dateStyle: "medium", timeStyle: "short" }) : "Choose a date"}</span>
                   <span><NavigationIcon name="pin" size={15} /> {format === "ONLINE" ? "Online event" : venue || (format === "HYBRID" ? "Hybrid event" : "Add a location")}</span>
                 </div>
               </div>
