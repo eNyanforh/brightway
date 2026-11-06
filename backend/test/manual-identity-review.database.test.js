@@ -152,9 +152,9 @@ test("database manual identity requests serialize retries and decisions, revoke 
     }));
     await db.memberPost.createMany({ data: extraPosts });
     const { id: legacyId, body: legacyBody, requestKey: legacyKey } = extraPosts[0];
-    const { post: legacy } = await posts.memberPublish(actor, { body: legacyBody, requestKey: legacyKey });
-    assert.equal(legacy.id, legacyId);
-    assert.deepEqual(legacy.tags, []);
+    const { post: legacyPost } = await posts.memberPublish(actor, { body: legacyBody, requestKey: legacyKey });
+    assert.equal(legacyPost.id, legacyId);
+    assert.deepEqual(legacyPost.tags, []);
     const page = await posts.feed(viewerActor, { view: "following" });
     assert.equal(page.items.length, 20);
     assert.ok(page.nextCursor);
