@@ -23,3 +23,6 @@
 .bw-explore-create { display: inline-block; margin: .65rem 0 0; border-radius: .55rem; background: #164cad; color: white; padding: .55rem .85rem; font-weight: 650; }
 .bw-explore-create:hover { background: #133f90; color: white; }
 .bw-explore-heading + .bw-post-panel { margin-top: 1.2rem; }
+.bw-post-reactions { margin-top: .85rem; }
+.bw-post-reactions button[aria-pressed="true"] { color: #164cad; background: #edf4ff; border-color: #164cad; }
+.bw-post-reactions span { color: #465978; font-size: .875rem; }

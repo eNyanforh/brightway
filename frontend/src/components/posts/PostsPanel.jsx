@@ -5,7 +5,7 @@ import "./posts.css";
 
 const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
-function PostCard({ post, editable, busy, onWithdraw }) {
+function PostCard({ post, editable, busy, onWithdraw, onLike }) {
   const [confirming, setConfirming] = useState(false);
   const publisher = post.organization || post.member;
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
@@ -19,6 +19,14 @@ function PostCard({ post, editable, busy, onWithdraw }) {
         </div>
       </header>
       <p className="bw-post-text">{post.body}</p>
+      {!editable && post.reaction && (
+        <div className="bw-post-actions bw-post-reactions">
+          <button type="button" aria-pressed={post.reaction.liked} disabled={busy} onClick={() => onLike(post)}>
+            Like
+          </button>
+          <span aria-live="polite">{post.reaction.count} {post.reaction.count === 1 ? "like" : "likes"}</span>
+        </div>
+      )}
       {editable && (
         confirming ? <div className="bw-post-actions">
           <span>Withdraw this post from Explore?</span>
@@ -42,7 +50,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const active = useRef(null);
   const publishKey = useRef(null);
 
-  const run = useCallback(async (operation, receive) => {
+  const run = useCallback(async (operation, receive, unavailable) => {
     if (active.current) return;
     const controller = new AbortController();
     const { signal } = controller;
@@ -56,7 +64,8 @@ export default function PostsPanel({ organization, personal = false, view = "for
       }
     } catch (failure) {
       if (!signal.aborted) {
-        if ([401, 403, 404].includes(failure.status)) setPage(null);
+        if (failure.status === 404 && unavailable) unavailable();
+        else if ([401, 403, 404].includes(failure.status)) setPage(null);
         setError(failure);
       }
     } finally {
@@ -96,6 +105,19 @@ export default function PostsPanel({ organization, personal = false, view = "for
       setBody("");
       setNotice("Post published.");
     });
+  }
+
+  function like(post) {
+    if (!page || disabled || active.current) return;
+    const source = post.organization ? "organization" : "member";
+    const matches = item => item.id === post.id && Boolean(item.organization) === Boolean(post.organization);
+    void run(
+      signal => api.setLike(source, post.id, !post.reaction.liked, signal),
+      ({ reaction }) => setPage(previous => ({
+        ...previous, items: previous.items.map(item => matches(item) ? { ...item, reaction } : item),
+      })),
+      () => setPage(previous => ({ ...previous, items: previous.items.filter(item => !matches(item)) })),
+    );
   }
 
   function withdraw(id) {
@@ -139,7 +161,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
           personal ? "You have no published posts yet." :
             view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
       )}
-      {page?.items.map(post => <PostCard key={(post.organization ? "organization:" : "member:") + post.id} post={post} editable={editable} busy={pending || disabled} onWithdraw={withdraw} />)}
+      {page?.items.map(post => <PostCard key={(post.organization ? "organization:" : "member:") + post.id} post={post} editable={editable} busy={pending || disabled} onWithdraw={withdraw} onLike={like} />)}
       {page?.nextCursor && <button type="button" disabled={pending || disabled} onClick={() => void load(page.nextCursor)}>Load older posts</button>}
     </section>
   );

@@ -92,6 +92,11 @@ test("database manual identity requests serialize retries and decisions, revoke 
     accounts.push(viewer);
     const viewerSession = await db.session.create({ data: { accountId: viewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000) } });
     const viewerActor = { accountId: viewer.id, sessionId: viewerSession.id };
+    const like = liked => posts.setLike(viewerActor, "member", postId, { liked });
+    assert.deepEqual(await like(true), { reaction: { liked: true, count: 1 } });
+    assert.deepEqual(await like(false), { reaction: { liked: false, count: 0 } });
+    assert.deepEqual(await like(true), { reaction: { liked: true, count: 1 } });
+    await assert.rejects(posts.setLike(viewerActor, "organization", postId, { liked: true }), { status: 404 });
     const seesPost = async view => (await posts.feed(viewerActor, { view })).items.some(post => post.id === postId);
     assert.equal(await seesPost("for-you"), true);
     assert.equal(await seesPost("following"), false);
@@ -114,10 +119,12 @@ test("database manual identity requests serialize retries and decisions, revoke 
     const block = await db.networkPair.create({ data: { leftAccountId, rightAccountId, rightBlocked: true } });
     assert.equal(await seesPost("for-you"), false);
     assert.equal(await seesPost("following"), false);
+    await assert.rejects(like(true), { status: 404 });
     await db.networkPair.delete({ where: { id: block.id } });
     await db.profile.update({ where: { id: profile.id }, data: { profilePublicEnabled: false } });
     assert.equal(await seesPost("for-you"), false);
     assert.equal((await posts.memberList(actor, {})).items[0].id, postId);
+    await assert.rejects(like(true), { status: 404 });
     await db.profile.update({ where: { id: profile.id }, data: { profilePublicEnabled: true } });
     assert.equal(await seesPost("for-you"), true);
     await db.profile.update({ where: { id: profile.id }, data: { headline: "Updated headline", version: { increment: 1 } } });
@@ -128,6 +135,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal((await db.person.findUnique({ where: { id: owner.personId } })).identityRevision, 3);
     assert.equal((await reviews.status(owner.id)).identityVerified, false);
     assert.equal(await seesPost("for-you"), false);
+    await assert.rejects(like(true), { status: 404 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, requestKey: randomUUID() }), { status: 403 });
     await posts.memberWithdraw(actor, postId);
     await posts.memberWithdraw(actor, postId);
