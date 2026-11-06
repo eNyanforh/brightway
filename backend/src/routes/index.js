@@ -55,6 +55,7 @@ import { createPeopleSuggestionRoutes } from "../modules/recommendations/people-
 import { createDirectorySearch } from "../modules/search/directory-search.service.js";
 import { createDirectorySearchRoutes } from "../modules/search/directory-search.routes.js";
 import { createOrganizationPosts } from "../modules/posts/organization-posts.service.js";
+import { createMemberPostModeration } from "../modules/posts/member-post-moderation.service.js";
 import { createOrganizationPostRoutes } from "../modules/posts/organization-posts.routes.js";
 
 import { createAccountEmailService } from "../modules/auth/account-email.service.js";
@@ -77,7 +78,7 @@ router.use(createOrganizationPostRoutes({ posts: createOrganizationPosts({ prism
 const managementCases = createManagementCases({ prisma });
 const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
 router.use(createManagementAuthRoutes({ authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-router.use(createManagementOperationsRoutes({ operations: createManagementOperations({ prisma }), cases: managementCases, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createManagementOperationsRoutes({ operations: createManagementOperations({ prisma }), cases: managementCases, postModeration: createMemberPostModeration({ prisma }), authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createSupportRoutes({ cases: managementCases, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManagementRoutes({ management: createManagementService({ prisma }), authentication, nodeEnv: env.NODE_ENV }));
 router.use(createOrganizationProfileRoutes({ profiles: createOrganizationProfileService({ prisma, storage: createR2Storage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));

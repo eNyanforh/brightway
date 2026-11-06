@@ -4,6 +4,7 @@ export const managementPaths = {
   "/management/team": "/superadmin/team",
   "/management/support": "/superadmin/support",
   "/management/reports": "/superadmin/reports",
+  "/management/post-reviews": "/superadmin/post-reviews",
   "/management/audit": "/superadmin/audit",
   "/management/operations": "/superadmin/operations",
   "/admin/credentials": "/superadmin/credentials",

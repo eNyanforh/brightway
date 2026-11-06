@@ -17,7 +17,8 @@ test("operations and support HTTP isolate cookies, require Origin for writes, sc
   const sessions={async authenticate(token) {if(token!=="personal-token")throw Object.assign(Error("Personal sign-in required"),{status:401});return {account:{id},sessionId:"personal-session"};}};
   const operations={async directory(actor,kind) {calls.push([actor,kind]);return {items:[]};},async control(actor,kind,target,body) {calls.push([actor,kind,target,body]);return {saved:true};},async entity(){throw Error("private SQL detail and secret");}};
   const cases={async list(actor) {calls.push(actor);return {items:[]};},async create(body,actor) {calls.push([body,actor]);return {id};}};
-  const limiter=(_r,_s,next)=>next();app.use(express.json());app.use(createManagementOperationsRoutes({operations,cases,authentication,clientUrl:"https://brightway.test",nodeEnv:"test",limiter}));app.use(createSupportRoutes({cases,sessions,clientUrl:"https://brightway.test",nodeEnv:"test",limiter}));
+  const postModeration = { async list() { return { items: [] }; }, async decide(actor, target, body) { calls.push([actor, target, body]); return { id: target }; } };
+  const limiter=(_r,_s,next)=>next();app.use(express.json());app.use(createManagementOperationsRoutes({operations,cases,postModeration,authentication,clientUrl:"https://brightway.test",nodeEnv:"test",limiter}));app.use(createSupportRoutes({cases,sessions,clientUrl:"https://brightway.test",nodeEnv:"test",limiter}));
   app.use((error,_req,res,_next)=>res.status(error.status||500).json({message:error.message}));const server=app.listen(0,"127.0.0.1");await new Promise(resolve=>server.once("listening",resolve));const base=`http://127.0.0.1:${server.address().port}`;
   try {
     assert.equal((await fetch(base+"/management/tools/users",{headers:{Cookie:"brightway_session=personal-token"}})).status,401);
@@ -28,5 +29,15 @@ test("operations and support HTTP isolate cookies, require Origin for writes, sc
     const failed=await fetch(base+`/management/tools/users/${id}`,{headers});assert.equal(failed.status,503);assert(!JSON.stringify(await failed.json()).includes("SQL"));
     assert.equal((await fetch(base+`/management/tools/users/${id}/actions?actorId=forged`,{method:"POST",headers:{...headers,Origin:"https://brightway.test"},body:"{}"})).status,400);
     assert.equal((await fetch(base+"/support/cases?kind=SUPPORT",{headers:{Cookie:"brightway_session=personal-token"}})).status,200);assert.deepEqual(calls.at(-1),{accountId:id,sessionId:"personal-session"});
+    const queue = base + "/management/tools/post-reviews";
+    assert.equal((await fetch(queue, { headers: { Cookie: "brightway_session=personal-token" } })).status, 401);
+    const reviews = await fetch(queue, { headers });
+    assert.equal(reviews.status, 200);
+    assert.equal(reviews.headers.get("cache-control"), "no-store");
+    const decision = { decision: "PUBLISHED", reason: "A documented moderation decision.", requestKey: randomUUID() };
+    const options = { method: "POST", headers, body: JSON.stringify(decision) };
+    assert.equal((await fetch(`${queue}/${id}/decision`, options)).status, 403);
+    assert.equal((await fetch(`${queue}/${id}/decision`, { ...options, headers: { ...headers, Origin: "https://brightway.test" } })).status, 200);
+    assert.deepEqual(calls.at(-1), [{ staffId, sessionId: "synthetic-session" }, id, decision]);
   } finally {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
 });

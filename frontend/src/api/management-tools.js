@@ -17,6 +17,8 @@ export const managementToolsApi = {
   control: (kind, id, body) => request(`${root}/${kind}/${encodeURIComponent(id)}/actions`, { body }),
   audit: (params, signal) => request(`${root}/audit${query(params)}`, { signal }),
   operations: signal => request(`${root}/operations`, { signal }),
+  postReviews: signal => request(`${root}/post-reviews`, { signal }),
+  reviewPost: (id, body) => request(`${root}/post-reviews/${encodeURIComponent(id)}/decision`, { body }),
   cases(personal = false) {
     const prefix = personal ? "/support/cases" : `${root}/cases`;
     return {

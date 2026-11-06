@@ -966,6 +966,12 @@ enum MemberPostType {
   EVENT
 }
 
+enum MemberPostModerationStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
 model MemberPost {
   reposts PostRepost[]
   saves PostSave[]
@@ -978,10 +984,12 @@ model MemberPost {
   type MemberPostType @default(POST)
   tags String[] @default([])
   body String @db.VarChar(2000)
+  moderationStatus MemberPostModerationStatus @default(PENDING)
+  moderationFeedback String? @db.VarChar(1000)
   createdAt DateTime @default(now())
   withdrawnAt DateTime?
   @@unique([authorId, requestKey])
-  @@index([withdrawnAt, createdAt, id])
+  @@index([moderationStatus, withdrawnAt, createdAt, id])
   @@index([authorId, withdrawnAt, createdAt, id])
   @@index([authorId, createdAt])
 }
