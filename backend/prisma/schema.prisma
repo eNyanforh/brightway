@@ -976,6 +976,7 @@ model MemberPost {
   author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
   requestKey String
   type MemberPostType @default(POST)
+  tags String[] @default([])
   body String @db.VarChar(2000)
   createdAt DateTime @default(now())
   withdrawnAt DateTime?

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_POST_TOPICS, normalizePostTopic } from "../../../../shared/post-topics.mjs";
 import { createManualIdentityReviewService } from "../manual-identity/manual-identity-review.service.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { assertNetworkSession, lockNetworkAccounts } from "../network/network-authority.js";
@@ -20,7 +21,7 @@ const postSelect = {
   organization: { select: { id: true, name: true, username: true } },
 };
 const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true } } };
-const memberPostSelect = { id: true, type: true, body: true, createdAt: true, author: { select: memberSelect } };
+const memberPostSelect = { id: true, type: true, tags: true, body: true, createdAt: true, author: { select: memberSelect } };
 const repostSelect = { id: true, createdAt: true, account: { select: memberSelect } };
 const identifier = z.uuid();
 const sourceInput = z.enum(["organization", "member"]);
@@ -32,7 +33,13 @@ const textInput = max => z.strictObject({
   requestKey: identifier,
 });
 const postInput = textInput(2000);
-const memberPostInput = postInput.extend({ type: z.enum(["POST", "ACHIEVEMENT", "EVENT"]).default("POST") });
+const topicTags = z.array(z.string().transform(normalizePostTopic).pipe(z.string()))
+  .max(MAX_POST_TOPICS)
+  .refine(tags => new Set(tags.map(tag => tag.toLowerCase())).size === tags.length);
+const memberPostInput = postInput.extend({
+  type: z.enum(["POST", "ACHIEVEMENT", "EVENT"]).default("POST"),
+  tags: topicTags.default([]),
+});
 const commentInput = textInput(1000);
 const commentSelect = {
   id: true, body: true, createdAt: true,
@@ -524,7 +531,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     },
 
     async memberPublish(actor, input) {
-      const data = parse(memberPostInput, input, "Choose a post type and enter 1 to 2,000 characters.");
+      const data = parse(memberPostInput, input, "Choose a post type, write 1 to 2,000 characters, and add 1 to 5 distinct topic tags.");
       return memberWrite(actor, async tx => {
         // Public-profile updates lock this same row.
         await lockMemberProfile(tx, actor.accountId);
@@ -535,12 +542,15 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         const previous = await tx.memberPost.findUnique({ where: { authorId_requestKey: key }, select: { ...memberPostSelect, withdrawnAt: true } });
         if (previous) {
           const { withdrawnAt, ...post } = previous;
-          if (withdrawnAt || post.body !== data.body || post.type !== data.type) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
+          const sameTags = post.tags.length === data.tags.length && post.tags.every((tag, index) => tag === data.tags[index]);
+          if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
           return { post: memberPost(post) };
         }
+        // An older tagless post may be retried, but new posts require a topic.
+        if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
-        const post = await tx.memberPost.create({ data: { ...key, type: data.type, body: data.body, createdAt: now() }, select: memberPostSelect });
+        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, body: data.body, createdAt: now() }, select: memberPostSelect });
         return { post: memberPost(post) };
       });
     },
