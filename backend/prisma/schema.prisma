@@ -960,6 +960,12 @@ model OrganizationPost {
   @@index([authorId, createdAt])
 }
 
+enum MemberPostType {
+  POST
+  ACHIEVEMENT
+  EVENT
+}
+
 model MemberPost {
   reposts PostRepost[]
   saves PostSave[]
@@ -969,6 +975,7 @@ model MemberPost {
   authorId String
   author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
   requestKey String
+  type MemberPostType @default(POST)
   body String @db.VarChar(2000)
   createdAt DateTime @default(now())
   withdrawnAt DateTime?

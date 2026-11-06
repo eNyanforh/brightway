@@ -83,9 +83,12 @@ test("database manual identity requests serialize retries and decisions, revoke 
     const [publication, retry] = await Promise.all([posts.memberPublish(actor, draft), posts.memberPublish(actor, draft)]);
     const postId = publication.post.id;
     assert.equal(retry.post.id, postId);
+    assert.equal(publication.post.type, "POST");
     assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner" });
-    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "id", "member"]);
+    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "id", "member", "type"]);
     await assert.rejects(posts.memberPublish(actor, { ...draft, body: "Different content" }), { status: 409 });
+    await assert.rejects(posts.memberPublish(actor, { ...draft, type: "EVENT" }), { status: 409 });
+    await assert.rejects(posts.memberPublish(actor, { ...draft, type: "OPPORTUNITY", requestKey: randomUUID() }), { status: 400 });
     const viewer = await db.account.create({ data: {
       username: `viewer_${marker}`, email: `viewer_${marker}@example.invalid`, passwordHash,
       person: { create: { firstName: "Synthetic", lastName: "Viewer" } },
@@ -93,6 +96,15 @@ test("database manual identity requests serialize retries and decisions, revoke 
     accounts.push(viewer);
     const viewerSession = await db.session.create({ data: { accountId: viewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000) } });
     const viewerActor = { accountId: viewer.id, sessionId: viewerSession.id };
+    for (const type of ["ACHIEVEMENT", "EVENT"]) {
+      const typedDraft = { body: "A member update.", requestKey: randomUUID(), type };
+      const { post } = await posts.memberPublish(actor, typedDraft);
+      assert.equal(post.type, type);
+      assert.deepEqual(await posts.memberPublish(actor, typedDraft), { post });
+      assert.equal((await posts.memberList(actor, {})).items.find(item => item.id === post.id)?.type, type);
+      assert.equal((await posts.feed(viewerActor, {})).items.find(item => item.id === post.id)?.type, type);
+      await posts.memberWithdraw(actor, post.id);
+    }
     const like = liked => posts.setLike(viewerActor, "member", postId, { liked });
     assert.deepEqual(await like(true), { reaction: { liked: true, count: 1 } });
     assert.deepEqual(await like(false), { reaction: { liked: false, count: 0 } });
@@ -159,6 +171,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
       requestId: organizationRequest.id, name: organizationRequest.name, type: "SCHOOL", offersTraining: true, verifiedAt: date,
     } });
     await seedOrganizationProfile(db, organization.id, date);
+    await assert.rejects(posts.publish(actor, organization.id, { ...draft, type: "EVENT" }), { status: 400 });
     const original = await db.organizationPost.create({ data: {
       organizationId: organization.id, authorId: viewer.id, requestKey: randomUUID(), body: "Synthetic school update.",
       createdAt: new Date(+date - 1000),
