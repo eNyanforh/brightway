@@ -145,6 +145,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
           { registration: { registered: false, count: 0 } });
       }
       if (type === "QUESTION") {
+        await assert.rejects(posts.setReposted(viewerActor, "member", post.id, { reposted: true }), { status: 400 });
         await assert.rejects(posts.reportQuestion(actor, post.id, { reason: "SPAM" }), { status: 400 });
         assert.deepEqual(await posts.reportQuestion(viewerActor, post.id, { reason: "SPAM" }), { reported: true });
         assert.deepEqual(await posts.reportQuestion(viewerActor, post.id, { reason: "SPAM" }), { reported: true });
