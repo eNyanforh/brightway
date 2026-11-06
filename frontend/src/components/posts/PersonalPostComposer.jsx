@@ -4,6 +4,7 @@ import { MAX_POST_TOPICS, MAX_POST_TOPIC_LENGTH, normalizePostTopic } from "../.
 import { photoUrl } from "../../api/profile";
 import Icon from "../layout/Icon";
 import EventBuilder from "./EventBuilder";
+import QuestionBuilder from "./QuestionBuilder";
 import NavigationIcon from "../layout/NavigationIcon";
 
 const types = [
@@ -65,6 +66,7 @@ export default function PersonalPostComposer({
   disabledRef.current = disabled;
   const achievementTrigger = useRef(null);
   const eventTrigger = useRef(null);
+  const questionTrigger = useRef(null);
   const [topicDraft, setTopicDraft] = useState("");
   const [topicError, setTopicError] = useState("");
   const hasTopicDraft = Boolean(topicDraft.trim());
@@ -165,7 +167,7 @@ export default function PersonalPostComposer({
     // The parent closes the editor only after the server accepts the post.
   }
 
-  const editor = open && type !== "EVENT" ? (
+  const editor = open && type !== "EVENT" && type !== "QUESTION" ? (
         <form id={editorId} className={"bw-personal-composer-form" + (isAchievement ? " bw-achievement-composer" : "")} aria-label="Create a post" onSubmit={submit}>
           <div className="bw-post-editor-heading" data-post-type={format.type}>
             <span className="bw-post-editor-icon"><NavigationIcon name={format.icon} size={22} /></span>
@@ -256,7 +258,7 @@ export default function PersonalPostComposer({
           {photoId ? <img src={photoUrl(photoId)} alt="" /> : initial}
         </div>
         {types.map(option => (
-          <button type="button" key={option.type} ref={option.type === "ACHIEVEMENT" ? achievementTrigger : option.type === "EVENT" ? eventTrigger : undefined} className="bw-post-quick-action"
+          <button type="button" key={option.type} ref={option.type === "ACHIEVEMENT" ? achievementTrigger : option.type === "EVENT" ? eventTrigger : option.type === "QUESTION" ? questionTrigger : undefined} className="bw-post-quick-action"
             data-post-type={option.type} aria-expanded={open && type === option.type}
             aria-controls={open ? editorId : undefined} disabled={disabled}
             onClick={() => selectType(option.type)}>
@@ -270,7 +272,11 @@ export default function PersonalPostComposer({
         <EventBuilder body={body} tags={tags} disabled={disabled} onBodyChange={onBodyChange}
           onTagsChange={onTagsChange} onCancel={closeEditor} onSubmit={onSubmit} triggerRef={eventTrigger} />
       )}
-      {open && type !== "EVENT" && (isAchievement ? createPortal(
+      {open && type === "QUESTION" && (
+        <QuestionBuilder body={body} tags={tags} disabled={disabled} onBodyChange={onBodyChange}
+          onTagsChange={onTagsChange} onCancel={closeEditor} onSubmit={onSubmit} triggerRef={questionTrigger} />
+      )}
+      {open && type !== "EVENT" && type !== "QUESTION" && (isAchievement ? createPortal(
         <div className="bw-achievement-modal-backdrop bw-post-panel" onMouseDown={event => {
           if (event.target === event.currentTarget && !disabled) closeEditor();
         }}>
