@@ -43,7 +43,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.deepEqual(legacy.missingIdentityFields, ["birthDate"]); assert.equal(legacy.canSubmit, false);
     const ownerSession = await db.session.create({ data: { accountId: owner.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000) } });
     const actor = { accountId: owner.id, sessionId: ownerSession.id };
-    const draft = { body: "Sharing my verified learning journey.", requestKey: randomUUID() };
+    const draft = { body: "Sharing my verified learning journey.", requestKey: randomUUID(), tags: [" #Learning   Journeys "] };
     await assert.rejects(posts.memberPublish(actor, draft), { status: 403 });
     await reviews.completeDetails(owner.id, ownerSession.id, { expectedIdentityRevision: 0, password: ownerPassword, changes: { birthDate: "2000-01-01" } });
     assert.equal((await reviews.owner(owner.id)).canSubmit, true);
@@ -84,10 +84,15 @@ test("database manual identity requests serialize retries and decisions, revoke 
     const postId = publication.post.id;
     assert.equal(retry.post.id, postId);
     assert.equal(publication.post.type, "POST");
+    assert.deepEqual(publication.post.tags, ["Learning Journeys"]);
     assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner" });
-    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "id", "member", "type"]);
+    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "id", "member", "tags", "type"]);
     await assert.rejects(posts.memberPublish(actor, { ...draft, body: "Different content" }), { status: 409 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, type: "EVENT" }), { status: 409 });
+    await assert.rejects(posts.memberPublish(actor, { ...draft, tags: ["Skills"] }), { status: 409 });
+    await assert.rejects(posts.memberPublish(actor, { body: draft.body, requestKey: randomUUID() }), { status: 400, message: "Add at least one topic tag before publishing." });
+    await assert.rejects(posts.memberPublish(actor, { ...draft, tags: ["Research", "#research"], requestKey: randomUUID() }), { status: 400 });
+    await assert.rejects(posts.memberPublish(actor, { ...draft, tags: ["One", "Two", "Three", "Four", "Five", "Six"], requestKey: randomUUID() }), { status: 400 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, type: "OPPORTUNITY", requestKey: randomUUID() }), { status: 400 });
     const viewer = await db.account.create({ data: {
       username: `viewer_${marker}`, email: `viewer_${marker}@example.invalid`, passwordHash,
@@ -97,12 +102,17 @@ test("database manual identity requests serialize retries and decisions, revoke 
     const viewerSession = await db.session.create({ data: { accountId: viewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000) } });
     const viewerActor = { accountId: viewer.id, sessionId: viewerSession.id };
     for (const type of ["ACHIEVEMENT", "EVENT"]) {
-      const typedDraft = { body: "A member update.", requestKey: randomUUID(), type };
+      const typedDraft = { body: "A member update.", requestKey: randomUUID(), type, tags: ["Research", "Community"] };
       const { post } = await posts.memberPublish(actor, typedDraft);
       assert.equal(post.type, type);
+      assert.deepEqual(post.tags, typedDraft.tags);
       assert.deepEqual(await posts.memberPublish(actor, typedDraft), { post });
-      assert.equal((await posts.memberList(actor, {})).items.find(item => item.id === post.id)?.type, type);
-      assert.equal((await posts.feed(viewerActor, {})).items.find(item => item.id === post.id)?.type, type);
+      const owned = (await posts.memberList(actor, {})).items.find(item => item.id === post.id);
+      const visible = (await posts.feed(viewerActor, {})).items.find(item => item.id === post.id);
+      assert.equal(owned?.type, type);
+      assert.equal(visible?.type, type);
+      assert.deepEqual(owned?.tags, typedDraft.tags);
+      assert.deepEqual(visible?.tags, typedDraft.tags);
       await posts.memberWithdraw(actor, post.id);
     }
     const like = liked => posts.setLike(viewerActor, "member", postId, { liked });
@@ -141,6 +151,10 @@ test("database manual identity requests serialize retries and decisions, revoke 
       id: randomUUID(), authorId: owner.id, requestKey: randomUUID(), body: `Synthetic post ${index}`, createdAt: date,
     }));
     await db.memberPost.createMany({ data: extraPosts });
+    const { id: legacyId, body: legacyBody, requestKey: legacyKey } = extraPosts[0];
+    const { post: legacyPost } = await posts.memberPublish(actor, { body: legacyBody, requestKey: legacyKey });
+    assert.equal(legacyPost.id, legacyId);
+    assert.deepEqual(legacyPost.tags, []);
     const page = await posts.feed(viewerActor, { view: "following" });
     assert.equal(page.items.length, 20);
     assert.ok(page.nextCursor);
@@ -171,7 +185,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
       requestId: organizationRequest.id, name: organizationRequest.name, type: "SCHOOL", offersTraining: true, verifiedAt: date,
     } });
     await seedOrganizationProfile(db, organization.id, date);
-    await assert.rejects(posts.publish(actor, organization.id, { ...draft, type: "EVENT" }), { status: 400 });
+    await assert.rejects(posts.publish(actor, organization.id, draft), { status: 400 });
     const original = await db.organizationPost.create({ data: {
       organizationId: organization.id, authorId: viewer.id, requestKey: randomUUID(), body: "Synthetic school update.",
       createdAt: new Date(+date - 1000),

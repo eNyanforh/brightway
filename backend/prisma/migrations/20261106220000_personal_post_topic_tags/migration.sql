@@ -1,0 +1,2 @@
+ALTER TABLE "MemberPost"
+  ADD COLUMN "tags" TEXT[] DEFAULT ARRAY[]::TEXT[];

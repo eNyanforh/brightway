@@ -145,6 +145,76 @@
 }
 .bw-personal-composer textarea::placeholder { color: #536471; }
 .bw-personal-composer textarea:focus-visible { outline: 2px solid #175cd3; outline-offset: 2px; border-radius: .2rem; }
+.bw-post-topic-editor { margin: .15rem 0 .55rem; }
+.bw-post-topic-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .2rem .5rem;
+  margin-bottom: .3rem;
+  font-size: .8rem;
+}
+.bw-post-topic-heading label { font-weight: 700; }
+.bw-post-topic-heading span { color: #536471; }
+.bw-post-topic-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .4rem;
+}
+.bw-post-topic-entry input {
+  min-width: 0;
+  padding: .45rem .6rem;
+  border: 1px solid #c5d5ef;
+  border-radius: .55rem;
+  color: inherit;
+  background: #fff;
+  font: inherit;
+  font-size: .875rem;
+}
+.bw-post-topic-entry input::placeholder { color: #536471; }
+.bw-post-topic-entry input[aria-invalid="true"] { border-color: #b42318; }
+.bw-post-topic-entry input:focus-visible, .bw-post-topic-editor button:focus-visible {
+  outline: 2px solid #175cd3;
+  outline-offset: 2px;
+}
+.bw-post-panel .bw-post-topic-entry button { padding: .4rem .65rem; font-size: .82rem; }
+.bw-post-topic-error { margin: .35rem 0 0; color: #9b2416; font-size: .8rem; }
+.bw-post-topic-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+  margin: .45rem 0;
+  padding: 0;
+  list-style: none;
+}
+.bw-post-topic-tags li {
+  display: inline-flex;
+  align-items: center;
+  gap: .15rem;
+  max-width: 100%;
+  padding: .2rem .55rem;
+  border-radius: 999px;
+  background: #edf4ff;
+  color: #164b9f;
+  font-size: .75rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.bw-post-topic-tags li span { min-width: 0; }
+.bw-post-panel .bw-post-topic-tags button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+}
+.bw-post-panel .bw-post-topic-tags button:hover:enabled { background: #dceaff; }
+.bw-post-topic-tags button svg { width: 14px; height: 14px; }
 .bw-personal-composer-footer {
   display: flex;
   align-items: center;

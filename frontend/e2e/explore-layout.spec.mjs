@@ -32,7 +32,7 @@ async function fixture(page) {
       case "/api/v1/posts/me": {
         const draft = request.postDataJSON();
         writes.push(draft);
-        return reply({ post: { id: "new-post", body: draft.body, type: draft.type, createdAt: fixturePost.createdAt, member: { name: "Synthetic Member", username: "synthetic" } } }, 201);
+        return reply({ post: { id: "new-post", body: draft.body, type: draft.type, tags: draft.tags, createdAt: fixturePost.createdAt, member: { name: "Synthetic Member", username: "synthetic" } } }, 201);
       }
       default: throw Error("Unexpected synthetic request " + url.pathname);
     }
@@ -78,12 +78,25 @@ test("Explore opens with a billboard above its composer and icon-based feed", as
   await postChoice.press("ArrowRight");
   await expect(achievementChoice).toBeChecked();
   await expect(composer.getByRole("textbox", { name: "Write an achievement" })).toHaveValue(body);
+  const publish = composer.getByRole("button", { name: "Post", exact: true });
+  await expect(publish).toBeDisabled();
+  const topics = composer.getByRole("textbox", { name: "Topic tags" });
+  await topics.fill("#Research");
+  await topics.press("Enter");
+  await topics.fill("research");
+  await topics.press("Enter");
+  await expect(composer.getByRole("alert")).toHaveText("That topic is already added.");
+  await topics.fill("Community work");
+  await composer.getByRole("button", { name: "Add tag" }).click();
+  await composer.getByRole("button", { name: "Remove tag Research" }).click();
+  await expect(publish).toBeEnabled();
   await testInfo.attach("Achievement composer", { body: await composer.screenshot(), contentType: "image/png" });
-  await composer.getByRole("button", { name: "Post", exact: true }).click();
+  await publish.click();
   const published = explore.getByRole("article").filter({ hasText: body });
   await expect(published.getByText("Achievement", { exact: true })).toBeVisible();
+  await expect(published.getByRole("list", { name: "Topic tags" }).getByText("Community work")).toBeVisible();
   await expect(postChoice).toBeChecked();
-  expect(writes).toEqual([expect.objectContaining({ body, type: "ACHIEVEMENT" })]);
+  expect(writes).toEqual([expect.objectContaining({ body, type: "ACHIEVEMENT", tags: ["Community work"] })]);
 });
 
 test("the billboard rotates and stops when the member pauses it", async ({ page }) => {

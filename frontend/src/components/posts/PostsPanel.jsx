@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { organizationPostsApi as api } from "../../api/organization-posts";
 import NavigationIcon from "../layout/NavigationIcon";
-import PersonalPostComposer, { PersonalPostTypeLabel } from "./PersonalPostComposer";
+import PersonalPostComposer, { PersonalPostTypeLabel, PostTopicTags } from "./PersonalPostComposer";
 import PostComments from "./PostComments";
 import "./posts.css";
 
@@ -19,6 +19,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }
   const publisher = post.organization || post.member;
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
   const typeLabel = post.member && <PersonalPostTypeLabel type={post.type} />;
+  const topicTags = post.member && <PostTopicTags tags={post.tags} />;
   if (timeline) {
     return (
       <article className="bw-timeline-post">
@@ -39,6 +40,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }
           </header>
           {typeLabel}
           <p className="bw-post-text">{post.body}</p>
+          {topicTags}
           <PostComments postId={post.id} source={postSource(post)}>
             {typeof post.reposted === "boolean" && (
               <button type="button" className="bw-timeline-action bw-timeline-repost-action" disabled={busy}
@@ -76,6 +78,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost }
       </header>
       {typeLabel}
       <p className="bw-post-text">{post.body}</p>
+      {topicTags}
       {confirming ? <div className="bw-post-actions">
         <span>Withdraw this post from Explore?</span>
         <button type="button" disabled={busy} onClick={() => onWithdraw(post.id)}>Confirm withdrawal</button>
@@ -93,6 +96,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const canPublish = !disabled && Boolean(personal ? page?.access?.identityVerified && page.access.profilePublic : inlineComposer || page);
   const [body, setBody] = useState("");
   const [type, setType] = useState("POST");
+  const [tags, setTags] = useState([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState("");
@@ -155,13 +159,18 @@ export default function PostsPanel({ organization, personal = false, view = "for
     setType(value);
   }
 
+  function changeTags(value) {
+    publishKey.current = null;
+    setTags(value);
+  }
+
   function publish(event) {
     event.preventDefault();
-    if (!canPublish || !body.trim() || active.current) return;
+    if (!canPublish || !body.trim() || (memberComposer && !tags.length) || active.current) return;
     setNotice("");
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
-    void run(signal => memberComposer ? api.memberPublish({ ...draft, type }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
+    void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
       const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false } : post;
       setPage(previous => ({
         ...previous,
@@ -170,6 +179,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
       publishKey.current = null;
       setBody("");
       setType("POST");
+      setTags([]);
       setNotice("Post published.");
     }, { preserveOnDenied: inlineComposer });
   }
@@ -222,9 +232,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
   return (
     <section className={timeline ? "bw-post-panel bw-timeline-panel" : "bw-post-panel"} aria-label={organization ? "Organization posts" : personal ? "Your posts" : "Explore posts"}>
       {memberComposer && (!personal || canPublish) && (
-        <PersonalPostComposer account={composerAccount} photoId={composerPhotoId} body={body} type={type}
+        <PersonalPostComposer account={composerAccount} photoId={composerPhotoId} body={body} type={type} tags={tags}
           disabled={!canPublish || pending} submitLabel={personal ? "Publish post" : "Post"}
-          onBodyChange={changeBody} onTypeChange={changeType} onSubmit={publish} />
+          onBodyChange={changeBody} onTypeChange={changeType} onTagsChange={changeTags} onSubmit={publish} />
       )}
       {personal && page && !canPublish && (
         <div className="bw-post-empty">
