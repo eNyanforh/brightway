@@ -218,7 +218,7 @@ test("achievement, event and question composers offer the same subject categorie
       await expect(editor.getByRole("button", { name: category, exact: true })).toBeVisible();
     }
     await editor.getByRole("button", { name: "Community", exact: true }).click();
-    await expect(editor.getByRole("list", { name: "Selected topic tags" }).getByText("Community", { exact: true })).toBeVisible();
+    await expect(editor.getByRole("list", { name: "Selected topic tags" }).getByRole("button", { name: "Remove tag Community" })).toBeVisible();
     await expect(editor.getByRole("button", { name: "Community", exact: true })).toHaveCount(0);
     await editor.getByRole("button", { name: "Remove tag Community" }).click();
     await expect(editor.getByRole("button", { name: "Community", exact: true })).toBeVisible();
