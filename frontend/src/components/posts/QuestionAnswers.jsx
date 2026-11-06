@@ -101,7 +101,7 @@ export default function QuestionAnswers({ questionId, onClose, onCountChange }) 
     active.current = controller;
     api.answers(questionId, sort, controller.signal)
       .then(result => {
-        if (!controller.signal.aborted) { setItems(result.items); setError(""); onCountChange?.(result.items.length); }
+        if (!controller.signal.aborted) { setItems(result.items); setError(""); }
       })
       .catch(err => { if (!controller.signal.aborted) setError(err.message); });
     return () => { controller.abort(); active.current = null; };
@@ -116,10 +116,10 @@ export default function QuestionAnswers({ questionId, onClose, onCountChange }) 
       const { answer } = await api.addAnswer(questionId, { body: draft, requestKey: requestKey.current });
       setItems(current => {
         const next = [answer, ...(current || []).filter(item => item.id !== answer.id)];
-        onCountChange?.(next.length);
         return next;
       });
       setDraft(""); requestKey.current = null;
+      onCountChange?.(1);
     } catch (err) { setError(err.message); }
     finally { setPending(false); }
   }
@@ -140,10 +140,10 @@ export default function QuestionAnswers({ questionId, onClose, onCountChange }) 
       await api.deleteAnswer(id);
       setItems(current => {
         const next = current.filter(item => item.id !== id);
-        onCountChange?.(next.length);
         return next;
       });
       setDeleteId(null);
+      onCountChange?.(-1);
     } catch (err) { setError(err.message); }
     finally { setPending(false); }
   }
@@ -178,12 +178,12 @@ export default function QuestionAnswers({ questionId, onClose, onCountChange }) 
             <p className="bw-post-text">{answer.body}</p>
             <div className="bw-answer-actions">
               <button type="button" aria-label={"Upvote answer by " + answer.username}
-                aria-pressed={answer.myVote === 1} disabled={pending} onClick={() => void vote(answer, 1)}>
+                aria-pressed={answer.myVote === 1} disabled={pending || answer.canDelete} onClick={() => void vote(answer, 1)}>
                 <NavigationIcon name="upvote" active={answer.myVote === 1} size={19} />
               </button>
               <span aria-label={"Answer score " + answer.score}>{answer.score}</span>
               <button type="button" aria-label={"Downvote answer by " + answer.username}
-                aria-pressed={answer.myVote === -1} disabled={pending} onClick={() => void vote(answer, -1)}>
+                aria-pressed={answer.myVote === -1} disabled={pending || answer.canDelete} onClick={() => void vote(answer, -1)}>
                 <NavigationIcon name="downvote" active={answer.myVote === -1} size={19} />
               </button>
               <AnswerComments answerId={answer.id} />
