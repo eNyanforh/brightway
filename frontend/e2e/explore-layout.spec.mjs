@@ -146,7 +146,7 @@ for (const format of formats) {
       await editor.getByLabel("Event title").fill("Student Research Workshop");
       await editor.getByLabel("Venue or address").fill("Monrovia University Campus");
       await editor.getByRole("group", { name: "Event cover style" }).getByRole("button", { name: "Forest" }).click();
-      await expect(editor.getByRole("region", { name: "Event preview" })).toBeVisible();
+      await expect(editor.getByRole("complementary", { name: "Event preview" })).toBeVisible();
     }
     const publish = editor.getByRole("button", { name: "Publish " + format.label.toLowerCase() });
     await expect(publish).toBeDisabled();
