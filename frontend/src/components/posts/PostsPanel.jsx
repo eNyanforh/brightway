@@ -333,14 +333,33 @@ export default function PostsPanel({ organization, personal = false, view = "for
   }, []);
 
   const load = useCallback(cursor => run(
-    signal => organizationId ? api.list(organizationId, cursor, signal) : personal ? api.memberList(cursor, signal) : api.feed(view, cursor, signal),
+    async signal => {
+      const data = await (organizationId ? api.list(organizationId, cursor, signal)
+        : personal ? api.memberList(cursor, signal) : api.feed(view, cursor, signal));
+      if (timeline && !cursor && !organizationId && !personal) {
+        const params = new URLSearchParams(window.location.search);
+        const source = params.get("source");
+        const id = params.get("post");
+        if (["member", "organization"].includes(source) &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id || "")) {
+          try {
+            const { post } = await api.readPost(source, id, signal);
+            if (!data.items.some(item => postKey(item) === postKey(post))) data.items.unshift(post);
+          } catch (error) {
+            // A deleted or inaccessible shared post must not hide the rest of Explore.
+            if (error.status !== 403 && error.status !== 404) throw error;
+          }
+        }
+      }
+      return data;
+    },
     data => setPage(previous => {
       if (!cursor || !previous) return data;
       const items = new Map(previous.items.map(item => [cardKey(item), item]));
       for (const item of data.items) items.set(cardKey(item), item);
       return { ...data, items: [...items.values()] };
     }),
-  ), [organizationId, personal, run, view]);
+  ), [organizationId, personal, run, view, timeline]);
 
   useEffect(() => {
     let mounted = true;
