@@ -16,12 +16,12 @@ export default function QuestionBuilder({ body, tags, disabled, onBodyChange, on
   const modalRef = useRef(null);
   const titleRef = useRef(null);
   const handlerRef = useRef({ disabled, onCancel });
-  const [title, setTitle] = useState("");
+  const title = body;
   const [intent, setIntent] = useState("GUIDANCE");
   const [topicDraft, setTopicDraft] = useState("");
   const [topicError, setTopicError] = useState("");
   const maxed = tags.length >= MAX_POST_TOPICS;
-  const valid = !disabled && title.trim().length >= 10 && body.trim().length >= 10 && tags.length > 0 && !topicDraft.trim();
+  const valid = !disabled && title.trim().length >= 10 && title.trim().length <= 180 && tags.length > 0 && !topicDraft.trim();
 
   useEffect(() => { handlerRef.current = { disabled, onCancel }; }, [disabled, onCancel]);
 
@@ -96,15 +96,10 @@ export default function QuestionBuilder({ body, tags, disabled, onBodyChange, on
               <div className="bw-question-step"><span>01</span><h3>What would you like to know?</h3></div>
               <label htmlFor={uid + "-title"}>Question title</label>
               <input id={uid + "-title"} ref={titleRef} maxLength={180} minLength={10} required disabled={disabled}
-                value={title} onChange={event => setTitle(event.target.value)}
+                value={title} onChange={event => onBodyChange(event.target.value)}
                 placeholder="e.g. How do I deploy my first React application?" />
               <div className="bw-question-field-hint"><span>Ask one specific question.</span><span>{title.length}/180</span></div>
 
-              <label htmlFor={uid + "-context"}>Give some context</label>
-              <textarea id={uid + "-context"} aria-label="Write a question" required rows={5} maxLength={2000}
-                disabled={disabled} value={body} onChange={event => onBodyChange(event.target.value)}
-                placeholder="What have you tried? What are you trying to accomplish? Where are you stuck?" />
-              <div className="bw-question-field-hint"><span>Include relevant details, without sharing private information.</span><span>{body.length}/2,000</span></div>
             </section>
 
             <section className="bw-question-fieldset" aria-label="Help requested">
@@ -149,7 +144,6 @@ export default function QuestionBuilder({ body, tags, disabled, onBodyChange, on
               <span className="bw-question-preview-label">HOW YOUR QUESTION WILL APPEAR</span>
               <span className="bw-question-preview-category"><NavigationIcon name="question" size={14} /> Question · {intents.find(item => item.id === intent)?.label}</span>
               <h3>{title.trim() || "Your question will appear here"}</h3>
-              <p>{body.trim() || "Add some context to help the community understand what you need."}</p>
               <div>{tags.map(tag => <span key={tag}>#{tag}</span>)}</div>
             </aside>
           </div>
