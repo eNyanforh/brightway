@@ -38,6 +38,7 @@ const query = params => "?" + new URLSearchParams(params);
 
 export const organizationPostsApi = {
   feed: (view, cursor, signal) => readPage("/explore/posts" + query({ view, ...(cursor ? { cursor } : {}) }), signal),
+  readPost: (source, id, signal) => request(explorePost(source, id), signal),
   setLike: (source, id, liked, signal) => request(explorePost(source, id) + "/like", signal, "PUT", { liked }),
   registerEvent: (id, registered, signal) => request(explorePost("member", id) + "/register", signal, "PUT", { registered }),
   recordView: (source, id, signal) => request(explorePost(source, id) + "/view", signal, "PUT"),
