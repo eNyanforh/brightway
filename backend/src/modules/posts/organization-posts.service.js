@@ -21,7 +21,7 @@ const postSelect = {
   organization: { select: { id: true, name: true, username: true } },
 };
 const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true } } };
-const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true, body: true, createdAt: true, author: { select: memberSelect } };
+const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true, questionDetails: true, body: true, createdAt: true, author: { select: memberSelect } };
 const repostSelect = { id: true, createdAt: true, account: { select: memberSelect } };
 const identifier = z.uuid();
 const sourceInput = z.enum(["organization", "member"]);
@@ -56,11 +56,23 @@ const eventDetailsInput = z.strictObject({
   if (value.format !== "ONLINE" && !value.venue) ctx.addIssue({ code: "custom", path: ["venue"], message: "Add an event venue." });
   if (value.format !== "IN_PERSON" && !value.meetingUrl) ctx.addIssue({ code: "custom", path: ["meetingUrl"], message: "Add a meeting link." });
 });
+const questionDetailsInput = z.strictObject({
+  title: z.string().trim().min(10).max(180)
+    .refine(value => !/[\u0000-\u001f\u007f]/.test(value)),
+  // Helps the feed explain what kind of help is requested, without replacing topic tags.
+  intent: z.enum(["EXPLANATION", "FEEDBACK", "GUIDANCE", "DISCUSSION"]).default("GUIDANCE"),
+});
+
 const memberPostInput = postInput.extend({
   type: z.enum(["POST", "ACHIEVEMENT", "EVENT", "QUESTION"]).default("POST"),
   tags: topicTags.default([]),
   eventDetails: eventDetailsInput.optional(),
+  questionDetails: questionDetailsInput.optional(),
 }).superRefine((value, ctx) => {
+  if (value.type !== "QUESTION" && value.questionDetails)
+    ctx.addIssue({ code: "custom", path: ["questionDetails"], message: "Question details are only allowed on questions." });
+  if (value.type === "QUESTION" && !value.questionDetails)
+    ctx.addIssue({ code: "custom", path: ["questionDetails"], message: "Add a question title and question type." });
   if (value.type !== "EVENT" && value.eventDetails) ctx.addIssue({ code: "custom", path: ["eventDetails"], message: "Event details can only be added to events." });
   if (value.type === "EVENT" && !value.eventDetails) {
     ctx.addIssue({ code: "custom", path: ["eventDetails"], message: "Complete event details before publishing." });
@@ -166,6 +178,12 @@ function feedPost({ likes, _count, saves, reposts, ...post }) {
     saved: saves.length > 0,
     reposted: reposts.length > 0,
   };
+}
+
+function sameQuestionDetails(left, right) {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+  return left.title === right.title && (left.intent || "GUIDANCE") === (right.intent || "GUIDANCE");
 }
 
 function sameEventDetails(left, right) {
@@ -577,14 +595,15 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
           const { withdrawnAt, ...post } = previous;
           const sameTags = post.tags.length === data.tags.length && post.tags.every((tag, index) => tag === data.tags[index]);
           const sameEvent = sameEventDetails(post.eventDetails, data.eventDetails);
-          if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags || !sameEvent) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
+          const sameQuestion = sameQuestionDetails(post.questionDetails, data.questionDetails);
+          if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags || !sameEvent || !sameQuestion) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
           return { post: memberPost(post) };
         }
         // An older tagless post may be retried, but new posts require a topic.
         if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
-        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, body: data.body, createdAt: now() }, select: memberPostSelect });
+        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, questionDetails: data.questionDetails ?? undefined, body: data.body, createdAt: now() }, select: memberPostSelect });
         return { post: memberPost(post) };
       });
     },
