@@ -305,7 +305,12 @@ test("The feed renders different presentation cards for stored achievements, eve
       await expect(card.getByText(/Monrovia University Campus/)).toBeVisible();
     }
     await expect(card.getByRole("list", { name: "Topic tags" }).getByText("Learning")).toBeVisible();
-    await expect(card.getByRole("button", { name: "Comments" })).toBeVisible();
+    if (format.type === "QUESTION") {
+      await expect(card.getByRole("button", { name: "Comments" })).toHaveCount(0);
+      await expect(card.getByRole("region", { name: "Post comments" })).toHaveCount(0);
+    } else {
+      await expect(card.getByRole("button", { name: "Comments" })).toBeVisible();
+    }
   }
   const legacyCard = explore.getByRole("article").filter({ hasText: fixturePost.body });
   await expect(legacyCard.locator(".bw-post-story")).toHaveCount(0);
@@ -367,6 +372,19 @@ test("purpose-driven post cards expose distinct actions and functional signup an
   await expect(achievementCard.getByRole("button", { name: "Share" })).toBeVisible();
   await expect(achievementCard.getByLabel(/views$/)).toBeVisible();
 
+  for (const [card, primaryName] of [[eventCard, "Sign Up"], [questionCard, "Answer"]]) {
+    const actions = card.locator(".bw-timeline-actions--split");
+    const primary = actions.locator(".bw-post-primary-action").getByRole("button", { name: primaryName });
+    const secondary = actions.locator(".bw-post-secondary-actions");
+    await expect(primary).toBeVisible();
+    await expect(secondary.getByRole("button", { name: "Share" })).toBeVisible();
+    const primaryBox = await primary.boundingBox();
+    const secondaryBox = await secondary.boundingBox();
+    expect(primaryBox.x + primaryBox.width).toBeLessThanOrEqual(secondaryBox.x + 2);
+  }
+  await expect(questionCard.getByRole("button", { name: "Comments" })).toHaveCount(0);
+  await expect(questionCard.getByRole("region", { name: "Post comments" })).toHaveCount(0);
+  await expect(eventCard.getByRole("button", { name: "Comments" })).toBeVisible();
   await expect(eventCard.getByRole("button", { name: "Like" })).toHaveCount(0);
   await eventCard.getByRole("button", { name: "Sign Up" }).click();
   await expect(eventCard.getByRole("button", { name: "Registered" })).toBeVisible();
@@ -386,6 +404,36 @@ test("purpose-driven post cards expose distinct actions and functional signup an
   const report = questionCard.getByRole("form", { name: "Report question" });
   await report.getByRole("button", { name: "Submit report" }).click();
   await expect(questionCard.getByText("Report submitted for moderation.")).toBeVisible();
+});
+
+test("mobile event and question primary actions stay left of the right utility group", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "Mobile layout only");
+  const [event, question] = ["EVENT", "QUESTION"].map((type, index) => ({
+    ...fixturePost, type, id: "66666666-6666-4666-8666-66666666666" + index,
+    body: type === "EVENT" ? "Career workshop opening" : "How do I begin my career?",
+    views: 21,
+    ...(type === "EVENT" ? { registration: { registered: false, count: 0 }, eventDetails: {
+      title: "Career workshop", startAt: "2027-01-15T12:00:00Z", endAt: "2027-01-15T14:00:00Z",
+      timezone: "UTC", format: "ONLINE", meetingUrl: "https://meet.example.org/career", coverTheme: "NAVY",
+    } } : { questionDetails: { title: "How do I begin my career?", intent: "GUIDANCE" }, answerCount: 0 }),
+  }));
+  await fixture(page, [event, question]);
+  await page.route("**/api/v1/explore/posts/*/*/view", route => route.fulfill({
+    json: { success: true, data: { views: 22 } },
+  }));
+  await page.goto("/explore");
+  for (const [body, type, name] of [[event.body, "EVENT", "Sign Up"], [question.body, "QUESTION", "Answer"]]) {
+    const card = page.getByRole("article").filter({ hasText: body });
+    const actionBar = card.locator(".bw-timeline-actions--split");
+    const leading = actionBar.locator(".bw-post-primary-action").getByRole("button", { name });
+    const trailing = actionBar.locator(".bw-post-secondary-actions");
+    const mainBox = await leading.boundingBox();
+    const trailingBox = await trailing.boundingBox();
+    const cardBox = await card.boundingBox();
+    expect(mainBox.x + mainBox.width).toBeLessThanOrEqual(trailingBox.x + 2);
+    expect(trailingBox.x + trailingBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width + 2);
+    if (type === "QUESTION") await expect(card.getByRole("button", { name: "Comments" })).toHaveCount(0);
+  }
 });
 
 test("the billboard rotates and stops when the member pauses it", async ({ page }) => {

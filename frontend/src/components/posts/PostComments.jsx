@@ -4,7 +4,7 @@ import { organizationPostsApi as api } from "../../api/organization-posts";
 
 const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
-export default function PostComments({ source, postId, children }) {
+export default function PostComments({ source, postId, children, showComment = true, primaryAction = null }) {
   const regionId = useId();
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(null);
@@ -73,14 +73,19 @@ export default function PostComments({ source, postId, children }) {
 
   return (
     <div className="bw-post-comments">
-      <div className="bw-timeline-actions">
-        <button type="button" className="bw-timeline-action" aria-label="Comments" title="Comments"
-          aria-expanded={expanded} aria-controls={regionId} disabled={pending} onClick={toggle}>
-          <NavigationIcon name="reply" size={19} />
-        </button>
-        {children}
+      <div className={primaryAction ? "bw-timeline-actions bw-timeline-actions--split" : "bw-timeline-actions"}>
+        {primaryAction && <div className="bw-post-primary-action">{primaryAction}</div>}
+        <div className={primaryAction ? "bw-post-secondary-actions" : "bw-post-secondary-actions bw-post-secondary-actions--default"}>
+          {showComment && (
+            <button type="button" className="bw-timeline-action" aria-label="Comments" title="Comments"
+              aria-expanded={expanded} aria-controls={regionId} disabled={pending} onClick={toggle}>
+              <NavigationIcon name="reply" size={19} />
+            </button>
+          )}
+          {children}
+        </div>
       </div>
-      <section id={regionId} hidden={!expanded} aria-label="Post comments">
+      {showComment && <section id={regionId} hidden={!expanded} aria-label="Post comments">
         {error && <p className="bw-post-error" role="alert">{error}</p>}
         {!page && pending && <p role="status">Loading comments…</p>}
         {!page && error && <button type="button" onClick={() => load()}>Retry comments</button>}
@@ -110,7 +115,7 @@ export default function PostComments({ source, postId, children }) {
             {page.nextCursor && <button type="button" disabled={pending} onClick={() => load(page.nextCursor)}>Load older comments</button>}
           </>
         )}
-      </section>
+      </section>}
     </div>
   );
 }

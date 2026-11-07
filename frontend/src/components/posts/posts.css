@@ -952,3 +952,28 @@
   .bw-question-answers { padding: .75rem; }
   .bw-post-view-metric { padding: .3rem; }
 }
+
+
+/* Event and question: one clear primary action on the left, utilities on the right. */
+.bw-timeline-actions--split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: .5rem;
+  min-width: 0;
+}
+.bw-post-primary-action { display: flex; align-items: center; flex: 0 0 auto; }
+.bw-post-secondary-actions { display: flex; align-items: center; gap: clamp(.15rem, .7vw, .65rem); min-width: 0; }
+.bw-post-secondary-actions--default { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+.bw-timeline-actions--split .bw-post-secondary-actions { justify-content: flex-end; margin-left: auto; flex-wrap: nowrap; }
+.bw-post-panel .bw-answer-primary-action { color: #7050ad; gap: .3rem; }
+.bw-post-panel .bw-answer-primary-action[aria-expanded="true"] { background: #f2eaff; }
+.bw-timeline-actions--split .bw-post-view-metric { padding-inline: .15rem; }
+@media (max-width: 550px) {
+  .bw-timeline-actions--split { gap: .12rem; }
+  .bw-post-primary-action .bw-timeline-action { padding: .3rem .35rem; font-size: .75rem; }
+  .bw-timeline-actions--split .bw-post-secondary-actions { gap: .05rem; }
+  .bw-timeline-actions--split .bw-post-secondary-actions .bw-timeline-action { padding: .3rem .28rem; }
+  .bw-timeline-actions--split .bw-post-view-metric { gap: .14rem; font-size: .7rem; }
+}
