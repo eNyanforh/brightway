@@ -145,25 +145,28 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
     finally { setReportBusy(false); }
   }
 
+  const primaryAction = type === "QUESTION" ? (
+    <button type="button" className="bw-timeline-action bw-answer-primary-action"
+      aria-label="Answer" title="Answer" aria-expanded={answersOpen}
+      onClick={() => setAnswersOpen(open => !open)}>
+      <NavigationIcon name="answer" size={19} />
+      <span>Answer</span>
+      {answerCount > 0 && <span className="bw-action-count">{answerCount}</span>}
+    </button>
+  ) : type === "EVENT" ? (
+    <button type="button" className="bw-timeline-action bw-signup-action" disabled={busy}
+      aria-label={post.registration?.registered ? "Registered" : "Sign Up"}
+      aria-pressed={Boolean(post.registration?.registered)}
+      title={post.registration?.registered ? "Cancel registration" : "Sign Up"}
+      onClick={() => onRegister(post)}>
+      <NavigationIcon name="ticket" size={19} />
+      <span>{post.registration?.registered ? "Registered" : "Sign Up"}</span>
+      {post.registration?.count > 0 && <span className="bw-action-count">{post.registration.count}</span>}
+    </button>
+  ) : null;
+
   const controls = (
     <>
-      {type === "QUESTION" && (
-        <button type="button" className="bw-timeline-action" aria-label="Answer" title="Answer"
-          aria-expanded={answersOpen} onClick={() => setAnswersOpen(open => !open)}>
-          <NavigationIcon name="answer" size={19} /><span className="bw-action-count">{answerCount || ""}</span>
-        </button>
-      )}
-      {type === "EVENT" && (
-        <button type="button" className="bw-timeline-action bw-signup-action" disabled={busy}
-          aria-label={post.registration?.registered ? "Registered" : "Sign Up"}
-          aria-pressed={Boolean(post.registration?.registered)}
-          title={post.registration?.registered ? "Cancel registration" : "Sign Up"}
-          onClick={() => onRegister(post)}>
-          <NavigationIcon name="ticket" size={19} />
-          <span>{post.registration?.registered ? "Registered" : "Sign Up"}</span>
-          {post.registration?.count > 0 && <span className="bw-action-count">{post.registration.count}</span>}
-        </button>
-      )}
       {post.reaction && ["ACHIEVEMENT", "POST", "ORGANIZATION"].includes(type) && (
         <button type="button" className="bw-timeline-action bw-timeline-like-action" disabled={busy}
           aria-label={type === "ACHIEVEMENT" ? "Celebrate" : "Like"}
@@ -263,7 +266,8 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
             </time>
           </header>
           <PostStory post={post} topicTags={topicTags} />
-          <PostComments postId={post.id} source={source}>
+          <PostComments postId={post.id} source={source}
+            showComment={type !== "QUESTION"} primaryAction={primaryAction}>
             {controls}
           </PostComments>
           {extras}
