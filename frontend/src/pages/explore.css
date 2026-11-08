@@ -18,7 +18,8 @@
   color: var(--explore-ink);
 }
 .bw-explore *, .bw-explore *::before, .bw-explore *::after { box-sizing: border-box; }
-.bw-explore-sr-only {
+.bw-explore-sr-only,
+.bw-explore .bw-timeline-sr {
   position: absolute;
   width: 1px;
   height: 1px;
