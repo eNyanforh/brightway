@@ -18,7 +18,7 @@ const cardKey = post => post.repost ? "repost:" + post.repost.id : postKey(post)
 const storyFormats = {
   ACHIEVEMENT: { icon: "awards", heading: "A milestone worth celebrating", note: "Progress shared with the community" },
   EVENT: { icon: "calendar", heading: "What's happening", note: "Community event" },
-  QUESTION: { icon: "question", heading: "Let's learn together", note: "Join the discussion in the comments" },
+  QUESTION: { icon: "question", heading: "Let's learn together", note: "Answers help the community learn" },
 };
 
 function EventInfoCard({ details }) {
@@ -43,7 +43,7 @@ function EventInfoCard({ details }) {
   );
 }
 
-function PostStory({ post, topicTags }) {
+function PostStory({ post, topicTags, timeline = false }) {
   const format = post.member && storyFormats[post.type];
   if (!format) return (
     <>
@@ -53,14 +53,16 @@ function PostStory({ post, topicTags }) {
     </>
   );
   return (
-    <div className="bw-post-story" data-post-type={post.type}>
-      <div className="bw-post-story-heading">
-        <span className="bw-post-story-icon"><NavigationIcon name={format.icon} size={23} /></span>
-        <div className="bw-post-story-heading-copy">
-          <PersonalPostTypeLabel type={post.type} />
-          <strong>{format.heading}</strong>
+    <div className={timeline ? "bw-post-story bw-post-story--compact" : "bw-post-story"} data-post-type={post.type}>
+      {timeline ? <PersonalPostTypeLabel type={post.type} /> : (
+        <div className="bw-post-story-heading">
+          <span className="bw-post-story-icon"><NavigationIcon name={format.icon} size={23} /></span>
+          <div className="bw-post-story-heading-copy">
+            <PersonalPostTypeLabel type={post.type} />
+            <strong>{format.heading}</strong>
+          </div>
         </div>
-      </div>
+      )}
       {post.type === "EVENT" && <EventInfoCard details={post.eventDetails} />}
       {post.type === "QUESTION" && post.questionDetails?.title && (
         <div className="bw-question-feed-content">
@@ -75,7 +77,7 @@ function PostStory({ post, topicTags }) {
         <p className="bw-post-text bw-post-story-body">{post.body}</p>
       )}
       {topicTags}
-      <p className="bw-post-story-note">{format.note}</p>
+      {!timeline && <p className="bw-post-story-note">{format.note}</p>}
     </div>
   );
 }
@@ -265,7 +267,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
               {timelineDate.format(new Date(post.createdAt))}
             </time>
           </header>
-          <PostStory post={post} topicTags={topicTags} />
+          <PostStory post={post} topicTags={topicTags} timeline />
           <PostComments postId={post.id} source={source}
             showComment={type !== "QUESTION"} primaryAction={primaryAction}>
             {controls}
