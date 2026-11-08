@@ -49,6 +49,23 @@ async function fixture(page, posts = [fixturePost]) {
   return writes;
 }
 
+
+test("Explore remains readable at tablet width without horizontal scrolling", async ({ page }) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 820, height: 950 });
+  await page.goto("/explore");
+  const explore = page.getByRole("region", { name: "Explore", exact: true });
+  const billboard = explore.getByRole("region", { name: "BrightWay billboard" });
+  const sidebar = explore.getByRole("complementary", { name: "Explore sidebar" });
+  const launcher = explore.getByRole("group", { name: "Choose how to contribute" });
+  const billboardBox = await billboard.boundingBox();
+  const sidebarBox = await sidebar.boundingBox();
+  expect(sidebarBox.y).toBeGreaterThan(billboardBox.y + billboardBox.height);
+  await expect(launcher.getByRole("button", { name: "Create an Event" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+});
+
 test("Explore shows the compact three-action launcher instead of an always-open post box", async ({ page, isMobile }, testInfo) => {
   const writes = await fixture(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -60,7 +77,8 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   const achievement = launcher.getByRole("button", { name: "Share an Achievement" });
   const event = launcher.getByRole("button", { name: "Create an Event" });
   const question = launcher.getByRole("button", { name: "Ask a Question" });
-  await expect(explore.getByRole("heading", { name: "Discover what’s possible" })).toBeVisible();
+  await expect(explore.getByRole("heading", { name: "Explore community" })).toHaveCount(1);
+  await expect(explore.getByText("Discover what’s possible")).toHaveCount(0);
   await expect(explore.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "For You" })).toHaveAttribute("aria-pressed", "true");
   await expect(billboard.getByRole("heading", { name: "Find your next challenge" })).toBeVisible();
   await expect(billboard.getByRole("link", { name: "Browse opportunities" })).toHaveAttribute("href", "/opportunities");
@@ -295,7 +313,8 @@ test("The feed renders different presentation cards for stored achievements, eve
   for (const format of formats) {
     const card = explore.getByRole("article").filter({ hasText: format.body });
     await expect(card.locator(".bw-post-story")).toHaveAttribute("data-post-type", format.type);
-    await expect(card.getByText(format.heading)).toBeVisible();
+    await expect(card.locator(".bw-post-story--compact")).toBeVisible();
+    await expect(card.getByText(format.heading)).toHaveCount(0);
     if (format.type === "QUESTION") {
       await expect(card.getByRole("heading", { name: "How do I find a mentor for my first project?" })).toBeVisible();
       await expect(card.getByText("Looking for guidance")).toBeVisible();
