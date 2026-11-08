@@ -29,6 +29,7 @@ async function fixture(page, posts = [fixturePost]) {
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();
     const reply = (data, status = 200) => route.fulfill({ status, json: { success: true, data } });
+    if (/^\/api\/v1\/explore\/posts\/(member|organization)\/[^/]+\/view$/.test(url.pathname)) return reply({ views: 1 });
     switch (url.pathname) {
       case "/api/v1/auth/me": return reply({ account });
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
@@ -196,7 +197,7 @@ for (const format of formats) {
     await publish.click();
     const published = explore.getByRole("article").filter({ hasText: format.body });
     await expect(published.locator(".bw-post-story")).toHaveAttribute("data-post-type", format.type);
-    await expect(published.getByText(format.heading)).toBeVisible();
+    await expect(published.getByText(format.heading)).toHaveCount(0);
     await expect(published.getByText(format.label, { exact: true })).toBeVisible();
     if (format.type === "QUESTION") {
       await expect(published.getByRole("heading", { name: format.body })).toBeVisible();
