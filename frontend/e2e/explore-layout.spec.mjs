@@ -460,7 +460,7 @@ test("publisher avatars display real member and organization photos with safe in
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
 
-test("purpose-driven post cards expose distinct actions and functional signup and answer voting", async ({ page }) => {
+test("purpose-driven post cards expose distinct actions and functional registration and answer voting", async ({ page }) => {
   const [achievement, event, question] = formats.map((format, index) => ({
     ...fixturePost,
     id: "44444444-4444-4444-8444-44444444444" + index,
@@ -518,7 +518,7 @@ test("purpose-driven post cards expose distinct actions and functional signup an
   await expect(achievementCard.getByRole("button", { name: "Share" })).toBeVisible();
   await expect(achievementCard.getByLabel(/views$/)).toBeVisible();
 
-  for (const [card, primaryName] of [[eventCard, "Sign Up"], [questionCard, "Answer"]]) {
+  for (const [card, primaryName] of [[eventCard, "Register"], [questionCard, "Answer"]]) {
     const actions = card.locator(".bw-timeline-actions--split");
     const primary = actions.locator(".bw-post-primary-action").getByRole("button", { name: primaryName });
     const secondary = actions.locator(".bw-post-secondary-actions");
@@ -532,7 +532,7 @@ test("purpose-driven post cards expose distinct actions and functional signup an
   await expect(questionCard.getByRole("region", { name: "Post comments" })).toHaveCount(0);
   await expect(eventCard.getByRole("button", { name: "Comments" })).toBeVisible();
   await expect(eventCard.getByRole("button", { name: "Like" })).toHaveCount(0);
-  await eventCard.getByRole("button", { name: "Sign Up" }).click();
+  await eventCard.getByRole("button", { name: "Register" }).click();
   await expect(eventCard.getByRole("button", { name: "Registered" })).toBeVisible();
   expect(calls).toContainEqual({ registered: true });
 
@@ -767,6 +767,74 @@ test("question cards display real answerers beneath topic tags and a distinct An
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
 
+test("event cards display real registrant avatars and count, refreshed after registration", async ({ page }) => {
+  const personPhoto = "77777777-7777-4777-8777-777777777777";
+  const event = {
+    ...fixturePost,
+    id: "f1111111-1111-4111-8111-111111111111",
+    type: "EVENT",
+    body: "Join our career opportunities workshop.",
+    tags: ["Career"],
+    eventDetails: {
+      title: "Career Opportunities Workshop",
+      startAt: "2027-01-15T12:00:00Z",
+      endAt: "2027-01-15T14:00:00Z",
+      timezone: "UTC",
+      format: "ONLINE",
+      meetingUrl: "https://meet.example.org/careers",
+      coverTheme: "NAVY",
+    },
+    registration: { registered: false, count: 42 },
+    eventAttendees: [
+      { username: "maya", name: "Maya Cole", photoId: personPhoto, verified: true },
+      { username: "alex", name: "Alex Rivera", photoId: null, verified: true },
+      { username: "sam", name: "Sam Brown", photoId: personPhoto, verified: true },
+      { username: "lena", name: "Lena Cooper", photoId: personPhoto, verified: true },
+    ],
+  };
+  await fixture(page, [event]);
+  await page.route("**/api/v1/explore/members/*/photo/*", route => route.fulfill({
+    contentType: "image/svg+xml",
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12"><circle cx="6" cy="6" r="6" fill="#175cd3"/></svg>',
+  }));
+  const calls = [];
+  await page.route("**/api/v1/explore/**", route => {
+    if (!route.request().url().endsWith("/register")) return route.fallback();
+    const registered = route.request().postDataJSON().registered;
+    calls.push(registered);
+    return route.fulfill({ json: { success: true, data: {
+      registration: { registered, count: registered ? 43 : 42 },
+      eventAttendees: registered
+        ? [{ username: "synthetic", name: "Synthetic Member", photoId: personPhoto, verified: true }, ...event.eventAttendees.slice(0, 2)]
+        : event.eventAttendees.slice(0, 3),
+    } } });
+  });
+  await page.goto("/explore");
+  const card = page.getByRole("article").filter({ hasText: "Career Opportunities Workshop" });
+  const summary = card.locator(".bw-event-attendee-summary");
+  await expect(summary).toContainText("42 people registered");
+  const avatars = summary.getByRole("group", { name: "People registered to attend" });
+  await expect(avatars.getByRole("link")).toHaveCount(3);
+  await expect(avatars.getByRole("link", { name: "Maya Cole registered to attend" }))
+    .toHaveAttribute("href", "/people/maya");
+  await expect(avatars.getByRole("link", { name: "Lena Cooper registered to attend" })).toHaveCount(0);
+  await expect(avatars.locator("img")).toHaveCount(2);
+  await expect.poll(() => avatars.locator("img").first()
+    .evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+  await expect(avatars.getByRole("link", { name: "Alex Rivera registered to attend" })
+    .locator("svg")).toBeVisible();
+  await card.getByRole("button", { name: "Register", exact: true }).click();
+  await expect(card.getByRole("button", { name: "Registered" })).toBeVisible();
+  await expect(summary).toContainText("43 people registered");
+  await expect(avatars.getByRole("link", { name: "Synthetic Member registered to attend" })).toBeVisible();
+  await card.getByRole("button", { name: "Registered" }).click();
+  await expect(card.getByRole("button", { name: "Register", exact: true })).toBeVisible();
+  await expect(summary).toContainText("42 people registered");
+  expect(calls).toEqual([true, false]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+});
+
 test("answer count and facepile refresh after an answer is published", async ({ page }) => {
   const question = {
     ...fixturePost,
@@ -828,7 +896,7 @@ test("mobile event and question primary actions stay left of the right utility g
     json: { success: true, data: { views: 22 } },
   }));
   await page.goto("/explore");
-  for (const [body, type, name] of [[event.body, "EVENT", "Sign Up"], [question.body, "QUESTION", "Answer"]]) {
+  for (const [body, type, name] of [[event.body, "EVENT", "Register"], [question.body, "QUESTION", "Answer"]]) {
     const card = page.getByRole("article").filter({ hasText: body });
     const actionBar = card.locator(".bw-timeline-actions--split");
     const leading = actionBar.locator(".bw-post-primary-action").getByRole("button", { name });
