@@ -1548,3 +1548,63 @@
     font-size: .74rem;
   }
 }
+
+
+/* Owner-only certificate editing and previews. */
+.bw-owner-certifications { display: grid; gap: 16px; }
+.bw-owner-certification {
+  display: grid;
+  grid-template-columns: 42px minmax(0,1fr);
+  gap: 12px;
+}
+.bw-owner-certification + .bw-owner-certification {
+  padding-top: 16px;
+  border-top: 1px solid #e8edf5;
+}
+.bw-owner-certification-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #dce8f6;
+  background: #eef5ff;
+  border-radius: 10px;
+  color: #245ca8;
+}
+.bw-owner-certification h3 {
+  margin: 0 0 5px;
+  font-size: .88rem;
+}
+.bw-owner-certification p {
+  margin: 0 0 5px;
+  color: #607189;
+  font-size: .78rem;
+}
+.bw-owner-certification small {
+  color: #687c95;
+  font-size: .71rem;
+}
+.bw-owner-certification a {
+  display: block;
+  margin-top: 8px;
+  font-size: .78rem;
+  color: #1c61c6;
+}
+.bw-certification-editor { display: grid; gap: 15px; }
+.bw-certification-editor-item {
+  display: grid;
+  gap: 11px;
+  padding: 15px;
+  background: #f8fbff;
+  border: 1px solid #dce7f5;
+  border-radius: 12px;
+}
+.bw-certification-editor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bw-certification-editor-heading strong { font-size: .84rem; }
+.bw-certification-editor-item .bw-profile-field { margin: 0; }
+.bw-certification-editor-item .bw-profile-field-row { margin: 0; }
