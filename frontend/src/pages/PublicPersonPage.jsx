@@ -67,7 +67,7 @@ function PublishedPerson({ username }) {
     </Link>
     <div className="bw-public-person-hero">
       <div className="bw-public-person-cover" aria-hidden="true">
-        <span>BRIGHTWAY / COMMUNITY</span>
+        <span>BRIGHTWAY</span>
       </div>
       <header className="bw-public-person-identity">
         <PersonAvatar />
