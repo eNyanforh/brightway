@@ -37,7 +37,7 @@ const published = {
   skills: ["React", "TypeScript"], interests: ["Education"],
 };
 
-async function fixture(page, profileOverrides = {}, publishedOverrides = {}, activityCaption = "Finished a community coding project.") {
+async function fixture(page, profileOverrides = {}, publishedOverrides = {}, activityCaption = "Finished a community coding project.", memberOverride = {}) {
   let privateReads = 0;
   let publicViews = 0;
   let activityReads = 0;
@@ -61,7 +61,7 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
             id: "33333333-3333-4333-8333-333333333333", type: "QUESTION",
             body: "How do I find a mentor?", createdAt: "2026-11-07T09:00:00Z",
             questionDetails: { title: "Finding a mentor" }, tags: ["Learning"],
-            member: { username: "synthetic", name: "Synthetic Member", photoId: null, verified: true },
+            member: { username: "synthetic", name: "Synthetic Member", photoId: null, verified: true, ...memberOverride },
             reaction: { count: 0, liked: false }, views: 3, commentCount: 0,
             repostCount: 0, answerCount: 2, answerParticipants: [], saved: false, reposted: false,
           }], nextCursor: null }
@@ -69,7 +69,7 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
             { id: "11111111-1111-4111-8111-111111111111", type: "ACHIEVEMENT",
               body: activityCaption, createdAt: "2026-11-09T09:00:00Z",
               tags: ["Coding"],
-              member: { username: "synthetic", name: "Synthetic Member", photoId: null, verified: true },
+              member: { username: "synthetic", name: "Synthetic Member", photoId: null, verified: true, ...memberOverride },
               reaction: { count: 4, liked: false }, views: 28, commentCount: 2,
               repostCount: 1, saved: false, reposted: false,
             },
@@ -80,7 +80,7 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
                 format: "IN_PERSON", venue: "Monrovia", ticketPriceCents: 0,
                 requiresApproval: false, capacity: 50 },
               tags: ["Career"],
-              member: { username: "synthetic", name: "Synthetic Member", photoId: null, verified: true },
+              member: { username: "synthetic", name: "Synthetic Member", photoId: null, verified: true, ...memberOverride },
               reaction: { count: 0, liked: false }, views: 9, commentCount: 1,
               repostCount: 0, registration: { count: 6, registered: false },
               eventAttendees: [], saved: false, reposted: false,
@@ -161,7 +161,7 @@ test("my profile shows a private dashboard above About without tabs on desktop a
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
 });
 
-test("long post captions are collapsed and expandable without losing content", async ({ page }) => {
+test("post captions show exactly two visual lines with See more, then expand and collapse", async ({ page }) => {
   const ending = "This closing detail must remain readable after expansion.";
   const longCaption = "Built something meaningful through research, prototypes, testing and collaboration. "
     .repeat(8) + ending;
@@ -170,15 +170,60 @@ test("long post captions are collapsed and expandable without losing content", a
   const card = page.locator("#profile-activity .bw-timeline-post").first();
   await expect(card).toBeVisible();
   const caption = card.locator(".bw-post-text");
-  await expect(caption).not.toContainText(ending);
-  const more = card.getByRole("button", { name: "Read more" });
+  await expect(caption).toHaveText(longCaption);
+  const collapsed = await caption.evaluate(element => {
+    const css = getComputedStyle(element);
+    return { clamp: css.webkitLineClamp,
+      height: element.getBoundingClientRect().height,
+      lineHeight: Number.parseFloat(css.lineHeight),
+      scrollHeight: element.scrollHeight };
+  });
+  expect(collapsed.clamp).toBe("2");
+  expect(collapsed.height).toBeLessThanOrEqual(collapsed.lineHeight * 2 + 2);
+  expect(collapsed.scrollHeight).toBeGreaterThan(collapsed.height + 2);
+  const more = card.getByRole("button", { name: "See more" });
   await expect(more).toHaveAttribute("aria-expanded", "false");
   await more.click();
   await expect(caption).toHaveText(longCaption);
-  await expect(card.getByRole("button", { name: "Show less" })).toHaveAttribute("aria-expanded", "true");
-  await card.getByRole("button", { name: "Show less" }).click();
-  await expect(caption).not.toContainText(ending);
-  await expect(card.getByRole("button", { name: "Read more" })).toBeVisible();
+  await expect(caption).not.toHaveClass(/bw-post-caption--collapsed/);
+  await expect(card.getByRole("button", { name: "See less" })).toHaveAttribute("aria-expanded", "true");
+  const expandedHeight = await caption.evaluate(element => element.getBoundingClientRect().height);
+  expect(expandedHeight).toBeGreaterThan(collapsed.height);
+  await card.getByRole("button", { name: "See less" }).click();
+  await expect(caption).toHaveClass(/bw-post-caption--collapsed/);
+  await expect(card.getByRole("button", { name: "See more" })).toBeVisible();
+});
+
+test("Activities keeps the regular post author layout with long verified names", async ({ page }) => {
+  const longName = "Alexandria Catherine Montgomery-Williamson";
+  const longUsername = "very-long-professional-username-from-liberia";
+  await fixture(page, {}, {}, "A new achievement.", {
+    name: longName, username: longUsername,
+  });
+  await page.goto("/profile");
+  const rail = page.locator("#profile-activity .bw-profile-activity-list");
+  await expect(rail.locator(".bw-timeline-post")).toHaveCount(2);
+  const card = rail.locator(".bw-timeline-post").first();
+  await expect(card.getByRole("link", { name: longName })).toBeVisible();
+  await expect(card.getByRole("img", { name: "Verified identity" })).toBeVisible();
+  await expect(card.getByText("@" + longUsername)).toBeVisible();
+  const geometry = await card.evaluate(element => {
+    const avatar = element.querySelector(".bw-timeline-avatar").getBoundingClientRect();
+    const author = element.querySelector(".bw-timeline-byline").getBoundingClientRect();
+    const cardRect = element.getBoundingClientRect();
+    const styles = getComputedStyle(element);
+    return {
+      display: styles.display, columns: styles.gridTemplateColumns,
+      avatarX: avatar.x, avatarY: avatar.y, avatarRight: avatar.right,
+      authorX: author.x, authorY: author.y, authorRight: author.right,
+      cardRight: cardRect.right,
+    };
+  });
+  expect(geometry.display).toBe("grid");
+  expect(geometry.authorX).toBeGreaterThan(geometry.avatarRight);
+  expect(Math.abs(geometry.avatarY - geometry.authorY)).toBeLessThanOrEqual(4);
+  expect(geometry.authorRight).toBeLessThanOrEqual(geometry.cardRight + 1);
+  await expect(rail.getByRole("img", { name: "Verified identity" })).toHaveCount(2);
 });
 
 test("published profile shows only shared fields in a responsive modern layout", async ({ page }) => {
