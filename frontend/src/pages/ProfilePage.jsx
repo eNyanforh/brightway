@@ -2,7 +2,7 @@ import { profilePhotoReviewsApi } from "../api/profile-photo-reviews";
 import { useIdentityStatus } from "../auth/useIdentityStatus";
 import VerificationBadge from "../components/VerificationBadge";
 import { hasVerifiedIdentity } from "./manual-identity-format";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { profileApi } from "../api/profile";
@@ -28,6 +28,19 @@ const regionNames =
   typeof Intl.DisplayNames === "function"
     ? new Intl.DisplayNames(["en"], { type: "region" })
     : null;
+
+const profileTabs = [
+  { key: "about", label: "About Me" },
+  { key: "achievements", label: "Achievements" },
+  { key: "activity", label: "Activity" },
+];
+
+function tabForProfileHash(hash) {
+  if (hash === "#profile-activity") return "activity";
+  if (["#profile-experience", "#profile-education", "#profile-certifications"].includes(hash))
+    return "achievements";
+  return "about";
+}
 
 function featuredRecord(history, field) {
   const records = Array.isArray(history?.records) ? history.records : [];
@@ -110,6 +123,29 @@ export default function ProfilePage() {
 
   const [file, setFile] = useState(null);
   const [pictureAttempt, setPictureAttempt] = useState(0);
+  const [activeTab, setActiveTab] = useState(() => tabForProfileHash(window.location.hash));
+  const tabButtons = useRef({});
+
+  useEffect(() => {
+    const syncHash = () => setActiveTab(tabForProfileHash(window.location.hash));
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, []);
+
+  function handleTabKeyDown(event, index) {
+    const { key } = event;
+    let nextIndex = index;
+    if (key === "ArrowRight") nextIndex = (index + 1) % profileTabs.length;
+    else if (key === "ArrowLeft") nextIndex = (index + profileTabs.length - 1) % profileTabs.length;
+    else if (key === "Home") nextIndex = 0;
+    else if (key === "End") nextIndex = profileTabs.length - 1;
+    else return;
+    event.preventDefault();
+    const next = profileTabs[nextIndex].key;
+    setActiveTab(next);
+    tabButtons.current[next]?.focus();
+  }
+
   const mutation = useRef(false);
 
   const profile = draft?.profile;
@@ -658,6 +694,24 @@ export default function ProfilePage() {
 
           <ProfileDashboard key={account.id} accountId={account.id} />
 
+          <div className="bw-profile-tabbed-content">
+            <div role="tablist" aria-label="Profile sections" className="bw-profile-tabs">
+              {profileTabs.map((tab, index) => (
+                <button key={tab.key} type="button" role="tab"
+                  id={`profile-tab-${tab.key}`}
+                  ref={node => { tabButtons.current[tab.key] = node; }}
+                  aria-controls={`profile-panel-${tab.key}`}
+                  aria-selected={activeTab === tab.key}
+                  tabIndex={activeTab === tab.key ? 0 : -1}
+                  onClick={() => setActiveTab(tab.key)}
+                  onKeyDown={event => handleTabKeyDown(event, index)}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div id="profile-panel-about" className="bw-profile-tabpanel"
+              role="tabpanel" aria-labelledby="profile-tab-about"
+              tabIndex={0} hidden={activeTab !== "about"}>
           <Section
             id="profile-about"
             title="About"
@@ -670,9 +724,72 @@ export default function ProfilePage() {
                 "Your story starts here. Share what matters to you and what you enjoy doing."}
             </p>
           </Section>
+          <Section
+            id="profile-direction"
+            title="My direction"
+            editor="career"
+            onEdit={open}
+            busy={busy}
+          >
+            <div className="bw-profile-career">
+              <span className="bw-profile-career-icon">
+                <Icon name="sprout" />
+              </span>
 
-          <ProfileActivities key={account.id} accountId={account.id} />
+              <div>
+                <h3>
+                  {exploring
+                    ? "Open to discovering what’s next"
+                    : profile.careerField?.label ||
+                      "You don’t need to have it all figured out."}
+                </h3>
 
+                <p className="bw-profile-description">
+                  {profile.careerGoals ||
+                    "Add something you would like to learn, achieve, or contribute."}
+                </p>
+              </div>
+            </div>
+          </Section>
+          <Section
+            id="profile-skills"
+            title="Skills"
+            editor="skills"
+            action="Edit skills"
+            onEdit={open}
+            busy={busy}
+          >
+            <Labels
+              entries={profile.skills}
+              empty="What are you good at? Add the skills you are learning or already use."
+            />
+          </Section>
+          <Section
+            id="profile-interests"
+            title="Interests"
+            editor="interests"
+            action="Edit interests"
+            onEdit={open}
+            busy={busy}
+          >
+            <Labels
+              entries={profile.interests}
+              empty="Add the topics and activities that spark your curiosity."
+              neutral
+            />
+          </Section>
+          <div id="profile-contact" className="bw-profile-anchor-section">
+            <ProfileContact
+              contact={profile.contact}
+              email={account.email}
+              busy={busy}
+              onEdit={open}
+            />
+          </div>
+            </div>
+            <div id="profile-panel-achievements" className="bw-profile-tabpanel"
+              role="tabpanel" aria-labelledby="profile-tab-achievements"
+              tabIndex={0} hidden={activeTab !== "achievements"}>
           {["experience", "education"].map((kind) => (
             <div key={kind} id={`profile-${kind}`} className="bw-profile-anchor-section">
               <ProfileHistory
@@ -685,7 +802,6 @@ export default function ProfilePage() {
               />
             </div>
           ))}
-
           <Section
             id="profile-certifications"
             title="Licenses and certifications"
@@ -715,71 +831,12 @@ export default function ProfilePage() {
               <p className="bw-profile-muted">Add certifications you have earned, including their issuers and dates.</p>
             )}
           </Section>
-
-          <Section
-            id="profile-skills"
-            title="Skills"
-            editor="skills"
-            action="Edit skills"
-            onEdit={open}
-            busy={busy}
-          >
-            <Labels
-              entries={profile.skills}
-              empty="What are you good at? Add the skills you are learning or already use."
-            />
-          </Section>
-
-          <Section
-            id="profile-interests"
-            title="Interests"
-            editor="interests"
-            action="Edit interests"
-            onEdit={open}
-            busy={busy}
-          >
-            <Labels
-              entries={profile.interests}
-              empty="Add the topics and activities that spark your curiosity."
-              neutral
-            />
-          </Section>
-
-          <Section
-            id="profile-direction"
-            title="My direction"
-            editor="career"
-            onEdit={open}
-            busy={busy}
-          >
-            <div className="bw-profile-career">
-              <span className="bw-profile-career-icon">
-                <Icon name="sprout" />
-              </span>
-
-              <div>
-                <h3>
-                  {exploring
-                    ? "Open to discovering what’s next"
-                    : profile.careerField?.label ||
-                      "You don’t need to have it all figured out."}
-                </h3>
-
-                <p className="bw-profile-description">
-                  {profile.careerGoals ||
-                    "Add something you would like to learn, achieve, or contribute."}
-                </p>
-              </div>
             </div>
-          </Section>
-
-          <div id="profile-contact" className="bw-profile-anchor-section">
-            <ProfileContact
-              contact={profile.contact}
-              email={account.email}
-              busy={busy}
-              onEdit={open}
-            />
+            <div id="profile-panel-activity" className="bw-profile-tabpanel"
+              role="tabpanel" aria-labelledby="profile-tab-activity"
+              tabIndex={0} hidden={activeTab !== "activity"}>
+          <ProfileActivities key={account.id} accountId={account.id} />
+            </div>
           </div>
 
         </div>
