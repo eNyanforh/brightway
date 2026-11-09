@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { organizationPostsApi as api } from "../../api/organization-posts";
+import { photoUrl } from "../../api/profile";
 import NavigationIcon from "../layout/NavigationIcon";
 import PersonalPostComposer, { PersonalPostTypeLabel, PostTopicTags } from "./PersonalPostComposer";
 import PostComments from "./PostComments";
@@ -43,7 +44,32 @@ function EventInfoCard({ details }) {
   );
 }
 
-function PostStory({ post, topicTags, timeline = false }) {
+function QuestionAnswerSummary({ count, participants }) {
+  return (
+    <div className="bw-question-answer-summary" aria-label="Question answers">
+      {participants.length > 0 && (
+        <div className="bw-question-answer-facepile" role="group" aria-label="Members who answered">
+          {participants.map(person => {
+            const initials = (person.name || person.username).trim().split(/\s+/).slice(0, 2)
+              .map(part => part[0]).join("").toUpperCase();
+            return (
+              <Link key={person.username} className="bw-question-answer-avatar"
+                to={"/people/" + encodeURIComponent(person.username)}
+                title={person.name} aria-label={person.name + " answered"}>
+                {person.photoId ? <img src={photoUrl(person.photoId)} alt="" loading="lazy" /> : initials}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+      <span className="bw-question-answer-count" aria-live="polite">
+        <strong>{count.toLocaleString()}</strong> {count === 1 ? "answer" : "answers"}
+      </span>
+    </div>
+  );
+}
+
+function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerParticipants = [] }) {
   const format = post.member && storyFormats[post.type];
   if (!format) return (
     <>
@@ -77,6 +103,9 @@ function PostStory({ post, topicTags, timeline = false }) {
         <p className="bw-post-text bw-post-story-body">{post.body}</p>
       )}
       {topicTags}
+      {timeline && post.type === "QUESTION" && (
+        <QuestionAnswerSummary count={answerCount} participants={answerParticipants} />
+      )}
       {!timeline && <p className="bw-post-story-note">{format.note}</p>}
     </div>
   );
@@ -86,6 +115,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
   const [confirming, setConfirming] = useState(false);
   const [answersOpen, setAnswersOpen] = useState(false);
   const [answerCount, setAnswerCount] = useState(post.answerCount ?? 0);
+  const [answerParticipants, setAnswerParticipants] = useState(post.answerParticipants ?? []);
   const [reportOpen, setReportOpen] = useState(false);
   const [reported, setReported] = useState(false);
   const [reason, setReason] = useState("SPAM");
@@ -101,7 +131,17 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
   const type = post.member ? post.type ?? "POST" : "ORGANIZATION";
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
   const topicTags = post.member && <PostTopicTags tags={post.tags} />;
-  const answerCountChanged = useCallback(delta => setAnswerCount(current => Math.max(0, current + delta)), []);
+  const answerCountChanged = useCallback(delta => {
+    setAnswerCount(current => Math.max(0, current + delta));
+    // Refresh the server-authoritative preview only when an answer changes.
+    void api.readPost("member", post.id).then(({ post: updated }) => {
+      if (updated?.type !== "QUESTION") return;
+      setAnswerCount(updated.answerCount ?? 0);
+      setAnswerParticipants(updated.answerParticipants ?? []);
+    }).catch(() => {
+      // An optimistic count remains visible if the read fails; never fabricate a respondent.
+    });
+  }, [post.id]);
 
   useEffect(() => {
     if (!timeline || typeof post.views !== "number" || !cardRef.current ||
@@ -153,7 +193,6 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
       onClick={() => setAnswersOpen(open => !open)}>
       <NavigationIcon name="answer" size={19} />
       <span>Answer</span>
-      {answerCount > 0 && <span className="bw-action-count">{answerCount}</span>}
     </button>
   ) : type === "EVENT" ? (
     <button type="button" className="bw-timeline-action bw-signup-action" disabled={busy}
@@ -267,7 +306,8 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
               {timelineDate.format(new Date(post.createdAt))}
             </time>
           </header>
-          <PostStory post={post} topicTags={topicTags} timeline />
+          <PostStory post={post} topicTags={topicTags} timeline
+            answerCount={answerCount} answerParticipants={answerParticipants} />
           <PostComments postId={post.id} source={source}
             showComment={type !== "QUESTION"} primaryAction={primaryAction}>
             {controls}
