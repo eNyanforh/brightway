@@ -176,7 +176,91 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.deepEqual(memberHistory.items[0].tags, ["Coding"]);
     assert.equal(Object.hasOwn(memberHistory.items[0], "likes"), false);
     assert.equal(Object.hasOwn(memberHistory.items[0], "_count"), false);
-    assert.equal((await dashboard(owner)).postImpressions, 1, "unique post-view events are counted for the author");
+    const editPath = "/posts/me/" + achievement.id;
+    const editedBody = "Published a revised and improved software project.";
+    const editDraft = {
+      expectedBody: achievement.body, expectedTags: ["Coding"],
+      body: editedBody, tags: ["Coding", "Technology"],
+    };
+    await request(visitor, editPath, { method: "PATCH", body: editDraft, status: 404 });
+    await request(owner, editPath, { method: "PATCH", body: editDraft,
+      requestOrigin: "https://untrusted.invalid", status: 403 });
+    await request(owner, editPath, { method: "PATCH",
+      body: { ...editDraft, tags: [] }, status: 400 });
+    const edited = await request(owner, editPath, { method: "PATCH", body: editDraft });
+    assert.equal(edited.post.body, editedBody);
+    assert.deepEqual(edited.post.tags, ["Coding", "Technology"]);
+    assert.equal(edited.post.id, achievement.id);
+    assert.equal(edited.post.createdAt, achievement.createdAt.toISOString(), "original date remains unchanged");
+    assert.equal((await request(owner, "/posts/me")).items[0].commentCount, 1,
+      "editing a post preserves its comments");
+    assert.equal((await request(owner, "/posts/me")).items[0].views, 1,
+      "editing a post preserves its view history");
+    await request(owner, editPath, { method: "PATCH", body: editDraft, status: 409 });
+    await request(owner, editPath, { method: "PATCH", body: {
+      expectedBody: editedBody, expectedTags: ["Coding", "Technology"],
+      body: "Bad event injection", tags: ["Coding"], eventDetails: {
+        title: "Not an event", startAt: "2030-01-01T12:00:00.000Z",
+        endAt: "2030-01-01T14:00:00.000Z", timezone: "UTC", format: "IN_PERSON", venue: "Monrovia",
+      },
+    }, status: 400 });
+
+    const question = await prisma.memberPost.create({ data: {
+      authorId: owner.id, requestKey: randomUUID(), type: "QUESTION",
+      body: "How can I learn database design?", tags: ["Coding"],
+      questionDetails: { title: "How can I learn database design?", intent: "GUIDANCE" },
+    } });
+    createdPosts.push(question.id);
+    const questionResult = await request(owner, "/posts/me/" + question.id, {
+      method: "PATCH", body: {
+        expectedBody: question.body, expectedTags: ["Coding"],
+        body: "What is the best way to learn Postgres?", tags: ["Coding"],
+        questionDetails: { title: "What is the best way to learn Postgres?", intent: "DISCUSSION" },
+      },
+    });
+    assert.equal(questionResult.post.questionDetails.intent, "DISCUSSION");
+    assert.equal(questionResult.post.questionDetails.title, "What is the best way to learn Postgres?");
+
+    const eventDetails = {
+      title: "Community learning event", startAt: "2030-01-01T12:00:00.000Z",
+      endAt: "2030-01-01T14:00:00.000Z", timezone: "UTC", format: "IN_PERSON",
+      venue: "Monrovia", meetingUrl: "", coverTheme: "NAVY", currency: "USD",
+      ticketPriceCents: 0, requiresApproval: false, capacity: 100,
+    };
+    const eventPost = await prisma.memberPost.create({ data: {
+      authorId: owner.id, requestKey: randomUUID(), type: "EVENT",
+      body: "Learn with the community.", tags: ["Education"], eventDetails,
+    } });
+    createdPosts.push(eventPost.id);
+    await prisma.eventRegistration.create({ data: {
+      memberPostId: eventPost.id, accountId: visitor.id, status: "PENDING",
+    } });
+    const eventEdit = { expectedBody: eventPost.body, expectedTags: ["Education"],
+      body: "Join the learning community.", tags: ["Education"], eventDetails };
+    const safeEvent = await request(owner, "/posts/me/" + eventPost.id,
+      { method: "PATCH", body: eventEdit });
+    assert.equal(safeEvent.post.body, eventEdit.body);
+    await request(owner, "/posts/me/" + eventPost.id, { method: "PATCH", status: 409,
+      body: { ...eventEdit, expectedBody: eventEdit.body,
+        eventDetails: { ...eventDetails, ticketPriceCents: 2500 } },
+    });
+    assert.equal((await prisma.memberPost.findUnique({ where: { id: eventPost.id } }))
+      .eventDetails.ticketPriceCents, 0, "registration protects original ticket price");
+
+    await request(visitor, editPath, { method: "DELETE", body: {}, status: 404 });
+    const deleted = await request(owner, editPath, { method: "DELETE", body: {} });
+    assert.equal(deleted.id, achievement.id);
+    assert.equal((await request(owner, "/posts/me")).items.some(item => item.id === achievement.id), false);
+    await request(owner, editPath, { method: "PATCH",
+      body: { expectedBody: editedBody, expectedTags: ["Coding", "Technology"],
+        body: "Should fail", tags: ["Coding"] }, status: 404 });
+    assert.equal((await dashboard(owner)).postImpressions, 0,
+      "withdrawing a post removes its views from active profile impressions");
+
+    const undeleted = await prisma.memberPost.findUnique({ where: { id: achievement.id } });
+    assert.ok(undeleted.withdrawnAt, "post is soft-deleted rather than purging discussion records");
+    assert.equal(undeleted.body, editedBody);
+    assert.equal((await dashboard(owner)).postImpressions, 0, "deleted post views are excluded");
     assert.equal((await dashboard(visitor)).postImpressions, 0, "only the author's posts are counted");
     await preferences(owner, { profileAchievementsPublicEnabled: true });
     assert.equal(Object.hasOwn(await view(visitor, owner), "achievements"), false,
