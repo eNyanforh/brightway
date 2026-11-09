@@ -571,6 +571,10 @@ test("modern answer panel keeps voting, sorting and nested reply publishing usab
   const replies = [];
   const sorts = [];
   await fixture(page, [question]);
+  await page.route("**/api/v1/explore/members/*/photo/*", route => route.fulfill({
+    contentType: "image/svg+xml",
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12"><rect width="12" height="12" fill="#174ea6"/></svg>',
+  }));
   await page.route("**/api/v1/explore/**", route => {
     const request = route.request(), url = new URL(request.url());
     const path = url.pathname;
@@ -612,6 +616,11 @@ test("modern answer panel keeps voting, sorting and nested reply publishing usab
   const answerCard = panel.locator(".bw-answer-card");
   await expect(answerCard).toHaveCount(1);
   await expect(answerCard.getByRole("link", { name: "Maya Cole" })).toHaveAttribute("href", "/people/maya");
+  await expect(answerCard.getByRole("img", { name: "Verified identity" })).toBeVisible();
+  await expect(answerCard.locator(".bw-discussion-avatar img")).toHaveAttribute("src",
+    new RegExp("/explore/members/maya/photo/" + imageId + "$"));
+  await expect.poll(() => answerCard.locator(".bw-discussion-avatar img")
+    .evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(answerCard.getByLabel("Upvotes 2")).toBeVisible();
   await expect(answerCard.getByLabel("Downvotes 0")).toBeVisible();
   await answerCard.getByRole("button", { name: "Upvote answer by maya" }).click();
@@ -657,6 +666,10 @@ test("modern post comments preserve create, delete, pagination and close behavio
     photoId: "d1000000-0000-4000-8000-000000000001", body: "This is inspiring work.",
     createdAt: "2026-11-09T10:00:00Z", canDelete: true };
   await fixture(page, [post]);
+  await page.route("**/api/v1/explore/members/*/photo/*", route => route.fulfill({
+    contentType: "image/svg+xml",
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12"><circle cx="6" cy="6" r="6" fill="#174ea6"/></svg>',
+  }));
   const actions = [];
   await page.route("**/api/v1/explore/**", route => {
     const request = route.request(), url = new URL(request.url());
@@ -691,6 +704,10 @@ test("modern post comments preserve create, delete, pagination and close behavio
   await expect(panel.getByText("This is inspiring work.")).toBeVisible();
   await expect(panel.getByRole("link", { name: "Synthetic Member" })).toBeVisible();
   await expect(panel.getByRole("img", { name: "Verified identity" })).toBeVisible();
+  await expect(panel.locator(".bw-discussion-avatar img")).toHaveAttribute("src",
+    /\/explore\/members\/synthetic\/photo\/d1000000-0000-4000-8000-000000000001$/);
+  await expect.poll(() => panel.locator(".bw-discussion-avatar img")
+    .evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(panel.getByRole("button", { name: "Delete comment" })).toBeVisible();
   await panel.getByRole("button", { name: "Delete comment" }).click();
   await expect(panel.getByText("Delete this comment?")).toBeVisible();
