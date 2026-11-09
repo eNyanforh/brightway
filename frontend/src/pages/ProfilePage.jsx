@@ -134,7 +134,7 @@ export default function ProfilePage() {
 
   function handleTabKeyDown(event, index) {
     const { key } = event;
-    let nextIndex = index;
+    let nextIndex;
     if (key === "ArrowRight") nextIndex = (index + 1) % profileTabs.length;
     else if (key === "ArrowLeft") nextIndex = (index + profileTabs.length - 1) % profileTabs.length;
     else if (key === "Home") nextIndex = 0;
