@@ -20,6 +20,7 @@ import ProfileContact from "../components/profile/ProfileContact";
 import ProfileCompletion from "../components/profile/ProfileCompletion";
 import ProfileHistory from "../components/profile/ProfileHistory";
 import ProfileActivities from "../components/profile/ProfileActivities";
+import ProfileDashboard from "../components/profile/ProfileDashboard";
 import ProfileEditor from "../components/profile/ProfileEditor";
 import "./profile.css";
 
@@ -655,18 +656,7 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          <nav className="bw-profile-section-nav" aria-label="Profile sections">
-            <a href="#profile-about">About</a>
-            <a href="#profile-activity">Activities</a>
-            <a href="#profile-experience">Experience</a>
-            <a href="#profile-education">Education</a>
-            <a href="#profile-certifications">Certifications</a>
-            <a href="#profile-skills">Skills</a>
-            <a href="#profile-interests">Interests</a>
-            <a href="#profile-direction">Career direction</a>
-            <a href="#profile-contact">Contact</a>
-            <a href="#profile-privacy">Privacy</a>
-          </nav>
+          <ProfileDashboard key={account.id} accountId={account.id} />
 
           <Section
             id="profile-about"
