@@ -419,6 +419,12 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     for (const { row, post } of entries) {
       if (post.author && !eligible.has(post.author.id)) continue;
       const { authorId, ...original } = post;
+      // Approval-only online meeting links must never reach unapproved viewers,
+      // including in shared/reposted event cards and direct post reads.
+      if (post.type === "EVENT" && post.eventDetails?.requiresApproval === true
+        && post.author.id !== viewer && post.registrations?.[0]?.status !== "APPROVED") {
+        original.eventDetails = { ...post.eventDetails, meetingUrl: "" };
+      }
       if (!row.account) {
         items.push(feedPost(original, blockedKeys));
         if (post.type === "EVENT" && post.author) events.set(post.id, post.author.id);
