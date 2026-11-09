@@ -37,7 +37,7 @@ const published = {
   skills: ["React", "TypeScript"], interests: ["Education"],
 };
 
-async function fixture(page) {
+async function fixture(page, profileOverrides = {}) {
   let privateReads = 0;
   let publicViews = 0;
   let activityReads = 0;
@@ -51,7 +51,7 @@ async function fixture(page) {
       case "/api/v1/work/access": return reply({ hasWork: false });
       case "/api/v1/profile/me":
         privateReads++;
-        return reply({ profile });
+        return reply({ profile: { ...profile, ...profileOverrides } });
       case "/api/v1/posts/me":
         activityReads++;
         return reply(url.searchParams.has("cursor")
@@ -135,4 +135,38 @@ test("published profile shows only shared fields in a responsive modern layout",
   expect(api.publicViews()).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
+});
+
+test("profile introduction uses saved affiliations without inventing credentials or exposing unpublished details", async ({ page }) => {
+  await fixture(page, {
+    experience: { mode: "RECORDS", records: [{
+      id: "experience-1", role: "Software developer", organization: "Community Labs",
+      current: true, status: "DRAFT", startMonth: "2025-01", endMonth: null,
+    }] },
+    education: { mode: "RECORDS", records: [{
+      id: "education-1", institution: "Starz University", qualification: "Computer Science",
+      current: true, status: "DRAFT", startMonth: "2024-01", endMonth: null,
+    }] },
+  });
+  await page.goto("/profile");
+
+  const affiliation = page.locator(".bw-profile-affiliations");
+  await expect(affiliation.getByText("Community Labs")).toBeVisible();
+  await expect(affiliation.getByText("Starz University")).toBeVisible();
+  await expect(affiliation.getByText("Software developer")).toBeVisible();
+  await expect(page.getByRole("link", { name: "View public profile" })).toHaveCount(0);
+
+  const order = await page.locator(".bw-profile-main > #profile-experience, .bw-profile-main > #profile-education")
+    .evaluateAll(elements => elements.map(element => element.id));
+  expect(order).toEqual(["profile-experience", "profile-education"]);
+
+  await page.getByRole("button", { name: "Edit career direction" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+});
+
+test("published members can preview the existing consent-gated public profile", async ({ page }) => {
+  await fixture(page, { profilePublicEnabled: true });
+  await page.goto("/profile");
+  await expect(page.getByRole("link", { name: "View public profile" }))
+    .toHaveAttribute("href", "/people/synthetic");
 });
