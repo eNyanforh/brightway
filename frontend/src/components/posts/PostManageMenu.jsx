@@ -41,6 +41,8 @@ export default function PostManageMenu({ post, busy = false, onEdit, onDelete })
   const [tagDraft, setTagDraft] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  savingRef.current = saving || busy;
   const locked = saving || busy;
   const member = Boolean(post.member);
   const isEvent = post.type === "EVENT";
@@ -77,7 +79,7 @@ export default function PostManageMenu({ post, busy = false, onEdit, onDelete })
     const keydown = event => {
       if (event.key === "Escape") {
         event.preventDefault();
-        if (!saving) setMode(null);
+        if (!savingRef.current) setMode(null);
       }
       if (event.key !== "Tab") return;
       const focusable = [...element.querySelectorAll("button:not(:disabled), textarea:not(:disabled), input:not(:disabled), select:not(:disabled)")];
@@ -95,7 +97,7 @@ export default function PostManageMenu({ post, busy = false, onEdit, onDelete })
       if (previousFocus?.isConnected) previousFocus.focus();
       else trigger.current?.focus();
     };
-  }, [mode, saving]);
+  }, [mode]);
 
   function choose(next) {
     setMenuOpen(false);
