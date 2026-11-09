@@ -140,13 +140,28 @@ test("database manual identity requests serialize retries and decisions, revoke 
         await assert.rejects(posts.setLike(viewerActor, "member", post.id, { liked: true }), { status: 400 });
       }
       if (type === "EVENT") {
+        const publicAttendee = { username: owner.username, name: "Sample owner", photoId: photo.id, verified: true };
+        // Registration totals include private/unverified registrants; avatars must not.
         assert.deepEqual(await posts.registerEvent(viewerActor, post.id, { registered: true }),
-          { registration: { registered: true, count: 1 } });
+          { registration: { registered: true, count: 1 }, eventAttendees: [] });
         assert.deepEqual(await posts.registerEvent(viewerActor, post.id, { registered: true }),
-          { registration: { registered: true, count: 1 } });
-        assert.equal((await posts.feed(viewerActor, {})).items.find(item => item.id === post.id)?.registration?.registered, true);
+          { registration: { registered: true, count: 1 }, eventAttendees: [] });
+        let eventInFeed = (await posts.feed(viewerActor, {})).items.find(item => item.id === post.id);
+        assert.equal(eventInFeed?.registration?.registered, true);
+        assert.equal(eventInFeed?.registration?.count, 1);
+        assert.deepEqual(eventInFeed?.eventAttendees, []);
+        const ownerRegistration = await posts.registerEvent(actor, post.id, { registered: true });
+        assert.deepEqual(ownerRegistration, {
+          registration: { registered: true, count: 2 }, eventAttendees: [publicAttendee],
+        });
+        eventInFeed = (await posts.feed(viewerActor, {})).items.find(item => item.id === post.id);
+        assert.equal(eventInFeed?.registration?.count, 2);
+        assert.deepEqual(eventInFeed?.eventAttendees, [publicAttendee]);
+        assert.deepEqual((await posts.readPost(viewerActor, "member", post.id)).post.eventAttendees, [publicAttendee]);
+        assert.deepEqual(await posts.registerEvent(actor, post.id, { registered: false }),
+          { registration: { registered: false, count: 1 }, eventAttendees: [] });
         assert.deepEqual(await posts.registerEvent(viewerActor, post.id, { registered: false }),
-          { registration: { registered: false, count: 0 } });
+          { registration: { registered: false, count: 0 }, eventAttendees: [] });
       }
       if (type === "QUESTION") {
         await assert.rejects(posts.setReposted(viewerActor, "member", post.id, { reposted: true }), { status: 400 });
