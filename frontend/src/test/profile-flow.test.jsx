@@ -118,15 +118,19 @@ it("organizes the modern profile around identity, anchored sections and privacy 
   expect(screen.getByRole("navigation", { name: "Profile tools" })).toBeTruthy();
   expect(within(screen.getByRole("navigation", { name: "Profile tools" }))
     .getByRole("link", { name: "Account security" }).getAttribute("href")).toBe("/security");
-  expect(screen.getByText("Public profile private")).toBeTruthy();
-  expect(screen.getByText("Identity not verified")).toBeTruthy();
+  expect(screen.queryByText("Public profile private")).toBeNull();
+  expect(screen.queryByText("Identity not verified")).toBeNull();
+  const hero = document.querySelector(".bw-profile-hero");
+  expect(within(hero).queryByRole("button", { name: "Edit career direction" })).toBeNull();
+  expect(within(hero).queryByRole("link", { name: "View public profile" })).toBeNull();
+  expect(within(hero).queryByRole("link", { name: "See activity" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "My profile" })).toBeNull();
   expect(screen.queryByText("YOUR BRIGHTWAY PROFILE")).toBeNull();
   expect(screen.getByRole("heading", { name: "Activities" })).toBeTruthy();
   expect(await screen.findByText("No activity yet")).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Control your profile" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Change profile picture" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Edit career direction" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Edit my direction" })).toBeTruthy();
   expect(screen.queryByRole("link", { name: "View public profile" })).toBeNull();
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profile/me"))).toHaveLength(1);
   await userEvent.setup().click(screen.getByRole("button", { name: "Edit introduction", exact: true }));
