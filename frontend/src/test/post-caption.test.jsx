@@ -44,7 +44,7 @@ it("shortens many-line captions even if their total length is small", async () =
   render(<PostCaption body={body} />);
   expect(screen.queryByText(/Line 7/)).toBeNull();
   await user.click(screen.getByRole("button", { name: "Read more" }));
-  expect(screen.getByText(body)).toBeTruthy();
+  expect(document.querySelector(".bw-post-text").textContent).toBe(body);
 });
 
 it("handles long text with emoji without corrupting a surrogate pair", () => {
