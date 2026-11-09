@@ -288,6 +288,8 @@ export default function ProfilePage() {
 
   function open(editor) {
     if (busy) return;
+    if (["education", "experience", "certifications"].includes(editor)) setActiveTab("achievements");
+    else if (["about", "career", "skills", "interests", "contact"].includes(editor)) setActiveTab("about");
 
     setDraft((previous) => ({
       ...previous,
