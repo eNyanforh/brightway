@@ -447,7 +447,11 @@ export default function ProfileHistory({
           <div className="bw-history-list">
             {history.records.map((item) => (
               <article className="bw-history-record" key={item.id}>
-                <h3>{kind === "education" ? item.qualification : item.role}</h3>
+                <span className="bw-history-record-icon" aria-hidden="true">
+                  <Icon name={kind === "education" ? "book" : "briefcase"} />
+                </span>
+                <div className="bw-history-record-content">
+                  <h3>{kind === "education" ? item.qualification : item.role}</h3>
                 <p>
                   {kind === "education" ? item.institution : item.organization}
                 </p>
@@ -461,9 +465,10 @@ export default function ProfileHistory({
                     "Not submitted for verification"}
                 </span>
                 <Link to={`/credentials/${kind}/${item.id}`}>Verification details</Link>
-                {item.description && (
-                  <p className="bw-profile-description">{item.description}</p>
-                )}
+                  {item.description && (
+                    <p className="bw-profile-description">{item.description}</p>
+                  )}
+                </div>
               </article>
             ))}
           </div>
