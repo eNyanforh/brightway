@@ -60,6 +60,11 @@ it("allows legacy users to view their profile and uses the server checklist to o
   const fetchMock = mount(); await ready();
   expect(screen.getByRole("heading", { name: "Profile checklist" })).toBeTruthy();
   expect(screen.getByText("2 items need attention.")).toBeTruthy();
+  const progress = screen.getByRole("progressbar", { name: "Profile checklist progress" });
+  expect(progress.getAttribute("aria-valuemin")).toBe("0");
+  expect(progress.getAttribute("aria-valuemax")).toBe("3");
+  expect(progress.getAttribute("aria-valuenow")).toBe("1");
+  expect(screen.getByText("1 of 3 requirements met")).toBeTruthy();
   expect(screen.queryByText(/Country-specific region requirements/)).toBeNull();
   await userEvent.setup().click(screen.getByRole("button", { name: "Complete phone number" }));
   await screen.findByRole("dialog", { name: "Contact and privacy" });
@@ -82,6 +87,9 @@ it("verifies an existing account without replacing unsaved profile edits or chan
   await user.click(screen.getByRole("button", { name: "Verify email", exact: true }));
   await screen.findByText("Email verified. Your unsaved profile edits are still here.");
   await screen.findByText("1 item needs attention.");
+  expect(screen.getByRole("progressbar", { name: "Profile checklist progress" })
+    .getAttribute("aria-valuenow")).toBe("2");
+  expect(screen.getByText("2 of 3 requirements met")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Verify your email" })).toBeNull();
   await user.click(screen.getByRole("button", { name: "Edit introduction", exact: true }));
   expect(screen.getByLabelText("Headline").value).toBe("An unsaved headline");
@@ -134,6 +142,14 @@ it("blocks duplicate verification submissions and other profile edits while veri
   finish(response(400, { success: false, message: "Please try again." }));
   await screen.findByRole("alert");
   await waitFor(() => expect(screen.getByRole("button", { name: "Edit introduction", exact: true }).disabled).toBe(false));
+});
+
+it("does not show stale or invented progress when the saved checklist version differs", () => {
+  const stale = { ...checklist(), profileVersion: 3 };
+  render(<ProfileCompletion profile={{ ...original, completion: stale }} busy={false}
+    dirty={false} onEdit={() => {}} />);
+  expect(screen.queryByRole("progressbar", { name: "Profile checklist progress" })).toBeNull();
+  expect(screen.getByText("Refresh to see your latest profile requirements.")).toBeTruthy();
 });
 
 it("uses the server county requirement to open the introduction editor", async () => {
