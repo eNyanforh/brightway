@@ -104,10 +104,10 @@ it("organizes the modern profile around identity, anchored sections and privacy 
   await ready();
   const sections = screen.getByRole("navigation", { name: "Profile sections" });
   const anchors = [
-    ["About", "#profile-about"], ["Activities", "#profile-activity"],
-    ["My direction", "#profile-direction"],
-    ["Skills", "#profile-skills"], ["Interests", "#profile-interests"],
-    ["Education", "#profile-education"], ["Experience", "#profile-experience"],
+    ["About", "#profile-about"], ["Activity", "#profile-activity"],
+    ["Experience", "#profile-experience"], ["Education", "#profile-education"],
+    ["Credentials", "#profile-credentials"], ["Skills", "#profile-skills"],
+    ["Career direction", "#profile-direction"], ["Interests", "#profile-interests"],
     ["Contact", "#profile-contact"], ["Privacy", "#profile-privacy"],
   ];
   for (const [label, target] of anchors) {
@@ -129,6 +129,39 @@ it("organizes the modern profile around identity, anchored sections and privacy 
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profile/me"))).toHaveLength(1);
   await userEvent.setup().click(screen.getByRole("button", { name: "Edit introduction", exact: true }));
   expect(await screen.findByRole("dialog", { name: "Edit introduction" })).toBeTruthy();
+});
+
+it("uses saved work and education for the professional header, and only verified records for credentials", async () => {
+  const experienceId = "11111111-1111-4111-8111-111111111111";
+  const educationId = "22222222-2222-4222-8222-222222222222";
+  const memberProfile = {
+    ...original,
+    experience: { mode: "RECORDS", records: [{
+      id: experienceId, role: "IT Assistant", organization: "Population Studies Institute",
+      current: true, startMonth: "2025-01", type: "EMPLOYMENT", status: "VERIFIED",
+    }] },
+    education: { mode: "RECORDS", records: [{
+      id: educationId, qualification: "Computer Science", institution: "Example University",
+      current: true, startMonth: "2026-01", status: "SUBMITTED",
+    }] },
+  };
+  mount(() => ok({ profile: memberProfile }));
+  await ready();
+  const overview = document.querySelector(".bw-profile-highlights");
+  expect(overview?.textContent).toContain("Population Studies Institute");
+  expect(overview?.textContent).toContain("Example University");
+  const sectionNav = screen.getByRole("navigation", { name: "Profile sections" });
+  expect([...sectionNav.querySelectorAll("a")].map(link => link.textContent.trim()))
+    .toEqual(["About", "Activity", "Experience", "Education", "Credentials",
+      "Skills", "Career direction", "Interests", "Contact", "Privacy"]);
+  const credentials = document.querySelector("#profile-credentials");
+  expect(credentials?.textContent).toContain("IT Assistant");
+  expect(credentials?.textContent).toContain("1 record is awaiting a verification decision.");
+  expect(credentials?.textContent).not.toContain("Computer Science");
+  expect(within(credentials).getByRole("link", { name: "View verification" }).getAttribute("href"))
+    .toBe("/credentials/experience/" + experienceId);
+  expect(within(credentials).getByRole("link", { name: "Manage credentials" }).getAttribute("href"))
+    .toBe("/credentials");
 });
 
 it("shows only published fields on the redesigned public profile without a second view request", async () => {
