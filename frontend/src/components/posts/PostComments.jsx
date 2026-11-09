@@ -1,8 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import NavigationIcon from "../layout/NavigationIcon";
 import { organizationPostsApi as api } from "../../api/organization-posts";
-
-const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+import DiscussionAuthor from "./DiscussionAuthor";
 
 export default function PostComments({ source, postId, children, showComment = true, primaryAction = null }) {
   const regionId = useId();
@@ -14,6 +13,7 @@ export default function PostComments({ source, postId, children, showComment = t
   const [deleteId, setDeleteId] = useState(null);
   const active = useRef(null);
   const requestKey = useRef(null);
+  const input = useRef(null);
 
   useEffect(() => () => active.current?.abort(), []);
 
@@ -40,7 +40,9 @@ export default function PostComments({ source, postId, children, showComment = t
 
   function load(cursor) {
     void run(signal => api.comments(source, postId, cursor, signal), data => {
-      setPage(previous => cursor && previous ? { ...data, items: [...previous.items, ...data.items] } : data);
+      setPage(previous => cursor && previous
+        ? { ...data, items: [...previous.items, ...data.items] }
+        : data);
     });
   }
 
@@ -58,9 +60,13 @@ export default function PostComments({ source, postId, children, showComment = t
     requestKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: requestKey.current };
     void run(signal => api.addComment(source, postId, draft, signal), ({ comment }) => {
-      setPage(previous => ({ ...previous, items: [comment, ...previous.items.filter(item => item.id !== comment.id)] }));
+      setPage(previous => ({
+        ...previous,
+        items: [comment, ...previous.items.filter(item => item.id !== comment.id)],
+      }));
       requestKey.current = null;
       setBody("");
+      input.current?.focus();
     });
   }
 
@@ -85,37 +91,82 @@ export default function PostComments({ source, postId, children, showComment = t
           {children}
         </div>
       </div>
-      {showComment && <section id={regionId} hidden={!expanded} aria-label="Post comments">
-        {error && <p className="bw-post-error" role="alert">{error}</p>}
-        {!page && pending && <p role="status">Loading comments…</p>}
-        {!page && error && <button type="button" onClick={() => load()}>Retry comments</button>}
-        {page && (
-          <>
-            <form onSubmit={publish}>
-              <label htmlFor={regionId + "-body"}>Write a comment</label>
-              <textarea id={regionId + "-body"} rows={2} maxLength={1000} value={body} disabled={pending}
-                onChange={event => { requestKey.current = null; setBody(event.target.value); }} />
-              <button type="submit" disabled={!body.trim() || pending}>Post comment</button>
-            </form>
-            {page.items.length === 0 && <p>No comments yet.</p>}
-            {page.items.length > 0 && <ul aria-label="Comments">
-              {page.items.map(comment => (
-                <li key={comment.id}>
-                  <div className="bw-post-comment-meta"><strong>@{comment.username}</strong> <time dateTime={comment.createdAt}>{time.format(new Date(comment.createdAt))}</time></div>
-                  <p className="bw-post-text">{comment.body}</p>
-                  {comment.canDelete && (deleteId === comment.id ? (
-                    <div className="bw-post-actions">
-                      <button type="button" disabled={pending} onClick={() => remove(comment.id)}>Confirm deletion</button>
-                      <button type="button" disabled={pending} onClick={() => setDeleteId(null)}>Cancel</button>
-                    </div>
-                  ) : <button type="button" disabled={pending} onClick={() => setDeleteId(comment.id)}>Delete comment</button>)}
-                </li>
-              ))}
-            </ul>}
-            {page.nextCursor && <button type="button" disabled={pending} onClick={() => load(page.nextCursor)}>Load older comments</button>}
-          </>
-        )}
-      </section>}
+      {showComment && (
+        <section id={regionId} className="bw-post-comments-section bw-discussion-panel"
+          hidden={!expanded} aria-label="Post comments" aria-busy={pending}>
+          <header className="bw-discussion-panel-header">
+            <div className="bw-discussion-panel-heading">
+              <span className="bw-discussion-panel-icon"><NavigationIcon name="reply" size={19} /></span>
+              <div>
+                <strong>Comments</strong>
+                <p>Join the conversation with a helpful response.</p>
+              </div>
+            </div>
+            <button type="button" className="bw-discussion-close" aria-label="Close comments"
+              disabled={pending} onClick={toggle}>×</button>
+          </header>
+          {error && <p className="bw-post-error" role="alert">{error}</p>}
+          {!page && pending && <p role="status" className="bw-discussion-status">Loading comments…</p>}
+          {!page && error && <button type="button" className="bw-discussion-retry" onClick={() => load()}>Retry comments</button>}
+          {page && (
+            <>
+              <form className="bw-discussion-composer bw-post-comment-form" onSubmit={publish}>
+                <label htmlFor={regionId + "-body"}>Write a comment</label>
+                <textarea ref={input} id={regionId + "-body"} rows={3} maxLength={1000}
+                  placeholder="Share a thoughtful comment…"
+                  value={body} disabled={pending}
+                  onChange={event => { requestKey.current = null; setBody(event.target.value); }} />
+                <div className="bw-discussion-composer-footer">
+                  <span className="bw-discussion-character-count">{body.length} / 1,000</span>
+                  <button type="submit" className="bw-discussion-submit" disabled={!body.trim() || pending}>
+                    <NavigationIcon name="reply" size={16} />
+                    {pending ? "Posting…" : "Post comment"}
+                  </button>
+                </div>
+              </form>
+              <div className="bw-discussion-toolbar">
+                <div className="bw-discussion-toolbar-title">
+                  <strong>Conversation</strong>
+                  <span className="bw-discussion-count">{page.items.length}</span>
+                </div>
+                {page.nextCursor && <span className="bw-discussion-pagination-label">More comments available</span>}
+              </div>
+              {page.items.length === 0 ? (
+                <div className="bw-discussion-empty">
+                  <span className="bw-discussion-empty-icon"><NavigationIcon name="reply" size={22} /></span>
+                  <strong>Start the conversation</strong>
+                  <p>Be the first to leave a thoughtful comment.</p>
+                </div>
+              ) : (
+                <ul className="bw-discussion-list" aria-label="Comments">
+                  {page.items.map(comment => (
+                    <li key={comment.id} className="bw-discussion-entry">
+                      <DiscussionAuthor entry={comment} />
+                      <p className="bw-discussion-entry-body">{comment.body}</p>
+                      {comment.canDelete && (deleteId === comment.id ? (
+                        <div className="bw-discussion-confirm">
+                          <span>Delete this comment?</span>
+                          <button type="button" disabled={pending} onClick={() => remove(comment.id)}>Confirm deletion</button>
+                          <button type="button" disabled={pending} onClick={() => setDeleteId(null)}>Cancel</button>
+                        </div>
+                      ) : (
+                        <button type="button" className="bw-discussion-text-button" disabled={pending}
+                          onClick={() => setDeleteId(comment.id)}>Delete comment</button>
+                      ))}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {page.nextCursor && (
+                <button type="button" className="bw-discussion-load-more" disabled={pending}
+                  onClick={() => load(page.nextCursor)}>
+                  {pending ? "Loading…" : "View older comments"}
+                </button>
+              )}
+            </>
+          )}
+        </section>
+      )}
     </div>
   );
 }
