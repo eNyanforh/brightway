@@ -1,10 +1,10 @@
 import ProfilePicture from "./ProfilePicture";
 
-export default function ProfilePhotoReviewStatus({ review, name, busy, onRefresh, onCancel }) {
+export default function ProfilePhotoReviewStatus({ review, name, busy, onRefresh, onCancel, embedded = false }) {
   if (review?.required !== true) return null;
   const pending = review.pending;
-  return <section className="bw-profile-card bw-profile-photo-review" aria-labelledby="photo-review-heading">
-    <h2 id="photo-review-heading">Profile photo review</h2>
+  return <section className={`bw-profile-photo-review ${embedded ? "bw-profile-photo-review-embedded" : "bw-profile-card"}`} aria-label={embedded ? "Photo approval status" : undefined} aria-labelledby={embedded ? undefined : "photo-review-heading"}>
+    {embedded ? <h3>Photo approval status</h3> : <h2 id="photo-review-heading">Profile photo review</h2>}
     {pending ? <>
       <p>{pending.state === "IN_REVIEW" ? "BrightWay is reviewing your replacement photo." : "Your replacement photo is waiting for BrightWay review."} Your approved photo stays visible until approval.</p>
       <div className="bw-profile-photo-preview"><ProfilePicture id={pending.photoAssetId} name={name} /></div>
