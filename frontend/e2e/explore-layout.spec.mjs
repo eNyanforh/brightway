@@ -296,6 +296,63 @@ test("event admission displays capacity, ticket price, and pending status withou
   expect(calls).toEqual([true, false]);
 });
 
+test("event host can review, approve and decline attendance requests", async ({ page }) => {
+  const event = {
+    ...fixturePost, id: "da000000-0000-4000-8000-000000000001",
+    member: { name: "Synthetic Member", username: "synthetic", verified: true },
+    type: "EVENT", body: "Review the scholarship session attendee requests.",
+    tags: ["Scholarships"], eventDetails: {
+      title: "Scholarship Q&A Session", startAt: "2027-01-15T12:00:00Z",
+      endAt: "2027-01-15T14:00:00Z", timezone: "UTC", format: "ONLINE", meetingUrl: "",
+      requiresApproval: true, ticketPriceCents: 0, currency: "USD", capacity: 3, coverTheme: "NAVY",
+    }, registration: { registered: false, status: null, count: 0 }, eventAttendees: [],
+  };
+  const pending = [
+    { id: "da000000-0000-4000-8000-000000000002", username: "maya",
+      name: "Maya Cole", verified: true, photoId: null, createdAt: "2026-11-09T12:00:00Z" },
+    { id: "da000000-0000-4000-8000-000000000003", username: "private_member",
+      createdAt: "2026-11-09T13:00:00Z" },
+  ];
+  let approvedCount = 0;
+  const decisions = [];
+  await fixture(page, [event]);
+  await page.route("**/api/v1/explore/posts/member/*/registration-requests**", route => {
+    const url = new URL(route.request().url());
+    if (route.request().method() === "GET") return route.fulfill({
+      json: { success: true, data: { items: pending, pendingCount: pending.length, hasMore: false } },
+    });
+    const id = url.pathname.split("/").at(-1);
+    const approved = route.request().postDataJSON().approved;
+    decisions.push({ id, approved });
+    const ix = pending.findIndex(item => item.id === id);
+    if (ix !== -1) pending.splice(ix, 1);
+    if (approved) approvedCount++;
+    return route.fulfill({
+      json: { success: true, data: {
+        registration: { registered: false, status: null, count: approvedCount },
+        eventAttendees: approved ? [{ username: "maya", name: "Maya Cole", verified: true, photoId: null }] : [],
+        pendingCount: pending.length,
+      } },
+    });
+  });
+  await page.goto("/explore");
+  const card = page.getByRole("article").filter({ hasText: "Scholarship Q&A Session" });
+  await card.getByRole("button", { name: "Manage attendance requests" }).click();
+  const panel = card.getByRole("region", { name: "Attendance requests" });
+  await expect(panel).toContainText("Pending approval");
+  await expect(panel.getByRole("link", { name: "Maya Cole" })).toHaveAttribute("href", "/people/maya");
+  await expect(panel.getByText("@private_member")).toBeVisible();
+  await panel.getByRole("button", { name: "Approve" }).first().click();
+  await expect(card.locator(".bw-event-attendee-summary")).toContainText("1 person attending");
+  await expect(panel.getByRole("link", { name: "Maya Cole" })).toHaveCount(0);
+  await panel.getByRole("button", { name: "Decline" }).click();
+  await expect(panel).toContainText("No requests awaiting review.");
+  expect(decisions).toEqual([
+    { id: "da000000-0000-4000-8000-000000000002", approved: true },
+    { id: "da000000-0000-4000-8000-000000000003", approved: false },
+  ]);
+});
+
 test("achievement, event and question composers offer the same subject categories", async ({ page }) => {
   await fixture(page);
   await page.goto("/explore");
