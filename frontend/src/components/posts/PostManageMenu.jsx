@@ -140,9 +140,9 @@ export default function PostManageMenu({ post, busy = false, onEdit, onDelete })
         if (!e.startAt || !e.endAt || !Number.isFinite(Date.parse(e.startAt + "Z"))
           || !Number.isFinite(Date.parse(e.endAt + "Z")))
           return setError("Enter valid event start and end dates in UTC.");
-        if (!/^\\d+(?:\\.\\d{1,2})?$/.test(e.ticketPrice) || Number(e.ticketPrice) > 1000000)
+        if (!/^\d+(?:\.\d{1,2})?$/.test(e.ticketPrice) || Number(e.ticketPrice) > 1000000)
           return setError("Enter a valid ticket price.");
-        if (e.capacity !== "" && (!/^[1-9]\\d*$/.test(e.capacity) || Number(e.capacity) > 100000))
+        if (e.capacity !== "" && (!/^[1-9]\d*$/.test(e.capacity) || Number(e.capacity) > 100000))
           return setError("Enter a valid capacity or leave it unlimited.");
         payload.eventDetails = {
           title: e.title.trim(), startAt: new Date(e.startAt + "Z").toISOString(),
