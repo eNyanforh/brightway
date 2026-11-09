@@ -156,15 +156,34 @@ test("database manual identity requests serialize retries and decisions, revoke 
         const answerDraft = { body: "Start with the research question and a realistic plan.", requestKey: randomUUID() };
         const { answer } = await posts.addAnswer(actor, post.id, answerDraft);
         assert.equal((await posts.addAnswer(actor, post.id, answerDraft)).answer.id, answer.id);
-        assert.equal((await posts.answers(viewerActor, post.id, { sort: "top" })).items[0].id, answer.id);
-        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 1 }), { score: 1, myVote: 1 });
-        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 1 }), { score: 1, myVote: 1 });
-        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: -1 }), { score: -1, myVote: -1 });
-        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 0 }), { score: 0, myVote: 0 });
+        assert.equal(answer.name, "Sample owner");
+        assert.equal(answer.photoId, photo.id);
+        assert.equal(answer.verified, true);
+        assert.deepEqual([answer.upvoteCount, answer.downvoteCount], [0, 0]);
+        const visibleAnswer = (await posts.answers(viewerActor, post.id, { sort: "top" })).items[0];
+        assert.equal(visibleAnswer.id, answer.id);
+        assert.deepEqual([visibleAnswer.name, visibleAnswer.photoId, visibleAnswer.verified], ["Sample owner", photo.id, true]);
+        assert.deepEqual([visibleAnswer.upvoteCount, visibleAnswer.downvoteCount], [0, 0]);
+        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 1 }),
+          { score: 1, myVote: 1, upvoteCount: 1, downvoteCount: 0 });
+        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 1 }),
+          { score: 1, myVote: 1, upvoteCount: 1, downvoteCount: 0 });
+        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: -1 }),
+          { score: -1, myVote: -1, upvoteCount: 0, downvoteCount: 1 });
+        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 0 }),
+          { score: 0, myVote: 0, upvoteCount: 0, downvoteCount: 0 });
         await assert.rejects(posts.voteAnswer(actor, answer.id, { value: 1 }), { status: 400 });
         const { comment } = await posts.addAnswerComment(viewerActor, answer.id,
           { body: "Can you give an example?", requestKey: randomUUID() });
         assert.equal((await posts.answerComments(actor, answer.id)).items[0].id, comment.id);
+        assert.equal((await posts.answerComments(actor, answer.id)).items[0].verified, undefined);
+        const { comment: ownerReply } = await posts.addAnswerComment(actor, answer.id,
+          { body: "Here is an example.", requestKey: randomUUID() });
+        assert.deepEqual([ownerReply.name, ownerReply.photoId, ownerReply.verified], ["Sample owner", photo.id, true]);
+        const visibleOwnerReply = (await posts.answerComments(viewerActor, answer.id)).items.find(row => row.id === ownerReply.id);
+        assert.deepEqual([visibleOwnerReply.name, visibleOwnerReply.photoId, visibleOwnerReply.verified],
+          ["Sample owner", photo.id, true]);
+        await posts.deleteAnswerComment(actor, answer.id, ownerReply.id);
         await posts.deleteAnswerComment(viewerActor, answer.id, comment.id);
         assert.equal((await posts.answerComments(actor, answer.id)).items.length, 0);
         await posts.deleteAnswer(actor, answer.id);
@@ -204,6 +223,14 @@ test("database manual identity requests serialize retries and decisions, revoke 
     await db.account.update({ where: { id: viewer.id }, data: { emailVerifiedAt: date } });
     const { comment } = await commentAsViewer();
     assert.deepEqual((await commentsAsViewer()).items, [comment]);
+    const { comment: ownerComment } = await posts.addComment(actor, "member", postId,
+      { body: "A verified contributor reply.", requestKey: randomUUID() });
+    assert.deepEqual([ownerComment.name, ownerComment.photoId, ownerComment.verified],
+      ["Sample owner", photo.id, true]);
+    const readOwnerComment = (await commentsAsViewer()).items.find(row => row.id === ownerComment.id);
+    assert.deepEqual([readOwnerComment.name, readOwnerComment.photoId, readOwnerComment.verified],
+      ["Sample owner", photo.id, true]);
+    await posts.deleteComment(actor, "member", postId, ownerComment.id);
     const extraComments = Array.from({ length: 21 }, (_, index) => ({
       id: randomUUID(), authorId: viewer.id, memberPostId: postId, requestKey: randomUUID(), body: `Synthetic comment ${index}`, createdAt: date,
     }));
