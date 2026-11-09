@@ -85,7 +85,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(retry.post.id, postId);
     assert.equal(publication.post.type, "POST");
     assert.deepEqual(publication.post.tags, ["Learning Journeys"]);
-    assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner", photoId: photo.id });
+    assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner", photoId: photo.id, verified: true });
     assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "member", "questionDetails", "tags", "type"]);
     assert.equal(publication.post.eventDetails, null);
     assert.equal(publication.post.questionDetails, null);
@@ -125,6 +125,8 @@ test("database manual identity requests serialize retries and decisions, revoke 
       const visible = (await posts.feed(viewerActor, {})).items.find(item => item.id === post.id);
       assert.equal(owned?.type, type);
       assert.equal(visible?.type, type);
+      assert.equal(visible?.member?.verified, true, "Approved public authors show their verified badge in Explore.");
+      assert.equal(owned?.member?.verified, true, "Approved publishers retain the badge in My Posts.");
       assert.deepEqual(owned?.tags, typedDraft.tags);
       assert.deepEqual(visible?.tags, typedDraft.tags);
       if (type === "EVENT") assert.deepEqual(visible?.eventDetails, post.eventDetails);
@@ -273,6 +275,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(copy.body, original.body);
     assert.equal(copy.repost.mine, false);
     assert.equal(copy.repost.member.username, owner.username);
+    assert.equal(copy.repost.member.verified, true, "Approved reposters are visibly verified.");
     assert.equal(copy.reposted, false);
     assert.equal(copy.authorId, undefined);
     assert.equal((await posts.feed(viewerActor, { view: "following" })).items.some(item => item.id === original.id && !item.repost), false);

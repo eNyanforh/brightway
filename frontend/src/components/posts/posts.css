@@ -10,6 +10,21 @@
 .bw-post-card header p { color: #465978; margin: .2rem 0 0; font-size: .8rem; }
 .bw-post-badge { display: grid; place-items: center; flex: 0 0 2.5rem; height: 2.5rem; overflow: hidden; border-radius: .65rem; background: #e8f1ff; color: #184ca7; font-weight: 750; }
 .bw-post-badge img { width: 100%; height: 100%; object-fit: cover; }
+.bw-post-publisher-name {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .22rem;
+  min-width: 0;
+  max-width: 100%;
+}
+.bw-post-publisher-name .bw-verification-badge,
+.bw-timeline-repost .bw-verification-badge { flex: 0 0 auto; }
+.bw-post-publisher-name .bw-verification-badge svg,
+.bw-timeline-repost .bw-verification-badge svg { width: 16px; height: 16px; }
+.bw-timeline-byline time,
+.bw-post-card time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 .bw-post-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: .85rem 0 .35rem; line-height: 1.55; }
 .bw-post-panel button { border: 1px solid #c5d5ef; background: #fff; color: #163e84; padding: .5rem .8rem; border-radius: .55rem; font: inherit; font-weight: 650; cursor: pointer; }
 .bw-post-panel button:disabled { opacity: .65; cursor: default; }

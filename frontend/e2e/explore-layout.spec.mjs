@@ -336,6 +336,69 @@ test("The feed renders different presentation cards for stored achievements, eve
   await expect(legacyCard.locator(".bw-post-story")).toHaveCount(0);
 });
 
+test("post cards show verified publishers and precise relative ages with full publication dates", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-11-09T12:00:00Z") });
+  const durations = [
+    ["seconds", "2026-11-09T11:59:55Z", "5s"],
+    ["minutes", "2026-11-09T11:55:00Z", "5m"],
+    ["hours", "2026-11-09T09:00:00Z", "3h"],
+    ["days", "2026-11-07T12:00:00Z", "2d"],
+    ["months", "2026-09-10T12:00:00Z", "2mo"],
+    ["years", "2025-11-09T12:00:00Z", "1y"],
+    ["calendar date", "2022-11-09T12:00:00Z", /Nov.*2022/],
+  ];
+  const posts = durations.map(([label, createdAt], i) => ({
+    ...fixturePost,
+    id: `30000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+    body: "Publisher age " + label,
+    createdAt,
+    member: { name: "Maya Cole", username: "maya", verified: true },
+  }));
+  posts.push({
+    ...fixturePost,
+    id: "30000000-0000-4000-8000-000000000008",
+    body: "Unverified badge fixture",
+    member: { name: "Legacy Account", username: "legacy", verified: false },
+  });
+  posts.push({
+    ...fixturePost,
+    id: "30000000-0000-4000-8000-000000000009",
+    body: "Verified school publisher",
+    member: undefined,
+    organization: { id: "40000000-0000-4000-8000-000000000001", name: "BrightWay School", username: "brightwayschool" },
+  });
+  posts.push({
+    ...fixturePost,
+    id: "30000000-0000-4000-8000-000000000010",
+    body: "Verified repost attribution",
+    member: { name: "Maya Cole", username: "maya", verified: true },
+    repost: { id: "50000000-0000-4000-8000-000000000001",
+      member: { name: "John Sample", username: "john", verified: true }, mine: false },
+  });
+  await fixture(page, posts);
+  await page.goto("/explore");
+  const card = text => page.getByRole("article").filter({ hasText: text });
+  for (const [label, createdAt, expected] of durations) {
+    const item = card("Publisher age " + label);
+    await expect(item.getByRole("img", { name: "Verified identity" })).toBeVisible();
+    const date = item.locator("time");
+    await expect(date).toHaveAttribute("datetime", createdAt);
+    if (label === "seconds") await expect(date).toHaveText(/^\d+s$/);
+    else await expect(date).toHaveText(expected);
+    await expect(date).toHaveAttribute("title", /202[0-9]/);
+  }
+  await expect(card("Unverified badge fixture").getByRole("img", { name: "Verified identity" })).toHaveCount(0);
+  await expect(card("Verified school publisher").getByRole("img", { name: "Verified organization" })).toBeVisible();
+  await expect(card("Verified repost attribution").getByRole("img", { name: "Verified identity" })).toHaveCount(2);
+  const secondsCounter = card("Publisher age seconds").locator("time");
+  const before = Number((await secondsCounter.textContent())?.replace("s", ""));
+  await page.clock.fastForward(10_000);
+  await expect.poll(async () => Number((await secondsCounter.textContent())?.replace("s", "")))
+    .toBeGreaterThan(before);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+});
+
 test("publisher avatars display real member and organization photos with safe initials fallbacks", async ({ page }) => {
   const personPhoto = "77777777-7777-4777-8777-777777777777";
   const organizationPhoto = "88888888-8888-4888-8888-888888888888";

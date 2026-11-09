@@ -7,11 +7,9 @@ import PersonalPostComposer, { PersonalPostTypeLabel, PostTopicTags } from "./Pe
 import PostComments from "./PostComments";
 import QuestionAnswers from "./QuestionAnswers";
 import AvatarGroup from "./AvatarGroup";
+import VerificationBadge from "../VerificationBadge";
+import PostTimestamp from "./PostTimestamp";
 import "./posts.css";
-
-const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
-
-const timelineDate = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
 
 const postSource = post => post.organization ? "organization" : "member";
 const postKey = post => postSource(post) + ":" + post.id;
@@ -301,6 +299,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
             <Link to={post.repost.mine ? "/profile" : "/people/" + encodeURIComponent(post.repost.member.username)}>
               {post.repost.mine ? "You" : post.repost.member.name}
             </Link>
+            {post.repost.member.verified === true && <VerificationBadge />}
             <span>reposted</span>
           </p>
         )}
@@ -309,12 +308,14 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
         </Link>
         <div className="bw-timeline-post-main">
           <header className="bw-timeline-byline">
-            <Link to={profileUrl}>{publisher.name}</Link>
+            <span className="bw-post-publisher-name">
+              <Link to={profileUrl}>{publisher.name}</Link>
+              {post.member?.verified === true && <VerificationBadge />}
+              {post.organization && <VerificationBadge kind="organization" />}
+            </span>
             {publisher.username && <span>@{publisher.username}</span>}
             <span aria-hidden="true">·</span>
-            <time dateTime={post.createdAt} title={time.format(new Date(post.createdAt))}>
-              {timelineDate.format(new Date(post.createdAt))}
-            </time>
+            <PostTimestamp createdAt={post.createdAt} />
           </header>
           <PostStory post={post} topicTags={topicTags} timeline
             answerCount={answerCount} answerParticipants={answerParticipants} />
@@ -332,8 +333,12 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
       <header>
         <span className="bw-post-badge" aria-hidden="true">{publisherAvatar}</span>
         <div>
-          <Link to={profileUrl}>{publisher.name}</Link>
-          <p><time dateTime={post.createdAt}>{time.format(new Date(post.createdAt))}</time></p>
+          <span className="bw-post-publisher-name">
+            <Link to={profileUrl}>{publisher.name}</Link>
+            {post.member?.verified === true && <VerificationBadge />}
+            {post.organization && <VerificationBadge kind="organization" />}
+          </span>
+          <p><PostTimestamp createdAt={post.createdAt} /></p>
         </div>
       </header>
       <PostStory post={post} topicTags={topicTags} />
