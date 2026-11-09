@@ -2,10 +2,16 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { assertNetworkSession, lockNetworkAccounts } from "../network/network-authority.js";
 import { fail, parse, usernameSchema } from "../network/network.schema.js";
+import { createManualIdentityReviewService } from "../manual-identity/manual-identity-review.service.js";
 
 const cursorSchema = z.strictObject({ owner: z.uuid(), at: z.iso.datetime(), id: z.uuid() });
 const notificationIdSchema = z.uuid();
 const viewProfileSelect = {
+  id: true,
+  certifications: true,
+  profileCertificationsPublicEnabled: true,
+  profileCredentialsPublicEnabled: true,
+  profileAchievementsPublicEnabled: true,
   profilePublicEnabled: true,
   profileViewSharingEnabled: true,
   profileViewNotificationsEnabled: true,
@@ -26,7 +32,7 @@ function utcDay(value) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
-function publicProfile(account, profile) {
+function publicProfile(account, profile, sections = {}) {
   return {
     username: account.username,
     fullName: [account.person.firstName, account.person.middleName, account.person.lastName].filter(Boolean).join(" "),
@@ -39,10 +45,58 @@ function publicProfile(account, profile) {
     careerGoals: profile.careerGoals,
     skills: profile.skills,
     interests: profile.interests,
+    ...sections,
   };
 }
 
+async function verifiedCredentials(tx, profileId) {
+  // Source of truth is the reviewed record AND its matching current revision.
+  // Do not return evidence, reviewer notes, personal contact data or review history.
+  const [reviews, education, experience] = await Promise.all([
+    tx.credentialReview.findMany({
+      where: { profileId, status: "VERIFIED" },
+      select: { kind: true, recordId: true, revision: true, status: true, issuerName: true },
+      take: 60,
+    }),
+    tx.educationRecord.findMany({
+      where: { profileId, status: "VERIFIED" },
+      select: { id: true, revision: true, status: true, institution: true,
+        qualification: true, startMonth: true, endMonth: true, current: true },
+      orderBy: [{ startMonth: "desc" }, { id: "desc" }],
+      take: 20,
+    }),
+    tx.experienceRecord.findMany({
+      where: { profileId, status: "VERIFIED" },
+      select: { id: true, revision: true, status: true, organization: true, role: true,
+        startMonth: true, endMonth: true, current: true },
+      orderBy: [{ startMonth: "desc" }, { id: "desc" }],
+      take: 20,
+    }),
+  ]);
+  const approved = new Map(reviews.map(review => [review.kind + ":" + review.recordId, review]));
+  const project = (record, kind) => {
+    const review = approved.get(kind + ":" + record.id);
+    if (!review || review.revision !== record.revision ||
+        record.status !== "VERIFIED" || review.status !== "VERIFIED") return null;
+    return {
+      id: record.id,
+      kind,
+      title: kind === "education" ? record.qualification : record.role,
+      organization: kind === "education" ? record.institution : record.organization,
+      startMonth: record.startMonth,
+      endMonth: record.current ? null : record.endMonth,
+      current: record.current,
+      verifiedBy: review.issuerName || "BrightWay",
+    };
+  };
+  return [...education.map(row => project(row, "education")),
+    ...experience.map(row => project(row, "experience"))]
+    .filter(Boolean).slice(0, 20);
+}
+
 export function createNotificationsService({ prisma, now = () => new Date() }) {
+  const identity = createManualIdentityReviewService({ prisma, now });
+
   async function actorAccount(db, actor) {
     await assertNetworkSession(db, actor, now);
     const account = await db.account.findUnique({ where: { id: actor.accountId }, select: { id: true, personId: true } });
@@ -76,6 +130,29 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
         const viewerProfile = await tx.profile.findUnique({ where: { personId: viewer.personId }, select: { profileViewSharingEnabled: true } });
         if (!profile?.profilePublicEnabled) throw fail(404, "This public profile is unavailable.");
 
+        const sections = {};
+        const approvedIdentity = await identity.inspectAccount(tx, target.id);
+        sections.identityVerified = approvedIdentity.status === "APPROVED";
+        if (profile.profileCertificationsPublicEnabled) {
+          sections.certifications = Array.isArray(profile.certifications)
+            ? profile.certifications.slice(0, 20).map(row => ({
+              title: row.title, issuer: row.issuer, issuedMonth: row.issuedMonth,
+              expiresMonth: row.expiresMonth || null, credentialUrl: row.credentialUrl || null,
+              verified: false,
+            }))
+            : [];
+        }
+        if (profile.profileCredentialsPublicEnabled) {
+          sections.verifiedCredentials = await verifiedCredentials(tx, profile.id);
+        }
+        if (profile.profileAchievementsPublicEnabled && sections.identityVerified) {
+          sections.achievements = await tx.memberPost.findMany({
+            where: { authorId: target.id, type: "ACHIEVEMENT", withdrawnAt: null },
+            select: { id: true, body: true, tags: true, createdAt: true },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: 8,
+          });
+        }
         const currentTime = now();
         if (profile.profileViewNotificationsEnabled && viewerProfile?.profileViewSharingEnabled) {
           await tx.profileViewNotification.createMany({
@@ -84,7 +161,7 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
           });
         }
         await assertNetworkSession(tx, actor, now);
-        return publicProfile(target, profile);
+        return publicProfile(target, profile, sections);
       });
     },
 
