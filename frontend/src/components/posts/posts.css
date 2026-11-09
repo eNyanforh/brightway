@@ -27,7 +27,16 @@
 
 .bw-post-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: .85rem 0 .35rem; line-height: 1.55; }
 
+/* The real layout, not an arbitrary character count, controls the preview. */
 .bw-post-caption { min-width: 0; }
+.bw-post-caption .bw-post-caption--collapsed {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .bw-post-panel .bw-post-caption-toggle {
   display: inline-flex;
   align-items: center;
