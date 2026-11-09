@@ -492,7 +492,7 @@ export default function ProfilePage() {
 
   return (
     <div className="bw-profile-page">
-      <header className="bw-profile-workspace-header">
+      <div className="bw-profile-workspace-header">
         <div>
           <p className="bw-profile-eyebrow">YOUR BRIGHTWAY PROFILE</p>
           <h2>My profile</h2>
@@ -502,7 +502,7 @@ export default function ProfilePage() {
           <Link to="/credentials"><Icon name="book" /> My credential reviews</Link>
           <Link to="/security"><Icon name="lock" /> Account security</Link>
         </nav>
-      </header>
+      </div>
 
       {draft.notice && (
         <p className="bw-profile-success" role="status">
