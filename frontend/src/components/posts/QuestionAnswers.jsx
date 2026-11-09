@@ -20,7 +20,7 @@ function AnswerComments({ answerId, commentCount = 0, onCountChange }) {
 
   useEffect(() => {
     if (open && items) textareaRef.current?.focus();
-  }, [open, items?.length]);
+  }, [open, items]);
 
   async function load() {
     if (pending) return;
