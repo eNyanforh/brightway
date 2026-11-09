@@ -68,3 +68,49 @@
     min-height: 44px;
   }
 }
+
+/* Professional-profile timeline: emblem, role, organization and review state. */
+.bw-history-record {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 13px;
+}
+.bw-history-record-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #dbe7f5;
+  border-radius: 11px;
+  background: #eff5fd;
+  color: #235c9d;
+}
+.bw-history-record-icon .bw-icon {
+  width: 21px;
+  height: 21px;
+}
+.bw-history-record-content { min-width: 0; }
+.bw-history-record-content > p {
+  margin: 0 0 6px;
+  color: #5b6c82;
+  line-height: 1.5;
+  font-size: 12px;
+}
+.bw-history-record-content > h3 {
+  margin: 0 0 4px;
+  font-weight: 760;
+  font-size: 14px;
+  color: #203956;
+}
+.bw-history-record-content > a {
+  display: inline-flex;
+  margin: 4px 0 8px;
+  font-size: .76rem;
+}
+@media (max-width: 480px) {
+  .bw-history-record {
+    grid-template-columns: 36px minmax(0,1fr);
+    gap: 10px;
+  }
+  .bw-history-record-icon { width: 36px; height: 36px; }
+}
