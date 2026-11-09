@@ -1427,3 +1427,124 @@
   .bw-profile-section-nav a { min-height: 36px; padding: 8px 10px; font-size: .72rem; }
 }
 
+/* Professional introduction and experience-led layout.
+   Draws on familiar professional-profile hierarchy without copying external branding. */
+.bw-profile-hero .bw-profile-cover {
+  background:
+    radial-gradient(ellipse at 88% 20%, rgba(149, 193, 247, .22), transparent 45%),
+    linear-gradient(135deg, #102a51 0%, #173e78 55%, #2564b8 100%);
+}
+.bw-profile-hero .bw-profile-cover-brand > span {
+  font-size: .7rem;
+  letter-spacing: .13em;
+  color: #e0eafa;
+}
+.bw-profile-intro-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(180px, .7fr);
+  gap: 20px;
+  align-items: start;
+}
+.bw-profile-intro-primary,
+.bw-profile-affiliations,
+.bw-profile-affiliation-copy { min-width: 0; }
+.bw-profile-hero .bw-profile-intro-primary .bw-profile-headline {
+  margin-top: 9px;
+  font-size: .95rem;
+  font-weight: 575;
+  line-height: 1.55;
+  color: #263d5d;
+}
+.bw-profile-hero .bw-profile-intro-primary .bw-profile-handle {
+  margin: 7px 0 0;
+  color: #5d708b;
+  font-size: .78rem;
+}
+.bw-profile-affiliations {
+  display: grid;
+  gap: 15px;
+  padding-top: 3px;
+}
+.bw-profile-affiliation {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.bw-profile-affiliation-icon {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  color: #245d9e;
+  background: #eef4fd;
+  border: 1px solid #dde8f8;
+  border-radius: 10px;
+}
+.bw-profile-affiliation-copy {
+  display: grid;
+  gap: 3px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.bw-profile-affiliation-copy small {
+  color: #78859a;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.bw-profile-affiliation-copy strong {
+  font-size: .81rem;
+  font-weight: 780;
+  color: #223957;
+}
+.bw-profile-affiliation-copy > span {
+  font-size: .73rem;
+  color: #637590;
+}
+.bw-profile-intro-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 17px;
+}
+.bw-profile-intro-actions .bw-profile-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 39px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  font-size: .77rem;
+  font-weight: 730;
+  line-height: 1.4;
+  text-decoration: none;
+  white-space: normal;
+}
+.bw-profile-intro-actions a.bw-profile-button-secondary {
+  color: #195caa;
+  background: white;
+  border: 1px solid #bdd2ee;
+}
+.bw-profile-intro-actions a.bw-profile-button-secondary:hover {
+  background: #eef5ff;
+}
+@media (max-width: 1070px) {
+  .bw-profile-intro-grid { grid-template-columns: minmax(0,1fr); gap: 15px; }
+  .bw-profile-affiliations {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    padding-top: 13px;
+    border-top: 1px solid #ebf0f7;
+  }
+}
+@media (max-width: 550px) {
+  .bw-profile-hero .bw-profile-cover { height: 142px; }
+  .bw-profile-affiliations { grid-template-columns: minmax(0,1fr); }
+  .bw-profile-intro-actions { gap: 7px; }
+  .bw-profile-intro-actions .bw-profile-button {
+    min-height: 40px;
+    padding: 9px 13px;
+    font-size: .74rem;
+  }
+}
