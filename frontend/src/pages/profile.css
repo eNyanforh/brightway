@@ -1541,3 +1541,78 @@
 .bw-certification-editor-heading strong { font-size: .84rem; }
 .bw-certification-editor-item .bw-profile-field { margin: 0; }
 .bw-certification-editor-item .bw-profile-field-row { margin: 0; }
+
+/* Owner profile navigation: exactly three responsive, accessible tabs. */
+.bw-profile-tabbed-content {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+.bw-profile-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: #fff;
+  border: 1px solid #e3eaf3;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px #243c6507;
+  overflow: hidden;
+  min-width: 0;
+}
+.bw-profile-tabs [role="tab"] {
+  position: relative;
+  min-width: 0;
+  min-height: 55px;
+  padding: 13px 10px 16px;
+  border: 0;
+  background: #fff;
+  color: #60718a;
+  font-size: .9rem;
+  font-weight: 710;
+  text-align: center;
+  cursor: pointer;
+  transition: color .16s ease, background-color .16s ease;
+}
+.bw-profile-tabs [role="tab"] + [role="tab"] { border-left: 1px solid #edf1f7; }
+.bw-profile-tabs [role="tab"]:hover { background: #f6f9fe; color: #2057a6; }
+.bw-profile-tabs [role="tab"][aria-selected="true"] {
+  color: #1757b3;
+  background: #f6f9ff;
+  font-weight: 790;
+}
+.bw-profile-tabs [role="tab"][aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 12px 0;
+  height: 3px;
+  border-radius: 4px 4px 0 0;
+  background: #175cd3;
+}
+.bw-profile-tabs [role="tab"]:focus-visible {
+  outline: 3px solid #83adf4;
+  outline-offset: -4px;
+  z-index: 1;
+}
+.bw-profile-tabpanel {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+.bw-profile-tabpanel[hidden] { display: none !important; }
+.bw-profile-tabpanel:focus-visible {
+  outline: 2px solid #83adf4;
+  outline-offset: 3px;
+  border-radius: 9px;
+}
+@media (max-width: 600px) {
+  .bw-profile-tabs [role="tab"] {
+    min-height: 50px;
+    padding: 12px 5px 15px;
+    font-size: .78rem;
+  }
+  .bw-profile-tabs [role="tab"][aria-selected="true"]::after { inset-inline: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-profile-tabs [role="tab"] { transition: none; }
+}
