@@ -29,6 +29,25 @@ const regionNames =
     ? new Intl.DisplayNames(["en"], { type: "region" })
     : null;
 
+function featuredRecord(history, field) {
+  const records = Array.isArray(history?.records) ? history.records : [];
+  const valid = records.filter((record) => typeof record?.[field] === "string" && record[field].trim());
+  return valid.find((record) => record.current === true) || valid[0] || null;
+}
+
+function ProfileAffiliation({ icon, label, name, description }) {
+  return (
+    <div className="bw-profile-affiliation">
+      <span className="bw-profile-affiliation-icon"><Icon name={icon} /></span>
+      <span className="bw-profile-affiliation-copy">
+        <small>{label}</small>
+        <strong>{name}</strong>
+        {description && <span>{description}</span>}
+      </span>
+    </div>
+  );
+}
+
 function Section({
   title,
   id,
@@ -490,6 +509,8 @@ export default function ProfilePage() {
     .join(", ");
 
   const exploring = profile.careerField?.mode === "EXPLORING";
+  const featuredWork = featuredRecord(profile.experience, "organization");
+  const featuredEducation = featuredRecord(profile.education, "institution");
 
   return (
     <div className="bw-profile-page">
@@ -554,8 +575,7 @@ export default function ProfilePage() {
           <section className="bw-profile-card bw-profile-hero" aria-labelledby="profile-person-name">
             <div className="bw-profile-cover">
               <div className="bw-profile-cover-brand">
-                <span>BRIGHTWAY / PROFILE</span>
-                <strong>Learn. Build. Be discovered.</strong>
+                <span>BRIGHTWAY / MEMBER PROFILE</span>
               </div>
               <span className="bw-profile-cover-motif" aria-hidden="true" />
             </div>
@@ -591,30 +611,48 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-              <h1 id="profile-person-name" className="bw-profile-verified-name"><span>{name}</span>{identityVerified && <VerificationBadge />}</h1>
-
-              <p className="bw-profile-handle">
-                @{account.username}
-              </p>
-
-              <p className="bw-profile-headline">
-                {profile.headline ||
-                  "Add a headline that sounds like you."}
-              </p>
-
-              <p className="bw-profile-location">
-                <Icon name="location" />
-                {location || "Location not added yet"}
-              </p>
-
-              {profile.careerField && (
-                <span className="bw-profile-direction-tag">
-                  <Icon name="sprout" />
-                  {exploring
-                    ? "Exploring my path"
-                    : profile.careerField.label}
-                </span>
-              )}
+              <div className="bw-profile-intro-grid">
+                <div className="bw-profile-intro-primary">
+                  <h1 id="profile-person-name" className="bw-profile-verified-name">
+                    <span>{name}</span>
+                    {identityVerified && <VerificationBadge />}
+                  </h1>
+                  <p className="bw-profile-headline">
+                    {profile.headline || "Add a headline that sounds like you."}
+                  </p>
+                  <p className="bw-profile-location">
+                    <Icon name="location" />
+                    {location || "Location not added yet"}
+                  </p>
+                  <p className="bw-profile-handle">@{account.username}</p>
+                  {profile.careerField && (
+                    <span className="bw-profile-direction-tag">
+                      <Icon name="sprout" />
+                      {exploring ? "Exploring my path" : profile.careerField.label}
+                    </span>
+                  )}
+                </div>
+                {(featuredWork || featuredEducation) && (
+                  <div className="bw-profile-affiliations" aria-label="Current work and education">
+                    {featuredWork && (
+                      <ProfileAffiliation
+                        icon="briefcase"
+                        label={featuredWork.current ? "Current experience" : "Experience"}
+                        name={featuredWork.organization}
+                        description={featuredWork.role}
+                      />
+                    )}
+                    {featuredEducation && (
+                      <ProfileAffiliation
+                        icon="book"
+                        label={featuredEducation.current ? "Current education" : "Education"}
+                        name={featuredEducation.institution}
+                        description={featuredEducation.qualification}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="bw-profile-identity-status" aria-label="Profile status">
                 <span className={identityVerified ? "bw-profile-status bw-profile-status--verified" : "bw-profile-status"}>
                   {identityVerified ? "Identity verified" : "Identity not verified"}
@@ -623,17 +661,36 @@ export default function ProfilePage() {
                   {profile.profilePublicEnabled ? "Public profile published" : "Public profile private"}
                 </span>
               </div>
+              <div className="bw-profile-intro-actions">
+                <button
+                  className="bw-profile-button"
+                  disabled={busy}
+                  onClick={() => open("career")}
+                  data-profile-editor="career"
+                >
+                  <Icon name="sprout" />
+                  Edit career direction
+                </button>
+                {profile.profilePublicEnabled === true && (
+                  <Link className="bw-profile-button bw-profile-button-secondary" to={`/people/${encodeURIComponent(account.username)}`}>
+                    View public profile
+                  </Link>
+                )}
+                <a className="bw-profile-button bw-profile-button-secondary" href="#profile-activity">
+                  See activity
+                </a>
+              </div>
             </div>
           </section>
 
           <nav className="bw-profile-section-nav" aria-label="Profile sections">
             <a href="#profile-about">About</a>
             <a href="#profile-activity">Activities</a>
-            <a href="#profile-direction">My direction</a>
+            <a href="#profile-experience">Experience</a>
+            <a href="#profile-education">Education</a>
             <a href="#profile-skills">Skills</a>
             <a href="#profile-interests">Interests</a>
-            <a href="#profile-education">Education</a>
-            <a href="#profile-experience">Experience</a>
+            <a href="#profile-direction">Career direction</a>
             <a href="#profile-contact">Contact</a>
             <a href="#profile-privacy">Privacy</a>
           </nav>
@@ -654,6 +711,19 @@ export default function ProfilePage() {
           </Section>
 
           <ProfileActivities key={account.id} accountId={account.id} />
+
+          {["experience", "education"].map((kind) => (
+            <div key={kind} id={`profile-${kind}`} className="bw-profile-anchor-section">
+              <ProfileHistory
+                kind={kind}
+                draft={draft}
+                setDraft={setDraft}
+                onEdit={open}
+                onReload={reload}
+                busy={busy}
+              />
+            </div>
+          ))}
 
           <Section
             id="profile-direction"
@@ -721,18 +791,6 @@ export default function ProfilePage() {
             />
           </div>
 
-          {["education", "experience"].map((kind) => (
-            <div key={kind} id={`profile-${kind}`} className="bw-profile-anchor-section">
-              <ProfileHistory
-                kind={kind}
-                draft={draft}
-                setDraft={setDraft}
-                onEdit={open}
-                onReload={reload}
-                busy={busy}
-              />
-            </div>
-          ))}
         </div>
 
         <aside className="bw-profile-side">
