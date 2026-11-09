@@ -59,6 +59,8 @@ function mount(
     }
     if (url.endsWith("/manual-identity/status"))
       return ok({ accountId: account.id, profileVersion: original.version, status: "NOT_STARTED", identityVerified: false, canSubmit: false });
+    if (url.endsWith("/profile/me/dashboard"))
+      return ok({ periodDays: 7, profileViews: 9, postImpressions: 0, searchAppearances: 6 });
     if (url.endsWith("/posts/me"))
       return ok({ access: { identityVerified: false, profilePublic: false },
         items: [], nextCursor: null });
@@ -99,22 +101,19 @@ const set = (name, value) =>
     target: { value },
   });
 
-it("organizes the modern profile around identity, anchored sections and privacy controls without new requests", async () => {
+it("organizes the modern profile around a private analytics dashboard and sections without tabs", async () => {
   const fetchMock = mount();
   await ready();
-  const sections = screen.getByRole("navigation", { name: "Profile sections" });
-  const anchors = [
-    ["About", "#profile-about"], ["Activities", "#profile-activity"],
-    ["Experience", "#profile-experience"], ["Education", "#profile-education"],
-    ["Skills", "#profile-skills"], ["Interests", "#profile-interests"],
-    ["Career direction", "#profile-direction"],
-    ["Contact", "#profile-contact"], ["Privacy", "#profile-privacy"],
-  ];
-  for (const [label, target] of anchors) {
-    const href = within(sections).getByRole("link", { name: label }).getAttribute("href");
-    expect(href).toBe(target);
-    expect(document.getElementById(target.slice(1))).toBeTruthy();
-  }
+  expect(screen.queryByRole("navigation", { name: "Profile sections" })).toBeNull();
+  const dashboard = screen.getByRole("region", { name: "Dashboard" });
+  expect(dashboard).toBeTruthy();
+  expect(dashboard.compareDocumentPosition(document.getElementById("profile-about")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(await within(dashboard).findByRole("button", { name: /9.*Profile views/ })).toBeTruthy();
+  expect(within(dashboard).getByRole("button", { name: /0.*Post impressions/ })).toBeTruthy();
+  expect(within(dashboard).getByRole("button", { name: /6.*Search appearances/ })).toBeTruthy();
+  await userEvent.setup().click(within(dashboard).getByRole("button", { name: /9.*Profile views/ }));
+  expect(within(dashboard).getByText(/Counted once per viewer per UTC day/)).toBeTruthy();
+  expect(within(dashboard).getByRole("link", { name: "View shared profile notifications" }).getAttribute("href")).toBe("/notifications");
   expect(screen.getByRole("navigation", { name: "Profile tools" })).toBeTruthy();
   expect(within(screen.getByRole("navigation", { name: "Profile tools" }))
     .getByRole("link", { name: "Account security" }).getAttribute("href")).toBe("/security");
