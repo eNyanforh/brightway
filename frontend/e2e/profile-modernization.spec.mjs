@@ -104,7 +104,11 @@ test("my profile organizes the saved identity, section navigation, completion an
   await expect(activity.locator(".bw-profile-activity-item")).toHaveCount(3);
   expect(api.activityReads()).toBe(2);
   await expect(page.locator("#profile-privacy")).toBeVisible();
-  await expect(page.getByText("Public profile private")).toBeVisible();
+  await expect(page.getByText("Public profile private")).toHaveCount(0);
+   await expect(page.getByText("Identity not verified")).toHaveCount(0);
+   await expect(page.locator(".bw-profile-hero").getByRole("button", { name: "Edit career direction" })).toHaveCount(0);
+   await expect(page.locator(".bw-profile-hero").getByRole("link", { name: "See activity" })).toHaveCount(0);
+   await expect(page.getByRole("checkbox", { name: /Publish my basic profile/ })).not.toBeChecked();
   await expect(page.getByRole("heading", { name: "Profile checklist" })).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Profile checklist progress" }))
     .toHaveAttribute("aria-valuenow", "1");
@@ -160,15 +164,20 @@ test("profile introduction uses saved affiliations without inventing credentials
     .evaluateAll(elements => elements.map(element => element.id));
   expect(order).toEqual(["profile-experience", "profile-education"]);
 
-  await page.getByRole("button", { name: "Edit career direction" }).click();
+  await page.getByRole("button", { name: "Edit my direction" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
 });
 
-test("published members can preview the existing consent-gated public profile", async ({ page }) => {
+test("published members keep consent settings without redundant hero buttons", async ({ page }) => {
   await fixture(page, { profilePublicEnabled: true });
   await page.goto("/profile");
-  await expect(page.getByRole("link", { name: "View public profile" }))
-    .toHaveAttribute("href", "/people/synthetic");
+  await expect(page.getByRole("heading", { level: 1, name: "Synthetic Member" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Publish my basic profile/ })).toBeChecked();
+  await expect(page.locator(".bw-profile-hero").getByText("Public profile published")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "View public profile" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "See activity" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Profile sections" })
+    .getByRole("link", { name: "Activities" })).toHaveAttribute("href", "#profile-activity");
 });
 
 test("public professional proof separates verified records from self-reported certificates and links achievements", async ({ page }) => {

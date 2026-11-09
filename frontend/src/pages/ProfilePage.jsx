@@ -652,33 +652,6 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
-              <div className="bw-profile-identity-status" aria-label="Profile status">
-                <span className={identityVerified ? "bw-profile-status bw-profile-status--verified" : "bw-profile-status"}>
-                  {identityVerified ? "Identity verified" : "Identity not verified"}
-                </span>
-                <span className={profile.profilePublicEnabled ? "bw-profile-status bw-profile-status--public" : "bw-profile-status"}>
-                  {profile.profilePublicEnabled ? "Public profile published" : "Public profile private"}
-                </span>
-              </div>
-              <div className="bw-profile-intro-actions">
-                <button
-                  className="bw-profile-button"
-                  disabled={busy}
-                  onClick={() => open("career")}
-                  data-profile-editor="career"
-                >
-                  <Icon name="sprout" />
-                  Edit career direction
-                </button>
-                {profile.profilePublicEnabled === true && (
-                  <Link className="bw-profile-button bw-profile-button-secondary" to={`/people/${encodeURIComponent(account.username)}`}>
-                    View public profile
-                  </Link>
-                )}
-                <a className="bw-profile-button bw-profile-button-secondary" href="#profile-activity">
-                  See activity
-                </a>
-              </div>
             </div>
           </section>
 
