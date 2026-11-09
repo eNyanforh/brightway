@@ -3,7 +3,7 @@ import { MAX_POST_TOPICS, normalizePostTopic } from "../../../../shared/post-top
 import { createManualIdentityReviewService } from "../manual-identity/manual-identity-review.service.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { assertNetworkSession, lockNetworkAccounts } from "../network/network-authority.js";
-import { fail, usernameSchema } from "../network/network.schema.js";
+import { fail } from "../network/network.schema.js";
 import { requireOrganizationProfile } from "../organizations/organization-profile.schema.js";
 
 const publishPermission = "organization.posts.publish";
@@ -24,6 +24,8 @@ const memberSelect = { id: true, username: true, person: { select: { firstName: 
 const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true, questionDetails: true, body: true, createdAt: true, author: { select: memberSelect } };
 const repostSelect = { id: true, createdAt: true, account: { select: memberSelect } };
 const identifier = z.uuid();
+// Legacy member usernames may predate the stricter signup validator.
+const publicPhotoUsername = z.string().trim().min(1).max(120);
 const sourceInput = z.enum(["organization", "member"]);
 const likeInput = z.strictObject({ liked: z.boolean() });
 const repostInput = z.strictObject({ reposted: z.boolean() });
@@ -485,7 +487,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
 
   return {
     async memberPhoto(actor, usernameValue, photoValue) {
-      const username = parse(usernameSchema, usernameValue, "Choose a valid member.");
+      const username = parse(publicPhotoUsername, usernameValue, "Choose a valid member.");
       const photoId = parse(identifier, photoValue, "Choose a valid profile photo.");
       await assertNetworkSession(prisma, actor, now);
       // The member must be visible to this viewer, not merely have an uploaded asset.
