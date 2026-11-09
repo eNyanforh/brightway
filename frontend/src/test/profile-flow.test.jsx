@@ -146,6 +146,12 @@ it("shows only published fields on the redesigned public profile without a secon
     url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/people/maya");
   await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
   expect(screen.getByText("Published profile")).toBeTruthy();
+  // Optional proof sections must remain hidden when the server did not
+  // explicitly authorize their projection, even for a published basic profile.
+  expect(screen.queryByRole("heading", { name: "Verified credentials" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Licenses and certifications" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Professional achievements" })).toBeNull();
+  expect(screen.queryByRole("img", { name: "Verified identity" })).toBeNull();
   const nav = screen.getByRole("navigation", { name: "Published profile sections" });
   expect(within(nav).getByRole("link", { name: "About" }).getAttribute("href")).toBe("#published-about");
   expect(within(nav).getByRole("link", { name: "Skills" }).getAttribute("href")).toBe("#published-skills");
