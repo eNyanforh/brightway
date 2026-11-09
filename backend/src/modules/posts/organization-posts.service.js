@@ -314,6 +314,41 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     return approved;
   }
 
+  // Show only confirmed, publicly visible attendee profiles. The total
+  // registration count remains independent of how many members can be shown.
+  async function eventAttendeePreviews(db, events, viewer) {
+    const previews = new Map();
+    const candidates = new Map();
+    for (let offset = 0; offset < events.length; offset += 4) {
+      await Promise.all(events.slice(offset, offset + 4).map(async ({ id, authorId }) => {
+        const registrations = await db.eventRegistration.findMany({
+          where: {
+            memberPostId: id,
+            account: { AND: [visibleMember(viewer), unblockedAuthor(authorId)] },
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          select: { account: { select: memberSelect } },
+          take: 12,
+        });
+        candidates.set(id, registrations);
+      }));
+    }
+    const approved = await approvedDiscussionAuthors(db,
+      [...candidates.values()].flat().map(({ account }) => ({ author: account })));
+    for (const { id } of events) {
+      const shown = [];
+      const seen = new Set();
+      for (const { account } of candidates.get(id) ?? []) {
+        if (!approved.has(account.id) || seen.has(account.id)) continue;
+        seen.add(account.id);
+        shown.push(memberAttribution(account, true));
+        if (shown.length === 3) break;
+      }
+      previews.set(id, shown);
+    }
+    return previews;
+  }
+
   async function projectVisiblePosts(candidates, viewer) {
     // Reuse one identity check per author across original and reposted cards.
     const entries = candidates.map(row => ({ row, post: row.account ? row.memberPost ?? row.organizationPost : row }))
@@ -353,17 +388,24 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       }));
     }
     const items = [];
+    const events = new Map();
     for (const { row, post } of entries) {
       if (post.author && !eligible.has(post.author.id)) continue;
       const { authorId, ...original } = post;
       if (!row.account) {
         items.push(feedPost(original, blockedKeys));
+        if (post.type === "EVENT" && post.author) events.set(post.id, post.author.id);
         continue;
       }
       if (!eligible.has(row.account.id) || blockedKeys.has(pairKey(blockPair(row.account.id, post.author?.id ?? authorId)))) continue;
       items.push({ ...feedPost(original, blockedKeys), repost: repostAttribution(row, viewer) });
+      if (post.type === "EVENT" && post.author) events.set(post.id, post.author.id);
     }
-    return items;
+    if (!events.size) return items;
+    const previews = await eventAttendeePreviews(prisma,
+      [...events].map(([id, authorId]) => ({ id, authorId })), viewer);
+    return items.map(item => item.type === "EVENT"
+      ? { ...item, eventAttendees: previews.get(item.id) ?? [] } : item);
   }
 
   async function savedFeed(accountId, position, select, memberEngagementSelect) {
@@ -575,14 +617,15 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const id = parse(identifier, idValue, "Choose a valid event.");
       const { registered } = parse(registrationInput, input, "Choose whether to register.");
       return writeVisiblePost(actor, { source: "member", id }, async tx => {
-        const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true, eventDetails: true } });
+        const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true, eventDetails: true, authorId: true } });
         if (post.type !== "EVENT" || !post.eventDetails) throw fail(400, "Registration is only available for events.");
         if (registered && Date.parse(post.eventDetails.endAt) <= +now()) throw fail(409, "Registration is closed for this event.");
         const key = { memberPostId: id, accountId: actor.accountId };
         if (registered) await tx.eventRegistration.createMany({ data: [key], skipDuplicates: true });
         else await tx.eventRegistration.deleteMany({ where: key });
         const count = await tx.eventRegistration.count({ where: { memberPostId: id } });
-        return { registration: { registered, count } };
+        const attendees = await eventAttendeePreviews(tx, [{ id, authorId: post.authorId }], actor.accountId);
+        return { registration: { registered, count }, eventAttendees: attendees.get(id) ?? [] };
       });
     },
 
