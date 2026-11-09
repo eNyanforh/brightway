@@ -1591,3 +1591,189 @@
 @media (prefers-reduced-motion: reduce) {
   .bw-post-panel .bw-discussion-composer textarea { transition: none; }
 }
+
+/* Authenticated authors manage their own post from a quiet three-dot menu.
+   Anchored in each card; never cover the username or verification badge. */
+.bw-post-manage-card { position: relative; }
+.bw-post-manage-card .bw-timeline-byline,
+.bw-post-card.bw-post-manage-card > header {
+  padding-right: 38px;
+}
+.bw-post-manage {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  z-index: 12;
+}
+.bw-post-panel .bw-post-manage .bw-post-options-trigger {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  min-width: 35px;
+  padding: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #657793;
+}
+.bw-post-panel .bw-post-manage .bw-post-options-trigger:hover,
+.bw-post-panel .bw-post-manage .bw-post-options-trigger[aria-expanded="true"] {
+  background: #edf4ff;
+  color: #2255a0;
+}
+.bw-post-options-dropdown {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  display: grid;
+  width: 174px;
+  max-width: calc(100vw - 28px);
+  padding: 5px;
+  background: #fff;
+  border: 1px solid #d9e4f3;
+  border-radius: 12px;
+  box-shadow: 0 10px 32px #142c4a26;
+}
+.bw-post-panel .bw-post-options-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 39px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #253e62;
+  text-align: left;
+  font-size: .82rem;
+  font-weight: 700;
+}
+.bw-post-panel .bw-post-options-dropdown button:hover,
+.bw-post-panel .bw-post-options-dropdown button:focus-visible {
+  background: #eff5ff;
+}
+.bw-post-panel .bw-post-options-dropdown .bw-post-options-delete { color: #b23939; }
+.bw-post-panel .bw-post-options-dropdown .bw-post-options-delete:hover { background: #fff1f1; }
+.bw-post-manage-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1700;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: #071a349e;
+  overflow: auto;
+}
+.bw-post-manage-dialog {
+  width: min(100%, 570px);
+  max-height: calc(100dvh - 36px);
+  overflow: auto;
+  padding: 0;
+  border: 1px solid #dce6f4;
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: 0 22px 65px #061e3960;
+  color: #213552;
+}
+.bw-post-manage-dialog > p { margin: 18px 22px; font-size: .88rem; line-height: 1.65; }
+.bw-post-manage-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 17px 22px 15px;
+  border-bottom: 1px solid #e5ecf5;
+}
+.bw-post-manage-dialog h2 { margin: 0; color: #17385f; font-size: 1.1rem; font-weight: 820; }
+.bw-post-manage-dialog header button {
+  width: 32px; height: 32px;
+  border: 0; border-radius: 50%;
+  background: #f2f6fc; color: #526781;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+.bw-post-manage-dialog .bw-post-manage-fields {
+  display: grid;
+  gap: 13px;
+  padding: 20px 22px;
+  max-height: 65dvh;
+  overflow-y: auto;
+}
+.bw-post-manage-fields label,
+.bw-post-manage-topics > label {
+  display: grid;
+  gap: 6px;
+  color: #304766;
+  font-size: .78rem;
+  font-weight: 720;
+}
+.bw-post-manage-fields input:not([type="checkbox"]),
+.bw-post-manage-fields select,
+.bw-post-manage-fields textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #cbd9ea;
+  border-radius: 9px;
+  background: #fff;
+  color: #203753;
+  font: inherit;
+  font-weight: 450;
+}
+.bw-post-manage-fields textarea { min-height: 94px; resize: vertical; line-height: 1.5; }
+.bw-post-manage-fields input:focus-visible,
+.bw-post-manage-fields select:focus-visible,
+.bw-post-manage-fields textarea:focus-visible {
+  outline: 2px solid #83b0f0; outline-offset: 1px;
+}
+.bw-post-manage-fields small { color: #75859b; font-size: .73rem; }
+.bw-post-manage-topics { display: grid; gap: 9px; }
+.bw-post-manage-topics > div:last-child { display: flex; align-items: center; gap: 7px; }
+.bw-post-manage-topics > div:last-child input { flex: 1; }
+.bw-post-manage-dialog button {
+  padding: 9px 13px;
+  border: 1px solid #cbd9ea;
+  border-radius: 9px;
+  background: #fff;
+  color: #27517f;
+  cursor: pointer;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 750;
+}
+.bw-post-manage-dialog button:disabled { opacity: .65; cursor: default; }
+.bw-post-manage-dialog button:hover:enabled { background: #eef5ff; }
+.bw-post-manage-dialog header button { padding: 0; }
+.bw-post-manage-dialog .bw-post-topic-tags button { padding: 2px 6px; }
+.bw-post-manage-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.bw-post-manage-fields .bw-post-manage-checkbox { display: flex; gap: 10px; align-items: center; }
+.bw-post-manage-checkbox input { width: 17px; height: 17px; }
+.bw-post-manage-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 15px 22px;
+  border-top: 1px solid #e5ecf5;
+}
+.bw-post-manage-dialog .bw-post-manage-save {
+  border-color: #215bae; background: #215bae; color: white;
+}
+.bw-post-manage-dialog .bw-post-manage-save:hover:enabled { background: #174b94; }
+.bw-post-manage-dialog .bw-post-manage-danger {
+  border-color: #ba3333; background: #ba3333; color: white;
+}
+.bw-post-manage-dialog .bw-post-manage-danger:hover:enabled { background: #a02727; }
+.bw-post-manage-error {
+  margin: 8px 22px;
+  color: #a02727;
+  font-size: .8rem;
+}
+@media (max-width: 600px) {
+  .bw-post-manage-backdrop { place-items: end center; padding: 0; }
+  .bw-post-manage-dialog { width: 100%; max-height: 95dvh; border-radius: 18px 18px 0 0; }
+  .bw-post-manage-fields .bw-post-manage-two { grid-template-columns: 1fr; }
+}

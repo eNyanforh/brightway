@@ -12,6 +12,7 @@ import EventRequestReview from "./EventRequestReview";
 import VerificationBadge from "../VerificationBadge";
 import PostTimestamp from "./PostTimestamp";
 import PostCaption from "./PostCaption";
+import PostManageMenu from "./PostManageMenu";
 import "./posts.css";
 
 const postSource = post => post.organization ? "organization" : "member";
@@ -124,8 +125,7 @@ function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerP
   );
 }
 
-export function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, onRegister, canManageEvent = false, trackViews = true }) {
-  const [confirming, setConfirming] = useState(false);
+export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onSave, onRepost, onRegister, canManageEvent = false, canManage = false, trackViews = true }) {
   const [answersOpen, setAnswersOpen] = useState(false);
   const [answerCount, setAnswerCount] = useState(post.answerCount ?? 0);
   const [answerParticipants, setAnswerParticipants] = useState(post.answerParticipants ?? []);
@@ -326,7 +326,8 @@ export function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onR
 
   if (timeline) {
     return (
-      <article className="bw-timeline-post" data-post-type={type} ref={cardRef} id={"post-" + source + "-" + post.id}>
+      <article className={"bw-timeline-post" + (canManage ? " bw-post-manage-card" : "")} data-post-type={type} ref={cardRef} id={"post-" + source + "-" + post.id}>
+        {canManage && <PostManageMenu post={post} busy={busy} onEdit={onEdit} onDelete={() => onWithdraw(post.id)} />}
         {post.repost && (
           <p className="bw-timeline-repost">
             <NavigationIcon name="repost" size={15} />
@@ -367,7 +368,8 @@ export function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onR
     );
   }
   return (
-    <article className="bw-post-card" data-post-type={type}>
+    <article className={"bw-post-card" + (canManage ? " bw-post-manage-card" : "")} data-post-type={type}>
+      {canManage && <PostManageMenu post={post} busy={busy} onEdit={onEdit} onDelete={() => onWithdraw(post.id)} />}
       <header>
         <span className="bw-post-badge" aria-hidden="true">{publisherAvatar}</span>
         <div>
@@ -383,11 +385,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onR
       {canManageEvent && post.eventDetails?.requiresApproval === true && (
         <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
       )}
-      {confirming ? <div className="bw-post-actions">
-        <span>Withdraw this post from Explore?</span>
-        <button type="button" disabled={busy} onClick={() => onWithdraw(post.id)}>Confirm withdrawal</button>
-        <button type="button" disabled={busy} onClick={() => setConfirming(false)}>Cancel</button>
-      </div> : <button type="button" className="bw-post-quiet" disabled={busy} onClick={() => setConfirming(true)}>Withdraw post</button>}
+
     </article>
   );
 }
@@ -566,13 +564,40 @@ export default function PostsPanel({ organization, personal = false, view = "for
       });
   }
 
+  async function managePost(post, operation, change) {
+    if (!page || disabled || active.current) throw new Error("Finish the current post action first.");
+    const controller = new AbortController();
+    active.current = controller;
+    setPending(true); setError(null);
+    try {
+      const data = await operation(controller.signal);
+      if (controller.signal.aborted) throw new Error("This post action was cancelled.");
+      setPage(previous => previous ? ({ ...previous, items: change(previous.items, data) }) : previous);
+      setNotice(data.post ? "Post updated." : "Post deleted.");
+    } catch (failure) {
+      if (!controller.signal.aborted) setError(failure);
+      throw failure;
+    } finally {
+      if (active.current === controller) active.current = null;
+      setPending(false);
+    }
+  }
+
+  function editPost(post, payload) {
+    return managePost(post, signal => post.member
+      ? api.memberEdit(post.id, payload, signal)
+      : api.edit(organizationId, post.id, payload, signal),
+    (items, { post: updated }) => items.map(item => postKey(item) === postKey(post)
+      ? { ...item, ...updated } : item));
+  }
+
   function withdraw(id) {
-    if (!page || disabled || active.current) return;
-    setNotice("");
-    void run(signal => personal ? api.memberWithdraw(id, signal) : api.withdraw(organizationId, id, signal), () => {
-      setPage(previous => ({ ...previous, items: previous.items.filter(item => item.id !== id) }));
-      setNotice("Post withdrawn.");
-    });
+    const selected = page?.items.find(item => item.id === id);
+    if (!selected) return Promise.reject(new Error("This post is no longer available."));
+    return managePost(selected, signal => selected.member
+      ? api.memberWithdraw(id, signal)
+      : api.withdraw(organizationId, id, signal),
+    items => items.filter(item => item.id !== id));
   }
 
   return (
@@ -615,8 +640,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
               view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
       )}
       {page?.items.map(post => <PostCard key={cardKey(post)} post={post} timeline={timeline}
+        canManage={Boolean(organization || personal || (post.member && post.member.username === composerAccount?.username))}
         canManageEvent={Boolean(post.member && (personal || post.member.username === composerAccount?.username))}
-        busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} onRepost={repost}
+        busy={pending || disabled} onWithdraw={withdraw} onEdit={editPost} onLike={like} onSave={save} onRepost={repost}
         onRegister={register} />)}
       {page?.nextCursor && <button type="button" disabled={pending || disabled} onClick={() => void load(page.nextCursor)}>Load older posts</button>}
     </section>

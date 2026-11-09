@@ -92,6 +92,19 @@ const memberPostInput = postInput.extend({
     ctx.addIssue({ code: "custom", path: ["eventDetails"], message: "Complete event details before publishing." });
   }
 });
+const editBodyInput = postInput.shape.body;
+const memberPostEditInput = z.strictObject({
+  expectedBody: z.string().max(2000),
+  expectedTags: z.array(z.string()).max(MAX_POST_TOPICS),
+  body: editBodyInput,
+  tags: topicTags.min(1),
+  eventDetails: eventDetailsInput.optional(),
+  questionDetails: questionDetailsInput.optional(),
+});
+const organizationPostEditInput = z.strictObject({
+  expectedBody: z.string().max(2000),
+  body: editBodyInput,
+});
 const commentInput = textInput(1000);
 const commentSelect = {
   id: true, body: true, createdAt: true,
@@ -1177,6 +1190,49 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       });
     },
 
+    async memberEdit(actor, inputId, input) {
+      const id = parse(identifier, inputId, "Choose a valid post.");
+      const data = parse(memberPostEditInput, input, "Review the post, add at least one topic and keep the description within 2,000 characters.");
+      return memberWrite(actor, async tx => {
+        // Serialize edits with the author account and profile publication state.
+        await lockMemberProfile(tx, actor.accountId);
+        const previous = await tx.memberPost.findFirst({
+          where: { id, authorId: actor.accountId, withdrawnAt: null },
+          select: { ...memberPostSelect, authorId: true },
+        });
+        if (!previous) throw fail(404, "This post is unavailable.");
+        const unchanged = previous.body === data.expectedBody
+          && previous.tags.length === data.expectedTags.length
+          && previous.tags.every((tag, index) => tag === data.expectedTags[index]);
+        if (!unchanged) throw fail(409, "This post has changed. Reload it before editing.");
+        if (previous.type !== "EVENT" && data.eventDetails)
+          throw fail(400, "Event details can only be changed on event posts.");
+        if (previous.type !== "QUESTION" && data.questionDetails)
+          throw fail(400, "Question details can only be changed on question posts.");
+        if (previous.type === "QUESTION" && data.questionDetails == null)
+          throw fail(400, "Include the question title and type.");
+        if (previous.type === "EVENT" && data.eventDetails == null)
+          throw fail(400, "Include the event details.");
+        if (previous.type === "EVENT" && !sameEventDetails(previous.eventDetails, data.eventDetails)) {
+          const registrationCount = await tx.eventRegistration.count({ where: { memberPostId: id } });
+          if (registrationCount > 0) {
+            const lockedFields = ["startAt", "endAt", "timezone", "format", "venue", "meetingUrl",
+              "ticketPriceCents", "currency", "requiresApproval", "capacity"];
+            if (lockedFields.some(field => (previous.eventDetails?.[field] ?? null) !== (data.eventDetails?.[field] ?? null)))
+              throw fail(409, "This event has attendance requests. Its schedule, venue, ticket price, approval and capacity cannot be changed.");
+          }
+        }
+        const updated = await tx.memberPost.update({
+          where: { id }, data: {
+            body: data.body, tags: data.tags,
+            ...(previous.type === "EVENT" ? { eventDetails: data.eventDetails } : {}),
+            ...(previous.type === "QUESTION" ? { questionDetails: data.questionDetails } : {}),
+          }, select: memberPostSelect,
+        });
+        return { post: memberPost(updated, true) };
+      });
+    },
+
     async memberWithdraw(actor, inputId) {
       const id = parse(identifier, inputId, "Choose a valid post.");
       return memberWrite(actor, async tx => {
@@ -1219,6 +1275,25 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
         const post = await tx.organizationPost.create({ data: { ...key, body: data.body, createdAt: now() }, select: postSelect });
         await audit(tx, actor, organizationId, "POST_PUBLISHED", post.id);
+        return { post };
+      });
+    },
+
+    async edit(actor, inputId, inputPostId, input) {
+      const organizationId = parse(identifier, inputId, "Choose a valid organization.");
+      const id = parse(identifier, inputPostId, "Choose a valid post.");
+      const data = parse(organizationPostEditInput, input, "Enter a post with 1 to 2,000 characters.");
+      return write(actor, organizationId, async tx => {
+        const previous = await tx.organizationPost.findFirst({
+          where: { id, organizationId, withdrawnAt: null }, select: { body: true },
+        });
+        if (!previous) throw fail(404, "This post is unavailable.");
+        if (previous.body !== data.expectedBody)
+          throw fail(409, "This post has changed. Reload it before editing.");
+        const post = await tx.organizationPost.update({
+          where: { id }, data: { body: data.body }, select: postSelect,
+        });
+        await audit(tx, actor, organizationId, "POST_EDITED", id);
         return { post };
       });
     },

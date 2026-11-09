@@ -73,9 +73,11 @@ export function createOrganizationPostRoutes({ posts, photos, sessions, clientUr
   router.delete(comments + "/:commentId", access, trustedOrigin, writes, respond((req, actor) => posts.deleteComment(actor, req.params.source, req.params.id, req.params.commentId)));
   router.get("/posts/me", access, respond((req, actor) => posts.memberList(actor, req.query)));
   router.post("/posts/me", access, trustedOrigin, writes, respond((req, actor) => posts.memberPublish(actor, req.body), 201));
+  router.patch("/posts/me/:id", access, trustedOrigin, writes, respond((req, actor) => posts.memberEdit(actor, req.params.id, req.body)));
   router.delete("/posts/me/:id", access, trustedOrigin, writes, respond((req, actor) => posts.memberWithdraw(actor, req.params.id)));
   router.get(path, access, respond((req, actor) => posts.list(actor, req.params.organizationId, req.query)));
   router.post(path, access, trustedOrigin, writes, respond((req, actor) => posts.publish(actor, req.params.organizationId, req.body), 201));
+  router.patch(path + "/:id", access, trustedOrigin, writes, respond((req, actor) => posts.edit(actor, req.params.organizationId, req.params.id, req.body)));
   router.delete(path + "/:id", access, trustedOrigin, writes, respond((req, actor) => posts.withdraw(actor, req.params.organizationId, req.params.id)));
   return router;
 }
