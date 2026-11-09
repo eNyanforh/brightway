@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { organizationPostsApi as api } from "../../api/organization-posts";
-import { photoUrl } from "../../api/profile";
+import { organizationPostsApi as api, memberPhotoUrl } from "../../api/organization-posts";
+import { organizationPictureUrl } from "../../api/organization-profile";
 import NavigationIcon from "../layout/NavigationIcon";
 import PersonalPostComposer, { PersonalPostTypeLabel, PostTopicTags } from "./PersonalPostComposer";
 import PostComments from "./PostComments";
@@ -57,7 +57,7 @@ function QuestionAnswerSummary({ count, participants }) {
               <Link key={person.username} className="bw-question-answer-avatar"
                 to={"/people/" + encodeURIComponent(person.username)}
                 title={person.name} aria-label={person.name + " answered"}>
-                {person.photoId ? <img src={photoUrl(person.photoId)} alt="" loading="lazy" /> : initials}
+                {person.photoId ? <img src={memberPhotoUrl(person.username, person.photoId)} alt="" loading="lazy" /> : initials}
               </Link>
             );
           })}
@@ -124,6 +124,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
   const [reportBusy, setReportBusy] = useState(false);
   const [cardError, setCardError] = useState("");
   const [shareNotice, setShareNotice] = useState("");
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState(null);
   const [viewCount, setViewCount] = useState(post.views);
   const cardRef = useRef(null);
   const viewed = useRef(null);
@@ -132,6 +133,14 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
   const type = post.member ? post.type ?? "POST" : "ORGANIZATION";
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
   const topicTags = post.member && <PostTopicTags tags={post.tags} />;
+  const imageUrl = post.member?.photoId
+    ? memberPhotoUrl(post.member.username, post.member.photoId)
+    : post.organization?.profilePhotoId
+      ? organizationPictureUrl(post.organization.id, post.organization.profilePhotoId)
+      : null;
+  const publisherAvatar = imageUrl && failedAvatarUrl !== imageUrl
+    ? <img src={imageUrl} alt="" loading="lazy" onError={() => setFailedAvatarUrl(imageUrl)} />
+    : publisher.name.slice(0, 1).toUpperCase();
   const answerCountChanged = useCallback(delta => {
     setAnswerCount(current => Math.max(0, current + delta));
     // Refresh the server-authoritative preview only when an answer changes.
@@ -296,7 +305,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
           </p>
         )}
         <Link className="bw-timeline-avatar" to={profileUrl} aria-hidden="true" tabIndex={-1}>
-          {publisher.name.slice(0, 1).toUpperCase()}
+          {publisherAvatar}
         </Link>
         <div className="bw-timeline-post-main">
           <header className="bw-timeline-byline">
@@ -321,7 +330,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
   return (
     <article className="bw-post-card" data-post-type={type}>
       <header>
-        <span className="bw-post-badge" aria-hidden="true">{publisher.name.slice(0, 1).toUpperCase()}</span>
+        <span className="bw-post-badge" aria-hidden="true">{publisherAvatar}</span>
         <div>
           <Link to={profileUrl}>{publisher.name}</Link>
           <p><time dateTime={post.createdAt}>{time.format(new Date(post.createdAt))}</time></p>
