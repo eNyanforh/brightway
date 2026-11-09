@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { memberPhotoUrl } from "../../api/organization-posts";
 import VerificationBadge from "../VerificationBadge";
@@ -20,7 +20,6 @@ export default function DiscussionAuthor({ entry, compact = false }) {
     ? memberPhotoUrl(username, entry.photoId) : null;
   const canShowPhoto = photo && failedPhoto !== photo;
 
-  useEffect(() => setFailedPhoto(null), [photo]);
 
   const avatar = (
     <span className="bw-discussion-avatar" aria-hidden="true">
