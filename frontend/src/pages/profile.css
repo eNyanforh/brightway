@@ -1548,3 +1548,60 @@
     font-size: .74rem;
   }
 }
+
+/* Verified credential summary: real saved records only. */
+.bw-profile-credential-section .bw-profile-section-head { align-items: center; }
+.bw-profile-section-subtitle { margin: 5px 0 0; color: #71819a; font-size: .76rem; line-height: 1.5; }
+.bw-profile-section-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: .55rem .78rem;
+  min-height: 36px;
+  border: 1px solid #dce7f7;
+  border-radius: 999px;
+  background: #f5f9ff;
+  color: #2259a0;
+  font-size: .73rem;
+  font-weight: 740;
+  text-decoration: none;
+}
+.bw-profile-section-link:hover { background: #e9f2ff; }
+.bw-profile-verified-records { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.bw-profile-verified-records li { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; }
+.bw-profile-verified-records li + li { border-top: 1px solid #e6edf5; }
+.bw-profile-verified-record-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #d6e7da;
+  border-radius: 11px;
+  background: #e9f7ee;
+  color: #26704c;
+}
+.bw-profile-verified-records li > div { min-width: 0; display: grid; gap: 3px; }
+.bw-profile-verified-records small { color: #197351; font-size: .68rem; font-weight: 750; }
+.bw-profile-verified-records strong { color: #233c5e; font-size: .85rem; overflow-wrap: anywhere; }
+.bw-profile-verified-records p { margin: 0; color: #708198; font-size: .76rem; }
+.bw-profile-verified-records a { color: #2461ab; font-size: .73rem; font-weight: 750; text-decoration: none; }
+.bw-profile-verified-records a:hover { text-decoration: underline; }
+.bw-profile-credential-pending {
+  margin: 8px 0 0;
+  padding: 9px 12px;
+  color: #846016;
+  background: #fff8e9;
+  border-radius: 9px;
+  border: 1px solid #f4e5c3;
+  font-size: .76rem;
+}
+.bw-profile-credential-note {
+  margin: 13px 0 0;
+  border-top: 1px solid #edf1f7;
+  padding-top: 11px;
+  color: #7a8798;
+  font-size: .69rem;
+  line-height: 1.6;
+}
