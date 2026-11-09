@@ -102,7 +102,7 @@ test("my profile organizes the saved identity, section navigation, completion an
   await expect(page.getByText("YOUR BRIGHTWAY PROFILE")).toHaveCount(0);
   await expect(navigation.getByRole("link", { name: "Activity" })).toHaveAttribute("href", "#profile-activity");
   await expect(navigation.getByRole("link", { name: "Credentials" })).toHaveAttribute("href", "#profile-credentials");
-  await expect(navigation.locator("a").allTextContents()).resolves.toEqual([
+  expect(await navigation.locator("a").allTextContents()).toEqual([
     "About", "Activity", "Experience", "Education", "Credentials", "Skills",
     "Career direction", "Interests", "Contact", "Privacy",
   ]);
