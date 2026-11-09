@@ -1,4 +1,3 @@
-import ProfilePhotoReviewStatus from "../components/profile/ProfilePhotoReviewStatus";
 import { profilePhotoReviewsApi } from "../api/profile-photo-reviews";
 import { useIdentityStatus } from "../auth/useIdentityStatus";
 import VerificationBadge from "../components/VerificationBadge";
@@ -696,8 +695,6 @@ export default function ProfilePage() {
             <a href="#profile-privacy">Privacy</a>
           </nav>
 
-          <ProfilePhotoReviewStatus review={{ ...profile.photoReview, required: photoReviewRequired }} name={name} busy={busy} onRefresh={refreshPhotoReview} onCancel={cancelPhotoReview} />
-
           <Section
             id="profile-about"
             title="About"
@@ -918,6 +915,8 @@ export default function ProfilePage() {
             onReload={reload}
             onSignIn={refresh}
             photoReviewRequired={photoReviewRequired}
+            onPhotoReviewRefresh={refreshPhotoReview}
+            onPhotoReviewCancel={cancelPhotoReview}
           />
         )}
     </div>
