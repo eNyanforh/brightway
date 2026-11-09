@@ -30,6 +30,7 @@ const regionNames =
 
 function Section({
   title,
+  id,
   editor,
   action = "Edit",
   children,
@@ -37,7 +38,7 @@ function Section({
   busy,
 }) {
   return (
-    <section className="bw-profile-card bw-profile-section">
+    <section id={id} className="bw-profile-card bw-profile-section">
       <div className="bw-profile-section-head">
         <h2>{title}</h2>
 
@@ -491,8 +492,17 @@ export default function ProfilePage() {
 
   return (
     <div className="bw-profile-page">
-      <Link to="/security">Account security</Link>{" "}
-      <Link to="/credentials">My credential reviews</Link>{" "}
+      <header className="bw-profile-workspace-header">
+        <div>
+          <p className="bw-profile-eyebrow">YOUR BRIGHTWAY PROFILE</p>
+          <h2>My profile</h2>
+          <p>Present your skills, experience, and ambitions in one place.</p>
+        </div>
+        <nav className="bw-profile-workspace-actions" aria-label="Profile tools">
+          <Link to="/credentials"><Icon name="book" /> My credential reviews</Link>
+          <Link to="/security"><Icon name="lock" /> Account security</Link>
+        </nav>
+      </header>
 
       {draft.notice && (
         <p className="bw-profile-success" role="status">
@@ -552,33 +562,13 @@ export default function ProfilePage() {
 
       <div className="bw-profile-grid">
         <div className="bw-profile-main">
-          <section className="bw-profile-card bw-profile-view-privacy" aria-labelledby="profile-view-privacy-title">
-            <p className="bw-profile-eyebrow">PRIVACY & NOTIFICATIONS</p>
-            <h2 id="profile-view-privacy-title">Profile view choices</h2>
-            <p>Publishing is optional. Contact details remain controlled by their separate visibility settings. Only opening a person’s published profile counts as a profile view.</p>
-            <label>
-              <input type="checkbox" checked={profile.profilePublicEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profilePublicEnabled", event.target.checked)} />
-              <span>Publish my basic profile so signed-in BrightWay members can view it by username</span>
-            </label>
-            <small>Published details are your name, headline, about text, location, career direction and goals, skills, and interests. Education, experience, and contact details stay off this page.</small>
-            <label>
-              <input type="checkbox" checked={profile.profileViewSharingEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profileViewSharingEnabled", event.target.checked)} />
-              <span>Share my name when I choose to view another person’s profile</span>
-            </label>
-            <label>
-              <input type="checkbox" checked={profile.profileViewNotificationsEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profileViewNotificationsEnabled", event.target.checked)} />
-              <span>Let me know when someone who shares their visit views my profile</span>
-            </label>
-            <small>Profile view notifications are created only when the viewer has enabled sharing and the profile owner has enabled notifications. Repeat views from the same person are combined into one daily notification. Turning sharing off stops future notifications; it cannot remove a notification already delivered. All three settings are off until you turn them on.</small>
-          </section>
-
-          <section className="bw-profile-card">
+          <section className="bw-profile-card bw-profile-hero" aria-labelledby="profile-person-name">
             <div className="bw-profile-cover">
-              <span>
-                Not just social.
-                <br />
-                Purposeful.
-              </span>
+              <div className="bw-profile-cover-brand">
+                <span>BRIGHTWAY / PROFILE</span>
+                <strong>Learn. Build. Be discovered.</strong>
+              </div>
+              <span className="bw-profile-cover-motif" aria-hidden="true" />
             </div>
 
             <div className="bw-profile-identity">
@@ -612,7 +602,7 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-              <h1 className="bw-profile-verified-name"><span>{name}</span>{identityVerified && <VerificationBadge />}</h1>
+              <h1 id="profile-person-name" className="bw-profile-verified-name"><span>{name}</span>{identityVerified && <VerificationBadge />}</h1>
 
               <p className="bw-profile-handle">
                 @{account.username}
@@ -636,12 +626,32 @@ export default function ProfilePage() {
                     : profile.careerField.label}
                 </span>
               )}
+              <div className="bw-profile-identity-status" aria-label="Profile status">
+                <span className={identityVerified ? "bw-profile-status bw-profile-status--verified" : "bw-profile-status"}>
+                  {identityVerified ? "Identity verified" : "Identity not verified"}
+                </span>
+                <span className={profile.profilePublicEnabled ? "bw-profile-status bw-profile-status--public" : "bw-profile-status"}>
+                  {profile.profilePublicEnabled ? "Public profile published" : "Public profile private"}
+                </span>
+              </div>
             </div>
           </section>
+
+          <nav className="bw-profile-section-nav" aria-label="Profile sections">
+            <a href="#profile-about">About</a>
+            <a href="#profile-direction">My direction</a>
+            <a href="#profile-skills">Skills</a>
+            <a href="#profile-interests">Interests</a>
+            <a href="#profile-education">Education</a>
+            <a href="#profile-experience">Experience</a>
+            <a href="#profile-contact">Contact</a>
+            <a href="#profile-privacy">Privacy</a>
+          </nav>
 
           <ProfilePhotoReviewStatus review={{ ...profile.photoReview, required: photoReviewRequired }} name={name} busy={busy} onRefresh={refreshPhotoReview} onCancel={cancelPhotoReview} />
 
           <Section
+            id="profile-about"
             title="About"
             editor="about"
             onEdit={open}
@@ -654,6 +664,7 @@ export default function ProfilePage() {
           </Section>
 
           <Section
+            id="profile-direction"
             title="My direction"
             editor="career"
             onEdit={open}
@@ -681,6 +692,7 @@ export default function ProfilePage() {
           </Section>
 
           <Section
+            id="profile-skills"
             title="Skills"
             editor="skills"
             action="Edit skills"
@@ -694,6 +706,7 @@ export default function ProfilePage() {
           </Section>
 
           <Section
+            id="profile-interests"
             title="Interests"
             editor="interests"
             action="Edit interests"
@@ -707,23 +720,26 @@ export default function ProfilePage() {
             />
           </Section>
 
-          <ProfileContact
-            contact={profile.contact}
-            email={account.email}
-            busy={busy}
-            onEdit={open}
-          />
+          <div id="profile-contact" className="bw-profile-anchor-section">
+            <ProfileContact
+              contact={profile.contact}
+              email={account.email}
+              busy={busy}
+              onEdit={open}
+            />
+          </div>
 
           {["education", "experience"].map((kind) => (
-            <ProfileHistory
-              key={kind}
-              kind={kind}
-              draft={draft}
-              setDraft={setDraft}
-              onEdit={open}
-              onReload={reload}
-              busy={busy}
-            />
+            <div key={kind} id={`profile-${kind}`} className="bw-profile-anchor-section">
+              <ProfileHistory
+                kind={kind}
+                draft={draft}
+                setDraft={setDraft}
+                onEdit={open}
+                onReload={reload}
+                busy={busy}
+              />
+            </div>
           ))}
         </div>
 
@@ -742,50 +758,34 @@ export default function ProfilePage() {
             onVerified={emailVerified}
           />
 
-          <section className="bw-profile-card bw-profile-side-block">
-            <p className="bw-profile-eyebrow">
-              YOUR STORY. YOUR PACE.
-            </p>
-
-            <h2>
-              Small steps.
-              <br />
-              More possibilities.
-            </h2>
-
-            <p>
-              You don’t need to have it all figured out. Start with
-              who you are today.
-            </p>
-
-            <button
-              className="bw-profile-next"
-              disabled={busy}
-              onClick={() => open("career")}
-            >
-              <span>What would you like to do next?</span>
-              <Icon name="arrow" />
-            </button>
+          <section id="profile-privacy" className="bw-profile-card bw-profile-side-block bw-profile-view-privacy" aria-labelledby="profile-view-privacy-title">
+            <p className="bw-profile-eyebrow">VISIBILITY & PRIVACY</p>
+            <h2 id="profile-view-privacy-title">Control your profile</h2>
+            <p>Choose what others can see. Your contact information has separate privacy settings.</p>
+            <div className="bw-profile-privacy-options">
+              <label>
+                <input type="checkbox" checked={profile.profilePublicEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profilePublicEnabled", event.target.checked)} />
+                <span>Publish my basic profile so signed-in BrightWay members can view it by username</span>
+              </label>
+              <small>Only your name, headline, about text, location, career direction and goals, skills, and interests are published. Education, experience, and contact details stay private.</small>
+              <label>
+                <input type="checkbox" checked={profile.profileViewSharingEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profileViewSharingEnabled", event.target.checked)} />
+                <span>Share my name when I choose to view another person’s profile</span>
+              </label>
+              <label>
+                <input type="checkbox" checked={profile.profileViewNotificationsEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profileViewNotificationsEnabled", event.target.checked)} />
+                <span>Let me know when someone who shares their visit views my profile</span>
+              </label>
+            </div>
+            <small>Profile view alerts require both people to opt in. Repeat views from the same person are combined daily. Turning sharing off stops future notifications but does not erase notifications already sent. All options default to off.</small>
           </section>
 
-          <section className="bw-profile-card bw-profile-side-block">
-            <p className="bw-profile-eyebrow">
-              MAKE IT PERSONAL
-            </p>
-
-            <h2>Let your headline speak.</h2>
-
-            <p>
-              A clear sentence about you helps tell your story at
-              a glance.
-            </p>
-
-            <button
-              className="bw-profile-next"
-              disabled={busy}
-              data-profile-editor="intro"
-              onClick={() => open("intro")}
-            >
+          <section className="bw-profile-card bw-profile-side-block bw-profile-side-focus">
+            <p className="bw-profile-eyebrow">NEXT STEP</p>
+            <h2>Make your introduction count</h2>
+            <p>Tell other learners and organizations what you are building and where you want to grow.</p>
+            <button type="button" className="bw-profile-next" data-profile-editor="intro"
+              disabled={busy} onClick={() => open("intro")}>
               <span>Refine my introduction</span>
               <Icon name="arrow" />
             </button>
