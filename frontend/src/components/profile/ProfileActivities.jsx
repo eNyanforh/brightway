@@ -95,14 +95,33 @@ export default function ProfileActivities({ accountId }) {
         eventAttendees: data.eventAttendees ?? item.eventAttendees ?? [],
       }));
   }
+  async function editPost(post, payload) {
+    if (mutatingId || loading) throw new Error("Finish the current post action first.");
+    setMutatingId(post.id);
+    setError("");
+    try {
+      const { post: updated } = await api.memberEdit(post.id, payload);
+      setPage(previous => previous && ({
+        ...previous,
+        items: previous.items.map(item => item.id === post.id ? { ...item, ...updated } : item),
+      }));
+    } catch (failure) {
+      setError(failure.message || "Unable to edit this post.");
+      throw failure;
+    } finally {
+      setMutatingId(null);
+    }
+  }
   async function withdraw(id) {
-    if (mutatingId || loading) return;
+    if (mutatingId || loading) throw new Error("Finish the current post action first.");
     setMutatingId(id);
+    setError("");
     try {
       await api.memberWithdraw(id);
       setPage(previous => previous && ({ ...previous, items: previous.items.filter(item => item.id !== id) }));
     } catch (failure) {
-      setError(failure.message || "Unable to withdraw this post.");
+      setError(failure.message || "Unable to delete this post.");
+      throw failure;
     } finally {
       setMutatingId(null);
     }
@@ -133,7 +152,7 @@ export default function ProfileActivities({ accountId }) {
                 data-activity-type={post.type} key={post.id}>
                 <PostCard
                   post={post} timeline trackViews={false} busy={loading || Boolean(mutatingId)}
-                  canManageEvent onWithdraw={withdraw} onLike={like}
+                  canManage canManageEvent onWithdraw={withdraw} onEdit={editPost} onLike={like}
                   onSave={save} onRepost={repost} onRegister={register}
                 />
                 <Link className="bw-profile-activity-link" to={postLink(post.id)}>
