@@ -883,9 +883,6 @@
   color: white; font-weight: 750; padding: .6rem 1.05rem;
 }
 .bw-question-feed-content { margin: .65rem 0 .75rem; display: grid; gap: .3rem; }
-.bw-question-feed-intent {
-  color: #7653b1; font-size: .72rem; font-weight: 800; letter-spacing: .015em;
-}
 .bw-question-feed-content h3 { color: #28375a; margin: 0; font-size: 1.12rem; line-height: 1.35; overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   .bw-question-overlay.bw-post-panel { padding: 0; align-items: flex-end; }

@@ -14,7 +14,7 @@ export function formatPostTime(value, now = Date.now()) {
   if (!Number.isFinite(timestamp)) return { relative: "Date unavailable", exact: "" };
   const elapsed = Math.max(0, now - timestamp);
   let relative;
-  if (elapsed < MINUTE) relative = Math.floor(elapsed / SECOND) + "s";
+  if (elapsed < MINUTE) relative = "Just now";
   else if (elapsed < HOUR) relative = Math.floor(elapsed / MINUTE) + "m";
   else if (elapsed < DAY) relative = Math.floor(elapsed / HOUR) + "h";
   else if (elapsed < MONTH) relative = Math.floor(elapsed / DAY) + "d";

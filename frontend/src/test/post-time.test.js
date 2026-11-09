@@ -6,7 +6,10 @@ const earlier = delta => new Date(now - delta).toISOString();
 
 describe("post timestamps", () => {
   it.each([
-    [12_000, "12s"],
+    [0, "Just now"],
+    [12_000, "Just now"],
+    [59_999, "Just now"],
+    [60_000, "1m"],
     [5 * 60_000, "5m"],
     [3 * 3_600_000, "3h"],
     [7 * 86_400_000, "7d"],
@@ -26,7 +29,7 @@ describe("post timestamps", () => {
   });
 
   it("clamps future timestamps and fails safely for invalid dates", () => {
-    expect(formatPostTime(earlier(-60_000), now).relative).toBe("0s");
+    expect(formatPostTime(earlier(-60_000), now).relative).toBe("Just now");
     expect(formatPostTime("not-a-date", now)).toEqual({ relative: "Date unavailable", exact: "" });
     expect(postTimeRefreshDelay("not-a-date", now)).toBeNull();
   });
