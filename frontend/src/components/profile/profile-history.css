@@ -68,3 +68,99 @@
     min-height: 44px;
   }
 }
+
+
+/* Career and education records read like a professional chronological history. */
+.bw-history-list { gap: 0; }
+.bw-history-record {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 3px 0 16px;
+}
+.bw-history-record + .bw-history-record {
+  padding-top: 19px;
+  border-top: 1px solid #edf1f7;
+}
+.bw-history-record-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 45px;
+  width: 45px;
+  height: 45px;
+  border: 1px solid #dbe7f3;
+  border-radius: 11px;
+  background: #f2f6fc;
+  color: #2d65a7;
+}
+.bw-history-record-mark .bw-icon { width: 21px; height: 21px; }
+.bw-history-record-details { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.bw-history-record-details h3 {
+  margin: 0;
+  font-size: .9rem;
+  line-height: 1.4;
+  color: #213b5c;
+  font-weight: 780;
+}
+.bw-history-record-details > p {
+  margin: 0;
+  color: #677993;
+  font-size: .77rem;
+  line-height: 1.5;
+}
+.bw-history-record-details > p.bw-history-affiliation {
+  color: #35516e;
+  font-weight: 650;
+}
+.bw-history-record-details > small {
+  margin-top: 3px;
+  color: #7989a0;
+  font-size: .73rem;
+}
+.bw-history-record-details > .bw-profile-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-top: 8px !important;
+}
+.bw-history-record-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 13px;
+  margin-top: 8px;
+}
+.bw-history-record-footer .bw-history-status {
+  margin: 0;
+  padding: 5px 9px;
+  font-size: .67rem;
+  font-weight: 720;
+  background: #f1f4f8;
+  color: #596d85;
+  border-radius: 999px;
+}
+.bw-history-record-footer .bw-history-status[data-status="VERIFIED"] {
+  color: #16744f;
+  background: #e7f6ee;
+}
+.bw-history-record-footer .bw-history-status[data-status="IN_REVIEW"],
+.bw-history-record-footer .bw-history-status[data-status="SUBMITTED"] {
+  color: #8e671e;
+  background: #fff7e6;
+}
+.bw-history-record-footer .bw-history-status[data-status="ACTION_REQUIRED"],
+.bw-history-record-footer .bw-history-status[data-status="UNABLE_TO_VERIFY"],
+.bw-history-record-footer .bw-history-status[data-status="FALSE_CREDENTIAL"] {
+  color: #a4423b;
+  background: #fff0ee;
+}
+.bw-history-record-footer a {
+  color: #2160ad;
+  font-size: .73rem;
+  font-weight: 760;
+  text-decoration: none;
+}
+.bw-history-record-footer a:hover { text-decoration: underline; }
+@media (max-width: 480px) {
+  .bw-history-record { gap: 10px; }
+  .bw-history-record-mark { width: 39px; height: 39px; flex-basis: 39px; }
+}
