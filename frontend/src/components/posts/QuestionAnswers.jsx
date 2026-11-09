@@ -252,15 +252,17 @@ export default function QuestionAnswers({ questionId, onClose, onCountChange }) 
               <DiscussionAuthor entry={answer} />
               <p className="bw-discussion-entry-body bw-answer-body">{answer.body}</p>
               <div className="bw-answer-actions">
-                <div className="bw-answer-vote-group" role="group" aria-label={"Voting on answer by " + answer.username}>
+                <div className="bw-answer-vote-group" role="group" aria-label={"Voting on answer by " + (answer.name || answer.username)}>
                   <button type="button" aria-label={"Upvote answer by " + answer.username}
                     aria-pressed={answer.myVote === 1} disabled={pending || answer.canDelete} onClick={() => void vote(answer, 1)}>
                     <NavigationIcon name="upvote" active={answer.myVote === 1} size={18} />
+                    <span className="bw-answer-vote-count" aria-label={"Upvotes " + (answer.upvoteCount ?? 0)}>{answer.upvoteCount ?? 0}</span>
                   </button>
-                  <span aria-label={"Answer score " + answer.score} className="bw-answer-score">{answer.score}</span>
+                  <span className="bw-answer-vote-divider" aria-hidden="true" />
                   <button type="button" aria-label={"Downvote answer by " + answer.username}
                     aria-pressed={answer.myVote === -1} disabled={pending || answer.canDelete} onClick={() => void vote(answer, -1)}>
                     <NavigationIcon name="downvote" active={answer.myVote === -1} size={18} />
+                    <span className="bw-answer-vote-count" aria-label={"Downvotes " + (answer.downvoteCount ?? 0)}>{answer.downvoteCount ?? 0}</span>
                   </button>
                 </div>
                 <AnswerComments answerId={answer.id} commentCount={answer.commentCount}
