@@ -117,6 +117,48 @@
   text-decoration: none;
 }
 .bw-timeline-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Answer respondent photos appear in Explore and the member's horizontal
+   Activities row. Size them at the component level, not just in Explore. */
+.bw-question-answer-facepile {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-left: 5px;
+}
+.bw-question-answer-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  box-sizing: border-box;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  max-width: 30px;
+  max-height: 30px;
+  margin-left: -5px;
+  overflow: hidden;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #e8effa;
+  box-shadow: 0 0 0 1px #d3deed;
+  color: #29538b;
+  font-size: .66rem;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+}
+.bw-question-answer-avatar:nth-child(even) { background: #e9f2ee; color: #2f655b; }
+.bw-question-answer-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+
 .bw-post-quick-action[data-post-type="ACHIEVEMENT"], .bw-post-editor-heading[data-post-type="ACHIEVEMENT"] {
   --post-accent: #905a0a; --post-tint: #fff2db;
 }
@@ -1339,7 +1381,14 @@
   font-weight: 850;
   line-height: 1;
 }
-.bw-discussion-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.bw-discussion-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
 .bw-discussion-author--compact .bw-discussion-avatar { width: 30px; height: 30px; flex-basis: 30px; }
 .bw-discussion-author-info { min-width: 0; flex: 1; padding-top: .04rem; }
 .bw-discussion-author-title { flex-wrap: wrap; gap: .28rem; font-size: .79rem; font-weight: 770; line-height: 1.35; }
