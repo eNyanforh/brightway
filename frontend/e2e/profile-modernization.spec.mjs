@@ -152,7 +152,8 @@ test("my profile has three responsive tabs below the private dashboard on deskto
   await tabs.getByRole("tab", { name: "Activity" }).click();
   await expect(tabs.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
   const activity = page.locator("#profile-activity");
-  await expect(activity.getByRole("heading", { name: "Activities" })).toBeVisible();
+  await expect(activity.getByRole("heading", { name: "Activities" })).toHaveCount(0);
+  await expect(activity.getByText("All your published posts, with their details and engagement.")).toHaveCount(0);
   await expect(activity.getByText("Finished a community coding project.")).toBeVisible();
   await expect(activity.getByRole("heading", { name: "Community workshop", exact: true })).toBeVisible();
   const rail = activity.getByRole("region", { name: /Your posts/ });
@@ -164,17 +165,32 @@ test("my profile has three responsive tabs below the private dashboard on deskto
   await expect(rail.getByText("6 people attending")).toBeVisible();
   await expect(activity.getByRole("link", { name: /View full post/ }).first())
     .toHaveAttribute("href", "/explore?source=member&post=11111111-1111-4111-8111-111111111111");
-  const railLayout = await rail.evaluate(element => {
+  const feedLayout = await rail.evaluate(element => {
     const cards = [...element.querySelectorAll(".bw-profile-activity-item")];
-    return { direction: getComputedStyle(element).flexDirection,
-      first: cards[0].getBoundingClientRect().top,
-      second: cards[1].getBoundingClientRect().top };
+    const first = cards[0].getBoundingClientRect();
+    const second = cards[1].getBoundingClientRect();
+    return {
+      display: getComputedStyle(element).display,
+      firstX: first.x, secondX: second.x,
+      firstBottom: first.bottom, secondTop: second.top,
+      firstWidth: first.width, secondWidth: second.width,
+      feedWidth: element.getBoundingClientRect().width,
+    };
   });
-  expect(railLayout.direction).toBe("row");
-  expect(Math.abs(railLayout.first - railLayout.second)).toBeLessThanOrEqual(2);
+  expect(feedLayout.display).toBe("grid");
+  expect(feedLayout.secondTop).toBeGreaterThan(feedLayout.firstBottom);
+  expect(Math.abs(feedLayout.firstX - feedLayout.secondX)).toBeLessThanOrEqual(2);
+  expect(Math.abs(feedLayout.firstWidth - feedLayout.secondWidth)).toBeLessThanOrEqual(2);
+  expect(Math.abs(feedLayout.firstWidth - feedLayout.feedWidth)).toBeLessThanOrEqual(2);
+  await expect(activity.getByRole("button", { name: "Next posts" })).toHaveCount(0);
+  await expect(activity.getByRole("button", { name: "Previous posts" })).toHaveCount(0);
   await activity.getByRole("button", { name: "Load older activity" }).click();
   await expect(activity.getByText("Finding a mentor")).toBeVisible();
   await expect(activity.locator(".bw-profile-activity-item")).toHaveCount(3);
+  const chronological = await rail.locator(".bw-profile-activity-item").evaluateAll(cards =>
+    cards.map(card => card.getBoundingClientRect().top));
+  expect(chronological[0]).toBeLessThan(chronological[1]);
+  expect(chronological[1]).toBeLessThan(chronological[2]);
   expect(api.activityReads()).toBe(2);
   await expect(page.locator("#profile-privacy")).toBeVisible();
   await expect(page.getByText("Public profile private")).toHaveCount(0);

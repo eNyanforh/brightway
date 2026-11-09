@@ -155,7 +155,8 @@ it("organizes the private profile into About Me, Achievements and Activity tabs"
 
   await user.click(screen.getByRole("tab", { name: "Activity" }));
   expect(screen.getByRole("tabpanel", { name: "Activity" })).toBeTruthy();
-  expect(screen.getByRole("heading", { name: "Activities" })).toBeTruthy();
+  expect(screen.getByRole("region", { name: "Your community posts" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Activities" })).toBeNull();
   expect(await screen.findByText("No activity yet")).toBeTruthy();
   expect(screen.queryByRole("heading", { name: "Education" })).toBeNull();
   await user.click(screen.getByRole("tab", { name: "About Me" }));

@@ -23,7 +23,7 @@ const proof = (id, type, body, extras = {}) => ({
 
 afterEach(() => vi.unstubAllGlobals());
 
-it("shows complete post cards in one horizontal row, with accurate metadata, engagement and pagination", async () => {
+it("shows complete posts in a title-free vertical feed, with engagement and pagination", async () => {
   const first = {
     items: [
       proof("11111111-1111-4111-8111-111111111111", "ACHIEVEMENT", "Finished a new learning project."),
@@ -49,9 +49,16 @@ it("shows complete post cards in one horizontal row, with accurate metadata, eng
   render(<MemoryRouter><ProfileActivities accountId="me" /></MemoryRouter>);
 
   await screen.findByText("Finished a new learning project.");
-  const rail = screen.getByRole("region", { name: /Your posts/ });
+  const rail = screen.getByRole("region", { name: "Your posts" });
   expect(rail.className).toContain("bw-profile-activity-list");
+  expect(screen.getByRole("region", { name: "Your community posts" }).contains(rail)).toBe(true);
   expect(within(rail).getAllByRole("article")).toHaveLength(2);
+  expect(screen.queryByRole("heading", { name: "Activities" })).toBeNull();
+  expect(screen.queryByText("All your published posts, with their details and engagement.")).toBeNull();
+  expect(screen.queryByText("Browse your posts horizontally")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Next posts" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Previous posts" })).toBeNull();
+  expect(screen.getByRole("link", { name: "All posts" }).getAttribute("href")).toBe("/posts");
   expect(within(rail).getByText("Career workshop")).toBeTruthy();
   expect(within(rail).getByText("USD 25.00")).toBeTruthy();
   expect(within(rail).getByText("Capacity:")).toBeTruthy();

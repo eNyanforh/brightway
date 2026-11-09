@@ -1,82 +1,43 @@
-/* Full member post cards in one horizontal, keyboard-scrollable row. */
-.bw-profile-activities { scroll-margin-top: 85px; overflow: hidden; }
-.bw-profile-activities .bw-profile-section-head { align-items: center; }
-.bw-profile-activity-header { gap: 14px; }
-.bw-profile-activity-description {
-  margin: 5px 0 0;
-  color: #71819a;
-  font-size: .77rem;
-  line-height: 1.5;
+/* The Activity tab uses a vertical timeline of the standard post cards. */
+.bw-profile-activities {
+  min-width: 0;
+  scroll-margin-top: 85px;
 }
 .bw-profile-activity-all {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  flex-shrink: 0;
-  min-height: 34px;
-  padding: .4rem .72rem;
-  border: 1px solid #dae6f7;
-  border-radius: 999px;
-  background: #edf4ff;
-  color: #205ca9;
+  min-height: 37px;
+  padding: .5rem .8rem;
+  border: 1px solid #d7e5f7;
+  border-radius: 9px;
+  background: #f2f7ff;
+  color: #245a9f;
   text-decoration: none;
-  font-weight: 750;
-  font-size: .73rem;
-}
-.bw-profile-activity-all:hover { background: #e0edff; }
-.bw-profile-activity-scroll-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  color: #6c7d94;
   font-size: .74rem;
+  font-weight: 750;
 }
-.bw-profile-activity-arrows { display: flex; gap: 8px; }
-.bw-profile-activity-arrows button {
-  width: 33px;
-  height: 33px;
-  display: grid;
-  place-items: center;
-  border: 1px solid #d9e5f2;
-  border-radius: 50%;
-  background: #fff;
-  color: #315a91;
-  font-size: 1.4rem;
-  line-height: 1;
-  cursor: pointer;
-}
-.bw-profile-activity-arrows button:hover { background: #edf4ff; }
-.bw-profile-activity-arrows button:focus-visible,
-.bw-profile-activity-list:focus-visible,
-.bw-profile-activity-link:focus-visible {
+.bw-profile-activity-all:hover { background: #e8f1ff; }
+.bw-profile-activity-link:focus-visible,
+.bw-profile-activity-all:focus-visible {
   outline: 3px solid #80a9ef;
   outline-offset: 2px;
 }
 .bw-profile-activity-list {
-  display: flex;
-  gap: 14px;
-  align-items: stretch;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
   width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  padding: 3px 2px 12px;
-  scroll-snap-type: x proximity;
-  overscroll-behavior-inline: contain;
-  -webkit-overflow-scrolling: touch;
+  min-width: 0;
 }
 .bw-profile-activities .bw-profile-activity-item.bw-post-panel {
   display: flex;
   flex-direction: column;
-  flex: 0 0 min(460px, calc(100% - 6px));
-  width: min(460px, calc(100% - 6px));
+  width: 100%;
   max-width: none;
   min-width: 0;
   gap: 0;
-  scroll-snap-align: start;
   border: 1px solid #e0e9f4;
   border-radius: 15px;
   background: #fff;
@@ -85,8 +46,7 @@
   overflow: hidden;
 }
 .bw-profile-activity-item:hover { border-color: #c9daef; }
-/* These are the regular Explore timeline card primitives, reused without
-   changing the horizontal Activity rail itself. */
+/* Regular Explore timeline card primitives reused on the owner's profile. */
 .bw-profile-activity-item .bw-timeline-post {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
@@ -343,9 +303,5 @@
 @media (max-width: 550px) {
   .bw-profile-activity-item .bw-timeline-post { padding: .75rem .52rem .55rem; grid-template-columns: 34px minmax(0, 1fr); column-gap: .45rem; }
   .bw-profile-activity-item .bw-timeline-avatar { width: 34px; height: 34px; }
-  .bw-profile-activity-description { max-width: 260px; }
   .bw-profile-activity-list { gap: 10px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .bw-profile-activity-list { scroll-behavior: auto; }
 }
