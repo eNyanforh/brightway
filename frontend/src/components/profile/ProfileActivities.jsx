@@ -6,8 +6,8 @@ import "./profile-activities.css";
 
 const postLink = id => "/explore?" + new URLSearchParams({ source: "member", post: id });
 
-/** Complete, owner-only post history in one scrollable horizontal row.
- * Older posts append to the same row; no text, event or question is truncated.
+/** Complete owner post history in a vertical, single-column timeline.
+ * Older posts append below existing posts, retaining all post interactions.
  */
 export default function ProfileActivities({ accountId }) {
   const [page, setPage] = useState(null);
@@ -15,7 +15,6 @@ export default function ProfileActivities({ accountId }) {
   const [loading, setLoading] = useState(false);
   const [mutatingId, setMutatingId] = useState(null);
   const controllerRef = useRef(null);
-  const railRef = useRef(null);
 
   const load = useCallback(async (cursor = null) => {
     if (controllerRef.current) return;
@@ -108,24 +107,9 @@ export default function ProfileActivities({ accountId }) {
       setMutatingId(null);
     }
   }
-  function scroll(direction) {
-    if (!railRef.current) return;
-    const amount = Math.max(280, railRef.current.clientWidth * 0.8);
-    railRef.current.scrollBy({ left: direction * amount, behavior: "smooth" });
-  }
-
   return (
-    <section id="profile-activity" className="bw-profile-card bw-profile-section bw-profile-activities"
-      aria-labelledby="profile-activities-title">
-      <div className="bw-profile-section-head bw-profile-activity-header">
-        <div>
-          <h2 id="profile-activities-title">Activities</h2>
-          <p className="bw-profile-activity-description">
-            All your published posts, with their details and engagement.
-          </p>
-        </div>
-        <Link className="bw-profile-activity-all" to="/posts">All posts</Link>
-      </div>
+    <section id="profile-activity" className="bw-profile-activities"
+      aria-label="Your community posts">
 
       {!page && loading && <p role="status" className="bw-profile-muted">Loading activity…</p>}
       {error && (
@@ -142,16 +126,8 @@ export default function ProfileActivities({ accountId }) {
         </div>
       )}
       {page?.items.length > 0 && (
-        <>
-          <div className="bw-profile-activity-scroll-controls">
-            <span>Browse your posts horizontally</span>
-            <div className="bw-profile-activity-arrows">
-              <button type="button" aria-label="Previous posts" onClick={() => scroll(-1)}>‹</button>
-              <button type="button" aria-label="Next posts" onClick={() => scroll(1)}>›</button>
-            </div>
-          </div>
-          <div ref={railRef} className="bw-profile-activity-list"
-            role="region" aria-label="Your posts — scroll horizontally" tabIndex={0}>
+        <div className="bw-profile-activity-list"
+          role="region" aria-label="Your posts">
             {page.items.map(post => (
               <div className="bw-profile-activity-item bw-post-panel bw-timeline-panel"
                 data-activity-type={post.type} key={post.id}>
@@ -165,8 +141,7 @@ export default function ProfileActivities({ accountId }) {
                 </Link>
               </div>
             ))}
-          </div>
-        </>
+        </div>
       )}
       {(page?.nextCursor || (page && !loading)) && (
         <div className="bw-profile-activity-footer">
@@ -175,6 +150,7 @@ export default function ProfileActivities({ accountId }) {
           <button type="button" disabled={loading} onClick={() => void load()}>
             Refresh activity
           </button>
+          <Link className="bw-profile-activity-all" to="/posts">All posts</Link>
         </div>
       )}
     </section>
