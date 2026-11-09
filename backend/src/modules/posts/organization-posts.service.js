@@ -194,9 +194,9 @@ function answerPreviewSelect(viewerId) {
   };
 }
 
-function memberAttribution({ username, person }) {
+function memberAttribution({ username, person }, verified = false) {
   const { firstName, middleName, lastName } = person;
-  return { username, name: [firstName, middleName, lastName].filter(Boolean).join(" "), photoId: person.profile?.photoId ?? null };
+  return { username, name: [firstName, middleName, lastName].filter(Boolean).join(" "), photoId: person.profile?.photoId ?? null, ...(verified ? { verified: true } : {}) };
 }
 
 function feedPost({ likes, _count, saves, reposts, registrations, answers = [], ...post }, blockedKeys = new Set()) {
@@ -215,7 +215,7 @@ function feedPost({ likes, _count, saves, reposts, registrations, answers = [], 
     }
   }
   return {
-    ...(post.author ? memberPost(post) : post),
+    ...(post.author ? memberPost(post, true) : post),
     reaction: likeSummary({ likes, _count }),
     views: _count.views ?? 0,
     ...(registrations && { registration: { registered: registrations.length > 0, count: _count.registrations ?? 0 } }),
@@ -238,12 +238,12 @@ function sameEventDetails(left, right) {
     .every(key => (left[key] ?? null) === (right[key] ?? null));
 }
 
-function memberPost({ author, ...post }) {
-  return { ...post, member: memberAttribution(author) };
+function memberPost({ author, ...post }, verified = false) {
+  return { ...post, member: memberAttribution(author, verified) };
 }
 
 function repostAttribution(row, viewer) {
-  return { id: row.id, createdAt: row.createdAt, member: memberAttribution(row.account), mine: row.account.id === viewer };
+  return { id: row.id, createdAt: row.createdAt, member: memberAttribution(row.account, true), mine: row.account.id === viewer };
 }
 
 function blockPair(left, right) {
@@ -902,7 +902,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         findPosts(prisma.memberPost, memberPostSelect, { authorId: actor.accountId }, position, "member"),
       ]);
       await assertNetworkSession(prisma, actor, now);
-      return { access, items: rows.slice(0, pageSize).map(memberPost), nextCursor: cursorFor(rows, actor.accountId, "my-posts") };
+      return { access, items: rows.slice(0, pageSize).map(post => memberPost(post, access.identityVerified)), nextCursor: cursorFor(rows, actor.accountId, "my-posts") };
     },
 
     async memberPublish(actor, input) {
@@ -921,14 +921,14 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
           const sameEvent = sameEventDetails(post.eventDetails, data.eventDetails);
           const sameQuestion = sameQuestionDetails(post.questionDetails, data.questionDetails);
           if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags || !sameEvent || !sameQuestion) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
-          return { post: memberPost(post) };
+          return { post: memberPost(post, true) };
         }
         // An older tagless post may be retried, but new posts require a topic.
         if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
         const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, questionDetails: data.questionDetails ?? undefined, body: data.body, createdAt: now() }, select: memberPostSelect });
-        return { post: memberPost(post) };
+        return { post: memberPost(post, true) };
       });
     },
 
