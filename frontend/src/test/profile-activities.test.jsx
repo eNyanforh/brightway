@@ -51,7 +51,7 @@ it("shows complete posts in a title-free vertical feed, with engagement and pagi
   await screen.findByText("Finished a new learning project.");
   const rail = screen.getByRole("region", { name: "Your posts" });
   expect(rail.className).toContain("bw-profile-activity-list");
-  expect(screen.getByRole("region", { name: "Your community posts" })).toContainElement(rail);
+  expect(screen.getByRole("region", { name: "Your community posts" }).contains(rail)).toBe(true);
   expect(within(rail).getAllByRole("article")).toHaveLength(2);
   expect(screen.queryByRole("heading", { name: "Activities" })).toBeNull();
   expect(screen.queryByText("All your published posts, with their details and engagement.")).toBeNull();
