@@ -447,23 +447,27 @@ export default function ProfileHistory({
           <div className="bw-history-list">
             {history.records.map((item) => (
               <article className="bw-history-record" key={item.id}>
-                <h3>{kind === "education" ? item.qualification : item.role}</h3>
-                <p>
-                  {kind === "education" ? item.institution : item.organization}
-                </p>
-                {kind === "experience" && <p>{experienceOptions[item.type]}</p>}
-                <small>
-                  {monthLabel(item.startMonth)} –{" "}
-                  {item.current ? "Present" : monthLabel(item.endMonth)}
-                </small>
-                <span className="bw-history-status">
-                  {statusLabels[item.status] ||
-                    "Not submitted for verification"}
+                <span className="bw-history-record-mark" aria-hidden="true">
+                  <Icon name={kind === "education" ? "book" : "briefcase"} />
                 </span>
-                <Link to={`/credentials/${kind}/${item.id}`}>Verification details</Link>
-                {item.description && (
-                  <p className="bw-profile-description">{item.description}</p>
-                )}
+                <div className="bw-history-record-details">
+                  <h3>{kind === "education" ? item.qualification : item.role}</h3>
+                  <p className="bw-history-affiliation">
+                    {kind === "education" ? item.institution : item.organization}
+                  </p>
+                  {kind === "experience" && <p>{experienceOptions[item.type]}</p>}
+                  <small>
+                    {monthLabel(item.startMonth)} –{" "}
+                    {item.current ? "Present" : monthLabel(item.endMonth)}
+                  </small>
+                  {item.description && <p className="bw-profile-description">{item.description}</p>}
+                  <div className="bw-history-record-footer">
+                    <span className="bw-history-status" data-status={item.status}>
+                      {statusLabels[item.status] || "Not submitted for verification"}
+                    </span>
+                    <Link to={`/credentials/${kind}/${item.id}`}>Verification details</Link>
+                  </div>
+                </div>
               </article>
             ))}
           </div>
