@@ -389,6 +389,21 @@
   outline: 3px solid #83adfa;
   outline-offset: 2px;
 }
+
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-register-action[data-registration-state="PENDING"] {
+  border-color: #ead69c;
+  background: #fff6df;
+  box-shadow: none;
+  color: #815b15;
+}
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-register-action[data-registration-state="PENDING"]:hover:enabled {
+  border-color: #dec47d;
+  background: #fff0c5;
+  color: #76500f;
+}
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-register-action:disabled:not([aria-pressed="true"]) {
+  border-color: #d8e1ed; background: #edf1f6; color: #79879a; box-shadow: none;
+}
 .bw-explore .bw-post-view-metric { gap: .25rem; padding: .3rem .2rem; color: #61718a; font-size: .73rem; }
 .bw-explore .bw-post-primary-action { flex: 0 0 auto; }
 .bw-explore .bw-post-comments { min-width: 0; margin-top: .25rem; }
