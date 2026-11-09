@@ -273,6 +273,10 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal((await posts.registerEvent(viewerActor, declinedEvent.id, { registered: false }))
       .registration.status, null);
 
+    // Do not let additional admission fixtures alter later pagination expectations.
+    await posts.memberWithdraw(actor, restricted.id);
+    await posts.memberWithdraw(actor, declinedEvent.id);
+
     for (const invalid of [
       { ...controlledEvent, ticketPriceCents: -10 },
       { ...controlledEvent, ticketPriceCents: 1.5 },
