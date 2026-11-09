@@ -219,3 +219,107 @@
 @media (prefers-reduced-motion: reduce) {
   .bw-public-person * { scroll-behavior: auto !important; }
 }
+
+
+/* Optional professional proof sections; rendered only from server-approved fields. */
+.bw-public-person-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.bw-public-person-section-help {
+  margin: -5px 0 17px !important;
+  color: #697b93 !important;
+  font-size: .78rem !important;
+}
+.bw-public-person-records {
+  display: grid;
+  gap: 17px;
+}
+.bw-public-person-record {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: 13px;
+  min-width: 0;
+}
+.bw-public-person-record + .bw-public-person-record {
+  padding-top: 17px;
+  border-top: 1px solid #e9edf5;
+}
+.bw-public-person-record-icon {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  width: 44px;
+  border-radius: 11px;
+  color: #21599b;
+  background: #eff5fd;
+  border: 1px solid #dce8f7;
+}
+.bw-public-person-record h3 {
+  margin: 0 0 4px;
+  font-size: .94rem;
+  line-height: 1.4;
+  color: #1e3858;
+  overflow-wrap: anywhere;
+}
+.bw-public-person-record p {
+  margin: 0 0 4px;
+  font-size: .81rem;
+}
+.bw-public-person-record small {
+  display: block;
+  color: #6f7f95;
+  font-size: .72rem;
+}
+.bw-public-person-verified {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: .7rem;
+  font-weight: 760;
+  color: #14795a;
+  overflow-wrap: anywhere;
+}
+.bw-public-person-record a,
+.bw-public-person-achievement a {
+  display: inline-flex;
+  margin-top: 9px;
+  font-size: .78rem;
+  font-weight: 740;
+  color: #1c5eaf;
+}
+.bw-public-person-achievements { display: grid; gap: 13px; }
+.bw-public-person-achievement {
+  border: 1px solid #e1e9f4;
+  border-radius: 13px;
+  background: #fafcff;
+  padding: 16px;
+  min-width: 0;
+}
+.bw-public-person-achievement-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 9px;
+  font-size: .74rem;
+  color: #71839c;
+}
+.bw-public-person-achievement-meta strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #235d9e;
+}
+.bw-public-person-achievement .bw-public-person-list {
+  margin-top: 12px;
+}
+@media (max-width: 480px) {
+  .bw-public-person-record { grid-template-columns: 36px minmax(0, 1fr); gap: 10px; }
+  .bw-public-person-record-icon { width: 36px; height: 36px; }
+  .bw-public-person-achievement { padding: 13px; }
+}

@@ -37,7 +37,7 @@ const published = {
   skills: ["React", "TypeScript"], interests: ["Education"],
 };
 
-async function fixture(page, profileOverrides = {}) {
+async function fixture(page, profileOverrides = {}, publishedOverrides = {}) {
   let privateReads = 0;
   let publicViews = 0;
   let activityReads = 0;
@@ -73,7 +73,7 @@ async function fixture(page, profileOverrides = {}) {
           identityVerified: false, canSubmit: false });
       case "/api/v1/profiles/maya/view":
         publicViews++;
-        return reply(published);
+        return reply({ ...published, ...publishedOverrides });
       default: return reply({});
     }
   });
@@ -169,4 +169,47 @@ test("published members can preview the existing consent-gated public profile", 
   await page.goto("/profile");
   await expect(page.getByRole("link", { name: "View public profile" }))
     .toHaveAttribute("href", "/people/synthetic");
+});
+
+test("public professional proof separates verified records from self-reported certificates and links achievements", async ({ page }) => {
+  const publicSections = {
+    identityVerified: true,
+    verifiedCredentials: [{
+      id: "education-1", kind: "education", title: "BSc Computer Science",
+      organization: "Starz University", startMonth: "2023-09",
+      endMonth: null, current: true, verifiedBy: "Starz University",
+    }],
+    certifications: [{
+      title: "Cloud Fundamentals", issuer: "Training Center",
+      issuedMonth: "2026-02", expiresMonth: null, credentialUrl: "https://example.org/cert",
+      verified: false,
+    }],
+    achievements: [{
+      id: "11111111-1111-4111-8111-111111111111",
+      body: "Completed a new education platform.", tags: ["Coding"],
+      createdAt: "2026-11-08T09:00:00Z",
+    }],
+  };
+  await fixture(page, {}, publicSections);
+  await page.goto("/people/maya");
+  const nav = page.getByRole("navigation", { name: "Published profile sections" });
+  await expect(nav.getByRole("link", { name: "Verified credentials" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Certifications" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Achievements" })).toBeVisible();
+  const review = page.locator("#published-credentials");
+  await expect(review.getByText("BSc Computer Science")).toBeVisible();
+  await expect(review.getByText(/Verified credential · Starz University/)).toBeVisible();
+  await expect(review.getByRole("img", { name: "Verified identity" })).toHaveCount(0);
+  const certificates = page.locator("#published-certifications");
+  await expect(certificates.getByText("Cloud Fundamentals")).toBeVisible();
+  await expect(certificates.getByText(/not independently verified/i)).toBeVisible();
+  await expect(certificates.getByRole("link", { name: "View certificate" }))
+    .toHaveAttribute("href", "https://example.org/cert");
+  const achievements = page.locator("#published-achievements");
+  await expect(achievements.getByText("Completed a new education platform.")).toBeVisible();
+  await expect(achievements.getByRole("link", { name: "View achievement" }))
+    .toHaveAttribute("href", "/explore?source=member&post=11111111-1111-4111-8111-111111111111");
+  await expect(page.getByText("synthetic@example.org")).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
 });

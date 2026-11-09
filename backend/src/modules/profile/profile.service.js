@@ -15,7 +15,7 @@ export const ownerProfileSelect = {
   educationRecords: { select: educationSelect, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
   experienceRecords: { select: experienceSelect, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
   id: true, version: true, countryCode: true, region: true, locality: true,
-  headline: true, bio: true, careerFieldMode: true, careerField: true,
+  headline: true, bio: true, certifications: true, careerFieldMode: true, careerField: true,
   careerGoals: true, skills: true, interests: true, createdAt: true, updatedAt: true,
   photo: { select: { id: true } },
 };
@@ -42,6 +42,7 @@ export function profileView(row, person = row?.person) {
         ? { mode: "SPECIFIED", label: row.careerField } : null,
     careerGoals: row?.careerGoals ?? null,
     // Both catalogs preserve existing custom labels on their owner.
+    certifications: Array.isArray(row?.certifications) ? row.certifications : [],
     skills: row?.skills ?? [],
     interests: row?.interests ?? [],
     createdAt: row?.createdAt ?? null,
@@ -56,6 +57,9 @@ export const privateProfileSelect = {
   profileViewSharingEnabled: true,
   profileViewNotificationsEnabled: true,
   profilePublicEnabled: true,
+  profileCertificationsPublicEnabled: true,
+  profileCredentialsPublicEnabled: true,
+  profileAchievementsPublicEnabled: true,
 };
 
 export function privateProfileView(row, person) {
@@ -64,6 +68,9 @@ export function privateProfileView(row, person) {
     profileViewSharingEnabled: row?.profileViewSharingEnabled === true,
     profileViewNotificationsEnabled: row?.profileViewNotificationsEnabled === true,
     profilePublicEnabled: row?.profilePublicEnabled === true,
+    profileCertificationsPublicEnabled: row?.profileCertificationsPublicEnabled === true,
+    profileCredentialsPublicEnabled: row?.profileCredentialsPublicEnabled === true,
+    profileAchievementsPublicEnabled: row?.profileAchievementsPublicEnabled === true,
   };
 }
 

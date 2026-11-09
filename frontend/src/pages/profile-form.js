@@ -7,6 +7,7 @@ export function formFromProfile(profile) {
     ...historyFields(profile, "experience"),
     headline: profile.headline || "",
     bio: profile.bio || "",
+    certifications: JSON.stringify(Array.isArray(profile.certifications) ? profile.certifications : []),
     countryCode: profile.location?.countryCode || "",
     region: profile.location?.region || "",
     locality: profile.location?.locality || "",
@@ -28,6 +29,7 @@ export function changesFromForm(form, profile) {
   const current = {
     headline: form.headline.trim() || null,
     bio: form.bio.trim() || null,
+    certifications: JSON.parse(form.certifications),
     location: {
       countryCode: form.countryCode || null,
       region: form.region.trim() || null,
@@ -52,7 +54,7 @@ export function changesFromForm(form, profile) {
           location[field] = text;
       }
       if (Object.keys(location).length) changes.location = location;
-    } else if (JSON.stringify(value) !== JSON.stringify(profile[key] ?? null))
+    } else if (JSON.stringify(value) !== JSON.stringify(key === "certifications" ? (profile.certifications || []) : (profile[key] ?? null)))
       changes[key] = value;
   }
   const contact = contactChanges(form, profile);
@@ -61,6 +63,21 @@ export function changesFromForm(form, profile) {
 }
 
 export function validateForm(form, section) {
+  if (section === "certifications") {
+    const certificates = JSON.parse(form.certifications);
+    if (certificates.length > 20) return "Add up to 20 certifications.";
+    for (const certificate of certificates) {
+      if (!certificate.title.trim() || !certificate.issuer.trim() || !certificate.issuedMonth) {
+        return "Each certification needs a title, issuer, and issuance month.";
+      }
+      if (certificate.expiresMonth && certificate.expiresMonth < certificate.issuedMonth) {
+        return "A certification cannot expire before its issue date.";
+      }
+      if (certificate.credentialUrl && !/^https:\/\//i.test(certificate.credentialUrl)) {
+        return "Certification links must begin with https://.";
+      }
+    }
+  }
   if (section === "contact") {
     const issue = validateContact(form);
     if (issue) return issue;
@@ -86,6 +103,7 @@ export const editorFields = {
   experience: ["experienceMode", "experienceRecords"],
   intro: ["headline", "countryCode", "region", "locality"],
   about: ["bio"],
+  certifications: ["certifications"],
   career: ["careerMode", "careerLabel", "careerGoals"],
   skills: ["skills"],
   interests: ["interests"],

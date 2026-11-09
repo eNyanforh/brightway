@@ -36,6 +36,17 @@ export const profilePatchSchema = z.strictObject({
     profileViewSharingEnabled: z.boolean().optional(),
     profileViewNotificationsEnabled: z.boolean().optional(),
     profilePublicEnabled: z.boolean().optional(),
+    profileCertificationsPublicEnabled: z.boolean().optional(),
+    profileCredentialsPublicEnabled: z.boolean().optional(),
+    profileAchievementsPublicEnabled: z.boolean().optional(),
+    certifications: z.array(z.strictObject({
+      title: z.string().trim().min(2).max(160),
+      issuer: z.string().trim().min(2).max(160),
+      issuedMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+      expiresMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable(),
+      credentialUrl: z.url({ protocol: /^https$/ }).max(500).nullable(),
+    }).refine(record => !record.expiresMonth || record.expiresMonth >= record.issuedMonth,
+      "Expiration cannot precede issuance.")).max(20).optional(),
   }).refine((value) => Object.keys(value).length > 0, "Provide at least one change"),
 });
 

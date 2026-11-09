@@ -146,6 +146,12 @@ it("shows only published fields on the redesigned public profile without a secon
     url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/people/maya");
   await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
   expect(screen.getByText("Published profile")).toBeTruthy();
+  // Optional proof sections must remain hidden when the server did not
+  // explicitly authorize their projection, even for a published basic profile.
+  expect(screen.queryByRole("heading", { name: "Verified credentials" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Licenses and certifications" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Professional achievements" })).toBeNull();
+  expect(screen.queryByRole("img", { name: "Verified identity" })).toBeNull();
   const nav = screen.getByRole("navigation", { name: "Published profile sections" });
   expect(within(nav).getByRole("link", { name: "About" }).getAttribute("href")).toBe("#published-about");
   expect(within(nav).getByRole("link", { name: "Skills" }).getAttribute("href")).toBe("#published-skills");
@@ -743,7 +749,7 @@ it("saves multiple education records with month/year dates and current enrollmen
   const second = screen.getByRole("group", { name: "Education record 2" });
   recordField(second, "Institution", "University"); recordField(second, "Qualification or program", "Information Technology");
   recordField(second, "Start month and year", "2024-09"); await user.click(within(second).getByLabelText("Currently studying here"));
-  await save(); await screen.findByText("Information Technology");
+  await save(); await screen.findByRole("heading", { name: "Information Technology" });
   expect(writes[0].body.records).toHaveLength(2);
   expect(writes[0].body.records[1].endMonth).toBeNull();
   expect(writes[0].body.records[1].current).toBe(true);
@@ -1000,4 +1006,36 @@ it("keeps an unrecognized saved county until the user selects a replacement", as
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   const body = JSON.parse(fetchMock.mock.calls.find(([, options]) => options.method === "PATCH")[1].body);
   expect(body.changes).toEqual({ location: { region: "River Cess" } });
+});
+
+it("edits self-reported certifications without modifying other profile fields", async () => {
+  const certificate = {
+    title: "Data Analytics Professional Certificate",
+    issuer: "Training Center",
+    issuedMonth: "2026-09",
+    expiresMonth: null,
+    credentialUrl: "https://example.org/certificate/123",
+  };
+  const stored = { ...original, certifications: [] };
+  const fetchMock = mount((url, options) => {
+    if (options?.method === "PATCH") {
+      const { changes } = JSON.parse(options.body);
+      return ok({ profile: { ...stored, ...changes, version: 2 } });
+    }
+    return ok({ profile: stored });
+  });
+  await ready();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Edit licenses and certifications" }));
+  await user.click(screen.getByRole("button", { name: "Add certification" }));
+  await user.type(screen.getByLabelText("Certification name"), certificate.title);
+  await user.type(screen.getByLabelText("Issuing organization"), certificate.issuer);
+  fireEvent.change(screen.getByLabelText("Issued (month)"), { target: { value: certificate.issuedMonth } });
+  await user.type(screen.getByLabelText("Credential URL (optional)"), certificate.credentialUrl);
+  await save();
+  await screen.findByText("Profile saved.");
+  const payload = JSON.parse(fetchMock.mock.calls.find(([, options]) => options?.method === "PATCH")[1].body);
+  expect(payload).toEqual({ expectedVersion: 1, changes: { certifications: [certificate] } });
+  expect(screen.getByText(certificate.title)).toBeTruthy();
+  expect(screen.getByText("Self-reported · Not BrightWay verified")).toBeTruthy();
 });

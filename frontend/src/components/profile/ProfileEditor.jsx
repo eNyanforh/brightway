@@ -21,6 +21,7 @@ const titles = {
   career: "Where do you want to go?",
   skills: "Your skills",
   interests: "Your interests",
+  certifications: "Licenses and certifications",
   photo: "Change profile picture",
 };
 
@@ -77,6 +78,11 @@ export default function ProfileEditor({
   }, [editor]);
   const change = (field, value) => onChange(field, value);
   const eventChange = (event) => change(event.target.name, event.target.value);
+  const certifications = editor === "certifications" ? JSON.parse(form.certifications) : [];
+  const updateCertification = (index, field, value) => {
+    const next = certifications.map((item, i) => i === index ? { ...item, [field]: value } : item);
+    change("certifications", JSON.stringify(next));
+  };
   return (
     <dialog
       ref={dialog}
@@ -258,6 +264,65 @@ export default function ProfileEditor({
             {editor === "interests" && (
               <InterestPicker value={form.interests} disabled={busy}
                 onChange={(value) => change("interests", value)} />
+            )}
+            {editor === "certifications" && (
+              <div className="bw-certification-editor">
+                <p className="bw-profile-muted">
+                  Certificates are self-reported. BrightWay does not mark them verified
+                  unless a separate issuer-review system verifies them.
+                </p>
+                {certifications.map((certificate, index) => (
+                  <div className="bw-certification-editor-item" key={index}>
+                    <div className="bw-certification-editor-heading">
+                      <strong>Certification {index + 1}</strong>
+                      <button type="button" className="bw-profile-text-button"
+                        onClick={() => change("certifications", JSON.stringify(certifications.filter((_, i) => i !== index)))}>
+                        Remove
+                      </button>
+                    </div>
+                    {[
+                      ["title", "Certification name", 160],
+                      ["issuer", "Issuing organization", 160],
+                    ].map(([field, label, maxLength]) => (
+                      <div className="bw-profile-field" key={field}>
+                        <label htmlFor={`cert-${index}-${field}`}>{label}</label>
+                        <input id={`cert-${index}-${field}`} required
+                          maxLength={maxLength} value={certificate[field] || ""}
+                          onChange={event => updateCertification(index, field, event.target.value)} />
+                      </div>
+                    ))}
+                    <div className="bw-profile-field-row">
+                      <div className="bw-profile-field">
+                        <label htmlFor={`cert-${index}-issued`}>Issued (month)</label>
+                        <input id={`cert-${index}-issued`} type="month" required
+                          value={certificate.issuedMonth || ""}
+                          onChange={event => updateCertification(index, "issuedMonth", event.target.value)} />
+                      </div>
+                      <div className="bw-profile-field">
+                        <label htmlFor={`cert-${index}-expires`}>Expires (optional)</label>
+                        <input id={`cert-${index}-expires`} type="month"
+                          value={certificate.expiresMonth || ""}
+                          onChange={event => updateCertification(index, "expiresMonth", event.target.value || null)} />
+                      </div>
+                    </div>
+                    <div className="bw-profile-field">
+                      <label htmlFor={`cert-${index}-url`}>Credential URL (optional)</label>
+                      <input id={`cert-${index}-url`} type="url" inputMode="url"
+                        placeholder="https://example.org/verify"
+                        maxLength={500} value={certificate.credentialUrl || ""}
+                        onChange={event => updateCertification(index, "credentialUrl", event.target.value || null)} />
+                    </div>
+                  </div>
+                ))}
+                <button type="button" className="bw-profile-button bw-profile-button-secondary"
+                  disabled={certifications.length >= 20}
+                  onClick={() => change("certifications", JSON.stringify([
+                    ...certifications,
+                    { title: "", issuer: "", issuedMonth: "", expiresMonth: null, credentialUrl: null },
+                  ]))}>
+                  <Icon name="plus" /> Add certification
+                </button>
+              </div>
             )}
             {editor === "photo" && (
               <>

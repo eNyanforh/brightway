@@ -85,6 +85,9 @@ test("read is side-effect free and returns a virtual empty draft for existing ac
     profileViewSharingEnabled: false,
     profileViewNotificationsEnabled: false,
     profilePublicEnabled: false,
+    profileCertificationsPublicEnabled: false,
+    profileCredentialsPublicEnabled: false,
+    profileAchievementsPublicEnabled: false,
   });
   assert.equal(db.rows.size, 0);
   assert.equal(db.calls[0][1].where.personId, "owner");
@@ -321,4 +324,50 @@ test("false credentials are excluded from profile display while the underlying r
   const view = profileView({ educationMode: "RECORDS", educationRecords: records });
   assert.deepEqual(view.education.records, [{ id: "draft", status: "DRAFT" }]);
   assert.equal(records.length, 2);
+});
+
+test("certifications are owner-controlled, schema-validated and never grant verification", async () => {
+  const valid = {
+    title: "Professional Certificate in Data Analysis",
+    issuer: "Training Institute",
+    issuedMonth: "2026-09",
+    expiresMonth: null,
+    credentialUrl: "https://credentials.example.org/cert/123",
+  };
+  const parsed = profilePatchSchema.parse({ expectedVersion: 0, changes: {
+    certifications: [valid],
+    profileCertificationsPublicEnabled: true,
+    profileCredentialsPublicEnabled: true,
+    profileAchievementsPublicEnabled: true,
+  } });
+  assert.deepEqual(parsed.changes.certifications, [valid]);
+  for (const certificate of [
+    { ...valid, title: "" },
+    { ...valid, issuer: "" },
+    { ...valid, issuedMonth: "2026-13" },
+    { ...valid, expiresMonth: "2026-08" },
+    { ...valid, credentialUrl: "javascript:alert(1)" },
+    { ...valid, credentialUrl: "http://example.org/insecure" },
+    { ...valid, verified: true },
+    { ...valid, reviewerId: "forged" },
+  ]) {
+    assert.equal(profilePatchSchema.safeParse({ expectedVersion: 0, changes: {
+      certifications: [certificate],
+    } }).success, false);
+  }
+  assert.equal(profilePatchSchema.safeParse({ expectedVersion: 0, changes: {
+    certifications: Array(21).fill(valid),
+  } }).success, false);
+
+  const db = database();
+  const service = createProfileService({ prisma: db });
+  const initial = await service.patch("owner", parsed);
+  assert.equal(initial.version, 1);
+  assert.deepEqual(initial.certifications, [valid]);
+  assert.equal(initial.profileCertificationsPublicEnabled, true);
+  assert.equal(initial.profileCredentialsPublicEnabled, true);
+  assert.equal(initial.profileAchievementsPublicEnabled, true);
+  assert.equal(initial.certifications[0].verified, undefined);
+  await assert.rejects(service.patch("owner", { expectedVersion: 0, changes: { certifications: [] } }), { status: 409 });
+  assert.equal((await service.read("other")).certifications.length, 0);
 });
