@@ -7,6 +7,7 @@ import PersonalPostComposer, { PersonalPostTypeLabel, PostTopicTags } from "./Pe
 import PostComments from "./PostComments";
 import QuestionAnswers from "./QuestionAnswers";
 import AvatarGroup from "./AvatarGroup";
+import EventAttendeeSummary from "./EventAttendeeSummary";
 import VerificationBadge from "../VerificationBadge";
 import PostTimestamp from "./PostTimestamp";
 import "./posts.css";
@@ -98,6 +99,10 @@ function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerP
         <p className="bw-post-text bw-post-story-body">{post.body}</p>
       )}
       {topicTags}
+      {post.type === "EVENT" && post.registration && (
+        <EventAttendeeSummary count={post.registration.count ?? 0}
+          attendees={post.eventAttendees ?? []} />
+      )}
       {timeline && post.type === "QUESTION" && (
         <QuestionAnswerSummary count={answerCount} participants={answerParticipants} />
       )}
@@ -199,14 +204,13 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
       <span>Answer</span>
     </button>
   ) : type === "EVENT" ? (
-    <button type="button" className="bw-timeline-action bw-signup-action" disabled={busy}
-      aria-label={post.registration?.registered ? "Registered" : "Sign Up"}
+    <button type="button" className="bw-timeline-action bw-register-action" disabled={busy}
+      aria-label={post.registration?.registered ? "Registered" : "Register"}
       aria-pressed={Boolean(post.registration?.registered)}
-      title={post.registration?.registered ? "Cancel registration" : "Sign Up"}
+      title={post.registration?.registered ? "Cancel registration" : "Register for event"}
       onClick={() => onRegister(post)}>
       <NavigationIcon name="ticket" size={19} />
-      <span>{post.registration?.registered ? "Registered" : "Sign Up"}</span>
-      {post.registration?.count > 0 && <span className="bw-action-count">{post.registration.count}</span>}
+      <span>{post.registration?.registered ? "Registered" : "Register"}</span>
     </button>
   ) : null;
 
@@ -464,7 +468,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
     void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags, ...(type === "EVENT" && eventDetails ? { eventDetails } : {}), ...(type === "QUESTION" && questionDetails ? { questionDetails } : {}) }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
-      const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false, views: 0, ...(type === "EVENT" ? { registration: { registered: false, count: 0 } } : {}), ...(type === "QUESTION" ? { answerCount: 0 } : {}) } : post;
+      const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false, views: 0, ...(type === "EVENT" ? { registration: { registered: false, count: 0 }, eventAttendees: [] } : {}), ...(type === "QUESTION" ? { answerCount: 0 } : {}) } : post;
       setPage(previous => ({
         ...previous,
         items: [published, ...(previous?.items || []).filter(item => cardKey(item) !== cardKey(published))],
@@ -496,7 +500,8 @@ export default function PostsPanel({ organization, personal = false, view = "for
 
   function register(post) {
     updateFeedPost(post, (_source, signal) => api.registerEvent(post.id, !post.registration?.registered, signal),
-      (items, key, { registration }) => items.map(item => postKey(item) === key ? { ...item, registration } : item));
+      (items, key, { registration, eventAttendees }) => items.map(item => postKey(item) === key
+        ? { ...item, registration, eventAttendees: eventAttendees ?? item.eventAttendees ?? [] } : item));
   }
 
   function save(post) {
