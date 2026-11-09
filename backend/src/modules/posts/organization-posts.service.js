@@ -937,7 +937,8 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         const recent = await tx.postComment.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the commenting limit. Try again in 15 minutes.");
         const comment = await tx.postComment.create({ data: { ...key, ...target, body, createdAt: now() }, select: commentSelect });
-        return { comment: commentView(comment, actor.accountId) };
+        const access = await memberEligibility(tx, actor.accountId);
+        return { comment: commentView(comment, actor.accountId, access.identityVerified && access.profilePublic) };
       });
     },
 
