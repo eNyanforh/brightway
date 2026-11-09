@@ -9,7 +9,7 @@ function AttendeeAvatar({ person }) {
   const [failedPhoto, setFailedPhoto] = useState(null);
   return (
     <Link className="bw-event-attendee-avatar" to={"/people/" + encodeURIComponent(person.username)}
-      title={person.name} aria-label={person.name + " registered to attend"}>
+      title={person.name} aria-label={person.name + " attending"}>
       {photo && failedPhoto !== photo
         ? <img src={photo} alt="" loading="lazy" onError={() => setFailedPhoto(photo)} />
         : <svg viewBox="0 0 24 24" width="17" height="17" fill="none"
@@ -24,14 +24,14 @@ function AttendeeAvatar({ person }) {
 
 export default function EventAttendeeSummary({ count = 0, attendees = [] }) {
   return (
-    <div className="bw-event-attendee-summary" aria-label="Event registrations">
+    <div className="bw-event-attendee-summary" aria-label="Event attendance">
       {attendees.length > 0 && (
-        <AvatarGroup max={3} className="bw-event-attendee-facepile" label="People registered to attend">
+        <AvatarGroup max={3} className="bw-event-attendee-facepile" label="People attending">
           {attendees.map(person => <AttendeeAvatar key={person.username} person={person} />)}
         </AvatarGroup>
       )}
       <span className="bw-event-attendee-count" aria-live="polite">
-        <strong>{count.toLocaleString()}</strong> {count === 1 ? "person registered" : "people registered"}
+        <strong>{count.toLocaleString()}</strong> {count === 1 ? "person attending" : "people attending"}
       </span>
     </div>
   );
