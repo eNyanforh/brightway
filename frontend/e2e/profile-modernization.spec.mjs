@@ -52,6 +52,8 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}) {
       case "/api/v1/profile/me":
         privateReads++;
         return reply({ profile: { ...profile, ...profileOverrides } });
+      case "/api/v1/profile/me/dashboard":
+        return reply({ periodDays: 7, profileViews: 9, postImpressions: 0, searchAppearances: 6 });
       case "/api/v1/posts/me":
         activityReads++;
         return reply(url.searchParams.has("cursor")
@@ -81,18 +83,23 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}) {
     activityReads: () => activityReads };
 }
 
-test("my profile organizes the saved identity, section navigation, completion and privacy on desktop and mobile", async ({ page }) => {
+test("my profile shows a private dashboard above About without tabs on desktop and mobile", async ({ page }) => {
   const api = await fixture(page);
   await page.goto("/profile");
   const heading = page.getByRole("heading", { level: 1, name: "Synthetic Member" });
   await expect(heading).toBeVisible();
-  const navigation = page.getByRole("navigation", { name: "Profile sections" });
-  await expect(navigation.getByRole("link", { name: "About" })).toHaveAttribute("href", "#profile-about");
-  await expect(navigation.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "#profile-privacy");
+  await expect(page.getByRole("navigation", { name: "Profile sections" })).toHaveCount(0);
+  const dashboard = page.locator("#profile-dashboard");
+  await expect(dashboard).toBeVisible();
+  await expect(dashboard.getByText("Private to you")).toBeVisible();
+  await expect(dashboard.getByRole("button", { name: /9.*Profile views/ })).toBeVisible();
+  await expect(dashboard.getByRole("button", { name: /0.*Post impressions/ })).toBeVisible();
+  await expect(dashboard.getByRole("button", { name: /6.*Search appearances/ })).toBeVisible();
   await expect(page.locator("#profile-about")).toBeVisible();
+  expect(await dashboard.evaluate(element => element.compareDocumentPosition(document.getElementById("profile-about")) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
   await expect(page.getByRole("heading", { name: "My profile" })).toHaveCount(0);
   await expect(page.getByText("YOUR BRIGHTWAY PROFILE")).toHaveCount(0);
-  await expect(navigation.getByRole("link", { name: "Activities" })).toHaveAttribute("href", "#profile-activity");
+
   const activity = page.locator("#profile-activity");
   await expect(activity.getByRole("heading", { name: "Activities" })).toBeVisible();
   await expect(activity.getByText("Finished a community coding project.")).toBeVisible();
@@ -176,8 +183,7 @@ test("published members keep consent settings without redundant hero buttons", a
   await expect(page.locator(".bw-profile-hero").getByText("Public profile published")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "View public profile" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "See activity" })).toHaveCount(0);
-  await expect(page.getByRole("navigation", { name: "Profile sections" })
-    .getByRole("link", { name: "Activities" })).toHaveAttribute("href", "#profile-activity");
+  await expect(page.locator("#profile-activity")).toBeVisible();
 });
 
 test("public professional proof separates verified records from self-reported certificates and links achievements", async ({ page }) => {

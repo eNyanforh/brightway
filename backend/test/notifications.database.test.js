@@ -57,6 +57,7 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
 
   const view = (viewer, target, options) => request(viewer, "/profiles/" + target.username + "/view", { method: "POST", body: {}, ...options });
   const inbox = actor => request(actor, "/notifications");
+  const dashboard = actor => request(actor, "/profile/me/dashboard");
   const post = (actor, path, body = {}) => request(actor, path, { method: "POST", body });
 
   try {
@@ -69,7 +70,9 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
       profileViewNotificationsEnabled: true,
     };
     await view(visitor, owner, { status: 404 });
+    await request(null, "/profile/me/dashboard", { status: 401 });
     await preferences(owner, { ...published, headline: "Published fixture" });
+    assert.deepEqual(((stats) => [stats.profileViews, stats.postImpressions, stats.searchAppearances])(await dashboard(owner)), [0, 0, 0]);
     const search = (actor, q, options = {}, status = 200) =>
       request(actor, "/search?" + new URLSearchParams({ q, kind: "people", ...options }), { status });
     await search(null, owner.username, {}, 401);
@@ -77,6 +80,10 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     const hit = { kind: "people", name: "Synthetic owner", username: owner.username, href: "/people/" + owner.username };
     assert.deepEqual(await search(visitor, "synt own"), { items: [hit], nextCursor: null });
     assert.deepEqual((await search(visitor, "@" + owner.username)).items, [hit]);
+    const searchStats = await dashboard(owner);
+    assert.equal(searchStats.searchAppearances, 1, "repeated searches from one member count once per UTC day");
+    assert.equal(searchStats.profileViews, 0, "directory appearances are not profile views");
+    assert.equal(Object.hasOwn(searchStats, "viewerId"), false);
     assert.deepEqual((await search(owner, owner.username)).items, []);
     assert.deepEqual((await search(visitor, other.username)).items, []);
     assert.deepEqual((await search(visitor, owner.email)).items, []);
@@ -105,6 +112,9 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
 
     const profile = await view(visitor, owner);
     assert.equal(profile.headline, "Published fixture");
+    await view(visitor, owner);
+    assert.equal((await dashboard(owner)).profileViews, 1, "repeated public visits from one member count once per UTC day");
+    assert.equal((await dashboard(visitor)).profileViews, 0, "visits belong to the profile owner only");
     for (const field of ["contact", "email", "phoneNumber", "education", "experience", ...Object.keys(published)]) {
       assert.equal(Object.hasOwn(profile, field), false, field);
     }
@@ -146,6 +156,9 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
       body: "Published a new software project.", tags: ["Coding"],
     } });
     createdPosts.push(achievement.id);
+    await prisma.postView.create({ data: { memberPostId: achievement.id, accountId: visitor.id } });
+    assert.equal((await dashboard(owner)).postImpressions, 1, "unique post-view events are counted for the author");
+    assert.equal((await dashboard(visitor)).postImpressions, 0, "only the author's posts are counted");
     await preferences(owner, { profileAchievementsPublicEnabled: true });
     assert.equal(Object.hasOwn(await view(visitor, owner), "achievements"), false,
       "Unverified member posts must not be promoted onto a public profile");

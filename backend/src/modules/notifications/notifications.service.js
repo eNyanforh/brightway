@@ -154,6 +154,12 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
           });
         }
         const currentTime = now();
+        // Analytics are aggregates only. Viewer identities are never exposed
+        // by the owner dashboard; the sharing consent gates named notifications.
+        await tx.profileVisit.createMany({
+          data: [{ ownerId: target.id, viewerId: viewer.id, viewedOn: utcDay(currentTime), createdAt: currentTime }],
+          skipDuplicates: true,
+        });
         if (profile.profileViewNotificationsEnabled && viewerProfile?.profileViewSharingEnabled) {
           await tx.profileViewNotification.createMany({
             data: [{ recipientId: target.id, viewerId: viewer.id, viewedOn: utcDay(currentTime), createdAt: currentTime }],
