@@ -1044,6 +1044,37 @@
   overflow-wrap: anywhere;
   margin: 0 0 12px;
 }
+/* Keep review details available only while changing the profile picture. */
+.bw-profile-photo-review-embedded {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid #d8e2ef;
+  background: #f8fafe;
+  border-radius: 12px;
+  display: grid;
+  gap: 10px;
+}
+.bw-profile-photo-review-embedded h3 {
+  margin: 0;
+  color: #203858;
+  font-size: 14px;
+  font-weight: 700;
+}
+.bw-profile-photo-review-embedded p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.bw-profile-photo-review-embedded .bw-profile-photo-preview {
+  justify-content: flex-start;
+  margin: 0;
+}
+.bw-profile-photo-review-embedded .bw-identity-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .bw-profile-dialog button:focus-visible {
   outline: 3px solid #175cd3;
   outline-offset: 3px;
