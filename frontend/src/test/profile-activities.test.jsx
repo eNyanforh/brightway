@@ -62,7 +62,7 @@ it("shows complete post cards in one horizontal row, with accurate metadata, eng
   expect(within(rail).getAllByLabelText("43 views")).toHaveLength(2);
   expect(within(rail).getAllByLabelText("4 comments")).toHaveLength(2);
   expect(within(rail).getAllByLabelText("2 reposts")).toHaveLength(2);
-  expect(within(rail).getByText("6 people attending")).toBeTruthy();
+  expect(within(rail).getByLabelText("Event attendance").textContent).toContain("6 people attending");
   expect(within(rail).getAllByRole("link", { name: /View full post/ })[0].getAttribute("href"))
     .toBe("/explore?source=member&post=11111111-1111-4111-8111-111111111111");
 
