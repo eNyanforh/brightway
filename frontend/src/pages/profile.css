@@ -1048,6 +1048,32 @@
   outline: 3px solid #175cd3;
   outline-offset: 3px;
 }
+
+/* Open directly on the profile identity card; tools sit in the sidebar. */
+.bw-profile-page { margin-top: 8px; }
+.bw-profile-account-tools {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+.bw-profile-account-tools .bw-profile-eyebrow { margin: 0 0 4px; }
+.bw-profile-account-tools a {
+  display: flex;
+  gap: .55rem;
+  align-items: center;
+  min-height: 41px;
+  padding: .62rem .8rem;
+  border: 1px solid #dce7f5;
+  border-radius: 10px;
+  background: #f9fbfe;
+  color: #2b558b;
+  font-size: .78rem;
+  font-weight: 730;
+  text-decoration: none;
+}
+.bw-profile-account-tools a:hover { background: #edf4ff; border-color: #b9d2f2; }
+.bw-profile-account-tools a .bw-icon { width: 17px; height: 17px; flex: 0 0 17px; }
+
 @media (max-width: 900px) {
   .bw-profile-grid {
     grid-template-columns: minmax(0, 1fr) 230px;
@@ -1171,54 +1197,6 @@
   margin: 22px auto 56px;
   padding: 0 4px;
 }
-.bw-profile-workspace-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 14px 22px;
-  margin-bottom: 20px;
-}
-.bw-profile-workspace-header h2 {
-  color: #172c4b;
-  font-size: clamp(1.3rem, 2.8vw, 1.65rem);
-  letter-spacing: -.045em;
-  margin: 0 0 3px;
-}
-.bw-profile-workspace-header .bw-profile-eyebrow { margin-bottom: 5px; }
-.bw-profile-workspace-header > div > p:last-child {
-  color: #697b94;
-  margin: 0;
-  font-size: .81rem;
-  line-height: 1.55;
-}
-.bw-profile-workspace-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.bw-profile-workspace-actions a {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 38px;
-  padding: 8px 11px;
-  border: 1px solid #dce6f4;
-  border-radius: 10px;
-  background: #fff;
-  color: #294e80;
-  font-size: .76rem;
-  font-weight: 750;
-  text-decoration: none;
-  transition: background .16s ease, border-color .16s ease;
-}
-.bw-profile-workspace-actions a:hover,
-.bw-profile-workspace-actions a:focus-visible {
-  background: #edf4ff;
-  border-color: #b7cef0;
-}
-.bw-profile-workspace-actions .bw-icon { width: 16px; height: 16px; }
 .bw-profile-grid {
   grid-template-columns: minmax(0, 1fr) minmax(275px, 314px);
   align-items: start;
@@ -1437,12 +1415,9 @@
   .bw-profile-hero .bw-profile-cover { height: 155px; padding: 22px; }
   .bw-profile-hero .bw-profile-identity { padding: 0 20px 23px; }
   .bw-profile-section { padding: 20px; }
-  .bw-profile-workspace-header { gap: 13px; }
 }
 @media (max-width: 480px) {
   .bw-profile-page { margin: 12px auto 38px; padding: 0; }
-  .bw-profile-workspace-actions { width: 100%; }
-  .bw-profile-workspace-actions a { flex: 1 1 auto; justify-content: center; padding: 9px 7px; font-size: .7rem; }
   .bw-profile-hero .bw-profile-cover { height: 136px; padding: 17px; }
   .bw-profile-hero .bw-profile-cover-brand > span { font-size: .57rem; }
   .bw-profile-cover-brand > strong { font-size: 1.03rem; }
@@ -1451,6 +1426,4 @@
   .bw-profile-hero .bw-profile-person-top > .bw-profile-button { min-height: 37px; padding: 9px 11px; }
   .bw-profile-section-nav a { min-height: 36px; padding: 8px 10px; font-size: .72rem; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .bw-profile-workspace-actions a { transition: none; }
-}
+

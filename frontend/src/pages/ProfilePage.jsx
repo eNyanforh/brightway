@@ -20,6 +20,7 @@ import ProfilePicture from "../components/profile/ProfilePicture";
 import ProfileContact from "../components/profile/ProfileContact";
 import ProfileCompletion from "../components/profile/ProfileCompletion";
 import ProfileHistory from "../components/profile/ProfileHistory";
+import ProfileActivities from "../components/profile/ProfileActivities";
 import ProfileEditor from "../components/profile/ProfileEditor";
 import "./profile.css";
 
@@ -492,18 +493,6 @@ export default function ProfilePage() {
 
   return (
     <div className="bw-profile-page">
-      <div className="bw-profile-workspace-header">
-        <div>
-          <p className="bw-profile-eyebrow">YOUR BRIGHTWAY PROFILE</p>
-          <h2>My profile</h2>
-          <p>Present your skills, experience, and ambitions in one place.</p>
-        </div>
-        <nav className="bw-profile-workspace-actions" aria-label="Profile tools">
-          <Link to="/credentials"><Icon name="book" /> My credential reviews</Link>
-          <Link to="/security"><Icon name="lock" /> Account security</Link>
-        </nav>
-      </div>
-
       {draft.notice && (
         <p className="bw-profile-success" role="status">
           {draft.notice}
@@ -639,6 +628,7 @@ export default function ProfilePage() {
 
           <nav className="bw-profile-section-nav" aria-label="Profile sections">
             <a href="#profile-about">About</a>
+            <a href="#profile-activity">Activities</a>
             <a href="#profile-direction">My direction</a>
             <a href="#profile-skills">Skills</a>
             <a href="#profile-interests">Interests</a>
@@ -662,6 +652,8 @@ export default function ProfilePage() {
                 "Your story starts here. Share what matters to you and what you enjoy doing."}
             </p>
           </Section>
+
+          <ProfileActivities key={account.id} accountId={account.id} />
 
           <Section
             id="profile-direction"
@@ -780,16 +772,12 @@ export default function ProfilePage() {
             <small>Profile view alerts require both people to opt in. Repeat views from the same person are combined daily. Turning sharing off stops future notifications but does not erase notifications already sent. All options default to off.</small>
           </section>
 
-          <section className="bw-profile-card bw-profile-side-block bw-profile-side-focus">
-            <p className="bw-profile-eyebrow">NEXT STEP</p>
-            <h2>Make your introduction count</h2>
-            <p>Tell other learners and organizations what you are building and where you want to grow.</p>
-            <button type="button" className="bw-profile-next" data-profile-editor="intro"
-              disabled={busy} onClick={() => open("intro")}>
-              <span>Refine my introduction</span>
-              <Icon name="arrow" />
-            </button>
-          </section>
+          <nav className="bw-profile-card bw-profile-side-block bw-profile-account-tools"
+            aria-label="Profile tools">
+            <p className="bw-profile-eyebrow">ACCOUNT TOOLS</p>
+            <Link to="/credentials"><Icon name="book" /> My credential reviews</Link>
+            <Link to="/security"><Icon name="lock" /> Account security</Link>
+          </nav>
 
           <p className="bw-profile-private-note">
             <Icon name="lock" />

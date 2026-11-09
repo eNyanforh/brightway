@@ -29,6 +29,7 @@ function mount(handler) {
     if (url.endsWith("/work/access")) return response({ hasWork: false });
     if (url.endsWith("/auth/me")) return response({ account });
     if (url.endsWith("/profile/me")) return response({ profile });
+    if (url.endsWith("/posts/me")) return response({ access: {}, items: [], nextCursor: null });
     if (url.endsWith("/admin/manual-identity/access")) return response("Access denied.", 403);
     return handler(url, options);
   });
