@@ -23,7 +23,7 @@ export default function PostTimestamp({ createdAt }) {
     <time
       dateTime={createdAt}
       title={exact || undefined}
-      aria-label={exact ? `Posted ${relative} ago — ${exact}` : "Posting date unavailable"}
+      aria-label={exact ? (relative === "Just now" ? `Posted just now — ${exact}` : `Posted ${relative} ago — ${exact}`) : "Posting date unavailable"}
     >
       {relative}
     </time>
