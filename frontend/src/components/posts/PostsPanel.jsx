@@ -42,7 +42,7 @@ function EventInfoCard({ details }) {
         <h3>{details.title}</h3>
         <p><NavigationIcon name="calendar" size={16} /> {date(details.startAt)} – {date(details.endAt)}</p>
         <p><NavigationIcon name="pin" size={16} /> {details.format === "ONLINE" ? "Online" : details.format === "HYBRID" ? "Hybrid" : "In person"}{showVenue ? " · " + details.venue : ""}</p>
-        <div className="bw-event-feed-policies" aria-label="Event admission details">
+        <div className="bw-event-feed-policies" role="group" aria-label="Event admission details">
           <span className="bw-event-feed-policy"><NavigationIcon name="ticket" size={15} /><strong>{price}</strong></span>
           {details.requiresApproval === true && <span className="bw-event-feed-policy">Approval required</span>}
           {capacity != null && <span className="bw-event-feed-policy">Capacity: <strong>{capacity.toLocaleString()}</strong></span>}
