@@ -219,3 +219,23 @@
 @media (prefers-reduced-motion: reduce) {
   .bw-public-person * { scroll-behavior: auto !important; }
 }
+
+
+/* Keep the published page visually consistent, without exposing private records. */
+.bw-public-person { width: min(calc(100% - 32px), 930px); }
+.bw-public-person-cover {
+  height: 170px;
+  background:
+    radial-gradient(circle at 91% 0%, #649de554, transparent 43%),
+    linear-gradient(116deg, #0e2c57 4%, #154477 54%, #2565a2);
+}
+.bw-public-person-cover span { letter-spacing: .19em; font-weight: 840; color: #e5efff; }
+.bw-public-person-identity { margin-top: -52px; }
+.bw-public-person-avatar { border-radius: 50%; width: 113px; height: 113px; flex-basis: 113px; }
+.bw-public-person-nav { background: #fff; border-color: #e1e9f4; }
+.bw-public-person-content section { border-radius: 17px; }
+@media (max-width: 600px) {
+  .bw-public-person-cover { height: 142px; }
+  .bw-public-person-identity { margin-top: -43px; }
+  .bw-public-person-avatar { flex-basis: 85px; width: 85px; height: 85px; }
+}
