@@ -37,7 +37,7 @@ const published = {
   skills: ["React", "TypeScript"], interests: ["Education"],
 };
 
-async function fixture(page, profileOverrides = {}, publishedOverrides = {}, activityCaption = "Finished a community coding project.", memberOverride = {}) {
+async function fixture(page, profileOverrides = {}, publishedOverrides = {}, activityCaption = "Finished a community coding project.", memberOverride = {}, showDiscussionPhotos = false) {
   let privateReads = 0;
   let publicViews = 0;
   let activityReads = 0;
@@ -45,6 +45,13 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
     const url = new URL(route.request().url());
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();
+    // An oversized source image exposes unbounded avatar CSS in real browsers.
+    if (showDiscussionPhotos && /^\/api\/v1\/explore\/members\/[^/]+\/photo\/[^/]+$/.test(url.pathname)) {
+      return route.fulfill({
+        status: 200, contentType: "image/svg+xml",
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1800"><rect width="1200" height="1800" fill="#4169a6"/></svg>',
+      });
+    }
     const reply = data => route.fulfill({ json: { success: true, data } });
     switch (url.pathname) {
       case "/api/v1/auth/me": return reply({ account });
@@ -63,7 +70,12 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
             questionDetails: { title: "Finding a mentor" }, tags: ["Learning"],
             member: { username: "synthetic", name: "Synthetic Member", photoId: null, verified: true, ...memberOverride },
             reaction: { count: 0, liked: false }, views: 3, commentCount: 0,
-            repostCount: 0, answerCount: 2, answerParticipants: [], saved: false, reposted: false,
+            repostCount: 0, answerCount: 2,
+            answerParticipants: showDiscussionPhotos ? [{
+              name: "Answering Member", username: "answerer", photoId: "answer-photo",
+              verified: true,
+            }] : [],
+            saved: false, reposted: false,
           }], nextCursor: null }
           : { access: {}, items: [
             { id: "11111111-1111-4111-8111-111111111111", type: "ACHIEVEMENT",
@@ -86,6 +98,21 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
               eventAttendees: [], saved: false, reposted: false,
             },
           ], nextCursor: "older" });
+      case "/api/v1/explore/posts/member/11111111-1111-4111-8111-111111111111/comments":
+        return reply({ items: showDiscussionPhotos ? [{
+          id: "comment-1", name: "Commenting Member", username: "commenter",
+          photoId: "comment-photo", verified: true,
+          body: "Very helpful achievement.", createdAt: "2026-11-09T10:00:00Z",
+          canDelete: false,
+        }] : [], nextCursor: null });
+      case "/api/v1/explore/posts/member/33333333-3333-4333-8333-333333333333/answers":
+        return reply({ items: showDiscussionPhotos ? [{
+          id: "answer-1", name: "Answering Member", username: "answerer",
+          photoId: "answer-photo", verified: true,
+          body: "Find a mentor through purposeful projects.",
+          createdAt: "2026-11-09T10:00:00Z", upvoteCount: 1,
+          downvoteCount: 0, commentCount: 0, myVote: 0, canDelete: false,
+        }] : [] });
       case "/api/v1/manual-identity/status":
         return reply({ accountId: account.id, profileVersion: 1, status: "NOT_STARTED",
           identityVerified: false, canSubmit: false });
@@ -159,6 +186,56 @@ test("my profile shows a private dashboard above About without tabs on desktop a
   expect(api.privateReads()).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
+});
+
+test("profile Activities keeps commenter and answer photos at post-card avatar size", async ({ page }) => {
+  await fixture(page, {}, {}, "Finished a community coding project.", {}, true);
+  await page.goto("/profile");
+  const activity = page.locator("#profile-activity");
+  const firstPost = activity.locator(".bw-profile-activity-item").first();
+  await expect(firstPost).toBeVisible();
+  await firstPost.getByRole("button", { name: "Comments" }).click();
+  const commentPhoto = firstPost.locator(".bw-discussion-avatar img");
+  await expect(commentPhoto).toBeVisible();
+  await expect(commentPhoto).toHaveJSProperty("naturalWidth", 1200);
+
+  await activity.getByRole("button", { name: "Load older activity" }).click();
+  const question = activity.locator('.bw-profile-activity-item[data-activity-type="QUESTION"]');
+  await expect(question).toBeVisible();
+  const previewPhoto = question.locator(".bw-question-answer-avatar img");
+  await expect(previewPhoto).toBeVisible();
+  await expect(previewPhoto).toHaveJSProperty("naturalWidth", 1200);
+  await question.getByRole("button", { name: "Answer", exact: true }).click();
+  const answerPhoto = question.locator(".bw-discussion-avatar img");
+  await expect(answerPhoto).toBeVisible();
+  await expect(answerPhoto).toHaveJSProperty("naturalWidth", 1200);
+
+  const sizes = await activity.evaluate(element => {
+    const measure = selector => {
+      const image = element.querySelector(selector);
+      const avatar = image.parentElement;
+      const box = avatar.getBoundingClientRect();
+      const photo = image.getBoundingClientRect();
+      const css = getComputedStyle(avatar);
+      return {
+        width: box.width, height: box.height,
+        photoWidth: photo.width, photoHeight: photo.height,
+        radius: css.borderRadius,
+      };
+    };
+    return {
+      preview: measure('.bw-question-answer-avatar img'),
+      comment: measure('.bw-profile-activity-item:first-child .bw-discussion-avatar img'),
+      answer: measure('[data-activity-type="QUESTION"] .bw-discussion-avatar img'),
+    };
+  });
+  for (const key of ["preview", "comment", "answer"]) {
+    expect(sizes[key].width).toBeLessThanOrEqual(key === "preview" ? 31 : 37);
+    expect(sizes[key].height).toBeLessThanOrEqual(key === "preview" ? 31 : 37);
+    expect(sizes[key].photoWidth).toBeLessThanOrEqual(sizes[key].width);
+    expect(sizes[key].photoHeight).toBeLessThanOrEqual(sizes[key].height);
+    expect(sizes[key].radius).toBe("50%");
+  }
 });
 
 test("post captions show exactly two visual lines with See more, then expand and collapse", async ({ page }) => {
