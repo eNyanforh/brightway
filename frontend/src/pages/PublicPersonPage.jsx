@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { notificationsApi } from "../api/notifications";
 import { useAuth } from "../auth/useAuth";
+import VerificationBadge from "../components/VerificationBadge";
+import Icon from "../components/layout/Icon";
 import "./public-person.css";
 
 const regionNames = typeof Intl.DisplayNames === "function"
@@ -60,6 +62,9 @@ function PublishedPerson({ username }) {
   const hasDirection = Boolean(field || profile.careerGoals);
   const skills = Array.isArray(profile.skills) ? profile.skills : [];
   const interests = Array.isArray(profile.interests) ? profile.interests : [];
+  const certifications = Array.isArray(profile.certifications) ? profile.certifications : [];
+  const verifiedCredentials = Array.isArray(profile.verifiedCredentials) ? profile.verifiedCredentials : [];
+  const achievements = Array.isArray(profile.achievements) ? profile.achievements : [];
 
   return <article className="bw-public-person">
     <Link className="bw-public-person-back" to="/network">
@@ -73,7 +78,7 @@ function PublishedPerson({ username }) {
         <PersonAvatar />
         <div className="bw-public-person-intro">
           <span className="bw-public-person-status">Published profile</span>
-          <h1>{profile.fullName}</h1>
+          <h1 className="bw-public-person-name"><span>{profile.fullName}</span>{profile.identityVerified === true && <VerificationBadge />}</h1>
           <p className="bw-public-person-handle">@{profile.username}</p>
           {profile.headline && <p className="bw-public-person-headline">{profile.headline}</p>}
           {location && <p className="bw-public-person-location">
@@ -87,9 +92,13 @@ function PublishedPerson({ username }) {
       </header>
     </div>
 
-    {(profile.bio || hasDirection || skills.length || interests.length) && (
+    {(profile.bio || hasDirection || skills.length || interests.length ||
+      certifications.length || verifiedCredentials.length || achievements.length) && (
       <nav className="bw-public-person-nav" aria-label="Published profile sections">
         {profile.bio && <a href="#published-about">About</a>}
+        {verifiedCredentials.length > 0 && <a href="#published-credentials">Verified credentials</a>}
+        {certifications.length > 0 && <a href="#published-certifications">Certifications</a>}
+        {achievements.length > 0 && <a href="#published-achievements">Achievements</a>}
         {hasDirection && <a href="#published-direction">Career direction</a>}
         {skills.length > 0 && <a href="#published-skills">Skills</a>}
         {interests.length > 0 && <a href="#published-interests">Interests</a>}
@@ -101,6 +110,66 @@ function PublishedPerson({ username }) {
         <h2 id="published-about-title">About</h2>
         <p>{profile.bio}</p>
       </section>}
+      {verifiedCredentials.length > 0 && (
+        <section id="published-credentials" aria-labelledby="published-credentials-title">
+          <h2 id="published-credentials-title">Verified credentials</h2>
+          <p className="bw-public-person-section-help">Education and experience records reviewed by an authorized issuer or BrightWay.</p>
+          <div className="bw-public-person-records">
+            {verifiedCredentials.map(record => (
+              <article className="bw-public-person-record" key={record.kind + record.id}>
+                <span className="bw-public-person-record-icon"><Icon name={record.kind === "education" ? "book" : "briefcase"} /></span>
+                <div>
+                  <h3>{record.title}</h3>
+                  <p>{record.organization}</p>
+                  <small>{record.startMonth} – {record.current ? "Present" : record.endMonth || "Not specified"}</small>
+                  <span className="bw-public-person-verified"><VerificationBadge /> Verified · {record.verifiedBy}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+      {certifications.length > 0 && (
+        <section id="published-certifications" aria-labelledby="published-certifications-title">
+          <h2 id="published-certifications-title">Licenses and certifications</h2>
+          <p className="bw-public-person-section-help">Self-reported certifications, not independently verified by BrightWay.</p>
+          <div className="bw-public-person-records">
+            {certifications.map((item, index) => (
+              <article className="bw-public-person-record" key={index}>
+                <span className="bw-public-person-record-icon"><Icon name="book" /></span>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.issuer}</p>
+                  <small>Issued {item.issuedMonth}{item.expiresMonth ? ` · Expires ${item.expiresMonth}` : ""}</small>
+                  {/^https:\/\//i.test(item.credentialUrl || "") && (
+                    <a href={item.credentialUrl} target="_blank" rel="noopener noreferrer">View certificate</a>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+      {achievements.length > 0 && (
+        <section id="published-achievements" aria-labelledby="published-achievements-title">
+          <h2 id="published-achievements-title">Professional achievements</h2>
+          <div className="bw-public-person-achievements">
+            {achievements.map(item => (
+              <article className="bw-public-person-achievement" key={item.id}>
+                <div className="bw-public-person-achievement-meta">
+                  <strong><Icon name="sprout" /> Achievement</strong>
+                  <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString()}</time>
+                </div>
+                <p>{item.body}</p>
+                {item.tags?.length > 0 && <ul className="bw-public-person-list">
+                  {item.tags.map(tag => <li key={tag}>{tag}</li>)}
+                </ul>}
+                <Link to={`/explore?source=member&post=${encodeURIComponent(item.id)}`}>View achievement</Link>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
       {hasDirection && <section id="published-direction" aria-labelledby="published-direction-title">
         <h2 id="published-direction-title">Career direction</h2>
         {field && <strong className="bw-public-person-field">{field}</strong>}
@@ -117,8 +186,9 @@ function PublishedPerson({ username }) {
     </div>
 
     <p className="bw-public-person-note">
-      This view includes only details the member chose to publish. Contact, education,
-      and experience information are not shown here.
+      This view includes only the member's published profile details and sections
+      they separately enabled. Contact information and verification evidence remain private.
+      Standalone certifications are self-reported; only reviewed records carry a verified label.
     </p>
   </article>;
 }
