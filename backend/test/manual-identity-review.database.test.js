@@ -237,9 +237,9 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(review.items[0].name, undefined, "Private applicant names must not be exposed.");
     await assert.rejects(posts.decideEventRequest(viewerActor, restricted.id, review.items[0].id,
       { approved: true }), { status: 403 });
-    const decision = await posts.decideEventRequest(actor, restricted.id, review.items[0].id,
+    const eventDecision = await posts.decideEventRequest(actor, restricted.id, review.items[0].id,
       { approved: true });
-    assert.deepEqual(decision, {
+    assert.deepEqual(eventDecision, {
       registration: { registered: false, status: null, count: 1 },
       eventAttendees: [], pendingCount: 0,
     });
