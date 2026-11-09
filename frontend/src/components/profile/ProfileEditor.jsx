@@ -5,6 +5,7 @@ import InterestPicker from "./InterestPicker";
 import SkillPicker from "./SkillPicker";
 import Icon from "../layout/Icon";
 import ProfilePicture from "./ProfilePicture";
+import ProfilePhotoReviewStatus from "./ProfilePhotoReviewStatus";
 import { countryCodes } from "../../pages/profile-countries";
 
 const names =
@@ -56,6 +57,8 @@ export default function ProfileEditor({
   onReload,
   onSignIn,
   photoReviewRequired = false,
+  onPhotoReviewRefresh,
+  onPhotoReviewCancel,
 }) {
   const dialog = useRef(null);
   const { editor, form, profile, busy, error } = draft;
@@ -353,6 +356,16 @@ export default function ProfileEditor({
                 <p className="bw-profile-muted">
                   {needsPhotoReview ? "Your approved photo stays visible while BrightWay reviews the replacement. Uploading another replacement supersedes your pending photo request." : "A successful upload becomes your current picture immediately."}
                 </p>
+                {needsPhotoReview && (
+                  <ProfilePhotoReviewStatus
+                    review={{ ...profile.photoReview, required: needsPhotoReview }}
+                    name={name}
+                    busy={busy}
+                    embedded
+                    onRefresh={onPhotoReviewRefresh}
+                    onCancel={onPhotoReviewCancel}
+                  />
+                )}
               </>
             )}
           </fieldset>
