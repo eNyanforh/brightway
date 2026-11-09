@@ -59,7 +59,7 @@ it("shows retry on API failure and never invents activity data", async () => {
       : json({ items: [], nextCursor: null, access: {} });
   }));
   render(<MemoryRouter><ProfileActivities accountId="me" /></MemoryRouter>);
-  expect(await screen.findByRole("alert")).toHaveTextContent("Activity is temporarily unavailable.");
+  expect((await screen.findByRole("alert")).textContent).toContain("Activity is temporarily unavailable.");
   expect(screen.queryByRole("article")).toBeNull();
   await userEvent.setup().click(screen.getByRole("button", { name: "Try again" }));
   expect(await screen.findByText("No activity yet")).toBeTruthy();
