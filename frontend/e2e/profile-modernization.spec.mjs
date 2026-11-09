@@ -37,7 +37,7 @@ const published = {
   skills: ["React", "TypeScript"], interests: ["Education"],
 };
 
-async function fixture(page, profileOverrides = {}, publishedOverrides = {}) {
+async function fixture(page, profileOverrides = {}, publishedOverrides = {}, activityCaption = "Finished a community coding project.") {
   let privateReads = 0;
   let publicViews = 0;
   let activityReads = 0;
@@ -67,7 +67,7 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}) {
           }], nextCursor: null }
           : { access: {}, items: [
             { id: "11111111-1111-4111-8111-111111111111", type: "ACHIEVEMENT",
-              body: "Finished a community coding project.", createdAt: "2026-11-09T09:00:00Z",
+              body: activityCaption, createdAt: "2026-11-09T09:00:00Z",
               tags: ["Coding"],
               member: { username: "synthetic", name: "Synthetic Member", photoId: null, verified: true },
               reaction: { count: 4, liked: false }, views: 28, commentCount: 2,
@@ -159,6 +159,26 @@ test("my profile shows a private dashboard above About without tabs on desktop a
   expect(api.privateReads()).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
+});
+
+test("long post captions are collapsed and expandable without losing content", async ({ page }) => {
+  const ending = "This closing detail must remain readable after expansion.";
+  const longCaption = "Built something meaningful through research, prototypes, testing and collaboration. "
+    .repeat(8) + ending;
+  await fixture(page, {}, {}, longCaption);
+  await page.goto("/profile");
+  const card = page.locator("#profile-activity .bw-timeline-post").first();
+  await expect(card).toBeVisible();
+  const caption = card.locator(".bw-post-text");
+  await expect(caption).not.toContainText(ending);
+  const more = card.getByRole("button", { name: "Read more" });
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  await more.click();
+  await expect(caption).toHaveText(longCaption);
+  await expect(card.getByRole("button", { name: "Show less" })).toHaveAttribute("aria-expanded", "true");
+  await card.getByRole("button", { name: "Show less" }).click();
+  await expect(caption).not.toContainText(ending);
+  await expect(card.getByRole("button", { name: "Read more" })).toBeVisible();
 });
 
 test("published profile shows only shared fields in a responsive modern layout", async ({ page }) => {
