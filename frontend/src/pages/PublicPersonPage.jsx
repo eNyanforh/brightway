@@ -122,7 +122,7 @@ function PublishedPerson({ username }) {
                   <h3>{record.title}</h3>
                   <p>{record.organization}</p>
                   <small>{record.startMonth} – {record.current ? "Present" : record.endMonth || "Not specified"}</small>
-                  <span className="bw-public-person-verified"><VerificationBadge /> Verified · {record.verifiedBy}</span>
+                  <span className="bw-public-person-verified" aria-label="Verified credential">✓ Verified credential · {record.verifiedBy}</span>
                 </div>
               </article>
             ))}
