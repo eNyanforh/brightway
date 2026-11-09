@@ -353,8 +353,42 @@
 .bw-explore .bw-timeline-panel .bw-timeline-action:hover { background: #eef4fd; color: var(--explore-blue-hover); }
 .bw-explore .bw-timeline-panel .bw-timeline-like-action[aria-pressed="true"] { background: #fff6e5; color: #92621c; }
 .bw-explore .bw-timeline-panel .bw-timeline-repost-action[data-active="true"] { background: #e7f6ee; color: #167047; }
-.bw-explore .bw-timeline-panel .bw-signup-action { color: #21569f; }
-.bw-explore .bw-timeline-panel .bw-signup-action[aria-pressed="true"] { color: #197150; }
+/* Override the neutral timeline icon-button rules for the primary event CTA. */
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-register-action {
+  min-width: auto;
+  min-height: 39px;
+  gap: .45rem;
+  padding: .42rem .9rem;
+  border: 1px solid #1c54b9;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2069d8, #174796);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 800;
+  box-shadow: 0 3px 9px #194f9c2c;
+  white-space: nowrap;
+}
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-register-action:hover:enabled {
+  border-color: #123f8d;
+  background: linear-gradient(135deg, #1659c5, #123a7f);
+  box-shadow: 0 4px 12px #184b963a;
+  color: #fff;
+}
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-register-action[aria-pressed="true"] {
+  border-color: #b8e1d1;
+  background: #eaf8f2;
+  box-shadow: none;
+  color: #126748;
+}
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-register-action[aria-pressed="true"]:hover:enabled {
+  border-color: #9dd3bb;
+  background: #dff2e9;
+  color: #10583e;
+}
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-register-action:focus-visible {
+  outline: 3px solid #83adfa;
+  outline-offset: 2px;
+}
 .bw-explore .bw-post-view-metric { gap: .25rem; padding: .3rem .2rem; color: #61718a; font-size: .73rem; }
 .bw-explore .bw-post-primary-action { flex: 0 0 auto; }
 .bw-explore .bw-post-comments { min-width: 0; margin-top: .25rem; }
@@ -479,6 +513,13 @@
   .bw-explore .bw-timeline-post { grid-template-columns: 34px minmax(0, 1fr); column-gap: .45rem; padding: .75rem .52rem .55rem; }
   .bw-explore .bw-timeline-avatar { width: 34px; height: 34px; }
   .bw-explore .bw-timeline-panel .bw-timeline-action { min-width: 30px; min-height: 38px; padding: .28rem .22rem; gap: .13rem; }
+  .bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-register-action {
+    min-width: auto;
+    min-height: 36px;
+    gap: .3rem;
+    padding: .32rem .62rem;
+    font-size: .73rem;
+  }
   .bw-explore .bw-timeline-actions--split .bw-post-secondary-actions { gap: 0; }
   .bw-explore .bw-post-view-metric { padding-inline: .06rem; font-size: .68rem; }
 }
