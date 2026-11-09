@@ -518,7 +518,7 @@ test("purpose-driven post cards expose distinct actions and functional registrat
   await expect(achievementCard.getByRole("button", { name: "Share" })).toBeVisible();
   await expect(achievementCard.getByLabel(/views$/)).toBeVisible();
 
-  for (const [card, primaryName] of [[eventCard, "I\'m going"], [questionCard, "Answer"]]) {
+  for (const [card, primaryName] of [[eventCard, "I'm going"], [questionCard, "Answer"]]) {
     const actions = card.locator(".bw-timeline-actions--split");
     const primary = actions.locator(".bw-post-primary-action").getByRole("button", { name: primaryName });
     const secondary = actions.locator(".bw-post-secondary-actions");
@@ -532,7 +532,7 @@ test("purpose-driven post cards expose distinct actions and functional registrat
   await expect(questionCard.getByRole("region", { name: "Post comments" })).toHaveCount(0);
   await expect(eventCard.getByRole("button", { name: "Comments" })).toBeVisible();
   await expect(eventCard.getByRole("button", { name: "Like" })).toHaveCount(0);
-  await eventCard.getByRole("button", { name: "I\'m going" }).click();
+  await eventCard.getByRole("button", { name: "I'm going" }).click();
   await expect(eventCard.getByRole("button", { name: /Going — cancel attendance/ })).toBeVisible();
   expect(calls).toContainEqual({ registered: true });
 
@@ -823,12 +823,12 @@ test("event cards display real registrant avatars and count, refreshed after reg
     .evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(avatars.getByRole("link", { name: "Alex Rivera attending" })
     .locator("svg")).toBeVisible();
-  await card.getByRole("button", { name: "I\'m going", exact: true }).click();
+  await card.getByRole("button", { name: "I'm going", exact: true }).click();
   await expect(card.getByRole("button", { name: /Going — cancel attendance/ })).toBeVisible();
   await expect(summary).toContainText("43 people attending");
   await expect(avatars.getByRole("link", { name: "Synthetic Member attending" })).toBeVisible();
   await card.getByRole("button", { name: /Going — cancel attendance/ }).click();
-  await expect(card.getByRole("button", { name: "I\'m going", exact: true })).toBeVisible();
+  await expect(card.getByRole("button", { name: "I'm going", exact: true })).toBeVisible();
   await expect(summary).toContainText("42 people attending");
   expect(calls).toEqual([true, false]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
@@ -896,7 +896,7 @@ test("mobile event and question primary actions stay left of the right utility g
     json: { success: true, data: { views: 22 } },
   }));
   await page.goto("/explore");
-  for (const [body, type, name] of [[event.body, "EVENT", "I\'m going"], [question.body, "QUESTION", "Answer"]]) {
+  for (const [body, type, name] of [[event.body, "EVENT", "I'm going"], [question.body, "QUESTION", "Answer"]]) {
     const card = page.getByRole("article").filter({ hasText: body });
     const actionBar = card.locator(".bw-timeline-actions--split");
     const leading = actionBar.locator(".bw-post-primary-action").getByRole("button", { name });
