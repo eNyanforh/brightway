@@ -85,95 +85,216 @@
   overflow: hidden;
 }
 .bw-profile-activity-item:hover { border-color: #c9daef; }
+/* These are the regular Explore timeline card primitives, reused without
+   changing the horizontal Activity rail itself. */
 .bw-profile-activity-item .bw-timeline-post {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
-  column-gap: 11px;
   align-items: start;
-  padding: 17px 16px 12px;
+  column-gap: .7rem;
   min-width: 0;
   flex: 1;
+  padding: .92rem .95rem .65rem;
   border: 0;
   background: #fff;
 }
 .bw-profile-activity-item .bw-timeline-post-main { min-width: 0; }
+.bw-profile-activity-item .bw-timeline-avatar {
+  width: 40px;
+  height: 40px;
+  align-self: start;
+  background: #e9f1fc;
+  color: #2159ac;
+}
 .bw-profile-activity-item .bw-timeline-byline {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 5px;
-  color: #667991;
-  font-size: .76rem;
-  line-height: 1.6;
+  gap: .3rem;
+  min-width: 0;
+  color: #60718a;
+  font-size: .8rem;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
-.bw-profile-activity-item .bw-timeline-byline a { color: #203e66; text-decoration: none; font-weight: 800; }
-.bw-profile-activity-item .bw-timeline-byline a:hover { text-decoration: underline; }
-.bw-profile-activity-item .bw-timeline-avatar { width: 40px; height: 40px; }
+.bw-profile-activity-item .bw-timeline-byline .bw-post-publisher-name {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .22rem;
+  min-width: 0;
+  max-width: 100%;
+}
+.bw-profile-activity-item .bw-timeline-byline .bw-post-publisher-name a {
+  overflow-wrap: anywhere;
+}
+.bw-profile-activity-item .bw-timeline-byline a {
+  color: #172b4a;
+  font-weight: 750;
+  text-decoration: none;
+}
+.bw-profile-activity-item .bw-timeline-byline a:hover,
+.bw-profile-activity-item .bw-timeline-repost a:hover { text-decoration: underline; }
+.bw-profile-activity-item .bw-timeline-repost {
+  grid-column: 2;
+  margin: 0 0 .3rem;
+  color: #60718a;
+  font-size: .76rem;
+}
+.bw-profile-activity-item .bw-timeline-post .bw-post-text {
+  margin: .38rem 0 .45rem;
+  color: #273c5a;
+  font-size: .89rem;
+  line-height: 1.6;
+}
 .bw-profile-activity-item .bw-post-story--compact {
+  margin: .28rem 0 .3rem;
   padding: 0;
-  margin: 9px 0 4px;
   border: 0;
   border-radius: 0;
-  background: none;
+  background: transparent;
 }
 .bw-profile-activity-item .bw-post-story--compact .bw-post-type-label {
-  margin: 0 0 8px;
+  margin: .1rem 0 .25rem;
+  padding: .17rem .46rem;
+  border-radius: 6px;
+  background: var(--post-type-background);
+  color: var(--post-type-color);
   font-size: .68rem;
+  font-weight: 720;
+  text-transform: none;
   letter-spacing: 0;
 }
 .bw-profile-activity-item .bw-post-story--compact .bw-post-text {
-  margin: 7px 0 10px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  color: #273d5e;
-  font-size: .86rem;
-  line-height: 1.62;
+  margin: .28rem 0 .5rem;
+  font-size: .91rem;
+  font-weight: 450;
 }
-.bw-profile-activity-item .bw-post-story--compact h3 { font-size: .93rem; overflow-wrap: anywhere; }
+.bw-profile-activity-item .bw-post-story--compact .bw-post-topic-tags {
+  margin: .42rem 0 .3rem;
+}
+.bw-profile-activity-item .bw-event-feed-card {
+  min-width: 0;
+  margin: .45rem 0 .65rem;
+  border: 1px solid #e0e7f1;
+  border-radius: 10px;
+}
+.bw-profile-activity-item .bw-event-feed-cover {
+  min-height: 76px;
+  padding: .7rem .85rem;
+}
+.bw-profile-activity-item .bw-event-feed-content {
+  gap: .45rem;
+  padding: .75rem .85rem;
+}
+.bw-profile-activity-item .bw-event-feed-content h3 {
+  color: #172b4a;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+.bw-profile-activity-item .bw-event-feed-content p {
+  color: #60718a;
+  font-size: .76rem;
+  line-height: 1.45;
+}
+.bw-profile-activity-item .bw-question-feed-content { margin: .4rem 0 .55rem; gap: .25rem; }
+.bw-profile-activity-item .bw-question-feed-content h3 {
+  color: #172b4a;
+  font-size: 1.02rem;
+  font-weight: 720;
+  line-height: 1.42;
+}
+.bw-profile-activity-item .bw-question-answer-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .6rem;
+  min-height: 36px;
+  margin: .6rem 0 .16rem;
+  padding-top: .55rem;
+  border-top: 1px solid #ebf0f6;
+}
+.bw-profile-activity-item .bw-question-answer-count {
+  color: #63748c;
+  font-size: .77rem;
+  font-variant-numeric: tabular-nums;
+}
+.bw-profile-activity-item .bw-question-answer-count strong {
+  color: #23416b;
+  font-weight: 760;
+}
 .bw-profile-activity-item .bw-post-topic-tags { flex-wrap: wrap; }
-.bw-profile-activity-item .bw-event-feed-card { min-width: 0; }
-.bw-profile-activity-item .bw-post-comments { margin-top: 8px; min-width: 0; }
+.bw-profile-activity-item .bw-post-comments { min-width: 0; margin-top: .25rem; }
 .bw-profile-activity-item .bw-timeline-actions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  width: 100%;
+  max-width: none;
   min-width: 0;
-  gap: 4px;
+  margin: .2rem 0 0;
+  gap: .24rem;
+}
+.bw-profile-activity-item .bw-post-secondary-actions { display: flex; align-items: center; min-width: 0; gap: .2rem; }
+.bw-profile-activity-item .bw-post-secondary-actions--default {
+  width: 100%;
+  justify-content: space-between;
+  flex-wrap: wrap;
 }
 .bw-profile-activity-item .bw-timeline-actions--split { flex-wrap: nowrap; }
-.bw-profile-activity-item .bw-post-secondary-actions { gap: 2px; }
-.bw-profile-activity-item .bw-post-secondary-actions--default { flex-wrap: wrap; }
+.bw-profile-activity-item .bw-timeline-actions--split .bw-post-secondary-actions {
+  justify-content: flex-end;
+  margin-left: auto;
+  flex-wrap: nowrap;
+}
 .bw-profile-activity-item.bw-post-panel .bw-timeline-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 34px;
-  min-width: 30px;
-  padding: 5px;
+  gap: .25rem;
+  min-width: 34px;
+  min-height: 40px;
+  padding: .34rem;
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #5b708b;
-  font-size: .72rem;
+  color: #61718a;
+  font-size: .75rem;
+  font-weight: 600;
 }
-.bw-profile-activity-item.bw-post-panel .bw-timeline-action:hover:enabled { color: #1a58a9; background: #ecf3fc; }
-.bw-profile-activity-item.bw-post-panel .bw-timeline-action[aria-pressed="true"] { color: #205ba7; }
+.bw-profile-activity-item.bw-post-panel .bw-timeline-action:hover:enabled {
+  background: #eef4fd;
+  color: #124ba9;
+}
+.bw-profile-activity-item.bw-post-panel .bw-timeline-action[aria-pressed="true"] {
+  color: #175cd3;
+}
 .bw-profile-activity-item.bw-post-panel .bw-register-action {
-  border: 1px solid #184f9e;
-  padding: 5px 9px;
+  min-height: 39px;
+  gap: .48rem;
+  padding: .45rem .9rem;
+  border: 1px solid #1c54b9;
   border-radius: 999px;
-  background: #1957b6;
-  color: white;
-  font-weight: 770;
+  background: linear-gradient(135deg, #2069d8, #174796);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 800;
+  box-shadow: 0 3px 9px #194f9c2c;
   white-space: nowrap;
 }
-.bw-profile-activity-item.bw-post-panel .bw-register-action:hover:enabled { background: #123e85; color: white; }
-.bw-profile-activity-item .bw-post-view-metric { font-size: .7rem; }
+.bw-profile-activity-item.bw-post-panel .bw-register-action:hover:enabled {
+  border-color: #13418f;
+  background: linear-gradient(135deg, #1659c5, #123a7f);
+  color: #fff;
+}
+.bw-profile-activity-item .bw-post-view-metric {
+  font-size: .73rem;
+  color: #61718a;
+  padding: .3rem .2rem;
+}
 .bw-profile-activity-item .bw-discussion-panel { min-width: 0; }
 .bw-profile-activity-item .bw-discussion-composer textarea,
-.bw-profile-activity-item .bw-question-report textarea { min-width: 0; width: 100%; }
+.bw-profile-activity-item .bw-question-report textarea { width: 100%; min-width: 0; }
 .bw-profile-activity-link {
   display: inline-flex;
   justify-content: center;
@@ -220,7 +341,7 @@
 .bw-profile-activity-empty a { color: #245ca3; font-size: .76rem; font-weight: 770; text-decoration: none; }
 .bw-profile-activity-error { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: .8rem; color: #a73e3e; }
 @media (max-width: 550px) {
-  .bw-profile-activity-item .bw-timeline-post { padding: 13px 11px 10px; grid-template-columns: 34px minmax(0, 1fr); gap: 7px; }
+  .bw-profile-activity-item .bw-timeline-post { padding: .75rem .52rem .55rem; grid-template-columns: 34px minmax(0, 1fr); column-gap: .45rem; }
   .bw-profile-activity-item .bw-timeline-avatar { width: 34px; height: 34px; }
   .bw-profile-activity-description { max-width: 260px; }
   .bw-profile-activity-list { gap: 10px; }
