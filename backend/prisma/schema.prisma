@@ -1000,16 +1000,24 @@ model MemberPost {
   @@index([authorId, createdAt])
 }
 
-// Event registrations are one per account and event, toggled with an idempotent PUT.
+// Legacy registrations are approved on migration; new requests can require host approval.
+enum EventRegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model EventRegistration {
   id String @id @default(uuid())
   memberPostId String
   memberPost MemberPost @relation(fields: [memberPostId], references: [id], onDelete: Cascade)
   accountId String
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  status EventRegistrationStatus @default(APPROVED)
   createdAt DateTime @default(now())
   @@unique([memberPostId, accountId])
   @@index([accountId, createdAt])
+  @@index([memberPostId, status, createdAt])
 }
 
 model QuestionAnswer {

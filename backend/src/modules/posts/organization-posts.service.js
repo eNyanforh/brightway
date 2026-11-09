@@ -31,6 +31,7 @@ const likeInput = z.strictObject({ liked: z.boolean() });
 const repostInput = z.strictObject({ reposted: z.boolean() });
 const saveInput = z.strictObject({ saved: z.boolean() });
 const registrationInput = z.strictObject({ registered: z.boolean() });
+const registrationDecisionInput = z.strictObject({ approved: z.boolean() });
 const voteInput = z.strictObject({ value: z.union([z.literal(-1), z.literal(0), z.literal(1)]) });
 const answerSortInput = z.strictObject({ sort: z.enum(["top", "newest"]).default("top") });
 const reportInput = z.strictObject({
@@ -56,6 +57,10 @@ const eventDetailsInput = z.strictObject({
   venue: z.string().trim().max(240).default(""),
   meetingUrl: z.union([z.url({ protocol: /^https?$/ }).max(500), z.literal("")]).default(""),
   coverTheme: z.enum(["NAVY", "SUNSET", "FOREST", "VIOLET"]).default("NAVY"),
+  ticketPriceCents: z.number().int().min(0).max(100_000_000).default(0),
+  currency: z.enum(["USD", "LRD"]).default("USD"),
+  requiresApproval: z.boolean().default(false),
+  capacity: z.number().int().min(1).max(100_000).nullable().default(null),
 }).superRefine((value, ctx) => {
   const start = Date.parse(value.startAt);
   const end = Date.parse(value.endAt);
@@ -242,7 +247,11 @@ function feedPost({ likes, _count, saves, reposts, registrations, answers = [], 
     ...(post.author ? memberPost(post, true) : post),
     reaction: likeSummary({ likes, _count }),
     views: _count.views ?? 0,
-    ...(registrations && { registration: { registered: registrations.length > 0, count: _count.registrations ?? 0 } }),
+    ...(registrations && { registration: {
+      registered: registrations[0]?.status === "APPROVED",
+      status: registrations[0]?.status ?? null,
+      count: _count.registrations ?? 0,
+    } }),
     ...(post.type === "QUESTION" && { answerCount: _count.answers ?? 0, answerParticipants: participants }),
     saved: saves.length > 0,
     reposted: reposts.length > 0,
@@ -258,8 +267,10 @@ function sameQuestionDetails(left, right) {
 function sameEventDetails(left, right) {
   if (!left && !right) return true;
   if (!left || !right) return false;
-  return ["title", "startAt", "endAt", "timezone", "format", "venue", "meetingUrl", "coverTheme"]
-    .every(key => (left[key] ?? null) === (right[key] ?? null));
+  const defaults = { ticketPriceCents: 0, currency: "USD", requiresApproval: false, capacity: null };
+  return ["title", "startAt", "endAt", "timezone", "format", "venue", "meetingUrl", "coverTheme",
+    "ticketPriceCents", "currency", "requiresApproval", "capacity"]
+    .every(key => (left[key] ?? defaults[key] ?? null) === (right[key] ?? defaults[key] ?? null));
 }
 
 function memberPost({ author, ...post }, verified = false) {
@@ -324,6 +335,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         const registrations = await db.eventRegistration.findMany({
           where: {
             memberPostId: id,
+            status: "APPROVED",
             account: { AND: [visibleMember(viewer), unblockedAuthor(authorId)] },
           },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -347,6 +359,21 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       previews.set(id, shown);
     }
     return previews;
+  }
+
+  async function eventRegistrationSummary(db, post, viewer) {
+    const [count, own, attendees] = await Promise.all([
+      db.eventRegistration.count({ where: { memberPostId: post.id, status: "APPROVED" } }),
+      db.eventRegistration.findUnique({
+        where: { memberPostId_accountId: { memberPostId: post.id, accountId: viewer } },
+        select: { status: true },
+      }),
+      eventAttendeePreviews(db, [{ id: post.id, authorId: post.authorId }], viewer),
+    ]);
+    return {
+      registration: { registered: own?.status === "APPROVED", status: own?.status ?? null, count },
+      eventAttendees: attendees.get(post.id) ?? [],
+    };
   }
 
   async function projectVisiblePosts(candidates, viewer) {
@@ -392,6 +419,12 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     for (const { row, post } of entries) {
       if (post.author && !eligible.has(post.author.id)) continue;
       const { authorId, ...original } = post;
+      // Approval-only online meeting links must never reach unapproved viewers,
+      // including in shared/reposted event cards and direct post reads.
+      if (post.type === "EVENT" && post.eventDetails?.requiresApproval === true
+        && post.author.id !== viewer && post.registrations?.[0]?.status !== "APPROVED") {
+        original.eventDetails = { ...post.eventDetails, meetingUrl: "" };
+      }
       if (!row.account) {
         items.push(feedPost(original, blockedKeys));
         if (post.type === "EVENT" && post.author) events.set(post.id, post.author.id);
@@ -599,8 +632,8 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const select = { ...likeSelect(actor.accountId), saves: ownActivity, reposts: ownActivity };
       const memberSelectEngagement = {
         ...memberPostSelect, ...select,
-        _count: { select: { likes: true, views: true, registrations: true, answers: { where: { deletedAt: null } } } },
-        registrations: { where: { accountId: actor.accountId }, select: { id: true } },
+        _count: { select: { likes: true, views: true, registrations: { where: { status: "APPROVED" } }, answers: { where: { deletedAt: null } } } },
+        registrations: { where: { accountId: actor.accountId }, select: { status: true } },
         answers: answerPreviewSelect(actor.accountId),
       };
       const row = await postModel(prisma, ref.source).findUniqueOrThrow({
@@ -617,15 +650,88 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const id = parse(identifier, idValue, "Choose a valid event.");
       const { registered } = parse(registrationInput, input, "Choose whether to register.");
       return writeVisiblePost(actor, { source: "member", id }, async tx => {
-        const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true, eventDetails: true, authorId: true } });
+        // Serialize joins, cancellations and host approvals for this event.
+        await tx.$queryRaw`SELECT "id" FROM "MemberPost" WHERE "id" = ${id} FOR UPDATE`;
+        const post = await tx.memberPost.findUniqueOrThrow({
+          where: { id }, select: { id: true, type: true, eventDetails: true, authorId: true },
+        });
         if (post.type !== "EVENT" || !post.eventDetails) throw fail(400, "Registration is only available for events.");
-        if (registered && Date.parse(post.eventDetails.endAt) <= +now()) throw fail(409, "Registration is closed for this event.");
         const key = { memberPostId: id, accountId: actor.accountId };
-        if (registered) await tx.eventRegistration.createMany({ data: [key], skipDuplicates: true });
-        else await tx.eventRegistration.deleteMany({ where: key });
-        const count = await tx.eventRegistration.count({ where: { memberPostId: id } });
-        const attendees = await eventAttendeePreviews(tx, [{ id, authorId: post.authorId }], actor.accountId);
-        return { registration: { registered, count }, eventAttendees: attendees.get(id) ?? [] };
+        const existing = await tx.eventRegistration.findUnique({ where: { memberPostId_accountId: key }, select: { status: true } });
+        if (registered) {
+          if (Date.parse(post.eventDetails.endAt) <= +now()) throw fail(409, "Registration is closed for this event.");
+          if (!existing || existing.status === "REJECTED") {
+            const occupied = await tx.eventRegistration.count({ where: { memberPostId: id, status: "APPROVED" } });
+            if (post.eventDetails.capacity != null && occupied >= post.eventDetails.capacity)
+              throw fail(409, "This event has reached its capacity.");
+            const status = post.eventDetails.requiresApproval === true ? "PENDING" : "APPROVED";
+            if (!existing) await tx.eventRegistration.create({ data: { ...key, status } });
+            else await tx.eventRegistration.update({ where: { memberPostId_accountId: key }, data: { status } });
+          }
+        } else {
+          await tx.eventRegistration.deleteMany({ where: key });
+        }
+        return eventRegistrationSummary(tx, post, actor.accountId);
+      });
+    },
+
+    async eventRequests(actor, idValue) {
+      const id = parse(identifier, idValue, "Choose a valid event.");
+      await assertNetworkSession(prisma, actor, now);
+      const post = await prisma.memberPost.findFirst({
+        where: { id, authorId: actor.accountId, type: "EVENT", withdrawnAt: null },
+        select: { id: true, eventDetails: true },
+      });
+      if (!post) throw fail(403, "Only the event host can review attendance requests.");
+      const [rows, pendingCount] = await Promise.all([
+        prisma.eventRegistration.findMany({
+          where: { memberPostId: id, status: "PENDING" },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          take: 50,
+          select: { id: true, createdAt: true, account: { select: memberSelect } },
+        }),
+        prisma.eventRegistration.count({ where: { memberPostId: id, status: "PENDING" } }),
+      ]);
+      const approved = await approvedDiscussionAuthors(prisma, rows.map(row => ({ author: row.account })));
+      await assertNetworkSession(prisma, actor, now);
+      return {
+        items: rows.map(row => ({ id: row.id, createdAt: row.createdAt,
+          ...discussionAttribution(row.account, approved.has(row.account.id)) })),
+        pendingCount, hasMore: pendingCount > rows.length,
+      };
+    },
+
+    async decideEventRequest(actor, idValue, requestValue, input) {
+      const id = parse(identifier, idValue, "Choose a valid event.");
+      const requestId = parse(identifier, requestValue, "Choose a valid attendance request.");
+      const { approved } = parse(registrationDecisionInput, input, "Choose whether to approve this request.");
+      return writeVisiblePost(actor, { source: "member", id }, async tx => {
+        await tx.$queryRaw`SELECT "id" FROM "MemberPost" WHERE "id" = ${id} FOR UPDATE`;
+        const post = await tx.memberPost.findUniqueOrThrow({
+          where: { id }, select: { id: true, authorId: true, type: true, eventDetails: true },
+        });
+        if (post.authorId !== actor.accountId || post.type !== "EVENT")
+          throw fail(403, "Only the event host can review attendance requests.");
+        const request = await tx.eventRegistration.findFirst({
+          where: { id: requestId, memberPostId: id, status: "PENDING" }, select: { id: true },
+        });
+        if (!request) throw fail(404, "This request is no longer pending.");
+        if (approved) {
+          if (Date.parse(post.eventDetails.endAt) <= +now())
+            throw fail(409, "This event has ended.");
+          const confirmed = await tx.eventRegistration.count({
+            where: { memberPostId: id, status: "APPROVED" },
+          });
+          if (post.eventDetails.capacity != null && confirmed >= post.eventDetails.capacity)
+            throw fail(409, "This event has reached its capacity.");
+        }
+        await tx.eventRegistration.update({ where: { id: requestId },
+          data: { status: approved ? "APPROVED" : "REJECTED" } });
+        const summary = await eventRegistrationSummary(tx, post, actor.accountId);
+        const pendingCount = await tx.eventRegistration.count({
+          where: { memberPostId: id, status: "PENDING" },
+        });
+        return { ...summary, pendingCount };
       });
     },
 
@@ -817,8 +923,8 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const select = { ...likeSelect(actor.accountId), saves: ownActivity, reposts: ownActivity };
       const memberEngagementSelect = {
         ...select,
-        _count: { select: { likes: true, views: true, registrations: true, answers: { where: { deletedAt: null } } } },
-        registrations: { where: { accountId: actor.accountId }, select: { id: true } },
+        _count: { select: { likes: true, views: true, registrations: { where: { status: "APPROVED" } }, answers: { where: { deletedAt: null } } } },
+        registrations: { where: { accountId: actor.accountId }, select: { status: true } },
         answers: answerPreviewSelect(actor.accountId),
       };
       if (view === "saved") {

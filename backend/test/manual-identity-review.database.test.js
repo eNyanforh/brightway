@@ -118,7 +118,9 @@ test("database manual identity requests serialize retries and decisions, revoke 
       const { post } = await posts.memberPublish(actor, typedDraft);
       assert.equal(post.type, type);
       assert.deepEqual(post.tags, typedDraft.tags);
-      if (type === "EVENT") assert.deepEqual(post.eventDetails, { ...details, venue: "University campus", meetingUrl: "https://meet.example.org/student-research" });
+      if (type === "EVENT") assert.deepEqual(post.eventDetails, { ...details,
+        venue: "University campus", meetingUrl: "https://meet.example.org/student-research",
+        ticketPriceCents: 0, currency: "USD", requiresApproval: false, capacity: null });
       if (type === "QUESTION") assert.deepEqual(post.questionDetails, typedDraft.questionDetails);
       assert.deepEqual(await posts.memberPublish(actor, typedDraft), { post });
       const owned = (await posts.memberList(actor, {})).items.find(item => item.id === post.id);
@@ -143,25 +145,25 @@ test("database manual identity requests serialize retries and decisions, revoke 
         const publicAttendee = { username: owner.username, name: "Sample owner", photoId: photo.id, verified: true };
         // Registration totals include private/unverified registrants; avatars must not.
         assert.deepEqual(await posts.registerEvent(viewerActor, post.id, { registered: true }),
-          { registration: { registered: true, count: 1 }, eventAttendees: [] });
+          { registration: { registered: true, status: "APPROVED", count: 1 }, eventAttendees: [] });
         assert.deepEqual(await posts.registerEvent(viewerActor, post.id, { registered: true }),
-          { registration: { registered: true, count: 1 }, eventAttendees: [] });
+          { registration: { registered: true, status: "APPROVED", count: 1 }, eventAttendees: [] });
         let eventInFeed = (await posts.feed(viewerActor, {})).items.find(item => item.id === post.id);
         assert.equal(eventInFeed?.registration?.registered, true);
         assert.equal(eventInFeed?.registration?.count, 1);
         assert.deepEqual(eventInFeed?.eventAttendees, []);
         const ownerRegistration = await posts.registerEvent(actor, post.id, { registered: true });
         assert.deepEqual(ownerRegistration, {
-          registration: { registered: true, count: 2 }, eventAttendees: [publicAttendee],
+          registration: { registered: true, status: "APPROVED", count: 2 }, eventAttendees: [publicAttendee],
         });
         eventInFeed = (await posts.feed(viewerActor, {})).items.find(item => item.id === post.id);
         assert.equal(eventInFeed?.registration?.count, 2);
         assert.deepEqual(eventInFeed?.eventAttendees, [publicAttendee]);
         assert.deepEqual((await posts.readPost(viewerActor, "member", post.id)).post.eventAttendees, [publicAttendee]);
         assert.deepEqual(await posts.registerEvent(actor, post.id, { registered: false }),
-          { registration: { registered: false, count: 1 }, eventAttendees: [] });
+          { registration: { registered: false, status: null, count: 1 }, eventAttendees: [] });
         assert.deepEqual(await posts.registerEvent(viewerActor, post.id, { registered: false }),
-          { registration: { registered: false, count: 0 }, eventAttendees: [] });
+          { registration: { registered: false, status: null, count: 0 }, eventAttendees: [] });
       }
       if (type === "QUESTION") {
         await assert.rejects(posts.setReposted(viewerActor, "member", post.id, { reposted: true }), { status: 400 });
@@ -205,6 +207,88 @@ test("database manual identity requests serialize retries and decisions, revoke 
         await assert.rejects(posts.voteAnswer(viewerActor, answer.id, { value: 1 }), { status: 404 });
       }
       await posts.memberWithdraw(actor, post.id);
+    }
+    const controlledEvent = {
+      title: "Host-approved workshop", startAt: "2027-01-15T12:00:00Z",
+      endAt: "2027-01-15T14:00:00Z", timezone: "UTC", format: "ONLINE",
+      meetingUrl: "https://meet.example.org/approved-only", coverTheme: "NAVY",
+      ticketPriceCents: 2500, currency: "USD", requiresApproval: true, capacity: 1,
+    };
+    const { post: restricted } = await posts.memberPublish(actor, {
+      body: "Limited-seat approval workshop.", requestKey: randomUUID(),
+      type: "EVENT", tags: ["Education"], eventDetails: controlledEvent,
+    });
+    const pending = await posts.registerEvent(viewerActor, restricted.id, { registered: true });
+    assert.deepEqual(pending, {
+      registration: { registered: false, status: "PENDING", count: 0 },
+      eventAttendees: [],
+    });
+    assert.deepEqual(await posts.registerEvent(viewerActor, restricted.id, { registered: true }), pending);
+    assert.equal((await posts.feed(viewerActor, {})).items.find(row => row.id === restricted.id)
+      ?.eventDetails.meetingUrl, "", "An unapproved viewer cannot retrieve the meeting link.");
+    assert.equal((await posts.readPost(viewerActor, "member", restricted.id)).post.eventDetails.meetingUrl, "");
+    assert.equal((await posts.readPost(actor, "member", restricted.id)).post.eventDetails.meetingUrl,
+      controlledEvent.meetingUrl);
+    await assert.rejects(posts.eventRequests(viewerActor, restricted.id), { status: 403 });
+    const review = await posts.eventRequests(actor, restricted.id);
+    assert.equal(review.pendingCount, 1);
+    assert.equal(review.items.length, 1);
+    assert.equal(review.items[0].username, viewer.username);
+    assert.equal(review.items[0].name, undefined, "Private applicant names must not be exposed.");
+    await assert.rejects(posts.decideEventRequest(viewerActor, restricted.id, review.items[0].id,
+      { approved: true }), { status: 403 });
+    const eventDecision = await posts.decideEventRequest(actor, restricted.id, review.items[0].id,
+      { approved: true });
+    assert.deepEqual(eventDecision, {
+      registration: { registered: false, status: null, count: 1 },
+      eventAttendees: [], pendingCount: 0,
+    });
+    await assert.rejects(posts.decideEventRequest(actor, restricted.id, review.items[0].id,
+      { approved: true }), { status: 404 });
+    const confirmed = (await posts.feed(viewerActor, {})).items.find(row => row.id === restricted.id);
+    assert.deepEqual(confirmed.registration,
+      { registered: true, status: "APPROVED", count: 1 });
+    assert.equal(confirmed.eventDetails.meetingUrl, controlledEvent.meetingUrl);
+    await assert.rejects(posts.registerEvent(actor, restricted.id, { registered: true }),
+      { status: 409, message: "This event has reached its capacity." });
+    assert.deepEqual(await posts.registerEvent(viewerActor, restricted.id, { registered: false }),
+      { registration: { registered: false, status: null, count: 0 }, eventAttendees: [] });
+    assert.equal((await posts.feed(viewerActor, {})).items.find(row => row.id === restricted.id)
+      .eventDetails.meetingUrl, "");
+
+    const { post: declinedEvent } = await posts.memberPublish(actor, {
+      body: "Separate approval decisions.", requestKey: randomUUID(), type: "EVENT",
+      tags: ["Education"], eventDetails: { ...controlledEvent, title: "Approval decisions", capacity: 3 },
+    });
+    await posts.registerEvent(viewerActor, declinedEvent.id, { registered: true });
+    const reviewToDecline = await posts.eventRequests(actor, declinedEvent.id);
+    const rejected = await posts.decideEventRequest(actor, declinedEvent.id, reviewToDecline.items[0].id,
+      { approved: false });
+    assert.equal(rejected.registration.count, 0);
+    assert.equal(rejected.pendingCount, 0);
+    assert.equal((await posts.feed(viewerActor, {})).items.find(row => row.id === declinedEvent.id)
+      .registration.status, "REJECTED");
+    assert.equal((await posts.registerEvent(viewerActor, declinedEvent.id, { registered: true }))
+      .registration.status, "PENDING", "A declined guest may submit a new request.");
+    assert.equal((await posts.registerEvent(viewerActor, declinedEvent.id, { registered: false }))
+      .registration.status, null);
+
+    // Do not let additional admission fixtures alter later pagination expectations.
+    await posts.memberWithdraw(actor, restricted.id);
+    await posts.memberWithdraw(actor, declinedEvent.id);
+
+    for (const invalid of [
+      { ...controlledEvent, ticketPriceCents: -10 },
+      { ...controlledEvent, ticketPriceCents: 1.5 },
+      { ...controlledEvent, currency: "EUR" },
+      { ...controlledEvent, capacity: 0 },
+      { ...controlledEvent, capacity: 100_001 },
+      { ...controlledEvent, requiresApproval: "yes" },
+    ]) {
+      await assert.rejects(posts.memberPublish(actor, {
+        body: "Invalid admission settings.", type: "EVENT", tags: ["Education"],
+        requestKey: randomUUID(), eventDetails: invalid,
+      }), { status: 400 });
     }
     await assert.rejects(posts.memberPublish(actor, {
       body: "Invalid event.", requestKey: randomUUID(), type: "EVENT", tags: ["Research"],

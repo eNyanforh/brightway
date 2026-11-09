@@ -176,6 +176,14 @@ for (const format of formats) {
     if (format.type === "EVENT") {
       await editor.getByLabel("Event title").fill("Student Research Workshop");
       await editor.getByLabel("Venue or address").fill("Monrovia University Campus");
+      await editor.getByRole("spinbutton", { name: "Ticket price" }).fill("25.50");
+      await editor.getByRole("combobox", { name: "Currency" }).selectOption("LRD");
+      await editor.getByRole("switch", { name: /Require approval/ }).click();
+      await editor.getByRole("switch", { name: /Set a capacity limit/ }).click();
+      await editor.getByRole("spinbutton", { name: "Maximum attendees" }).fill("12");
+      await expect(editor.getByRole("complementary", { name: "Event preview" })).toContainText("LRD 25.50");
+      await expect(editor.getByRole("complementary", { name: "Event preview" })).toContainText("Host approval required");
+      await expect(editor.getByRole("complementary", { name: "Event preview" })).toContainText("12 seats");
       await editor.getByRole("group", { name: "Event cover style" }).getByRole("button", { name: "Forest" }).click();
       await expect(editor.getByRole("complementary", { name: "Event preview" })).toBeVisible();
     }
@@ -213,11 +221,137 @@ for (const format of formats) {
       } } : {}),
       ...(format.type === "EVENT" ? { eventDetails: expect.objectContaining({
         title: "Student Research Workshop", format: "IN_PERSON", venue: "Monrovia University Campus", coverTheme: "FOREST",
+        ticketPriceCents: 2550, currency: "LRD", requiresApproval: true, capacity: 12,
         startAt: expect.any(String), endAt: expect.any(String),
       }) } : {}),
     })]);
   });
 }
+
+test("event admission settings validate ticket price and capacity before publishing", async ({ page }) => {
+  await fixture(page);
+  await page.goto("/explore");
+  await page.getByRole("button", { name: "Create an Event" }).click();
+  const editor = page.getByRole("dialog", { name: "Create an Event" });
+  const publish = editor.getByRole("button", { name: "Publish event" });
+  await expect(editor.getByRole("switch", { name: /Require approval/ })).toHaveAttribute("aria-checked", "false");
+  await expect(editor.getByRole("switch", { name: /Set a capacity limit/ })).toHaveAttribute("aria-checked", "false");
+  await expect(editor.getByRole("spinbutton", { name: "Ticket price" })).toHaveValue("0");
+  await expect(editor.getByRole("complementary", { name: "Event preview" })).toContainText("Free admission");
+  await editor.getByRole("spinbutton", { name: "Ticket price" }).fill("-1");
+  await expect(editor.getByText(/Enter a valid ticket price up to/)).toBeVisible();
+  await expect(publish).toBeDisabled();
+  await editor.getByRole("spinbutton", { name: "Ticket price" }).fill("100.123");
+  await expect(publish).toBeDisabled();
+  await editor.getByRole("spinbutton", { name: "Ticket price" }).fill("0");
+  await editor.getByRole("switch", { name: /Set a capacity limit/ }).click();
+  await editor.getByRole("spinbutton", { name: "Maximum attendees" }).fill("0");
+  await expect(editor.getByText("Enter a capacity between 1 and 100,000.")).toBeVisible();
+  await expect(publish).toBeDisabled();
+  await editor.getByRole("spinbutton", { name: "Maximum attendees" }).fill("50");
+  await expect(editor.getByRole("spinbutton", { name: "Maximum attendees" })).toHaveValue("50");
+  await editor.getByRole("switch", { name: /Require approval/ }).click();
+  await expect(editor.getByRole("switch", { name: /Require approval/ })).toHaveAttribute("aria-checked", "true");
+  await expect(editor.getByRole("complementary", { name: "Event preview" })).toContainText("50 seats");
+  await expect(editor.getByText(/BrightWay does not collect event payments yet/)).toBeVisible();
+});
+
+test("event admission displays capacity, ticket price, and pending status without counting requests", async ({ page }) => {
+  const event = {
+    ...fixturePost, id: "d9000000-0000-4000-8000-000000000009", type: "EVENT",
+    body: "Join our advanced research session.", tags: ["Research"],
+    eventDetails: {
+      title: "Advanced Research Session", startAt: "2027-01-15T12:00:00Z",
+      endAt: "2027-01-15T14:00:00Z", timezone: "UTC", format: "ONLINE", meetingUrl: "",
+      coverTheme: "NAVY", ticketPriceCents: 3500, currency: "USD",
+      requiresApproval: true, capacity: 2,
+    },
+    registration: { registered: false, status: null, count: 1 }, eventAttendees: [],
+  };
+  await fixture(page, [event]);
+  const calls = [];
+  await page.route("**/api/v1/explore/posts/member/*/register", route => {
+    const registered = route.request().postDataJSON().registered;
+    calls.push(registered);
+    return route.fulfill({ json: { success: true, data: {
+      registration: { registered: false, status: registered ? "PENDING" : null, count: 1 },
+      eventAttendees: [],
+    } } });
+  });
+  await page.goto("/explore");
+  const card = page.getByRole("article").filter({ hasText: "Advanced Research Session" });
+  await expect(card.getByRole("group", { name: "Event admission details" })).toContainText("USD 35.00");
+  await expect(card.getByRole("group", { name: "Event admission details" })).toContainText("Approval required");
+  await expect(card.getByRole("group", { name: "Event admission details" })).toContainText("Capacity: 2");
+  await expect(card.getByText("BrightWay does not collect payments.")).toBeVisible();
+  await expect(card.locator(".bw-event-attendee-summary")).toContainText("1 person attending");
+  await card.getByRole("button", { name: "I'm going" }).click();
+  await expect(card.getByRole("button", { name: "Request pending — cancel attendance request" }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect(card.getByRole("button", { name: "Request pending — cancel attendance request" }))
+    .toContainText("Pending");
+  await expect(card.locator(".bw-event-attendee-summary")).toContainText("1 person attending");
+  await card.getByRole("button", { name: "Request pending — cancel attendance request" }).click();
+  await expect(card.getByRole("button", { name: "I'm going" })).toBeVisible();
+  expect(calls).toEqual([true, false]);
+});
+
+test("event host can review, approve and decline attendance requests", async ({ page }) => {
+  const event = {
+    ...fixturePost, id: "da000000-0000-4000-8000-000000000001",
+    member: { name: "Synthetic Member", username: "synthetic", verified: true },
+    type: "EVENT", body: "Review the scholarship session attendee requests.",
+    tags: ["Scholarships"], eventDetails: {
+      title: "Scholarship Q&A Session", startAt: "2027-01-15T12:00:00Z",
+      endAt: "2027-01-15T14:00:00Z", timezone: "UTC", format: "ONLINE", meetingUrl: "",
+      requiresApproval: true, ticketPriceCents: 0, currency: "USD", capacity: 3, coverTheme: "NAVY",
+    }, registration: { registered: false, status: null, count: 0 }, eventAttendees: [],
+  };
+  const pending = [
+    { id: "da000000-0000-4000-8000-000000000002", username: "maya",
+      name: "Maya Cole", verified: true, photoId: null, createdAt: "2026-11-09T12:00:00Z" },
+    { id: "da000000-0000-4000-8000-000000000003", username: "private_member",
+      createdAt: "2026-11-09T13:00:00Z" },
+  ];
+  let approvedCount = 0;
+  const decisions = [];
+  await fixture(page, [event]);
+  await page.route("**/api/v1/explore/posts/member/*/registration-requests**", route => {
+    const url = new URL(route.request().url());
+    if (route.request().method() === "GET") return route.fulfill({
+      json: { success: true, data: { items: pending, pendingCount: pending.length, hasMore: false } },
+    });
+    const id = url.pathname.split("/").at(-1);
+    const approved = route.request().postDataJSON().approved;
+    decisions.push({ id, approved });
+    const ix = pending.findIndex(item => item.id === id);
+    if (ix !== -1) pending.splice(ix, 1);
+    if (approved) approvedCount++;
+    return route.fulfill({
+      json: { success: true, data: {
+        registration: { registered: false, status: null, count: approvedCount },
+        eventAttendees: approved ? [{ username: "maya", name: "Maya Cole", verified: true, photoId: null }] : [],
+        pendingCount: pending.length,
+      } },
+    });
+  });
+  await page.goto("/explore");
+  const card = page.getByRole("article").filter({ hasText: "Scholarship Q&A Session" });
+  await card.getByRole("button", { name: "Manage attendance requests" }).click();
+  const panel = card.getByRole("region", { name: "Attendance requests" });
+  await expect(panel).toContainText("Pending approval");
+  await expect(panel.getByRole("link", { name: "Maya Cole" })).toHaveAttribute("href", "/people/maya");
+  await expect(panel.getByText("@private_member")).toBeVisible();
+  await panel.getByRole("button", { name: "Approve" }).first().click();
+  await expect(card.locator(".bw-event-attendee-summary")).toContainText("1 person attending");
+  await expect(panel.getByRole("link", { name: "Maya Cole" })).toHaveCount(0);
+  await panel.getByRole("button", { name: "Decline" }).click();
+  await expect(panel).toContainText("No requests awaiting review.");
+  expect(decisions).toEqual([
+    { id: "da000000-0000-4000-8000-000000000002", approved: true },
+    { id: "da000000-0000-4000-8000-000000000003", approved: false },
+  ]);
+});
 
 test("achievement, event and question composers offer the same subject categories", async ({ page }) => {
   await fixture(page);

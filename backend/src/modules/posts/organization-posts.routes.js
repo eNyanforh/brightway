@@ -44,6 +44,10 @@ export function createOrganizationPostRoutes({ posts, photos, sessions, clientUr
   router.put("/explore/posts/:source/:id/repost", access, trustedOrigin, writes, respond((req, actor) => posts.setReposted(actor, req.params.source, req.params.id, req.body)));
   router.put("/explore/posts/member/:id/register", access, trustedOrigin, writes,
     respond((req, actor) => posts.registerEvent(actor, req.params.id, req.body)));
+  router.get("/explore/posts/member/:id/registration-requests", access,
+    respond((req, actor) => posts.eventRequests(actor, req.params.id)));
+  router.put("/explore/posts/member/:id/registration-requests/:requestId", access, trustedOrigin, writes,
+    respond((req, actor) => posts.decideEventRequest(actor, req.params.id, req.params.requestId, req.body)));
   router.put("/explore/posts/:source/:id/view", access, trustedOrigin, writes,
     respond((req, actor) => posts.recordView(actor, req.params.source, req.params.id)));
   router.post("/explore/posts/member/:id/report", access, trustedOrigin, writes,
