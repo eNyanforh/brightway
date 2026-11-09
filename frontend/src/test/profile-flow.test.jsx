@@ -106,6 +106,7 @@ it("organizes the modern profile around identity, anchored sections and privacy 
   const anchors = [
     ["About", "#profile-about"], ["Activities", "#profile-activity"],
     ["Experience", "#profile-experience"], ["Education", "#profile-education"],
+    ["Credentials", "#profile-credentials"],
     ["Skills", "#profile-skills"], ["Interests", "#profile-interests"],
     ["Career direction", "#profile-direction"],
     ["Contact", "#profile-contact"], ["Privacy", "#profile-privacy"],
@@ -131,6 +132,35 @@ it("organizes the modern profile around identity, anchored sections and privacy 
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profile/me"))).toHaveLength(1);
   await userEvent.setup().click(screen.getByRole("button", { name: "Edit introduction", exact: true }));
   expect(await screen.findByRole("dialog", { name: "Edit introduction" })).toBeTruthy();
+});
+
+it("shows only verified education and experience in credentials, while pending reviews remain separate", async () => {
+  const expId = "11111111-1111-4111-8111-111111111111";
+  const eduId = "22222222-2222-4222-8222-222222222222";
+  const rich = {
+    ...original,
+    experience: { mode: "RECORDS", records: [{
+      id: expId, role: "Software developer", organization: "Community Labs",
+      status: "VERIFIED", type: "EMPLOYMENT", startMonth: "2025-01", current: true,
+    }] },
+    education: { mode: "RECORDS", records: [{
+      id: eduId, institution: "Example University", qualification: "Computer Science",
+      status: "SUBMITTED", startMonth: "2024-09", current: true,
+    }] },
+  };
+  mount(() => ok({ profile: rich }));
+  await ready();
+  const credentials = document.querySelector("#profile-credentials");
+  expect(credentials).toBeTruthy();
+  expect(within(credentials).getByRole("heading", { name: "Credentials & verification" })).toBeTruthy();
+  expect(credentials.textContent).toContain("Software developer");
+  expect(credentials.textContent).toContain("Community Labs");
+  expect(credentials.textContent).not.toContain("Computer Science");
+  expect(credentials.textContent).toContain("1 record is awaiting a verification decision.");
+  expect(within(credentials).getByRole("link", { name: "View verification" }).getAttribute("href"))
+    .toBe("/credentials/experience/" + expId);
+  expect(within(credentials).getByRole("link", { name: "Manage credentials" }).getAttribute("href"))
+    .toBe("/credentials");
 });
 
 it("shows only published fields on the redesigned public profile without a second view request", async () => {
