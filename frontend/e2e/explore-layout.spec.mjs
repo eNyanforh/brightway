@@ -477,7 +477,7 @@ test("answer count and facepile refresh after an answer is published", async ({ 
     tags: ["Statistics"], answerCount: 0, answerParticipants: [],
   };
   await fixture(page, [question]);
-  await page.route("**/api/v1/explore/posts/member/*", async route => {
+  await page.route("**/api/v1/explore/posts/member/**", async route => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
     if (pathname === "/api/v1/explore/posts/member/" + question.id) {
