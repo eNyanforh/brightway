@@ -85,7 +85,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(retry.post.id, postId);
     assert.equal(publication.post.type, "POST");
     assert.deepEqual(publication.post.tags, ["Learning Journeys"]);
-    assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner" });
+    assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner", photoId: photo.id });
     assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "member", "questionDetails", "tags", "type"]);
     assert.equal(publication.post.eventDetails, null);
     assert.equal(publication.post.questionDetails, null);
