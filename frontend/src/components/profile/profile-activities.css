@@ -1,0 +1,135 @@
+/* Profile activity cards use the existing owner-only published-post history. */
+.bw-profile-activities { scroll-margin-top: 85px; }
+.bw-profile-activities .bw-profile-section-head { align-items: center; }
+.bw-profile-activity-description {
+  margin: 5px 0 0;
+  color: #71819a;
+  font-size: .76rem;
+  line-height: 1.5;
+}
+.bw-profile-activity-all {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: .4rem .72rem;
+  border: 1px solid #dae6f7;
+  border-radius: 999px;
+  background: #edf4ff;
+  color: #205ca9;
+  text-decoration: none;
+  font-weight: 750;
+  font-size: .73rem;
+}
+.bw-profile-activity-all:hover { background: #e0edff; }
+.bw-profile-activity-list { display: grid; gap: 11px; }
+.bw-profile-activity-item {
+  display: grid;
+  gap: 10px;
+  padding: 16px 17px;
+  border: 1px solid #e2eaf5;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 2px 9px #12365e07;
+  min-width: 0;
+}
+.bw-profile-activity-top { display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.bw-profile-activity-top time { font-size: .72rem; color: #71819a; }
+.bw-profile-activity-type {
+  display: inline-flex;
+  align-items: center;
+  padding: .3rem .6rem;
+  background: #eaf2fe;
+  border: 1px solid #d8e6fa;
+  border-radius: 999px;
+  font-size: .69rem;
+  font-weight: 780;
+  color: #255fa7;
+}
+.bw-profile-activity-item[data-activity-type="EVENT"] .bw-profile-activity-type {
+  background: #f0eefe;
+  border-color: #e3ddfb;
+  color: #63509d;
+}
+.bw-profile-activity-item[data-activity-type="QUESTION"] .bw-profile-activity-type {
+  background: #f0f8ee;
+  border-color: #dbeed7;
+  color: #326a4c;
+}
+.bw-profile-activity-item h3 {
+  margin: 0;
+  font-size: .9rem;
+  color: #1d3554;
+  font-weight: 800;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.bw-profile-activity-body {
+  margin: 0;
+  font-size: .82rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #354c68;
+}
+.bw-profile-activity-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bw-profile-activity-topics li {
+  padding: .26rem .52rem;
+  border-radius: 7px;
+  background: #f2f6fb;
+  color: #4e6480;
+  font-size: .7rem;
+  overflow-wrap: anywhere;
+}
+.bw-profile-activity-link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  color: #1e60af;
+  font-size: .76rem;
+  text-decoration: none;
+  font-weight: 770;
+}
+.bw-profile-activity-link:hover { text-decoration: underline; }
+.bw-profile-activity-footer { display: flex; gap: 9px; margin-top: 14px; flex-wrap: wrap; }
+.bw-profile-activity-footer button,
+.bw-profile-activity-error button {
+  min-height: 37px;
+  padding: .5rem .8rem;
+  background: #f2f7ff;
+  border: 1px solid #d7e5f7;
+  color: #245a9f;
+  border-radius: 9px;
+  font-size: .74rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.bw-profile-activity-footer button:hover:enabled,
+.bw-profile-activity-error button:hover:enabled { background: #e8f1ff; }
+.bw-profile-activity-footer button:disabled { opacity: .6; cursor: wait; }
+.bw-profile-activity-empty {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  background: #f8fbff;
+  border: 1px dashed #cbdcf0;
+  border-radius: 12px;
+  padding: 19px;
+}
+.bw-profile-activity-empty strong { color: #2b4970; font-size: .88rem; }
+.bw-profile-activity-empty p { margin: 0; color: #6d7f99; font-size: .78rem; line-height: 1.6; }
+.bw-profile-activity-empty a { color: #245ca3; font-size: .76rem; font-weight: 770; text-decoration: none; }
+.bw-profile-activity-error { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: .8rem; color: #a73e3e; }
+@media (max-width: 480px) {
+  .bw-profile-activity-item { padding: 14px; }
+  .bw-profile-activity-description { max-width: 225px; }
+}
