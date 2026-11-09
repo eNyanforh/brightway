@@ -823,13 +823,23 @@ test("event cards display real registrant avatars and count, refreshed after reg
     .evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(avatars.getByRole("link", { name: "Alex Rivera attending" })
     .locator("svg")).toBeVisible();
-  await card.getByRole("button", { name: "I'm going", exact: true }).click();
-  await expect(card.getByRole("button", { name: /Going — cancel attendance/ })).toBeVisible();
+  const goingButton = card.getByRole("button", { name: "I'm going", exact: true });
+  await expect(goingButton).toHaveAttribute("aria-pressed", "false");
+  await expect(goingButton).toHaveCSS("border-radius", "999px");
+  await expect(goingButton).toHaveCSS("color", "rgb(255, 255, 255)");
+  await goingButton.click();
+  const selectedButton = card.getByRole("button", { name: /Going — cancel attendance/ });
+  await expect(selectedButton).toBeVisible();
+  await expect(selectedButton).toHaveAttribute("aria-pressed", "true");
+  await expect(selectedButton).toHaveCSS("color", "rgb(18, 103, 72)");
+  await expect(selectedButton.locator(".bw-going-check-icon")).toBeVisible();
   await expect(summary).toContainText("43 people attending");
   await expect(avatars.getByRole("link", { name: "Synthetic Member attending" })).toBeVisible();
   await card.getByRole("button", { name: /Going — cancel attendance/ }).click();
   await expect(card.getByRole("button", { name: "I'm going", exact: true })).toBeVisible();
   await expect(summary).toContainText("42 people attending");
+  await expect(card.getByRole("button", { name: "I'm going", exact: true }))
+    .toHaveAttribute("aria-pressed", "false");
   expect(calls).toEqual([true, false]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
