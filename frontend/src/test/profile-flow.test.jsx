@@ -133,6 +133,22 @@ it("organizes the modern profile around identity, anchored sections and privacy 
   expect(await screen.findByRole("dialog", { name: "Edit introduction" })).toBeTruthy();
 });
 
+it("keeps photo-review policy in the picture editor without displaying a review panel on the profile", async () => {
+  const profile = { ...original, photoReview: {
+    required: true,
+    pending: { id: "review-1", state: "IN_REVIEW", photoAssetId: "pending-photo", version: 1 },
+  } };
+  mount(() => ok({ profile }));
+  await ready();
+  expect(screen.queryByRole("heading", { name: "Profile photo review" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Refresh photo review" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Cancel photo request" })).toBeNull();
+
+  await userEvent.setup().click(screen.getByRole("button", { name: "Change profile picture" }));
+  const editor = await screen.findByRole("dialog", { name: "Change profile picture" });
+  expect(within(editor).getByText(/Your approved photo stays visible while BrightWay reviews the replacement/)).toBeTruthy();
+});
+
 it("shows only published fields on the redesigned public profile without a second view request", async () => {
   const viewed = {
     fullName: "Maya Cole", username: "maya", headline: "Software engineer and mentor",
