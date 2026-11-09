@@ -3,7 +3,7 @@ import { rateLimit } from "express-rate-limit";
 import { createRequireAuth, createSessionCookieConfig, requireTrustedOrigin } from "../auth/session.http.js";
 import { fail } from "../network/network.schema.js";
 
-export function createOrganizationPostRoutes({ posts, sessions, clientUrl, nodeEnv }) {
+export function createOrganizationPostRoutes({ posts, photos, sessions, clientUrl, nodeEnv }) {
   const router = Router();
   const auth = createRequireAuth({ sessions, cookieName: createSessionCookieConfig(nodeEnv).name });
   const trustedOrigin = requireTrustedOrigin(clientUrl);
@@ -25,6 +25,17 @@ export function createOrganizationPostRoutes({ posts, sessions, clientUrl, nodeE
     }
   };
   const path = "/organization-workspace/:organizationId/posts";
+  router.get("/explore/members/:username/photo/:photoId", access, async (req, res, next) => {
+    try {
+      const actor = { accountId: req.auth.account.id, sessionId: req.auth.sessionId };
+      const target = await posts.memberPhoto(actor, req.params.username, req.params.photoId);
+      const image = await photos.readOwner(target.personId, target.photoId);
+      res.set({ "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" });
+      res.type("image/webp").send(image);
+    } catch (error) {
+      next(error.status ? error : fail(503, "Profile photo is temporarily unavailable."));
+    }
+  });
   router.get("/explore/posts", access, respond((req, actor) => posts.feed(actor, req.query)));
   router.get("/explore/posts/:source/:id", access,
     respond((req, actor) => posts.readPost(actor, req.params.source, req.params.id)));

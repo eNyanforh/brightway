@@ -85,7 +85,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(retry.post.id, postId);
     assert.equal(publication.post.type, "POST");
     assert.deepEqual(publication.post.tags, ["Learning Journeys"]);
-    assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner" });
+    assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner", photoId: photo.id });
     assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "member", "questionDetails", "tags", "type"]);
     assert.equal(publication.post.eventDetails, null);
     assert.equal(publication.post.questionDetails, null);
@@ -103,6 +103,8 @@ test("database manual identity requests serialize retries and decisions, revoke 
     accounts.push(viewer);
     const viewerSession = await db.session.create({ data: { accountId: viewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000) } });
     const viewerActor = { accountId: viewer.id, sessionId: viewerSession.id };
+    assert.deepEqual(await posts.memberPhoto(viewerActor, owner.username, photo.id), { personId: owner.personId, photoId: photo.id });
+    await assert.rejects(posts.memberPhoto(viewerActor, owner.username, randomUUID()), { status: 404 });
     for (const type of ["ACHIEVEMENT", "EVENT", "QUESTION"]) {
       const details = {
         title: "Student Research Workshop", startAt: "2027-01-15T12:00:00Z", endAt: "2027-01-15T14:00:00Z",
@@ -284,12 +286,14 @@ test("database manual identity requests serialize retries and decisions, revoke 
     await assert.rejects(posts.memberWithdraw(viewerActor, postId), { status: 404 });
     const [leftAccountId, rightAccountId] = [viewer.id, owner.id].sort();
     const block = await db.networkPair.create({ data: { leftAccountId, rightAccountId, rightBlocked: true } });
+    await assert.rejects(posts.memberPhoto(viewerActor, owner.username, photo.id), { status: 404 });
     assert.equal(await seesPost("for-you"), false);
     assert.equal(await seesPost("following"), false);
     await assert.rejects(like(true), { status: 404 });
     assert.equal(await republished("for-you"), undefined);
     await db.networkPair.delete({ where: { id: block.id } });
     await db.profile.update({ where: { id: profile.id }, data: { profilePublicEnabled: false } });
+    await assert.rejects(posts.memberPhoto(viewerActor, owner.username, photo.id), { status: 404 });
     assert.equal(await seesPost("for-you"), false);
     assert.equal((await posts.memberList(actor, {})).items[0].id, postId);
     await assert.rejects(commentsAsViewer(), { status: 404 });

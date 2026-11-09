@@ -336,6 +336,57 @@ test("The feed renders different presentation cards for stored achievements, eve
   await expect(legacyCard.locator(".bw-post-story")).toHaveCount(0);
 });
 
+test("publisher avatars display real member and organization photos with safe initials fallbacks", async ({ page }) => {
+  const personPhoto = "77777777-7777-4777-8777-777777777777";
+  const organizationPhoto = "88888888-8888-4888-8888-888888888888";
+  const unavailablePhoto = "99999999-9999-4999-8999-999999999999";
+  const posts = [
+    { ...fixturePost, id: "10000000-0000-4000-8000-000000000001",
+      body: "Member with a real profile photo", member: { name: "Maya Cole", username: "maya", photoId: personPhoto } },
+    { ...fixturePost, id: "10000000-0000-4000-8000-000000000002",
+      body: "Organization with a real profile photo", member: undefined,
+      organization: { id: "20000000-0000-4000-8000-000000000001",
+        name: "Monrovia School", username: "monroviaschool", profilePhotoId: organizationPhoto } },
+    { ...fixturePost, id: "10000000-0000-4000-8000-000000000003",
+      body: "Member without a profile photo", member: { name: "No Photo", username: "nophoto", photoId: null } },
+    { ...fixturePost, id: "10000000-0000-4000-8000-000000000004",
+      body: "Member whose image is unavailable", member: { name: "Broken Picture", username: "broken", photoId: unavailablePhoto } },
+  ];
+  const requests = [];
+  await fixture(page, posts);
+  await page.route("**/api/v1/explore/members/*/photo/*", route => {
+    requests.push(new URL(route.request().url()).pathname);
+    if (route.request().url().includes(unavailablePhoto)) return route.fulfill({ status: 404 });
+    return route.fulfill({
+      contentType: "image/svg+xml",
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12"><rect width="12" height="12" fill="#175cd3"/></svg>',
+    });
+  });
+  await page.route("**/api/v1/organizations/*/photo/*", route => {
+    requests.push(new URL(route.request().url()).pathname);
+    return route.fulfill({
+      contentType: "image/svg+xml",
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12"><circle cx="6" cy="6" r="6" fill="#174f5f"/></svg>',
+    });
+  });
+  await page.goto("/explore");
+  const article = body => page.getByRole("article").filter({ hasText: body });
+  const member = article(posts[0].body).locator(".bw-timeline-avatar img");
+  const organization = article(posts[1].body).locator(".bw-timeline-avatar img");
+  await expect(member).toHaveAttribute("src", new RegExp("/explore/members/maya/photo/" + personPhoto + "$"));
+  await expect(organization).toHaveAttribute("src", new RegExp("/organizations/" + posts[1].organization.id + "/photo/" + organizationPhoto + "$"));
+  await expect.poll(() => member.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+  await expect.poll(() => organization.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+  await expect(article(posts[2].body).locator(".bw-timeline-avatar")).toHaveText("N");
+  await expect(article(posts[2].body).locator(".bw-timeline-avatar img")).toHaveCount(0);
+  await expect(article(posts[3].body).locator(".bw-timeline-avatar")).toHaveText("B");
+  await expect(article(posts[3].body).locator(".bw-timeline-avatar img")).toHaveCount(0);
+  expect(requests).toContain("/api/v1/explore/members/maya/photo/" + personPhoto);
+  expect(requests).toContain("/api/v1/organizations/" + posts[1].organization.id + "/photo/" + organizationPhoto);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+});
+
 test("purpose-driven post cards expose distinct actions and functional signup and answer voting", async ({ page }) => {
   const [achievement, event, question] = formats.map((format, index) => ({
     ...fixturePost,

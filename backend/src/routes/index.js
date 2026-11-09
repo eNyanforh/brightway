@@ -73,7 +73,9 @@ router.use(createNetworkRoutes({ network, following: createFollowingService({ pr
 router.use(createNotificationsRoutes({ notifications: createNotificationsService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createDirectorySearchRoutes({ search: createDirectorySearch({ prisma }), sessions, nodeEnv: env.NODE_ENV }));
 router.use(createPeopleSuggestionRoutes({ suggest: createPeopleSuggestions({ prisma }), sessions, nodeEnv: env.NODE_ENV }));
-router.use(createOrganizationPostRoutes({ posts: createOrganizationPosts({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+const photoStorage = createR2Storage();
+const photos = createPhotoService({ prisma, storage: photoStorage });
+router.use(createOrganizationPostRoutes({ posts: createOrganizationPosts({ prisma }), photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const managementCases = createManagementCases({ prisma });
 const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
 router.use(createManagementAuthRoutes({ authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
@@ -89,9 +91,7 @@ router.use("/auth", createAccountEmailRoutes({ verification: createAccountEmailS
 router.use(createCredentialRoutes({ credentials: createCredentialService({ prisma, storage: createR2Storage() }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManualIdentityEvidenceRoutes({ evidence: createManualIdentityEvidenceService({ prisma, storage: createManualIdentityStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManualIdentityReviewRoutes({ reviews: createManualIdentityReviewService({ prisma, storage: createManualIdentityStorage() }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-const photoStorage = createR2Storage();
 router.use(createIdentityNameChangeRoutes({ changes: createIdentityNameChangeService({ prisma, storage: createManualIdentityStorage(), photoStorage }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-const photos = createPhotoService({ prisma, storage: photoStorage });
 router.use(createProfilePhotoReviewRoutes({ reviews: createProfilePhotoReviewService({ prisma, storage: photoStorage }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 
 router.use(createPhotoRoutes({ photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
