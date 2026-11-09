@@ -8,6 +8,7 @@ import PostComments from "./PostComments";
 import QuestionAnswers from "./QuestionAnswers";
 import AvatarGroup from "./AvatarGroup";
 import EventAttendeeSummary from "./EventAttendeeSummary";
+import EventRequestReview from "./EventRequestReview";
 import VerificationBadge from "../VerificationBadge";
 import PostTimestamp from "./PostTimestamp";
 import "./posts.css";
@@ -31,6 +32,9 @@ function EventInfoCard({ details }) {
   };
   const showVenue = details.format !== "ONLINE" && Boolean(details.venue);
   const showLink = details.format !== "IN_PERSON" && /^https?:\/\//i.test(details.meetingUrl || "");
+  const ticketPrice = Number.isInteger(details.ticketPriceCents) ? details.ticketPriceCents : 0;
+  const price = ticketPrice > 0 ? (details.currency || "USD") + " " + (ticketPrice / 100).toFixed(2) : "Free entry";
+  const capacity = Number.isInteger(details.capacity) && details.capacity > 0 ? details.capacity : null;
   return (
     <div className="bw-event-feed-card" data-theme={details.coverTheme || "NAVY"} aria-label="Event details">
       <div className="bw-event-feed-cover"><span>BRIGHTWAY EVENT</span><NavigationIcon name="calendar" size={30} /></div>
@@ -38,6 +42,14 @@ function EventInfoCard({ details }) {
         <h3>{details.title}</h3>
         <p><NavigationIcon name="calendar" size={16} /> {date(details.startAt)} – {date(details.endAt)}</p>
         <p><NavigationIcon name="pin" size={16} /> {details.format === "ONLINE" ? "Online" : details.format === "HYBRID" ? "Hybrid" : "In person"}{showVenue ? " · " + details.venue : ""}</p>
+        <div className="bw-event-feed-policies" aria-label="Event admission details">
+          <span className="bw-event-feed-policy"><NavigationIcon name="ticket" size={15} /><strong>{price}</strong></span>
+          {details.requiresApproval === true && <span className="bw-event-feed-policy">Approval required</span>}
+          {capacity != null && <span className="bw-event-feed-policy">Capacity: <strong>{capacity.toLocaleString()}</strong></span>}
+        </div>
+        {ticketPrice > 0 && <span className="bw-event-feed-note">Ticket price set by the host. BrightWay does not collect payments.</span>}
+        {details.requiresApproval && !showLink && details.format !== "IN_PERSON"
+          && <span className="bw-event-feed-note">The meeting link is available after your attendance is approved.</span>}
         {showLink && <a href={details.meetingUrl} target="_blank" rel="noopener noreferrer">Join online <span aria-hidden="true">↗</span></a>}
       </div>
     </div>
