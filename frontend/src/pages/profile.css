@@ -1427,3 +1427,207 @@
   .bw-profile-section-nav a { min-height: 36px; padding: 8px 10px; font-size: .72rem; }
 }
 
+
+
+/* Professional-profile composition: inspired by the editorial hierarchy of
+   professional networks, with BrightWay's own identity and privacy language. */
+.bw-profile-page { max-width: 1220px; }
+.bw-profile-grid { grid-template-columns: minmax(0, 1fr) minmax(265px, 310px); gap: 18px; }
+.bw-profile-main { min-width: 0; }
+.bw-profile-hero .bw-profile-cover {
+  height: 170px;
+  background:
+    radial-gradient(circle at 91% 0%, #649de554, transparent 43%),
+    linear-gradient(116deg, #0e2c57 4%, #154477 54%, #2565a2);
+  padding: 24px 29px;
+}
+.bw-profile-cover-brand { gap: 0; }
+.bw-profile-hero .bw-profile-cover-brand > span {
+  color: #e5efff;
+  letter-spacing: .19em;
+  font-size: .69rem;
+  font-weight: 840;
+}
+.bw-profile-hero .bw-profile-person-top { margin-top: -53px; margin-bottom: 13px; }
+.bw-profile-hero .bw-profile-photo-button .bw-picture {
+  border-radius: 50%;
+  width: 122px;
+  height: 122px;
+  object-fit: cover;
+}
+.bw-profile-hero .bw-profile-person-top > .bw-profile-button {
+  background: #f6faff;
+  border: 1px solid #d0e0f5;
+  color: #21599f;
+  box-shadow: none;
+  border-radius: 999px;
+  font-weight: 760;
+}
+.bw-profile-hero .bw-profile-person-top > .bw-profile-button:hover:enabled {
+  background: #e8f2ff;
+  border-color: #a7c9f1;
+}
+.bw-profile-identity-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 38%);
+  align-items: start;
+  gap: 14px 28px;
+}
+.bw-profile-identity-main { min-width: 0; }
+.bw-profile-hero .bw-profile-identity h1 {
+  font-size: clamp(1.45rem, 2.65vw, 1.88rem);
+  font-weight: 815;
+  line-height: 1.3;
+}
+.bw-profile-hero .bw-profile-headline {
+  max-width: 570px;
+  font-size: .93rem;
+  line-height: 1.6;
+  color: #294563;
+}
+.bw-profile-hero .bw-profile-location {
+  color: #688098;
+  font-size: .78rem;
+}
+.bw-profile-highlights {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  padding-top: 3px;
+}
+.bw-profile-highlight {
+  display: flex;
+  align-items: flex-start;
+  gap: .63rem;
+  padding: 10px 1px;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+.bw-profile-highlight + .bw-profile-highlight { border-top: 1px solid #e9eff7; }
+.bw-profile-highlight-icon {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #dbe7f6;
+  border-radius: 9px;
+  background: #f1f6fd;
+  color: #265ba0;
+}
+.bw-profile-highlight > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.bw-profile-highlight small {
+  color: #6a7e97;
+  font-size: .68rem;
+  font-weight: 620;
+}
+.bw-profile-highlight strong {
+  color: #254366;
+  font-size: .76rem;
+  font-weight: 800;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.bw-profile-highlight em {
+  color: #607792;
+  font-size: .7rem;
+  font-style: normal;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.bw-profile-highlight:hover strong { color: #155cb4; text-decoration: underline; }
+.bw-profile-published-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  color: #2764ad;
+  font-size: .74rem;
+  font-weight: 780;
+  text-decoration: none;
+}
+.bw-profile-published-link .bw-icon { width: 15px; height: 15px; }
+.bw-profile-published-link:hover { text-decoration: underline; }
+.bw-profile-identity-status { margin-top: 16px; }
+.bw-profile-section-nav {
+  position: sticky;
+  top: 70px;
+  z-index: 4;
+  gap: 2px;
+  background: #fff;
+  border-color: #e1e9f4;
+  box-shadow: 0 3px 12px #152e5009;
+}
+.bw-profile-section-nav a { font-size: .75rem; min-height: 37px; }
+.bw-profile-credential-section .bw-profile-section-head { align-items: center; }
+.bw-profile-section-subtitle { margin: 5px 0 0; color: #71819a; font-size: .76rem; line-height: 1.5; }
+.bw-profile-section-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: .55rem .78rem;
+  min-height: 36px;
+  border: 1px solid #dce7f7;
+  border-radius: 999px;
+  background: #f5f9ff;
+  color: #2259a0;
+  font-size: .73rem;
+  font-weight: 740;
+  text-decoration: none;
+}
+.bw-profile-section-link:hover { background: #e9f2ff; }
+.bw-profile-verified-records { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.bw-profile-verified-records li { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; }
+.bw-profile-verified-records li + li { border-top: 1px solid #e6edf5; }
+.bw-profile-verified-record-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #d6e7da;
+  border-radius: 11px;
+  background: #e9f7ee;
+  color: #26704c;
+}
+.bw-profile-verified-records li > div { min-width: 0; display: grid; gap: 3px; }
+.bw-profile-verified-records small { color: #197351; font-size: .68rem; font-weight: 750; }
+.bw-profile-verified-records strong { color: #233c5e; font-size: .85rem; overflow-wrap: anywhere; }
+.bw-profile-verified-records p { margin: 0; color: #708198; font-size: .76rem; }
+.bw-profile-verified-records a { color: #2461ab; font-size: .73rem; font-weight: 750; text-decoration: none; }
+.bw-profile-verified-records a:hover { text-decoration: underline; }
+.bw-profile-credential-pending {
+  margin: 8px 0 0;
+  padding: 9px 12px;
+  color: #846016;
+  background: #fff8e9;
+  border-radius: 9px;
+  border: 1px solid #f4e5c3;
+  font-size: .76rem;
+}
+.bw-profile-credential-note {
+  margin: 13px 0 0;
+  border-top: 1px solid #edf1f7;
+  padding-top: 11px;
+  color: #7a8798;
+  font-size: .69rem;
+  line-height: 1.6;
+}
+@media (max-width: 900px) {
+  .bw-profile-identity-overview { grid-template-columns: minmax(0,1fr); gap: 6px; }
+  .bw-profile-highlights { grid-template-columns: repeat(2, minmax(0,1fr)); column-gap: 12px; }
+  .bw-profile-highlight + .bw-profile-highlight { border-top: 0; }
+}
+@media (max-width: 720px) {
+  .bw-profile-section-nav { position: static; }
+  .bw-profile-hero .bw-profile-cover { height: 154px; padding: 20px; }
+}
+@media (max-width: 480px) {
+  .bw-profile-hero .bw-profile-cover { height: 142px; padding: 17px; }
+  .bw-profile-hero .bw-profile-photo-button .bw-picture { width: 96px; height: 96px; }
+  .bw-profile-highlights { grid-template-columns: minmax(0,1fr); }
+  .bw-profile-highlight + .bw-profile-highlight { border-top: 1px solid #e9eff7; }
+  .bw-profile-credential-section .bw-profile-section-head { align-items: flex-start; flex-wrap: wrap; }
+}
