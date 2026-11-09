@@ -15,6 +15,8 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
   const { default: app } = await import("../src/app.js");
   const { prisma } = await import("../src/config/database.js");
   const accounts = [];
+  const createdCredentials = [];
+  const createdPosts = [];
   const server = app.listen(0, "127.0.0.1");
   await new Promise(resolve => server.once("listening", resolve));
   const base = "http://127.0.0.1:" + server.address().port + "/api/v1";
@@ -108,6 +110,51 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     }
     assert.deepEqual((await inbox(owner)).items, []);
 
+    // The public profile stays minimal until the member enables each section.
+    const certificate = { title: "Data Analysis Certificate", issuer: "Training Center",
+      issuedMonth: "2026-08", expiresMonth: null,
+      credentialUrl: "https://certificates.example.org/abc" };
+    await preferences(owner, { certifications: [certificate] });
+    assert.equal(Object.hasOwn(await view(visitor, owner), "certifications"), false);
+    await preferences(owner, { profileCertificationsPublicEnabled: true });
+    assert.deepEqual((await view(visitor, owner)).certifications, [{ ...certificate, verified: false }]);
+    const ownerProfile = await prisma.profile.findUnique({
+      where: { personId: owner.personId }, select: { id: true },
+    });
+    const education = await prisma.educationRecord.create({ data: {
+      profileId: ownerProfile.id, revision: 1, status: "VERIFIED",
+      institution: "Starz University", qualification: "Computer Science",
+      startMonth: "2024-01", current: true, description: "",
+    } });
+    createdCredentials.push(education.id);
+    await prisma.credentialReview.create({ data: {
+      profileId: ownerProfile.id, kind: "education", recordId: education.id,
+      revision: 1, status: "VERIFIED", issuerName: "Starz University",
+    } });
+    assert.equal(Object.hasOwn(await view(visitor, owner), "verifiedCredentials"), false);
+    await preferences(owner, { profileCredentialsPublicEnabled: true });
+    const verified = (await view(visitor, owner)).verifiedCredentials;
+    assert.equal(verified.length, 1);
+    assert.equal(verified[0].title, "Computer Science");
+    assert.equal(verified[0].verifiedBy, "Starz University");
+    assert.equal(Object.hasOwn(verified[0], "evidence"), false);
+    await prisma.educationRecord.update({ where: { id: education.id }, data: { revision: 2 } });
+    assert.deepEqual((await view(visitor, owner)).verifiedCredentials, []);
+
+    const achievement = await prisma.memberPost.create({ data: {
+      authorId: owner.id, requestKey: randomUUID(), type: "ACHIEVEMENT",
+      body: "Published a new software project.", tags: ["Coding"],
+    } });
+    createdPosts.push(achievement.id);
+    await preferences(owner, { profileAchievementsPublicEnabled: true });
+    assert.equal(Object.hasOwn(await view(visitor, owner), "achievements"), false,
+      "Unverified member posts must not be promoted onto a public profile");
+    await preferences(owner, { profileCertificationsPublicEnabled: false,
+      profileCredentialsPublicEnabled: false });
+    const hidden = await view(visitor, owner);
+    assert.equal(Object.hasOwn(hidden, "certifications"), false);
+    assert.equal(Object.hasOwn(hidden, "verifiedCredentials"), false);
+
     await preferences(visitor, published);
     const suggestionPath = "/explore/suggestions/people";
     await request(null, suggestionPath, { status: 401 });
@@ -182,6 +229,9 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
         prisma.profileViewNotification.deleteMany({ where: { recipientId: { in: ids } } }),
         prisma.networkEvent.deleteMany({ where: { actorId: { in: ids } } }),
         prisma.networkPair.deleteMany({ where: { leftAccountId: { in: ids } } }),
+        prisma.credentialReview.deleteMany({ where: { profile: { personId: { in: people } } } }),
+        prisma.memberPost.deleteMany({ where: { id: { in: createdPosts } } }),
+        prisma.educationRecord.deleteMany({ where: { id: { in: createdCredentials } } }),
         prisma.profile.deleteMany({ where: { personId: { in: people } } }),
         prisma.session.deleteMany({ where: { accountId: { in: ids } } }),
         prisma.account.deleteMany({ where: { id: { in: ids } } }),
