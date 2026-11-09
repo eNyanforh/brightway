@@ -1187,19 +1187,22 @@
   background: #f5f8fd;
 }
 .bw-post-panel .bw-answer-vote-group button {
-  display: grid;
-  place-items: center;
-  min-width: 31px;
-  height: 30px;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .33rem;
+  min-width: 52px;
+  height: 32px;
+  padding: 0 .48rem;
   border: 0;
-  border-radius: 50%;
+  border-radius: 999px;
   background: transparent;
   color: #7588a3;
 }
 .bw-post-panel .bw-answer-vote-group button:hover:enabled { background: #e6effb; color: #2057ad; }
 .bw-post-panel .bw-answer-vote-group button[aria-pressed="true"] { background: #e3eeff; color: #155fcb; }
-.bw-answer-score { min-width: 20px; padding: 0 .12rem; font-size: .75rem; font-weight: 760; color: #2a4c78; text-align: center; font-variant-numeric: tabular-nums; }
+.bw-answer-vote-count { min-width: 1ch; font-size: .75rem; font-weight: 760; text-align: center; font-variant-numeric: tabular-nums; }
+.bw-answer-vote-divider { width: 1px; height: 17px; background: #dce5f2; }
 .bw-answer-comments { min-width: 0; max-width: 100%; }
 .bw-answer-comments:has(.bw-answer-comments-panel) { flex: 1 0 100%; width: 100%; }
 .bw-post-panel .bw-answer-comment-trigger {
