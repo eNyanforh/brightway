@@ -8,8 +8,8 @@ import PostCaption, {
 } from "../components/posts/PostCaption";
 
 it("leaves short captions fully readable without a toggle", () => {
-  render(<PostCaption body={"Learned JavaScript.\nBuilt my first project."} />);
-  expect(screen.getByText("Learned JavaScript.\nBuilt my first project.")).toBeTruthy();
+  const { container } = render(<PostCaption body={"Learned JavaScript.\nBuilt my first project."} />);
+  expect(container.querySelector(".bw-post-text").textContent).toBe("Learned JavaScript.\nBuilt my first project.");
   expect(screen.queryByRole("button", { name: "Read more" })).toBeNull();
 });
 
