@@ -90,7 +90,7 @@ const memberPostInput = postInput.extend({
 const commentInput = textInput(1000);
 const commentSelect = {
   id: true, body: true, createdAt: true,
-  author: { select: { id: true, username: true } },
+  author: { select: memberSelect },
 };
 const cursorInput = z.string().min(1).max(700).optional();
 const feedQuery = z.strictObject({ view: z.enum(["for-you", "following", "saved"]).default("for-you"), cursor: cursorInput });
@@ -114,8 +114,32 @@ function postTarget({ source, id }) {
   return source === "member" ? { memberPostId: id } : { organizationPostId: id };
 }
 
-function commentView({ author, ...comment }, viewerId) {
-  return { ...comment, username: author.username, canDelete: author.id === viewerId };
+function commentView({ author, ...comment }, viewerId, verified = false) {
+  return { ...comment, ...discussionAttribution(author, verified), canDelete: author.id === viewerId };
+}
+
+function discussionAttribution(author, verified = false) {
+  // A private, unapproved, or stale-identity account must not leak personal
+  // profile details into discussion cards. Username is the existing fallback.
+  if (!verified) return { username: author.username };
+  return memberAttribution(author, true);
+}
+
+async function answerVoteTotals(db, answerIds) {
+  if (!answerIds.length) return new Map();
+  const counts = new Map(answerIds.map(id => [id, { upvoteCount: 0, downvoteCount: 0 }]));
+  const groups = await db.answerVote.groupBy({
+    by: ["answerId", "value"],
+    where: { answerId: { in: answerIds }, value: { in: [1, -1] } },
+    _count: { _all: true },
+  });
+  for (const group of groups) {
+    const tally = counts.get(group.answerId);
+    if (!tally) continue;
+    if (group.value === 1) tally.upvoteCount = group._count._all;
+    if (group.value === -1) tally.downvoteCount = group._count._all;
+  }
+  return counts;
 }
 
 function readCursor(cursor, viewer, scope) {
@@ -270,6 +294,24 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
   async function memberEligibility(db, accountId) {
     const { status, ctx } = await identity.inspectAccount(db, accountId);
     return { identityVerified: status === "APPROVED", profilePublic: ctx.profilePublic };
+  }
+
+  async function approvedDiscussionAuthors(db, rows) {
+    const accounts = [...new Set(rows.map(row => row.author.id))];
+    const approved = new Set();
+    // Bounded concurrent checks retain the effective verification rules used
+    // by the feed, including invalidated identity and unpublished profiles.
+    for (let offset = 0; offset < accounts.length; offset += 4) {
+      await Promise.all(accounts.slice(offset, offset + 4).map(async id => {
+        try {
+          const access = await memberEligibility(db, id);
+          if (access.identityVerified && access.profilePublic) approved.add(id);
+        } catch (error) {
+          if (error.status !== 403) throw error;
+        }
+      }));
+    }
+    return approved;
   }
 
   async function projectVisiblePosts(candidates, viewer) {
@@ -476,11 +518,14 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     }
   }
 
-  function answerPublic(row, viewerId) {
+  function answerPublic(row, viewerId, verified = false, totals = {}) {
     return {
       id: row.id, body: row.body, createdAt: row.createdAt,
-      username: row.author.username, canDelete: row.author.id === viewerId,
+      ...discussionAttribution(row.author, verified),
+      canDelete: row.author.id === viewerId,
       score: row.score, myVote: row.votes?.[0]?.value ?? 0,
+      upvoteCount: totals.upvoteCount ?? 0,
+      downvoteCount: totals.downvoteCount ?? 0,
       commentCount: row._count?.comments ?? 0,
     };
   }
@@ -581,14 +626,20 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         orderBy: sort === "top" ? [{ score: "desc" }, { createdAt: "desc" }, { id: "desc" }]
           : [{ createdAt: "desc" }, { id: "desc" }],
         select: { id: true, body: true, score: true, createdAt: true,
-          author: { select: { id: true, username: true } },
+          author: { select: memberSelect },
           votes: { where: { accountId: actor.accountId }, select: { value: true } },
           _count: { select: { comments: { where: { deletedAt: null } } } },
         },
         take: 50,
       });
+      const [totals, approved] = await Promise.all([
+        answerVoteTotals(prisma, rows.map(row => row.id)),
+        approvedDiscussionAuthors(prisma, rows),
+      ]);
       await assertNetworkSession(prisma, actor, now);
-      return { items: rows.map(row => answerPublic(row, actor.accountId)), sort };
+      return { items: rows.map(row => answerPublic(
+        row, actor.accountId, approved.has(row.author.id), totals.get(row.id),
+      )), sort };
     },
 
     async addAnswer(actor, idValue, input) {
@@ -604,15 +655,17 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
           if (previous.questionId !== id || previous.body !== body || previous.deletedAt)
             throw fail(409, "This request belongs to another answer.");
           const author = await tx.account.findUniqueOrThrow({
-            where: { id: actor.accountId }, select: { username: true },
+            where: { id: actor.accountId }, select: memberSelect,
           });
           const commentCount = await tx.answerComment.count({ where: { answerId: previous.id, deletedAt: null } });
           const vote = await tx.answerVote.findUnique({
             where: { answerId_accountId: { answerId: previous.id, accountId: actor.accountId } },
             select: { value: true },
           });
+          const totals = (await answerVoteTotals(tx, [previous.id])).get(previous.id);
           return { answer: { id: previous.id, body: previous.body, createdAt: previous.createdAt,
-            username: author.username, canDelete: true, score: previous.score, myVote: vote?.value ?? 0, commentCount } };
+            ...discussionAttribution(author, true), canDelete: true,
+            score: previous.score, myVote: vote?.value ?? 0, ...totals, commentCount } };
         }
         const recent = await tx.questionAnswer.count({
           where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } },
@@ -621,10 +674,11 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         const answer = await tx.questionAnswer.create({
           data: { questionId: id, ...key, body, createdAt: now() },
           select: { id: true, body: true, createdAt: true, score: true,
-            author: { select: { id: true, username: true } } },
+            author: { select: memberSelect } },
         });
         return { answer: { id: answer.id, body: answer.body, createdAt: answer.createdAt,
-          username: answer.author.username, canDelete: true, score: 0, myVote: 0, commentCount: 0 } };
+          ...discussionAttribution(answer.author, true), canDelete: true, score: 0, myVote: 0,
+          upvoteCount: 0, downvoteCount: 0, commentCount: 0 } };
       });
     },
 
@@ -652,7 +706,8 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
           where: { id }, data: { score: { increment: value - oldValue } },
           select: { score: true },
         });
-        return { score: updated.score, myVote: value };
+        const totals = (await answerVoteTotals(tx, [id])).get(id);
+        return { score: updated.score, myVote: value, ...totals };
       });
     },
 
@@ -665,8 +720,9 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         take: 50,
         select: commentSelect,
       });
+      const approved = await approvedDiscussionAuthors(prisma, rows);
       await assertNetworkSession(prisma, actor, now);
-      return { items: rows.map(row => commentView(row, actor.accountId)) };
+      return { items: rows.map(row => commentView(row, actor.accountId, approved.has(row.author.id))) };
     },
 
     async addAnswerComment(actor, answerId, input) {
@@ -679,12 +735,14 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         if (old) {
           if (old.answerId !== answer.id || old.body !== body || old.deletedAt)
             throw fail(409, "This request belongs to another comment.");
-          return { comment: commentView(old, actor.accountId) };
+          const access = await memberEligibility(tx, actor.accountId);
+          return { comment: commentView(old, actor.accountId, access.identityVerified && access.profilePublic) };
         }
         const row = await tx.answerComment.create({
           data: { ...key, answerId: answer.id, body, createdAt: now() }, select: commentSelect,
         });
-        return { comment: commentView(row, actor.accountId) };
+        const access = await memberEligibility(tx, actor.accountId);
+        return { comment: commentView(row, actor.accountId, access.identityVerified && access.profilePublic) };
       });
     },
 
@@ -846,8 +904,11 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         select: commentSelect,
         take: pageSize + 1,
       });
+      const page = rows.slice(0, pageSize);
+      const approved = await approvedDiscussionAuthors(prisma, page);
       await assertNetworkSession(prisma, actor, now);
-      return { items: rows.slice(0, pageSize).map(row => commentView(row, actor.accountId)), nextCursor: cursorFor(rows, actor.accountId, scope, ref.source) };
+      return { items: page.map(row => commentView(row, actor.accountId, approved.has(row.author.id))),
+        nextCursor: cursorFor(rows, actor.accountId, scope, ref.source) };
     },
 
     async addComment(actor, sourceValue, idValue, input) {
@@ -869,7 +930,8 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
               (target.memberPostId ?? null) !== memberPostId || (target.organizationPostId ?? null) !== organizationPostId) {
             throw fail(409, "This request already belongs to another comment. Edit your draft before trying again.");
           }
-          return { comment: commentView(comment, actor.accountId) };
+          const access = await memberEligibility(tx, actor.accountId);
+          return { comment: commentView(comment, actor.accountId, access.identityVerified && access.profilePublic) };
         }
 
         const recent = await tx.postComment.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
