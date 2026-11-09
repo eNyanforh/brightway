@@ -123,7 +123,7 @@ function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerP
   );
 }
 
-function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, onRegister }) {
+function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, onRegister, canManageEvent = false }) {
   const [confirming, setConfirming] = useState(false);
   const [answersOpen, setAnswersOpen] = useState(false);
   const [answerCount, setAnswerCount] = useState(post.answerCount ?? 0);
@@ -137,6 +137,15 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
   const [shareNotice, setShareNotice] = useState("");
   const [failedAvatarUrl, setFailedAvatarUrl] = useState(null);
   const [viewCount, setViewCount] = useState(post.views);
+  const [reviewSummary, setReviewSummary] = useState(null);
+  const displayPost = reviewSummary && post.type === "EVENT"
+    ? { ...post, registration: reviewSummary.registration, eventAttendees: reviewSummary.eventAttendees }
+    : post;
+  const attendance = displayPost.registration;
+  const pendingApproval = attendance?.status === "PENDING";
+  const isGoing = attendance?.registered === true;
+  const capacity = Number.isInteger(post.eventDetails?.capacity) ? post.eventDetails.capacity : null;
+  const eventFull = capacity != null && (attendance?.count ?? 0) >= capacity && !pendingApproval && !isGoing;
   const cardRef = useRef(null);
   const viewed = useRef(null);
   const publisher = post.organization || post.member;
@@ -216,19 +225,22 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
       <span>Answer</span>
     </button>
   ) : type === "EVENT" ? (
-    <button type="button" className="bw-timeline-action bw-register-action" disabled={busy}
-      aria-label={post.registration?.registered ? "Going — cancel attendance" : "I'm going"}
-      aria-pressed={Boolean(post.registration?.registered)}
-      title={post.registration?.registered ? "Cancel attendance" : "I'm going"}
-      onClick={() => onRegister(post)}>
-      {post.registration?.registered
-        ? <svg className="bw-going-check-icon" width="19" height="19" viewBox="0 0 24 24"
-            fill="none" stroke="currentColor" strokeWidth="2.6"
-            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="m5 12 4.5 4.5L19 7" />
-          </svg>
-        : <NavigationIcon name="ticket" size={19} />}
-      <span>{post.registration?.registered ? "Going" : "I'm going"}</span>
+    <button type="button" className="bw-timeline-action bw-register-action"
+      data-registration-state={pendingApproval ? "PENDING" : isGoing ? "APPROVED" : "OPEN"}
+      disabled={busy || eventFull}
+      aria-label={pendingApproval ? "Request pending — cancel attendance request"
+        : isGoing ? "Going — cancel attendance" : eventFull ? "Event full" : "I'm going"}
+      aria-pressed={Boolean(pendingApproval || isGoing)}
+      title={pendingApproval ? "Cancel attendance request" : isGoing ? "Cancel attendance"
+        : eventFull ? "This event is full" : post.eventDetails?.requiresApproval ? "Request to attend" : "I'm going"}
+      onClick={() => onRegister({ ...post, registration: attendance })}>
+      {isGoing ? (
+        <svg className="bw-going-check-icon" width="19" height="19" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m5 12 4.5 4.5L19 7" />
+        </svg>
+      ) : <NavigationIcon name="ticket" size={19} />}
+      <span>{pendingApproval ? "Pending" : isGoing ? "Going" : eventFull ? "Event full" : "I'm going"}</span>
     </button>
   ) : null;
 
@@ -335,13 +347,16 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
             <span aria-hidden="true">·</span>
             <PostTimestamp createdAt={post.createdAt} />
           </header>
-          <PostStory post={post} topicTags={topicTags} timeline
+          <PostStory post={displayPost} topicTags={topicTags} timeline
             answerCount={answerCount} answerParticipants={answerParticipants} />
           <PostComments postId={post.id} source={source}
             showComment={type !== "QUESTION"} primaryAction={primaryAction}>
             {controls}
           </PostComments>
           {extras}
+          {canManageEvent && post.eventDetails?.requiresApproval === true && (
+            <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
+          )}
         </div>
       </article>
     );
@@ -359,7 +374,10 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
           <p><PostTimestamp createdAt={post.createdAt} /></p>
         </div>
       </header>
-      <PostStory post={post} topicTags={topicTags} />
+      <PostStory post={displayPost} topicTags={topicTags} />
+      {canManageEvent && post.eventDetails?.requiresApproval === true && (
+        <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
+      )}
       {confirming ? <div className="bw-post-actions">
         <span>Withdraw this post from Explore?</span>
         <button type="button" disabled={busy} onClick={() => onWithdraw(post.id)}>Confirm withdrawal</button>
@@ -517,7 +535,8 @@ export default function PostsPanel({ organization, personal = false, view = "for
   }
 
   function register(post) {
-    updateFeedPost(post, (_source, signal) => api.registerEvent(post.id, !post.registration?.registered, signal),
+    updateFeedPost(post, (_source, signal) => api.registerEvent(post.id,
+      !(post.registration?.registered || post.registration?.status === "PENDING"), signal),
       (items, key, { registration, eventAttendees }) => items.map(item => postKey(item) === key
         ? { ...item, registration, eventAttendees: eventAttendees ?? item.eventAttendees ?? [] } : item));
   }
@@ -590,7 +609,10 @@ export default function PostsPanel({ organization, personal = false, view = "for
             view === "saved" ? "Save a post to find it here later." :
               view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
       )}
-      {page?.items.map(post => <PostCard key={cardKey(post)} post={post} timeline={timeline} busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} onRepost={repost} onRegister={register} />)}
+      {page?.items.map(post => <PostCard key={cardKey(post)} post={post} timeline={timeline}
+        canManageEvent={Boolean(post.member && (personal || post.member.username === composerAccount?.username))}
+        busy={pending || disabled} onWithdraw={withdraw} onLike={like} onSave={save} onRepost={repost}
+        onRegister={register} />)}
       {page?.nextCursor && <button type="button" disabled={pending || disabled} onClick={() => void load(page.nextCursor)}>Load older posts</button>}
     </section>
   );
