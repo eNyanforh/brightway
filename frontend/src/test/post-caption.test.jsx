@@ -1,11 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
-import PostCaption, {
+import PostCaption from "../components/posts/PostCaption";
+import {
   CAPTION_PREVIEW_CHARACTERS,
   CAPTION_PREVIEW_LINES,
   previewPostCaption,
-} from "../components/posts/PostCaption";
+} from "../components/posts/post-caption-preview";
 
 it("leaves short captions fully readable without a toggle", () => {
   const { container } = render(<PostCaption body={"Learned JavaScript.\nBuilt my first project."} />);
