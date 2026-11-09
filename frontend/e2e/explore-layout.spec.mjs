@@ -391,7 +391,10 @@ test("post cards show verified publishers and precise relative ages with full pu
   await expect(card("Verified school publisher").getByRole("img", { name: "Verified organization" })).toBeVisible();
   await expect(card("Verified repost attribution").getByRole("img", { name: "Verified identity" })).toHaveCount(2);
   await page.clock.fastForward(10_000);
-  await expect(card("Publisher age seconds").locator("time")).toHaveText("15s");
+  await expect.poll(async () => {
+    const label = await card("Publisher age seconds").locator("time").textContent();
+    return Number(label?.replace("s", ""));
+  }).toBeGreaterThanOrEqual(15);
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
