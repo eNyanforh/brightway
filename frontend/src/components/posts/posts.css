@@ -1201,6 +1201,7 @@
 .bw-post-panel .bw-answer-vote-group button[aria-pressed="true"] { background: #e3eeff; color: #155fcb; }
 .bw-answer-score { min-width: 20px; padding: 0 .12rem; font-size: .75rem; font-weight: 760; color: #2a4c78; text-align: center; font-variant-numeric: tabular-nums; }
 .bw-answer-comments { min-width: 0; max-width: 100%; }
+.bw-answer-comments:has(.bw-answer-comments-panel) { flex: 1 0 100%; width: 100%; }
 .bw-post-panel .bw-answer-comment-trigger {
   display: inline-flex;
   align-items: center;
@@ -1257,7 +1258,7 @@
 }
 .bw-answer-comments-panel .bw-discussion-composer textarea { min-height: 62px; }
 .bw-post-comments .bw-discussion-list { gap: 0; }
-.bw-post-comments .bw-discussion-entry { padding: .76rem .1rem; border-bottom: 1px solid #e9eef6; }
+.bw-post-comments .bw-discussion-entry { padding: .76rem .1rem; border-top: 0; border-bottom: 1px solid #e9eef6; }
 .bw-post-comments .bw-discussion-entry:last-child { border-bottom: 0; }
 .bw-post-comments .bw-discussion-entry-body { margin: .32rem 0 0; }
 .bw-post-panel .bw-discussion-text-button {
@@ -1280,6 +1281,7 @@
   color: #81453f;
   font-size: .72rem;
 }
+.bw-answer-actions > .bw-discussion-confirm { margin-left: 0; }
 .bw-post-panel .bw-discussion-confirm button { padding: .28rem .54rem; border-radius: 7px; font-size: .72rem; }
 .bw-post-panel .bw-discussion-confirm button:first-of-type { border-color: #e9b6b0; background: #fff1ef; color: #a33228; }
 .bw-post-panel .bw-discussion-status,
