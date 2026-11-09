@@ -137,9 +137,11 @@ it("a publisher can retry a failed organization post and withdraw it from the wo
   await screen.findByText("Post published.");
   expect(screen.getByText(body)).toBeTruthy();
   expect(field.value).toBe("");
-  await f.user.click(screen.getByRole("button", { name: "Withdraw post" }));
-  await f.user.click(screen.getByRole("button", { name: "Confirm withdrawal" }));
-  await screen.findByText("Post withdrawn.");
+  await f.user.click(screen.getByRole("button", { name: "Post options" }));
+  await f.user.click(screen.getByRole("menuitem", { name: "Delete post" }));
+  await f.user.click(within(screen.getByRole("dialog", { name: "Delete post" }))
+    .getByRole("button", { name: "Delete post" }));
+  await screen.findByText("Post deleted.");
   expect(screen.queryByText(body)).toBeNull();
 });
 
@@ -344,9 +346,11 @@ it("the personal Post destination checks verification and lets authors withdraw 
   await f.user.click(refresh);
   await screen.findByRole("link", { name: "Publish your public profile" });
   expect(screen.queryByRole("button", { name: "Create an Event" })).toBeNull();
-  await f.user.click(screen.getByRole("button", { name: "Withdraw post" }));
-  await f.user.click(screen.getByRole("button", { name: "Confirm withdrawal" }));
-  await screen.findByText("Post withdrawn.");
+  await f.user.click(screen.getByRole("button", { name: "Post options" }));
+  await f.user.click(screen.getByRole("menuitem", { name: "Delete post" }));
+  await f.user.click(within(screen.getByRole("dialog", { name: "Delete post" }))
+    .getByRole("button", { name: "Delete post" }));
+  await screen.findByText("Post deleted.");
   expect(screen.queryByText(body)).toBeNull();
 });
 
