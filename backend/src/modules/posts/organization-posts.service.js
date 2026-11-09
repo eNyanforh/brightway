@@ -3,7 +3,7 @@ import { MAX_POST_TOPICS, normalizePostTopic } from "../../../../shared/post-top
 import { createManualIdentityReviewService } from "../manual-identity/manual-identity-review.service.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { assertNetworkSession, lockNetworkAccounts } from "../network/network-authority.js";
-import { fail } from "../network/network.schema.js";
+import { fail, usernameSchema } from "../network/network.schema.js";
 import { requireOrganizationProfile } from "../organizations/organization-profile.schema.js";
 
 const publishPermission = "organization.posts.publish";
@@ -18,9 +18,9 @@ const readyFilter = {
 };
 const postSelect = {
   id: true, body: true, createdAt: true,
-  organization: { select: { id: true, name: true, username: true } },
+  organization: { select: { id: true, name: true, username: true, profilePhotoId: true } },
 };
-const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true } } };
+const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true, profile: { select: { photoId: true } } } } };
 const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true, questionDetails: true, body: true, createdAt: true, author: { select: memberSelect } };
 const repostSelect = { id: true, createdAt: true, account: { select: memberSelect } };
 const identifier = z.uuid();
@@ -194,7 +194,7 @@ function answerPreviewSelect(viewerId) {
 
 function memberAttribution({ username, person }) {
   const { firstName, middleName, lastName } = person;
-  return { username, name: [firstName, middleName, lastName].filter(Boolean).join(" ") };
+  return { username, name: [firstName, middleName, lastName].filter(Boolean).join(" "), photoId: person.profile?.photoId ?? null };
 }
 
 function feedPost({ likes, _count, saves, reposts, registrations, answers = [], ...post }, blockedKeys = new Set()) {
@@ -484,6 +484,24 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
   }
 
   return {
+    async memberPhoto(actor, usernameValue, photoValue) {
+      const username = parse(usernameSchema, usernameValue, "Choose a valid member.");
+      const photoId = parse(identifier, photoValue, "Choose a valid profile photo.");
+      await assertNetworkSession(prisma, actor, now);
+      // The member must be visible to this viewer, not merely have an uploaded asset.
+      // Recheck the current photo ID on each request so replaced/pending photos
+      // cannot be fetched by guessing an old asset ID.
+      const member = await prisma.account.findFirst({
+        where: { username, ...visibleMember(actor.accountId) },
+        select: { id: true, personId: true, person: { select: { profile: { select: { photoId: true } } } } },
+      });
+      if (!member || member.person.profile?.photoId !== photoId) throw fail(404, "This profile photo is unavailable.");
+      const access = await memberEligibility(prisma, member.id);
+      if (!access.identityVerified || !access.profilePublic) throw fail(404, "This profile photo is unavailable.");
+      await assertNetworkSession(prisma, actor, now);
+      return { personId: member.personId, photoId };
+    },
+
     async readPost(actor, sourceValue, idValue) {
       const ref = postRef(sourceValue, idValue);
       await assertNetworkSession(prisma, actor, now);
