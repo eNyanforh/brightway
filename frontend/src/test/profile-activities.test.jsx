@@ -100,6 +100,93 @@ it("keeps real reactions interactive while showing server totals", async () => {
     url.endsWith("/explore/posts/member/" + first.id + "/like") && options?.method === "PUT")).toBe(true);
 });
 
+
+it("offers Edit and Delete only through the three-dot menu, and updates then deletes an owned post", async () => {
+  const owned = proof("11111111-1111-4111-8111-111111111111", "ACHIEVEMENT", "First achievement");
+  let items = [owned];
+  const fetchMock = vi.fn(async (url, options = {}) => {
+    if (options.method === "PATCH") {
+      const body = JSON.parse(options.body);
+      expect(body).toEqual({
+        expectedBody: "First achievement",
+        expectedTags: ["Coding"],
+        body: "Achievement updated after feedback",
+        tags: ["Coding"],
+      });
+      items = [{ ...items[0], body: body.body }];
+      return json({ post: items[0] });
+    }
+    if (options.method === "DELETE") {
+      items = [];
+      return json({ id: owned.id });
+    }
+    return json({ items, nextCursor: null });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  render(<MemoryRouter><ProfileActivities accountId="me" /></MemoryRouter>);
+  await screen.findByText("First achievement");
+  expect(screen.queryByRole("button", { name: "Delete post" })).toBeNull();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Post options" }));
+  const menu = screen.getByRole("menu", { name: "Manage post" });
+  expect(within(menu).getByRole("menuitem", { name: "Edit post" })).toBeTruthy();
+  expect(within(menu).getByRole("menuitem", { name: "Delete post" })).toBeTruthy();
+  await user.click(within(menu).getByRole("menuitem", { name: "Edit post" }));
+  const editor = screen.getByRole("dialog", { name: "Edit post" });
+  const caption = within(editor).getByRole("textbox", { name: "Post description" });
+  await user.clear(caption);
+  await user.type(caption, "Achievement updated after feedback");
+  await user.click(within(editor).getByRole("button", { name: "Save changes" }));
+  await screen.findByText("Achievement updated after feedback");
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Edit post" })).toBeNull());
+
+  await user.click(screen.getByRole("button", { name: "Post options" }));
+  await user.click(screen.getByRole("menuitem", { name: "Delete post" }));
+  const confirmation = screen.getByRole("dialog", { name: "Delete post" });
+  expect(within(confirmation).getByText(/cannot be restored/)).toBeTruthy();
+  expect(fetchMock.mock.calls.filter(([, options]) => options?.method === "DELETE")).toHaveLength(0);
+  await user.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+  expect(screen.getByText("Achievement updated after feedback")).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Post options" }));
+  await user.click(screen.getByRole("menuitem", { name: "Delete post" }));
+  await user.click(within(screen.getByRole("dialog", { name: "Delete post" }))
+    .getByRole("button", { name: "Delete post" }));
+  expect(await screen.findByText("No activity yet")).toBeTruthy();
+  expect(fetchMock.mock.calls.filter(([url, options]) =>
+    url.endsWith("/posts/me/" + owned.id) && options?.method === "PATCH")).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter(([url, options]) =>
+    url.endsWith("/posts/me/" + owned.id) && options?.method === "DELETE")).toHaveLength(1);
+});
+
+it("preserves an edited event's title, ticket, scheduling and approval settings", async () => {
+  const event = proof("22222222-2222-4222-8222-222222222222", "EVENT", "Join us", {
+    eventDetails: details,
+    registration: { count: 0, registered: false }, eventAttendees: [],
+  });
+  const fetchMock = vi.fn(async (url, options = {}) =>
+    options.method === "PATCH"
+      ? json({ post: { ...event, ...JSON.parse(options.body) } })
+      : json({ items: [event], nextCursor: null }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(<MemoryRouter><ProfileActivities accountId="me" /></MemoryRouter>);
+  await screen.findByText("Join us");
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Post options" }));
+  await user.click(screen.getByRole("menuitem", { name: "Edit post" }));
+  const dialog = screen.getByRole("dialog", { name: "Edit post" });
+  expect(within(dialog).getByRole("textbox", { name: "Event title" }).value).toBe("Career workshop");
+  expect(within(dialog).getByRole("spinbutton", { name: "Ticket price" }).value).toBe("25.00");
+  expect(within(dialog).getByRole("checkbox", { name: "Require attendance approval" }).checked).toBe(true);
+  await user.click(within(dialog).getByRole("button", { name: "Save changes" }));
+  await waitFor(() => expect(fetchMock.mock.calls.some(([, options]) => options?.method === "PATCH")).toBe(true));
+  const [, opts] = fetchMock.mock.calls.find(([, options]) => options?.method === "PATCH");
+  const body = JSON.parse(opts.body);
+  expect(body.eventDetails.title).toBe("Career workshop");
+  expect(body.eventDetails.ticketPriceCents).toBe(2500);
+  expect(body.eventDetails.requiresApproval).toBe(true);
+  expect(body.eventDetails.startAt).toBe("2026-11-12T14:00:00.000Z");
+});
+
 it("shows retry on API failure and never invents activity data", async () => {
   let attempts = 0;
   vi.stubGlobal("fetch", vi.fn(async () => {
