@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { notificationsApi } from "../api/notifications";
 import { useAuth } from "../auth/useAuth";
-import "../pages/public-person.css";
+import "./public-person.css";
 
 const regionNames = typeof Intl.DisplayNames === "function"
   ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
