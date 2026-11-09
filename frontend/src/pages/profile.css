@@ -1325,37 +1325,6 @@
   background: #e8f4fc;
   color: #215e95;
 }
-.bw-profile-identity-status {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 17px;
-  padding-top: 14px;
-  border-top: 1px solid #e7edf5;
-}
-.bw-profile-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 9px;
-  border: 1px solid #dfe7f2;
-  border-radius: 999px;
-  background: #f7f9fc;
-  color: #637792;
-  font-size: .68rem;
-  font-weight: 690;
-}
-.bw-profile-status--verified {
-  background: #e6f6ee;
-  color: #187653;
-  border-color: #bfdfcf;
-}
-.bw-profile-status--public {
-  background: #ebf2ff;
-  color: #235ba8;
-  border-color: #d1e1f9;
-}
 .bw-profile-section-nav {
   display: flex;
   align-items: center;
@@ -1533,34 +1502,6 @@
   font-size: .73rem;
   color: #637590;
 }
-.bw-profile-intro-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 17px;
-}
-.bw-profile-intro-actions .bw-profile-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 39px;
-  padding: 9px 14px;
-  border-radius: 999px;
-  font-size: .77rem;
-  font-weight: 730;
-  line-height: 1.4;
-  text-decoration: none;
-  white-space: normal;
-}
-.bw-profile-intro-actions a.bw-profile-button-secondary {
-  color: #195caa;
-  background: white;
-  border: 1px solid #bdd2ee;
-}
-.bw-profile-intro-actions a.bw-profile-button-secondary:hover {
-  background: #eef5ff;
-}
 @media (max-width: 1070px) {
   .bw-profile-intro-grid { grid-template-columns: minmax(0,1fr); gap: 15px; }
   .bw-profile-affiliations {
@@ -1572,12 +1513,6 @@
 @media (max-width: 550px) {
   .bw-profile-hero .bw-profile-cover { height: 142px; }
   .bw-profile-affiliations { grid-template-columns: minmax(0,1fr); }
-  .bw-profile-intro-actions { gap: 7px; }
-  .bw-profile-intro-actions .bw-profile-button {
-    min-height: 40px;
-    padding: 9px 13px;
-    font-size: .74rem;
-  }
 }
 
 
