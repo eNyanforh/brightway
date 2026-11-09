@@ -980,8 +980,49 @@
 .bw-timeline-actions { flex-wrap: wrap; gap: clamp(.22rem, 1vw, .85rem); }
 .bw-post-panel .bw-timeline-action { display: inline-flex; align-items: center; justify-content: center; gap: .28rem; }
 .bw-timeline-action[aria-pressed="true"] { color: var(--bw-post-accent, #235baa); }
-.bw-post-panel .bw-register-action { color: #215aa2; gap: .3rem; font-weight: 750; }
-.bw-post-panel .bw-register-action[aria-pressed="true"] { color: #11744c; }
+/* Distinct event attendance CTA with a persistent confirmed state. */
+.bw-post-panel .bw-register-action {
+  min-height: 39px;
+  gap: .48rem;
+  padding: .45rem .9rem;
+  border: 1px solid #1c54b9;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2069d8, #174796);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: -.005em;
+  box-shadow: 0 3px 9px #194f9c2c;
+  white-space: nowrap;
+  transition: background-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.bw-post-panel .bw-register-action:hover:enabled {
+  border-color: #13418f;
+  background: linear-gradient(135deg, #1659c5, #123a7f);
+  box-shadow: 0 4px 12px #184b963a;
+  color: #fff;
+}
+.bw-post-panel .bw-register-action[aria-pressed="true"] {
+  border-color: #b8e1d1;
+  background: #eaf8f2;
+  box-shadow: none;
+  color: #126748;
+}
+.bw-post-panel .bw-register-action[aria-pressed="true"]:hover:enabled {
+  background: #dff2e9;
+  border-color: #9dd3bb;
+  color: #10583e;
+}
+.bw-post-panel .bw-register-action:active:enabled { transform: translateY(1px); }
+.bw-post-panel .bw-register-action:focus-visible {
+  outline: 3px solid #83adfa;
+  outline-offset: 2px;
+}
+.bw-post-panel .bw-register-action:disabled { opacity: .67; cursor: progress; }
+.bw-going-check-icon { flex: 0 0 auto; }
+@media (prefers-reduced-motion: reduce) {
+  .bw-post-panel .bw-register-action { transition: none; }
+}
 .bw-action-count { font-size: .73rem; font-variant-numeric: tabular-nums; }
 .bw-post-view-metric { display: inline-flex; align-items: center; gap: .3rem; padding: .4rem .45rem; font-size: .75rem; color: #64748b; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bw-post-action-notice { font-size: .77rem; color: #3d628b; margin: .55rem 0; overflow-wrap: anywhere; }
