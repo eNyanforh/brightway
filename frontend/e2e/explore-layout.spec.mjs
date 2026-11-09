@@ -518,7 +518,7 @@ test("purpose-driven post cards expose distinct actions and functional registrat
   await expect(achievementCard.getByRole("button", { name: "Share" })).toBeVisible();
   await expect(achievementCard.getByLabel(/views$/)).toBeVisible();
 
-  for (const [card, primaryName] of [[eventCard, "Register"], [questionCard, "Answer"]]) {
+  for (const [card, primaryName] of [[eventCard, "I\'m going"], [questionCard, "Answer"]]) {
     const actions = card.locator(".bw-timeline-actions--split");
     const primary = actions.locator(".bw-post-primary-action").getByRole("button", { name: primaryName });
     const secondary = actions.locator(".bw-post-secondary-actions");
@@ -532,8 +532,8 @@ test("purpose-driven post cards expose distinct actions and functional registrat
   await expect(questionCard.getByRole("region", { name: "Post comments" })).toHaveCount(0);
   await expect(eventCard.getByRole("button", { name: "Comments" })).toBeVisible();
   await expect(eventCard.getByRole("button", { name: "Like" })).toHaveCount(0);
-  await eventCard.getByRole("button", { name: "Register" }).click();
-  await expect(eventCard.getByRole("button", { name: "Registered" })).toBeVisible();
+  await eventCard.getByRole("button", { name: "I\'m going" }).click();
+  await expect(eventCard.getByRole("button", { name: /Going — cancel attendance/ })).toBeVisible();
   expect(calls).toContainEqual({ registered: true });
 
   await expect(questionCard.getByRole("button", { name: "Like" })).toHaveCount(0);
@@ -812,24 +812,24 @@ test("event cards display real registrant avatars and count, refreshed after reg
   await page.goto("/explore");
   const card = page.getByRole("article").filter({ hasText: "Career Opportunities Workshop" });
   const summary = card.locator(".bw-event-attendee-summary");
-  await expect(summary).toContainText("42 people registered");
-  const avatars = summary.getByRole("group", { name: "People registered to attend" });
+  await expect(summary).toContainText("42 people attending");
+  const avatars = summary.getByRole("group", { name: "People attending" });
   await expect(avatars.getByRole("link")).toHaveCount(3);
-  await expect(avatars.getByRole("link", { name: "Maya Cole registered to attend" }))
+  await expect(avatars.getByRole("link", { name: "Maya Cole attending" }))
     .toHaveAttribute("href", "/people/maya");
-  await expect(avatars.getByRole("link", { name: "Lena Cooper registered to attend" })).toHaveCount(0);
+  await expect(avatars.getByRole("link", { name: "Lena Cooper attending" })).toHaveCount(0);
   await expect(avatars.locator("img")).toHaveCount(2);
   await expect.poll(() => avatars.locator("img").first()
     .evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
-  await expect(avatars.getByRole("link", { name: "Alex Rivera registered to attend" })
+  await expect(avatars.getByRole("link", { name: "Alex Rivera attending" })
     .locator("svg")).toBeVisible();
-  await card.getByRole("button", { name: "Register", exact: true }).click();
-  await expect(card.getByRole("button", { name: "Registered" })).toBeVisible();
-  await expect(summary).toContainText("43 people registered");
-  await expect(avatars.getByRole("link", { name: "Synthetic Member registered to attend" })).toBeVisible();
-  await card.getByRole("button", { name: "Registered" }).click();
-  await expect(card.getByRole("button", { name: "Register", exact: true })).toBeVisible();
-  await expect(summary).toContainText("42 people registered");
+  await card.getByRole("button", { name: "I\'m going", exact: true }).click();
+  await expect(card.getByRole("button", { name: /Going — cancel attendance/ })).toBeVisible();
+  await expect(summary).toContainText("43 people attending");
+  await expect(avatars.getByRole("link", { name: "Synthetic Member attending" })).toBeVisible();
+  await card.getByRole("button", { name: /Going — cancel attendance/ }).click();
+  await expect(card.getByRole("button", { name: "I\'m going", exact: true })).toBeVisible();
+  await expect(summary).toContainText("42 people attending");
   expect(calls).toEqual([true, false]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
@@ -896,7 +896,7 @@ test("mobile event and question primary actions stay left of the right utility g
     json: { success: true, data: { views: 22 } },
   }));
   await page.goto("/explore");
-  for (const [body, type, name] of [[event.body, "EVENT", "Register"], [question.body, "QUESTION", "Answer"]]) {
+  for (const [body, type, name] of [[event.body, "EVENT", "I\'m going"], [question.body, "QUESTION", "Answer"]]) {
     const card = page.getByRole("article").filter({ hasText: body });
     const actionBar = card.locator(".bw-timeline-actions--split");
     const leading = actionBar.locator(".bw-post-primary-action").getByRole("button", { name });
