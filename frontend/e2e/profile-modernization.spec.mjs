@@ -126,12 +126,16 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
     activityReads: () => activityReads };
 }
 
-test("my profile shows a private dashboard above About without tabs on desktop and mobile", async ({ page }) => {
+test("my profile has three responsive tabs below the private dashboard on desktop and mobile", async ({ page }) => {
   const api = await fixture(page);
   await page.goto("/profile");
   const heading = page.getByRole("heading", { level: 1, name: "Synthetic Member" });
   await expect(heading).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Profile sections" })).toHaveCount(0);
+  const tabs = page.getByRole("tablist", { name: "Profile sections" });
+  await expect(tabs.getByRole("tab")).toHaveCount(3);
+  await expect(tabs.getByRole("tab", { name: "About Me" })).toHaveAttribute("aria-selected", "true");
+  await expect(tabs.getByRole("tab", { name: "Achievements" })).toHaveAttribute("aria-selected", "false");
+  await expect(tabs.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "false");
   const dashboard = page.locator("#profile-dashboard");
   await expect(dashboard).toBeVisible();
   await expect(dashboard.getByText("Private to you")).toBeVisible();
@@ -143,6 +147,10 @@ test("my profile shows a private dashboard above About without tabs on desktop a
   await expect(page.getByRole("heading", { name: "My profile" })).toHaveCount(0);
   await expect(page.getByText("YOUR BRIGHTWAY PROFILE")).toHaveCount(0);
 
+  await expect(page.locator("#profile-panel-achievements")).toBeHidden();
+  await expect(page.locator("#profile-panel-activity")).toBeHidden();
+  await tabs.getByRole("tab", { name: "Activity" }).click();
+  await expect(tabs.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
   const activity = page.locator("#profile-activity");
   await expect(activity.getByRole("heading", { name: "Activities" })).toBeVisible();
   await expect(activity.getByText("Finished a community coding project.")).toBeVisible();
@@ -191,6 +199,7 @@ test("my profile shows a private dashboard above About without tabs on desktop a
 test("profile Activities keeps commenter and answer photos at post-card avatar size", async ({ page }) => {
   await fixture(page, {}, {}, "Finished a community coding project.", {}, true);
   await page.goto("/profile");
+  await page.getByRole("tab", { name: "Activity" }).click();
   const activity = page.locator("#profile-activity");
   const firstPost = activity.locator(".bw-profile-activity-item").first();
   await expect(firstPost).toBeVisible();
@@ -244,6 +253,7 @@ test("post captions show exactly two visual lines with See more, then expand and
     .repeat(8) + ending;
   await fixture(page, {}, {}, longCaption);
   await page.goto("/profile");
+  await page.getByRole("tab", { name: "Activity" }).click();
   const card = page.locator("#profile-activity .bw-timeline-post").first();
   await expect(card).toBeVisible();
   const caption = card.locator(".bw-post-text");
@@ -278,6 +288,7 @@ test("Activities keeps the regular post author layout with long verified names",
     name: longName, username: longUsername,
   });
   await page.goto("/profile");
+  await page.getByRole("tab", { name: "Activity" }).click();
   const rail = page.locator("#profile-activity .bw-profile-activity-list");
   await expect(rail.locator(".bw-timeline-post")).toHaveCount(2);
   const card = rail.locator(".bw-timeline-post").first();
@@ -340,10 +351,15 @@ test("profile introduction uses saved affiliations without inventing credentials
   await expect(affiliation.getByText("Software developer")).toBeVisible();
   await expect(page.getByRole("link", { name: "View public profile" })).toHaveCount(0);
 
-  const order = await page.locator(".bw-profile-main > #profile-experience, .bw-profile-main > #profile-education")
+  await page.getByRole("tab", { name: "Achievements" }).click();
+  const order = await page.locator("#profile-panel-achievements > #profile-experience, #profile-panel-achievements > #profile-education")
     .evaluateAll(elements => elements.map(element => element.id));
   expect(order).toEqual(["profile-experience", "profile-education"]);
+  await expect(page.locator("#profile-experience")).toBeVisible();
+  await expect(page.locator("#profile-education")).toBeVisible();
+  await expect(page.locator("#profile-certifications")).toBeVisible();
 
+  await page.getByRole("tab", { name: "About Me" }).click();
   await page.getByRole("button", { name: "Edit my direction" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
 });
@@ -356,6 +372,8 @@ test("published members keep consent settings without redundant hero buttons", a
   await expect(page.locator(".bw-profile-hero").getByText("Public profile published")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "View public profile" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "See activity" })).toHaveCount(0);
+  await expect(page.locator("#profile-activity")).toBeHidden();
+  await page.getByRole("tab", { name: "Activity" }).click();
   await expect(page.locator("#profile-activity")).toBeVisible();
 });
 
