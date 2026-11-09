@@ -311,30 +311,6 @@
 }
 .bw-explore .bw-question-answer-count strong { color: #23416b; font-weight: 760; }
 
-/* Primary action stays left of the existing right-aligned utilities. */
-.bw-explore .bw-timeline-panel .bw-answer-primary-action {
-  min-width: auto;
-  min-height: 38px;
-  gap: .42rem;
-  padding: .38rem .82rem;
-  border: 1px solid #175cd3;
-  border-radius: 999px;
-  background: #175cd3;
-  box-shadow: 0 2px 6px #175cd31f;
-  color: #fff;
-  font-size: .77rem;
-  font-weight: 750;
-  transition: background-color .16s ease, box-shadow .16s ease, transform .16s ease;
-}
-.bw-explore .bw-timeline-panel .bw-answer-primary-action:hover,
-.bw-explore .bw-timeline-panel .bw-answer-primary-action[aria-expanded="true"] {
-  border-color: #124ba9;
-  background: #124ba9;
-  box-shadow: 0 3px 10px #175cd32b;
-  color: #fff;
-}
-.bw-explore .bw-timeline-panel .bw-answer-primary-action:active { transform: translateY(1px); }
-.bw-explore .bw-post-topic-tags li { border-radius: 6px; background: #f1f5fa; color: #426085; }
 .bw-explore .bw-event-feed-card { margin: .45rem 0 .65rem; border: 1px solid #e0e7f1; border-radius: 10px; }
 .bw-explore .bw-event-feed-cover { min-height: 76px; padding: .7rem .85rem; }
 .bw-explore .bw-event-feed-content { gap: .45rem; padding: .75rem .85rem; }
@@ -380,7 +356,6 @@
 .bw-explore .bw-timeline-panel .bw-timeline-repost-action[data-active="true"] { background: #e7f6ee; color: #167047; }
 .bw-explore .bw-timeline-panel .bw-signup-action { color: #21569f; }
 .bw-explore .bw-timeline-panel .bw-signup-action[aria-pressed="true"] { color: #197150; }
-.bw-explore .bw-timeline-panel .bw-answer-primary-action { color: #6951a0; }
 .bw-explore .bw-post-view-metric { gap: .25rem; padding: .3rem .2rem; color: #61718a; font-size: .73rem; }
 .bw-explore .bw-post-primary-action { flex: 0 0 auto; }
 .bw-explore .bw-post-comments { min-width: 0; margin-top: .25rem; }
@@ -409,6 +384,30 @@
 }
 .bw-explore .bw-post-error { border-color: #f2d2d1; background: #fff7f5; color: #a22a21; }
 
+/* Primary action stays left of the existing right-aligned utilities. */
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-answer-primary-action {
+  min-width: auto;
+  min-height: 38px;
+  gap: .42rem;
+  padding: .38rem .82rem;
+  border: 1px solid #175cd3;
+  border-radius: 999px;
+  background: #175cd3;
+  box-shadow: 0 2px 6px #175cd31f;
+  color: #fff;
+  font-size: .77rem;
+  font-weight: 750;
+  transition: background-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-answer-primary-action:hover,
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-answer-primary-action[aria-expanded="true"] {
+  border-color: #124ba9;
+  background: #124ba9;
+  box-shadow: 0 3px 10px #175cd32b;
+  color: #fff;
+}
+.bw-explore .bw-timeline-panel .bw-timeline-actions--split .bw-answer-primary-action:active { transform: translateY(1px); }
+.bw-explore .bw-post-topic-tags li { border-radius: 6px; background: #f1f5fa; color: #426085; }
 /* Contextual discovery is intentionally quieter than the feed. */
 .bw-explore-aside-card {
   min-width: 0;
