@@ -34,6 +34,7 @@ async function readPage(path, signal) {
 
 const workspacePath = id => "/organization-workspace/" + encodeURIComponent(id) + "/posts";
 const explorePost = (source, id) => `/explore/posts/${source}/${encodeURIComponent(id)}`;
+export const memberPhotoUrl = (username, photoId) => `${base}/explore/members/${encodeURIComponent(username)}/photo/${encodeURIComponent(photoId)}`;
 const query = params => "?" + new URLSearchParams(params);
 
 export const organizationPostsApi = {
