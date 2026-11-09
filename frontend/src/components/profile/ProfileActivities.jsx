@@ -1,47 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { organizationPostsApi } from "../../api/organization-posts";
-import PostTimestamp from "../posts/PostTimestamp";
+import { organizationPostsApi as api } from "../../api/organization-posts";
+import { PostCard } from "../posts/PostsPanel";
 import "./profile-activities.css";
 
-const activityTypes = {
-  ACHIEVEMENT: "Achievement",
-  EVENT: "Event",
-  QUESTION: "Question",
-  POST: "Post",
-};
+const postLink = id => "/explore?" + new URLSearchParams({ source: "member", post: id });
 
-function ActivityItem({ item }) {
-  const category = activityTypes[item.type] || "Post";
-  const title = item.type === "EVENT" ? item.eventDetails?.title
-    : item.type === "QUESTION" ? item.questionDetails?.title : null;
-  const params = new URLSearchParams({ source: "member", post: item.id });
-  return (
-    <article className="bw-profile-activity-item" data-activity-type={item.type}>
-      <div className="bw-profile-activity-top">
-        <span className="bw-profile-activity-type">{category}</span>
-        <PostTimestamp createdAt={item.createdAt} />
-      </div>
-      {title && <h3>{title}</h3>}
-      <p className="bw-profile-activity-body">{item.body}</p>
-      {Array.isArray(item.tags) && item.tags.length > 0 && (
-        <ul className="bw-profile-activity-topics" aria-label="Activity topics">
-          {item.tags.map(tag => <li key={tag}>{tag}</li>)}
-        </ul>
-      )}
-      <Link className="bw-profile-activity-link" to={"/explore?" + params.toString()}>
-        View post <span aria-hidden="true">↗</span>
-      </Link>
-    </article>
-  );
-}
-
-/** Uses the existing authenticated member post history, not inferred activity metrics. */
+/** Complete, owner-only post history in one scrollable horizontal row.
+ * Older posts append to the same row; no text, event or question is truncated.
+ */
 export default function ProfileActivities({ accountId }) {
   const [page, setPage] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [mutatingId, setMutatingId] = useState(null);
   const controllerRef = useRef(null);
+  const railRef = useRef(null);
 
   const load = useCallback(async (cursor = null) => {
     if (controllerRef.current) return;
@@ -50,7 +24,7 @@ export default function ProfileActivities({ accountId }) {
     setLoading(true);
     setError("");
     try {
-      const result = await organizationPostsApi.memberList(cursor, controller.signal);
+      const result = await api.memberList(cursor, controller.signal);
       if (controller.signal.aborted) return;
       setPage(previous => {
         if (!cursor || !previous) return result;
@@ -78,13 +52,77 @@ export default function ProfileActivities({ accountId }) {
     };
   }, [accountId, load]);
 
+  async function updatePost(post, operation, project) {
+    if (mutatingId || loading) return;
+    setMutatingId(post.id);
+    setError("");
+    try {
+      const response = await operation();
+      setPage(previous => previous && ({
+        ...previous,
+        items: previous.items.map(item => item.id === post.id ? project(item, response) : item),
+      }));
+    } catch (failure) {
+      setError(failure.message || "Could not update this post.");
+    } finally {
+      setMutatingId(null);
+    }
+  }
+
+  function like(post) {
+    void updatePost(post,
+      () => api.setLike("member", post.id, !post.reaction.liked),
+      (item, data) => ({ ...item, reaction: data.reaction }));
+  }
+  function save(post) {
+    void updatePost(post,
+      () => api.setSaved("member", post.id, !post.saved),
+      (item, data) => ({ ...item, saved: data.saved }));
+  }
+  function repost(post) {
+    void updatePost(post,
+      () => api.setReposted("member", post.id, !post.reposted),
+      (item, data) => ({
+        ...item, reposted: data.reposted,
+        repostCount: Math.max(0, item.repostCount + (data.reposted ? 1 : -1)),
+      }));
+  }
+  function register(post) {
+    void updatePost(post,
+      () => api.registerEvent(post.id,
+        !(post.registration?.registered || post.registration?.status === "PENDING")),
+      (item, data) => ({
+        ...item, registration: data.registration,
+        eventAttendees: data.eventAttendees ?? item.eventAttendees ?? [],
+      }));
+  }
+  async function withdraw(id) {
+    if (mutatingId || loading) return;
+    setMutatingId(id);
+    try {
+      await api.memberWithdraw(id);
+      setPage(previous => previous && ({ ...previous, items: previous.items.filter(item => item.id !== id) }));
+    } catch (failure) {
+      setError(failure.message || "Unable to withdraw this post.");
+    } finally {
+      setMutatingId(null);
+    }
+  }
+  function scroll(direction) {
+    if (!railRef.current) return;
+    const amount = Math.max(280, railRef.current.clientWidth * 0.8);
+    railRef.current.scrollBy({ left: direction * amount, behavior: "smooth" });
+  }
+
   return (
     <section id="profile-activity" className="bw-profile-card bw-profile-section bw-profile-activities"
       aria-labelledby="profile-activities-title">
-      <div className="bw-profile-section-head">
+      <div className="bw-profile-section-head bw-profile-activity-header">
         <div>
           <h2 id="profile-activities-title">Activities</h2>
-          <p className="bw-profile-activity-description">Your published achievements, events, and questions.</p>
+          <p className="bw-profile-activity-description">
+            All your published posts, with their details and engagement.
+          </p>
         </div>
         <Link className="bw-profile-activity-all" to="/posts">All posts</Link>
       </div>
@@ -104,9 +142,31 @@ export default function ProfileActivities({ accountId }) {
         </div>
       )}
       {page?.items.length > 0 && (
-        <div className="bw-profile-activity-list">
-          {page.items.map(item => <ActivityItem key={item.id} item={item} />)}
-        </div>
+        <>
+          <div className="bw-profile-activity-scroll-controls">
+            <span>Browse your posts horizontally</span>
+            <div className="bw-profile-activity-arrows">
+              <button type="button" aria-label="Previous posts" onClick={() => scroll(-1)}>‹</button>
+              <button type="button" aria-label="Next posts" onClick={() => scroll(1)}>›</button>
+            </div>
+          </div>
+          <div ref={railRef} className="bw-profile-activity-list"
+            role="region" aria-label="Your posts — scroll horizontally" tabIndex={0}>
+            {page.items.map(post => (
+              <div className="bw-profile-activity-item bw-post-panel bw-timeline-panel"
+                data-activity-type={post.type} key={post.id}>
+                <PostCard
+                  post={post} timeline trackViews={false} busy={loading || Boolean(mutatingId)}
+                  canManageEvent onWithdraw={withdraw} onLike={like}
+                  onSave={save} onRepost={repost} onRegister={register}
+                />
+                <Link className="bw-profile-activity-link" to={postLink(post.id)}>
+                  View full post <span aria-hidden="true">↗</span>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </>
       )}
       {(page?.nextCursor || (page && !loading)) && (
         <div className="bw-profile-activity-footer">

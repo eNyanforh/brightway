@@ -157,6 +157,25 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     } });
     createdPosts.push(achievement.id);
     await prisma.postView.create({ data: { memberPostId: achievement.id, accountId: visitor.id } });
+    await prisma.postLike.create({ data: { memberPostId: achievement.id, accountId: visitor.id } });
+    await prisma.postComment.create({ data: { memberPostId: achievement.id,
+      authorId: visitor.id, requestKey: randomUUID(), body: "Congratulations." } });
+    await prisma.postRepost.create({ data: { memberPostId: achievement.id, accountId: visitor.id } });
+    await prisma.postSave.create({ data: { memberPostId: achievement.id, accountId: owner.id } });
+    const memberHistory = await request(owner, "/posts/me");
+    assert.equal(memberHistory.items.length, 1);
+    assert.equal(memberHistory.items[0].id, achievement.id);
+    assert.equal(memberHistory.items[0].member.name, "Synthetic owner");
+    assert.deepEqual(memberHistory.items[0].reaction, { count: 1, liked: false });
+    assert.equal(memberHistory.items[0].views, 1);
+    assert.equal(memberHistory.items[0].commentCount, 1);
+    assert.equal(memberHistory.items[0].repostCount, 1);
+    assert.equal(memberHistory.items[0].saved, true);
+    assert.equal(memberHistory.items[0].reposted, false);
+    assert.equal(memberHistory.items[0].body, "Published a new software project.");
+    assert.deepEqual(memberHistory.items[0].tags, ["Coding"]);
+    assert.equal(Object.hasOwn(memberHistory.items[0], "likes"), false);
+    assert.equal(Object.hasOwn(memberHistory.items[0], "_count"), false);
     assert.equal((await dashboard(owner)).postImpressions, 1, "unique post-view events are counted for the author");
     assert.equal((await dashboard(visitor)).postImpressions, 0, "only the author's posts are counted");
     await preferences(owner, { profileAchievementsPublicEnabled: true });

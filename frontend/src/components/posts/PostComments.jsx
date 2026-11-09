@@ -3,7 +3,7 @@ import NavigationIcon from "../layout/NavigationIcon";
 import { organizationPostsApi as api } from "../../api/organization-posts";
 import DiscussionAuthor from "./DiscussionAuthor";
 
-export default function PostComments({ source, postId, children, showComment = true, primaryAction = null }) {
+export default function PostComments({ source, postId, children, showComment = true, primaryAction = null, commentCount = null }) {
   const regionId = useId();
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(null);
@@ -86,6 +86,7 @@ export default function PostComments({ source, postId, children, showComment = t
             <button type="button" className="bw-timeline-action" aria-label="Comments" title="Comments"
               aria-expanded={expanded} aria-controls={regionId} disabled={pending} onClick={toggle}>
               <NavigationIcon name="reply" size={19} />
+              {Number.isInteger(commentCount) && <span className="bw-action-count" aria-label={commentCount + " comments"}>{commentCount.toLocaleString()}</span>}
             </button>
           )}
           {children}

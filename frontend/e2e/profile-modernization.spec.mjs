@@ -61,14 +61,30 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}) {
             id: "33333333-3333-4333-8333-333333333333", type: "QUESTION",
             body: "How do I find a mentor?", createdAt: "2026-11-07T09:00:00Z",
             questionDetails: { title: "Finding a mentor" }, tags: ["Learning"],
+            member: { username: "synthetic", name: "Synthetic Member", photoId: null, verified: true },
+            reaction: { count: 0, liked: false }, views: 3, commentCount: 0,
+            repostCount: 0, answerCount: 2, answerParticipants: [], saved: false, reposted: false,
           }], nextCursor: null }
           : { access: {}, items: [
             { id: "11111111-1111-4111-8111-111111111111", type: "ACHIEVEMENT",
               body: "Finished a community coding project.", createdAt: "2026-11-09T09:00:00Z",
-              tags: ["Coding"] },
+              tags: ["Coding"],
+              member: { username: "synthetic", name: "Synthetic Member", photoId: null, verified: true },
+              reaction: { count: 4, liked: false }, views: 28, commentCount: 2,
+              repostCount: 1, saved: false, reposted: false,
+            },
             { id: "22222222-2222-4222-8222-222222222222", type: "EVENT",
               body: "Join our community workshop.", createdAt: "2026-11-08T09:00:00Z",
-              eventDetails: { title: "Community workshop" }, tags: ["Career"] },
+              eventDetails: { title: "Community workshop", startAt: "2026-11-12T14:00:00Z",
+                endAt: "2026-11-12T16:00:00Z", timezone: "Africa/Monrovia",
+                format: "IN_PERSON", venue: "Monrovia", ticketPriceCents: 0,
+                requiresApproval: false, capacity: 50 },
+              tags: ["Career"],
+              member: { username: "synthetic", name: "Synthetic Member", photoId: null, verified: true },
+              reaction: { count: 0, liked: false }, views: 9, commentCount: 1,
+              repostCount: 0, registration: { count: 6, registered: false },
+              eventAttendees: [], saved: false, reposted: false,
+            },
           ], nextCursor: "older" });
       case "/api/v1/manual-identity/status":
         return reply({ accountId: account.id, profileVersion: 1, status: "NOT_STARTED",
@@ -104,8 +120,23 @@ test("my profile shows a private dashboard above About without tabs on desktop a
   await expect(activity.getByRole("heading", { name: "Activities" })).toBeVisible();
   await expect(activity.getByText("Finished a community coding project.")).toBeVisible();
   await expect(activity.getByRole("heading", { name: "Community workshop", exact: true })).toBeVisible();
-  await expect(activity.getByRole("link", { name: "View post" }).first())
+  const rail = activity.getByRole("region", { name: /Your posts/ });
+  await expect(rail).toBeVisible();
+  await expect(rail.locator(".bw-timeline-post")).toHaveCount(2);
+  await expect(rail.getByRole("img", { name: "Verified identity" })).toHaveCount(2);
+  await expect(rail.getByLabel("28 views")).toBeVisible();
+  await expect(rail.getByLabel("2 comments")).toBeVisible();
+  await expect(rail.getByText("6 people attending")).toBeVisible();
+  await expect(activity.getByRole("link", { name: /View full post/ }).first())
     .toHaveAttribute("href", "/explore?source=member&post=11111111-1111-4111-8111-111111111111");
+  const railLayout = await rail.evaluate(element => {
+    const cards = [...element.querySelectorAll(".bw-profile-activity-item")];
+    return { direction: getComputedStyle(element).flexDirection,
+      first: cards[0].getBoundingClientRect().top,
+      second: cards[1].getBoundingClientRect().top };
+  });
+  expect(railLayout.direction).toBe("row");
+  expect(Math.abs(railLayout.first - railLayout.second)).toBeLessThanOrEqual(2);
   await activity.getByRole("button", { name: "Load older activity" }).click();
   await expect(activity.getByText("Finding a mentor")).toBeVisible();
   await expect(activity.locator(".bw-profile-activity-item")).toHaveCount(3);

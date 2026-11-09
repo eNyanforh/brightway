@@ -1,10 +1,11 @@
-/* Profile activity cards use the existing owner-only published-post history. */
-.bw-profile-activities { scroll-margin-top: 85px; }
+/* Full member post cards in one horizontal, keyboard-scrollable row. */
+.bw-profile-activities { scroll-margin-top: 85px; overflow: hidden; }
 .bw-profile-activities .bw-profile-section-head { align-items: center; }
+.bw-profile-activity-header { gap: 14px; }
 .bw-profile-activity-description {
   margin: 5px 0 0;
   color: #71819a;
-  font-size: .76rem;
+  font-size: .77rem;
   line-height: 1.5;
 }
 .bw-profile-activity-all {
@@ -23,83 +24,172 @@
   font-size: .73rem;
 }
 .bw-profile-activity-all:hover { background: #e0edff; }
-.bw-profile-activity-list { display: grid; gap: 11px; }
-.bw-profile-activity-item {
-  display: grid;
-  gap: 10px;
-  padding: 16px 17px;
-  border: 1px solid #e2eaf5;
-  border-radius: 13px;
-  background: #fff;
-  box-shadow: 0 2px 9px #12365e07;
-  min-width: 0;
-}
-.bw-profile-activity-top { display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-.bw-profile-activity-top time { font-size: .72rem; color: #71819a; }
-.bw-profile-activity-type {
-  display: inline-flex;
+.bw-profile-activity-scroll-controls {
+  display: flex;
   align-items: center;
-  padding: .3rem .6rem;
-  background: #eaf2fe;
-  border: 1px solid #d8e6fa;
-  border-radius: 999px;
-  font-size: .69rem;
-  font-weight: 780;
-  color: #255fa7;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: #6c7d94;
+  font-size: .74rem;
 }
-.bw-profile-activity-item[data-activity-type="EVENT"] .bw-profile-activity-type {
-  background: #f0eefe;
-  border-color: #e3ddfb;
-  color: #63509d;
+.bw-profile-activity-arrows { display: flex; gap: 8px; }
+.bw-profile-activity-arrows button {
+  width: 33px;
+  height: 33px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d9e5f2;
+  border-radius: 50%;
+  background: #fff;
+  color: #315a91;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
 }
-.bw-profile-activity-item[data-activity-type="QUESTION"] .bw-profile-activity-type {
-  background: #f0f8ee;
-  border-color: #dbeed7;
-  color: #326a4c;
+.bw-profile-activity-arrows button:hover { background: #edf4ff; }
+.bw-profile-activity-arrows button:focus-visible,
+.bw-profile-activity-list:focus-visible,
+.bw-profile-activity-link:focus-visible {
+  outline: 3px solid #80a9ef;
+  outline-offset: 2px;
 }
-.bw-profile-activity-item h3 {
-  margin: 0;
-  font-size: .9rem;
-  color: #1d3554;
-  font-weight: 800;
-  line-height: 1.45;
+.bw-profile-activity-list {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  padding: 3px 2px 12px;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.bw-profile-activities .bw-profile-activity-item.bw-post-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 min(460px, calc(100% - 6px));
+  width: min(460px, calc(100% - 6px));
+  max-width: none;
+  min-width: 0;
+  gap: 0;
+  scroll-snap-align: start;
+  border: 1px solid #e0e9f4;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 4px 12px #172e520a;
+  color: #213650;
+  overflow: hidden;
+}
+.bw-profile-activity-item:hover { border-color: #c9daef; }
+.bw-profile-activity-item .bw-timeline-post {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 11px;
+  align-items: start;
+  padding: 17px 16px 12px;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: #fff;
+}
+.bw-profile-activity-item .bw-timeline-post-main { min-width: 0; }
+.bw-profile-activity-item .bw-timeline-byline {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px;
+  color: #667991;
+  font-size: .76rem;
+  line-height: 1.6;
   overflow-wrap: anywhere;
 }
-.bw-profile-activity-body {
-  margin: 0;
-  font-size: .82rem;
-  line-height: 1.7;
+.bw-profile-activity-item .bw-timeline-byline a { color: #203e66; text-decoration: none; font-weight: 800; }
+.bw-profile-activity-item .bw-timeline-byline a:hover { text-decoration: underline; }
+.bw-profile-activity-item .bw-timeline-avatar { width: 40px; height: 40px; }
+.bw-profile-activity-item .bw-post-story--compact {
+  padding: 0;
+  margin: 9px 0 4px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.bw-profile-activity-item .bw-post-story--compact .bw-post-type-label {
+  margin: 0 0 8px;
+  font-size: .68rem;
+  letter-spacing: 0;
+}
+.bw-profile-activity-item .bw-post-story--compact .bw-post-text {
+  margin: 7px 0 10px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: #354c68;
+  color: #273d5e;
+  font-size: .86rem;
+  line-height: 1.62;
 }
-.bw-profile-activity-topics {
+.bw-profile-activity-item .bw-post-story--compact h3 { font-size: .93rem; overflow-wrap: anywhere; }
+.bw-profile-activity-item .bw-post-topic-tags { flex-wrap: wrap; }
+.bw-profile-activity-item .bw-event-feed-card { min-width: 0; }
+.bw-profile-activity-item .bw-post-comments { margin-top: 8px; min-width: 0; }
+.bw-profile-activity-item .bw-timeline-actions {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: .4rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  min-width: 0;
+  gap: 4px;
 }
-.bw-profile-activity-topics li {
-  padding: .26rem .52rem;
-  border-radius: 7px;
-  background: #f2f6fb;
-  color: #4e6480;
-  font-size: .7rem;
-  overflow-wrap: anywhere;
-}
-.bw-profile-activity-link {
-  justify-self: start;
+.bw-profile-activity-item .bw-timeline-actions--split { flex-wrap: nowrap; }
+.bw-profile-activity-item .bw-post-secondary-actions { gap: 2px; }
+.bw-profile-activity-item .bw-post-secondary-actions--default { flex-wrap: wrap; }
+.bw-profile-activity-item.bw-post-panel .bw-timeline-action {
   display: inline-flex;
   align-items: center;
-  gap: .3rem;
-  color: #1e60af;
-  font-size: .76rem;
+  justify-content: center;
+  gap: 4px;
+  min-height: 34px;
+  min-width: 30px;
+  padding: 5px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #5b708b;
+  font-size: .72rem;
+}
+.bw-profile-activity-item.bw-post-panel .bw-timeline-action:hover:enabled { color: #1a58a9; background: #ecf3fc; }
+.bw-profile-activity-item.bw-post-panel .bw-timeline-action[aria-pressed="true"] { color: #205ba7; }
+.bw-profile-activity-item.bw-post-panel .bw-register-action {
+  border: 1px solid #184f9e;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #1957b6;
+  color: white;
+  font-weight: 770;
+  white-space: nowrap;
+}
+.bw-profile-activity-item.bw-post-panel .bw-register-action:hover:enabled { background: #123e85; color: white; }
+.bw-profile-activity-item .bw-post-view-metric { font-size: .7rem; }
+.bw-profile-activity-item .bw-discussion-panel { min-width: 0; }
+.bw-profile-activity-item .bw-discussion-composer textarea,
+.bw-profile-activity-item .bw-question-report textarea { min-width: 0; width: 100%; }
+.bw-profile-activity-link {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 43px;
+  margin-top: auto;
+  border-top: 1px solid #e6ecf5;
+  background: #f9fbff;
+  color: #195ca9;
+  font-size: .77rem;
   text-decoration: none;
   font-weight: 770;
 }
-.bw-profile-activity-link:hover { text-decoration: underline; }
+.bw-profile-activity-link:hover { background: #edf4ff; text-decoration: underline; }
 .bw-profile-activity-footer { display: flex; gap: 9px; margin-top: 14px; flex-wrap: wrap; }
 .bw-profile-activity-footer button,
 .bw-profile-activity-error button {
@@ -129,7 +219,12 @@
 .bw-profile-activity-empty p { margin: 0; color: #6d7f99; font-size: .78rem; line-height: 1.6; }
 .bw-profile-activity-empty a { color: #245ca3; font-size: .76rem; font-weight: 770; text-decoration: none; }
 .bw-profile-activity-error { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: .8rem; color: #a73e3e; }
-@media (max-width: 480px) {
-  .bw-profile-activity-item { padding: 14px; }
-  .bw-profile-activity-description { max-width: 225px; }
+@media (max-width: 550px) {
+  .bw-profile-activity-item .bw-timeline-post { padding: 13px 11px 10px; grid-template-columns: 34px minmax(0, 1fr); gap: 7px; }
+  .bw-profile-activity-item .bw-timeline-avatar { width: 34px; height: 34px; }
+  .bw-profile-activity-description { max-width: 260px; }
+  .bw-profile-activity-list { gap: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-profile-activity-list { scroll-behavior: auto; }
 }

@@ -1109,12 +1109,45 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const { cursor } = parse(workspaceQuery, query, "Reload your posts page.");
       await assertNetworkSession(prisma, actor, now);
       const position = readCursor(cursor, actor.accountId, "my-posts");
+      const select = {
+        ...memberPostSelect,
+        likes: { where: { accountId: actor.accountId }, select: { id: true } },
+        saves: { where: { accountId: actor.accountId }, select: { id: true } },
+        reposts: { where: { accountId: actor.accountId }, select: { id: true } },
+        answers: answerPreviewSelect(actor.accountId),
+        _count: { select: {
+          likes: true, views: true, reposts: true,
+          comments: { where: { deletedAt: null } },
+          answers: { where: { deletedAt: null } },
+          registrations: { where: { status: "APPROVED" } },
+        } },
+      };
       const [access, rows] = await Promise.all([
         memberEligibility(prisma, actor.accountId),
-        findPosts(prisma.memberPost, memberPostSelect, { authorId: actor.accountId }, position, "member"),
+        findPosts(prisma.memberPost, select, { authorId: actor.accountId }, position, "member"),
       ]);
+      const visibleRows = rows.slice(0, pageSize);
+      const events = visibleRows.filter(post => post.type === "EVENT")
+        .map(post => ({ id: post.id, authorId: actor.accountId }));
+      const attendees = events.length
+        ? await eventAttendeePreviews(prisma, events, actor.accountId) : new Map();
       await assertNetworkSession(prisma, actor, now);
-      return { access, items: rows.slice(0, pageSize).map(post => memberPost(post, access.identityVerified)), nextCursor: cursorFor(rows, actor.accountId, "my-posts") };
+      const items = visibleRows.map(({ likes, saves, reposts, answers, _count, ...post }) => ({
+        ...memberPost(post, access.identityVerified),
+        saved: saves.length > 0,
+        reposted: reposts.length > 0,
+        answerParticipants: post.type === "QUESTION" ? [...new Map(answers.map(({ author }) => [author.id, memberAttribution(author)])).values()].slice(0, 3) : [],
+        reaction: { count: _count.likes, liked: likes.length > 0 },
+        views: _count.views,
+        commentCount: _count.comments,
+        repostCount: _count.reposts,
+        ...(post.type === "QUESTION" ? { answerCount: _count.answers } : {}),
+        ...(post.type === "EVENT" ? {
+          registration: { count: _count.registrations },
+          eventAttendees: attendees.get(post.id) ?? [],
+        } : {}),
+      }));
+      return { access, items, nextCursor: cursorFor(rows, actor.accountId, "my-posts") };
     },
 
     async memberPublish(actor, input) {
