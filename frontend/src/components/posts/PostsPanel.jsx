@@ -205,12 +205,18 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
     </button>
   ) : type === "EVENT" ? (
     <button type="button" className="bw-timeline-action bw-register-action" disabled={busy}
-      aria-label={post.registration?.registered ? "Registered" : "Register"}
+      aria-label={post.registration?.registered ? "Going — cancel attendance" : "I'm going"}
       aria-pressed={Boolean(post.registration?.registered)}
-      title={post.registration?.registered ? "Cancel registration" : "Register for event"}
+      title={post.registration?.registered ? "Cancel attendance" : "I'm going"}
       onClick={() => onRegister(post)}>
-      <NavigationIcon name="ticket" size={19} />
-      <span>{post.registration?.registered ? "Registered" : "Register"}</span>
+      {post.registration?.registered
+        ? <svg className="bw-going-check-icon" width="19" height="19" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" strokeWidth="2.6"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m5 12 4.5 4.5L19 7" />
+          </svg>
+        : <NavigationIcon name="ticket" size={19} />}
+      <span>{post.registration?.registered ? "Going" : "I'm going"}</span>
     </button>
   ) : null;
 
