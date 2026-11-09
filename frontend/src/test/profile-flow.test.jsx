@@ -105,9 +105,9 @@ it("organizes the modern profile around identity, anchored sections and privacy 
   const sections = screen.getByRole("navigation", { name: "Profile sections" });
   const anchors = [
     ["About", "#profile-about"], ["Activities", "#profile-activity"],
-    ["My direction", "#profile-direction"],
+    ["Experience", "#profile-experience"], ["Education", "#profile-education"],
     ["Skills", "#profile-skills"], ["Interests", "#profile-interests"],
-    ["Education", "#profile-education"], ["Experience", "#profile-experience"],
+    ["Career direction", "#profile-direction"],
     ["Contact", "#profile-contact"], ["Privacy", "#profile-privacy"],
   ];
   for (const [label, target] of anchors) {
@@ -126,6 +126,8 @@ it("organizes the modern profile around identity, anchored sections and privacy 
   expect(await screen.findByText("No activity yet")).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Control your profile" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Change profile picture" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Edit career direction" })).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "View public profile" })).toBeNull();
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profile/me"))).toHaveLength(1);
   await userEvent.setup().click(screen.getByRole("button", { name: "Edit introduction", exact: true }));
   expect(await screen.findByRole("dialog", { name: "Edit introduction" })).toBeTruthy();
