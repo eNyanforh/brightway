@@ -198,7 +198,8 @@ test("public professional proof separates verified records from self-reported ce
   await expect(nav.getByRole("link", { name: "Achievements" })).toBeVisible();
   const review = page.locator("#published-credentials");
   await expect(review.getByText("BSc Computer Science")).toBeVisible();
-  await expect(review.getByText("Verified · Starz University")).toBeVisible();
+  await expect(review.getByText(/Verified credential · Starz University/)).toBeVisible();
+  await expect(review.getByRole("img", { name: "Verified identity" })).toHaveCount(0);
   const certificates = page.locator("#published-certifications");
   await expect(certificates.getByText("Cloud Fundamentals")).toBeVisible();
   await expect(certificates.getByText(/not independently verified/i)).toBeVisible();
