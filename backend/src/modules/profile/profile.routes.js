@@ -5,7 +5,7 @@ import {
   createRequireAuth, createSessionCookieConfig, requireTrustedOrigin, readSessionToken,
 } from "../auth/session.http.js";
 
-export function createProfileRoutes({ profiles, sessions, clientUrl, nodeEnv }) {
+export function createProfileRoutes({ profiles, dashboard, sessions, clientUrl, nodeEnv }) {
   const router = Router();
   const cookie = createSessionCookieConfig(nodeEnv);
   const auth = createRequireAuth({ sessions, cookieName: cookie.name });
@@ -20,6 +20,16 @@ export function createProfileRoutes({ profiles, sessions, clientUrl, nodeEnv }) 
     try {
       const profile = await profiles.read(req.auth.account.person.id);
       res.json({ success: true, data: { profile } });
+    } catch (error) { next(error); }
+  });
+
+  router.get("/me/dashboard", auth, async (req, res, next) => {
+    try {
+      if (Object.keys(req.query).length) return res.status(400).json({
+        success: false, message: "Dashboard does not accept query parameters.",
+      });
+      const actor = { accountId: req.auth.account.id, sessionId: req.auth.sessionId };
+      res.json({ success: true, data: await dashboard.read(actor) });
     } catch (error) { next(error); }
   });
 
