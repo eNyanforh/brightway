@@ -94,7 +94,7 @@ export default function ProfileDashboard({ accountId }) {
 
       {!stats && !error && <p className="bw-dashboard-loading" role="status">Loading your dashboard…</p>}
       {error && (
-        <div className="bw-dashboard-error" role="alert">
+        <div className="bw-dashboard-error" role="status">
           <span>{error}</span>
           <button type="button" onClick={() => setRefresh(previous => previous + 1)}>Try again</button>
         </div>
