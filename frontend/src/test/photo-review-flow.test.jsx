@@ -72,6 +72,9 @@ it("submits a verified replacement without publishing it in either portrait and 
   await screen.findByText("Replacement photo submitted for review. Your approved photo stays visible.");
   expectOldPortrait();
   await screen.findByRole("img", { name: "Verified identity" });
+  expect(screen.queryByRole("heading", { name: "Profile photo review" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Change profile picture" }));
+  expect(screen.getByRole("heading", { name: "Photo approval status" })).toBeTruthy();
   expect(document.querySelector('.bw-profile-photo-review img').getAttribute("src")).toBe("/api/v1/photos/candidate-photo");
   expect(fetchMock.mock.calls.find(([url]) => url.endsWith("/photo"))[1].headers["X-Profile-Version"]).toBe("1");
 });
@@ -84,8 +87,10 @@ it("cancels only the pending photo and rebases retained introduction edits onto 
     throw Error(`Unexpected ${url}`);
   });
   await screen.findByRole("img", { name: "Verified identity" }); await keepHeadline(user);
+  await user.click(screen.getByRole("button", { name: "Change profile picture" }));
   await user.click(screen.getByRole("button", { name: "Cancel photo request" }));
   await screen.findByText("Photo request cancelled. Your approved photo is unchanged."); expectOldPortrait();
+  await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
   const cancelled = fetchMock.mock.calls.find(([, options]) => options?.method === "DELETE");
   expect(JSON.parse(cancelled[1].body)).toEqual({ expectedVersion: 1, expectedProfileVersion: 1 });
   await user.click(screen.getByRole("button", { name: "Edit introduction", exact: true }));
@@ -100,8 +105,10 @@ it("refreshes an approved photo in both portraits while preserving unsaved text 
   const { user } = mountOwner(profile, async () => response({}));
   await screen.findByRole("img", { name: "Verified identity" }); await keepHeadline(user);
   profile.version++; profile.photo = { id: "candidate-photo" }; profile.photoReview = { required: true, pending: null, latestDecision: { ...pending, state: "APPROVED" } };
+  await user.click(screen.getByRole("button", { name: "Change profile picture" }));
   await user.click(screen.getByRole("button", { name: "Refresh photo review" }));
   await screen.findByText("Your replacement photo was approved.");
+  await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
   expect(screen.getByRole("button", { name: "Open account menu" }).querySelector("img").getAttribute("src")).toBe("/api/v1/photos/candidate-photo");
   await user.click(screen.getByRole("button", { name: "Edit introduction", exact: true }));
   expect(screen.getByLabelText("Headline", { exact: true }).value).toBe("Keep my draft");
@@ -112,8 +119,10 @@ it("does not overwrite other changed saved fields or discard drafts during photo
   const { user } = mountOwner(profile, async () => response({}));
   await screen.findByRole("img", { name: "Verified identity" }); await keepHeadline(user);
   profile.version++; profile.headline = "Changed in another session"; profile.photo = { id: "candidate-photo" };
+  await user.click(screen.getByRole("button", { name: "Change profile picture" }));
   await user.click(screen.getByRole("button", { name: "Refresh photo review" }));
   await screen.findByText(/Other saved profile information changed/); expectOldPortrait();
+  await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
   await user.click(screen.getByRole("button", { name: "Resume editing" }));
   expect(screen.getByLabelText("Headline", { exact: true }).value).toBe("Keep my draft");
 });
@@ -190,7 +199,8 @@ it("uses the approved identity response to explain photo review even when the pr
   const profile = ownerProfile(); profile.photoReview.required = false;
   const { user } = mountOwner(profile, async () => response({}));
   await screen.findByRole("img", { name: "Verified identity" });
-  expect(screen.getByRole("heading", { name: "Profile photo review" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Profile photo review" })).toBeNull();
   await user.click(screen.getByRole("button", { name: "Change profile picture" }));
+  expect(screen.getByRole("heading", { name: "Photo approval status" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Submit photo for review" })).toBeTruthy();
 });
