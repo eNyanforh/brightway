@@ -196,6 +196,35 @@ test("my profile has three responsive tabs below the private dashboard on deskto
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
 });
 
+test("profile tabs support keyboard navigation and bookmarked section anchors", async ({ page }) => {
+  await fixture(page);
+  await page.goto("/profile");
+  const tabs = page.getByRole("tablist", { name: "Profile sections" });
+  const about = tabs.getByRole("tab", { name: "About Me" });
+  const achievements = tabs.getByRole("tab", { name: "Achievements" });
+  const activity = tabs.getByRole("tab", { name: "Activity" });
+  await about.focus();
+  await about.press("ArrowRight");
+  await expect(achievements).toBeFocused();
+  await expect(achievements).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#profile-panel-about")).toBeHidden();
+  await expect(page.locator("#profile-panel-achievements")).toBeVisible();
+  await achievements.press("End");
+  await expect(activity).toBeFocused();
+  await expect(activity).toHaveAttribute("aria-selected", "true");
+  await activity.press("Home");
+  await expect(about).toBeFocused();
+  await expect(page.locator("#profile-panel-about")).toBeVisible();
+
+  await page.goto("/profile#profile-activity");
+  await expect(page.getByRole("tab", { name: "Activity" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#profile-activity")).toBeVisible();
+
+  await page.goto("/profile#profile-education");
+  await expect(page.getByRole("tab", { name: "Achievements" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#profile-education")).toBeVisible();
+});
+
 test("profile Activities keeps commenter and answer photos at post-card avatar size", async ({ page }) => {
   await fixture(page, {}, {}, "Finished a community coding project.", {}, true);
   await page.goto("/profile");
