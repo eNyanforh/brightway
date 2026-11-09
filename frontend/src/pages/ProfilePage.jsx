@@ -21,6 +21,8 @@ import ProfileContact from "../components/profile/ProfileContact";
 import ProfileCompletion from "../components/profile/ProfileCompletion";
 import ProfileHistory from "../components/profile/ProfileHistory";
 import ProfileActivities from "../components/profile/ProfileActivities";
+import ProfileHighlights from "../components/profile/ProfileHighlights";
+import ProfileCredentials from "../components/profile/ProfileCredentials";
 import ProfileEditor from "../components/profile/ProfileEditor";
 import "./profile.css";
 
@@ -554,8 +556,7 @@ export default function ProfilePage() {
           <section className="bw-profile-card bw-profile-hero" aria-labelledby="profile-person-name">
             <div className="bw-profile-cover">
               <div className="bw-profile-cover-brand">
-                <span>BRIGHTWAY / PROFILE</span>
-                <strong>Learn. Build. Be discovered.</strong>
+                <span>BRIGHTWAY</span>
               </div>
               <span className="bw-profile-cover-motif" aria-hidden="true" />
             </div>
@@ -591,7 +592,9 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-              <h1 id="profile-person-name" className="bw-profile-verified-name"><span>{name}</span>{identityVerified && <VerificationBadge />}</h1>
+              <div className="bw-profile-identity-overview">
+                <div className="bw-profile-identity-main">
+                  <h1 id="profile-person-name" className="bw-profile-verified-name"><span>{name}</span>{identityVerified && <VerificationBadge />}</h1>
 
               <p className="bw-profile-handle">
                 @{account.username}
@@ -615,6 +618,15 @@ export default function ProfilePage() {
                     : profile.careerField.label}
                 </span>
               )}
+                </div>
+                <ProfileHighlights profile={profile} />
+              </div>
+              {profile.profilePublicEnabled === true && (
+                <Link className="bw-profile-published-link"
+                  to={"/people/" + encodeURIComponent(account.username)}>
+                  View my published profile <Icon name="arrow" />
+                </Link>
+              )}
               <div className="bw-profile-identity-status" aria-label="Profile status">
                 <span className={identityVerified ? "bw-profile-status bw-profile-status--verified" : "bw-profile-status"}>
                   {identityVerified ? "Identity verified" : "Identity not verified"}
@@ -628,12 +640,13 @@ export default function ProfilePage() {
 
           <nav className="bw-profile-section-nav" aria-label="Profile sections">
             <a href="#profile-about">About</a>
-            <a href="#profile-activity">Activities</a>
-            <a href="#profile-direction">My direction</a>
-            <a href="#profile-skills">Skills</a>
-            <a href="#profile-interests">Interests</a>
-            <a href="#profile-education">Education</a>
+            <a href="#profile-activity">Activity</a>
             <a href="#profile-experience">Experience</a>
+            <a href="#profile-education">Education</a>
+            <a href="#profile-credentials">Credentials</a>
+            <a href="#profile-skills">Skills</a>
+            <a href="#profile-direction">Career direction</a>
+            <a href="#profile-interests">Interests</a>
             <a href="#profile-contact">Contact</a>
             <a href="#profile-privacy">Privacy</a>
           </nav>
@@ -654,6 +667,35 @@ export default function ProfilePage() {
           </Section>
 
           <ProfileActivities key={account.id} accountId={account.id} />
+
+          {["experience", "education"].map((kind) => (
+            <div key={kind} id={`profile-${kind}`} className="bw-profile-anchor-section">
+              <ProfileHistory
+                kind={kind}
+                draft={draft}
+                setDraft={setDraft}
+                onEdit={open}
+                onReload={reload}
+                busy={busy}
+              />
+            </div>
+          ))}
+
+          <ProfileCredentials profile={profile} />
+
+          <Section
+            id="profile-skills"
+            title="Skills"
+            editor="skills"
+            action="Edit skills"
+            onEdit={open}
+            busy={busy}
+          >
+            <Labels
+              entries={profile.skills}
+              empty="What are you good at? Add the skills you are learning or already use."
+            />
+          </Section>
 
           <Section
             id="profile-direction"
@@ -684,20 +726,6 @@ export default function ProfilePage() {
           </Section>
 
           <Section
-            id="profile-skills"
-            title="Skills"
-            editor="skills"
-            action="Edit skills"
-            onEdit={open}
-            busy={busy}
-          >
-            <Labels
-              entries={profile.skills}
-              empty="What are you good at? Add the skills you are learning or already use."
-            />
-          </Section>
-
-          <Section
             id="profile-interests"
             title="Interests"
             editor="interests"
@@ -721,18 +749,7 @@ export default function ProfilePage() {
             />
           </div>
 
-          {["education", "experience"].map((kind) => (
-            <div key={kind} id={`profile-${kind}`} className="bw-profile-anchor-section">
-              <ProfileHistory
-                kind={kind}
-                draft={draft}
-                setDraft={setDraft}
-                onEdit={open}
-                onReload={reload}
-                busy={busy}
-              />
-            </div>
-          ))}
+
         </div>
 
         <aside className="bw-profile-side">
