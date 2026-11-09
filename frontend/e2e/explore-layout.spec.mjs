@@ -338,7 +338,6 @@ test("The feed renders different presentation cards for stored achievements, eve
 
 test("post cards show verified publishers and precise relative ages with full publication dates", async ({ page }) => {
   await page.clock.install({ time: new Date("2026-11-09T12:00:00Z") });
-  const base = fixturePost.id.split("-")[0];
   const durations = [
     ["seconds", "2026-11-09T11:59:55Z", "5s"],
     ["minutes", "2026-11-09T11:55:00Z", "5m"],
