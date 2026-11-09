@@ -66,10 +66,10 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
     && Date.parse(eventEnd) - Date.parse(eventStart) <= 30 * 24 * 60 * 60 * 1000);
   const validLocation = (format === "ONLINE" || Boolean(venue.trim()))
     && (format === "IN_PERSON" || /^https?:\/\/\S+$/i.test(meetingUrl));
-  const validPrice = /^\\d+(?:\\.\\d{1,2})?$/.test(ticketPrice)
+  const validPrice = /^\d+(?:\.\d{1,2})?$/.test(ticketPrice)
     && Number(ticketPrice) <= 1_000_000;
   const priceCents = validPrice ? Math.round(Number(ticketPrice) * 100) : 0;
-  const validCapacity = !limitCapacity || (/^[1-9]\\d*$/.test(capacity) && Number(capacity) <= 100_000);
+  const validCapacity = !limitCapacity || (/^[1-9]\d*$/.test(capacity) && Number(capacity) <= 100_000);
   const valid = title.trim().length >= 3 && validSchedule && validLocation && body.trim() && tags.length
     && validPrice && validCapacity && !topicDraft.trim() && !disabled;
   const allZones = zones.includes(timezone) ? zones : [timezone, ...zones];
