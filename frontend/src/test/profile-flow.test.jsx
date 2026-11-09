@@ -743,7 +743,7 @@ it("saves multiple education records with month/year dates and current enrollmen
   const second = screen.getByRole("group", { name: "Education record 2" });
   recordField(second, "Institution", "University"); recordField(second, "Qualification or program", "Information Technology");
   recordField(second, "Start month and year", "2024-09"); await user.click(within(second).getByLabelText("Currently studying here"));
-  await save(); await screen.findByText("Information Technology");
+  await save(); await screen.findByRole("heading", { name: "Information Technology" });
   expect(writes[0].body.records).toHaveLength(2);
   expect(writes[0].body.records[1].endMonth).toBeNull();
   expect(writes[0].body.records[1].current).toBe(true);
