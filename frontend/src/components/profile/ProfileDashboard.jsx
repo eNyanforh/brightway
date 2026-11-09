@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { profileApi } from "../../api/profile";
+import { memberPhotoUrl } from "../../api/organization-posts";
+import AvatarGroup from "../posts/AvatarGroup";
 import "./profile-dashboard.css";
 
 const metrics = [
@@ -8,7 +10,7 @@ const metrics = [
     key: "profileViews",
     label: "Profile views",
     description: "See how often members viewed your public profile.",
-    detail: "Counted once per viewer per UTC day. Viewer names are never revealed by this dashboard; identity-sharing controls only apply to notifications.",
+    detail: "Counted once per viewer per UTC day. Only active, unblocked members who currently choose to share their identity and publish their profiles appear by name. Other views remain anonymous.",
     route: "/notifications",
     routeLabel: "View shared profile notifications",
   },
@@ -24,11 +26,63 @@ const metrics = [
     key: "searchAppearances",
     label: "Search appearances",
     description: "See how often you appeared in member searches.",
-    detail: "Counts an eligible result once per searching member per UTC day. Only visible, unblocked directory results are counted; search terms and identities are not displayed.",
+    detail: "Counts an eligible result once per searching member per UTC day. The avatar placeholders represent anonymous search activity, not identifiable searchers. Search terms and searcher identities are never displayed.",
   },
 ];
 
-function Metric({ metric, value, selected, onSelect }) {
+function AnonymousAvatar({ kind }) {
+  return (
+    <span className="bw-dashboard-avatar bw-dashboard-avatar-anonymous"
+      role="img" aria-label={kind === "searchAppearances" ? "Anonymous search appearance" : "Private profile view"}>
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
+        strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="8" r="3.2" />
+        <path d="M5.3 20c.3-4 2.9-6.1 6.7-6.1s6.4 2.1 6.7 6.1" />
+      </svg>
+    </span>
+  );
+}
+
+function ConsentingViewerAvatar({ viewer }) {
+  const [failed, setFailed] = useState(false);
+  const photo = viewer.photoId && viewer.username
+    ? memberPhotoUrl(viewer.username, viewer.photoId) : null;
+  return (
+    <Link className="bw-dashboard-avatar bw-dashboard-avatar-named"
+      to={"/people/" + encodeURIComponent(viewer.username)}
+      title={viewer.name} aria-label={viewer.name + " viewed your profile"}>
+      {photo && !failed ? <img src={photo} alt="" loading="lazy" onError={() => setFailed(true)} />
+        : <span aria-hidden="true">{viewer.name?.trim().slice(0, 1).toUpperCase() || "?"}</span>}
+    </Link>
+  );
+}
+
+function MetricAvatars({ metric, count, viewers }) {
+  if (!Number.isSafeInteger(count) || count <= 0
+    || !["profileViews", "searchAppearances"].includes(metric)) return null;
+  const shown = Math.min(count, 3);
+  const named = metric === "profileViews" && Array.isArray(viewers)
+    ? viewers.filter(person => person && typeof person.username === "string"
+      && person.username && typeof person.name === "string" && person.name).slice(0, shown)
+    : [];
+  return (
+    <div className="bw-dashboard-avatar-summary">
+      <AvatarGroup className="bw-dashboard-avatar-group" max={3}
+        label={metric === "profileViews" ? "Recent profile viewers" : "Anonymous search appearances"}>
+        {named.map(person => <ConsentingViewerAvatar key={person.username} viewer={person} />)}
+        {Array.from({ length: shown - named.length }, (_, index) =>
+          <AnonymousAvatar key={"private-" + index} kind={metric} />)}
+      </AvatarGroup>
+      <span className="bw-dashboard-avatar-note">
+        {metric === "profileViews"
+          ? (named.length ? "Shared and private viewers" : "Private viewers")
+          : "Anonymous search activity"}
+      </span>
+    </div>
+  );
+}
+
+function Metric({ metric, value, count, viewers, selected, onSelect }) {
   const expanded = selected === metric.key;
   return (
     <div className="bw-dashboard-metric">
@@ -43,6 +97,7 @@ function Metric({ metric, value, selected, onSelect }) {
         <span className="bw-dashboard-metric-label">{metric.label}</span>
         <span className="bw-dashboard-metric-description">{metric.description}</span>
       </button>
+      <MetricAvatars metric={metric.key} count={count} viewers={viewers} />
       {expanded && (
         <div id={`dashboard-detail-${metric.key}`} className="bw-dashboard-metric-detail">
           <p>{metric.detail}</p>
@@ -108,6 +163,8 @@ export default function ProfileDashboard({ accountId }) {
                 metric={metric}
                 value={Number.isSafeInteger(stats[metric.key]) && stats[metric.key] >= 0
                   ? stats[metric.key].toLocaleString() : "—"}
+                count={stats[metric.key]}
+                viewers={metric.key === "profileViews" ? stats.recentProfileViewers : []}
                 selected={selected}
                 onSelect={setSelected}
               />
