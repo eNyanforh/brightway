@@ -496,12 +496,14 @@ test("purpose-driven post cards expose distinct actions and functional signup an
       return response({ items: [{
         id: "55555555-5555-4555-8555-555555555555", username: "maya",
         body: "Start with the official React documentation.", createdAt: "2026-11-06T10:00:00Z",
-        score: 0, myVote: 0, commentCount: 0, canDelete: false,
+        score: 0, myVote: 0, upvoteCount: 0, downvoteCount: 0, commentCount: 0, canDelete: false,
       }], sort: url.searchParams.get("sort") });
     }
     if (/\/vote$/.test(pathname)) {
       calls.push(request.postDataJSON());
-      return response({ score: request.postDataJSON().value, myVote: request.postDataJSON().value });
+      return response({ score: request.postDataJSON().value, myVote: request.postDataJSON().value,
+        upvoteCount: request.postDataJSON().value === 1 ? 1 : 0,
+        downvoteCount: request.postDataJSON().value === -1 ? 1 : 0 });
     }
     return route.fallback();
   });
@@ -542,7 +544,8 @@ test("purpose-driven post cards expose distinct actions and functional signup an
   const answers = questionCard.getByRole("region", { name: "Answers" });
   await expect(answers.getByText("Start with the official React documentation.")).toBeVisible();
   await answers.getByRole("button", { name: "Upvote answer by maya" }).click();
-  await expect(answers.getByLabel("Answer score 1")).toBeVisible();
+  await expect(answers.getByLabel("Upvotes 1")).toBeVisible();
+  await expect(answers.getByLabel("Downvotes 0")).toBeVisible();
   expect(calls).toContainEqual({ value: 1 });
   await questionCard.getByRole("button", { name: "Report question" }).click();
   const report = questionCard.getByRole("form", { name: "Report question" });
@@ -561,9 +564,10 @@ test("modern answer panel keeps voting, sorting and nested reply publishing usab
     answerCount: 1,
   };
   const answerId = "c2000000-0000-4000-8000-000000000002";
-  const answers = [{ id: answerId, username: "maya", name: "Maya Cole",
+  const imageId = "d1000000-0000-4000-8000-000000000001";
+  const answers = [{ id: answerId, username: "maya", name: "Maya Cole", verified: true, photoId: imageId,
     body: "Start small, then build a complete API.", createdAt: "2026-11-09T09:00:00Z",
-    score: 2, myVote: 0, commentCount: 0, canDelete: false }];
+    score: 2, myVote: 0, upvoteCount: 2, downvoteCount: 0, commentCount: 0, canDelete: false }];
   const replies = [];
   const sorts = [];
   await fixture(page, [question]);
@@ -577,13 +581,15 @@ test("modern answer panel keeps voting, sorting and nested reply publishing usab
     }
     if (path === "/api/v1/explore/answers/" + answerId + "/vote") {
       const value = request.postDataJSON().value;
-      return success({ myVote: value, score: 2 + value });
+      return success({ myVote: value, score: 2 + value,
+        upvoteCount: value === 1 ? 3 : 2, downvoteCount: value === -1 ? 1 : 0 });
     }
     if (path === "/api/v1/explore/answers/" + answerId + "/comments") {
       if (request.method() === "GET") return success({ items: replies });
       if (request.method() === "POST") {
         const comment = { id: "c3000000-0000-4000-8000-000000000003",
-          username: "synthetic", body: request.postDataJSON().body,
+          username: "synthetic", name: "Synthetic Member", verified: true, photoId: imageId,
+          body: request.postDataJSON().body,
           createdAt: "2026-11-09T10:00:00Z", canDelete: true };
         replies.push(comment);
         return success({ comment }, 201);
@@ -606,10 +612,15 @@ test("modern answer panel keeps voting, sorting and nested reply publishing usab
   const answerCard = panel.locator(".bw-answer-card");
   await expect(answerCard).toHaveCount(1);
   await expect(answerCard.getByRole("link", { name: "Maya Cole" })).toHaveAttribute("href", "/people/maya");
-  await expect(answerCard.getByLabel("Answer score 2")).toBeVisible();
+  await expect(answerCard.getByLabel("Upvotes 2")).toBeVisible();
+  await expect(answerCard.getByLabel("Downvotes 0")).toBeVisible();
   await answerCard.getByRole("button", { name: "Upvote answer by maya" }).click();
-  await expect(answerCard.getByLabel("Answer score 3")).toBeVisible();
+  await expect(answerCard.getByLabel("Upvotes 3")).toBeVisible();
+  await expect(answerCard.getByLabel("Downvotes 0")).toBeVisible();
   await expect(answerCard.getByRole("button", { name: "Upvote answer by maya" })).toHaveAttribute("aria-pressed", "true");
+  await answerCard.getByRole("button", { name: "Downvote answer by maya" }).click();
+  await expect(answerCard.getByLabel("Upvotes 2")).toBeVisible();
+  await expect(answerCard.getByLabel("Downvotes 1")).toBeVisible();
 
   await answerCard.locator(".bw-answer-comment-trigger").click();
   const thread = answerCard.getByRole("region", { name: "Answer comments" });
@@ -618,6 +629,8 @@ test("modern answer panel keeps voting, sorting and nested reply publishing usab
   await expect(thread.getByText("39 / 1,000")).toBeVisible();
   await thread.getByRole("button", { name: "Post comment" }).click();
   await expect(thread.getByText("Try building an Express API with tests.")).toBeVisible();
+  await expect(thread.getByRole("link", { name: "Synthetic Member" })).toBeVisible();
+  await expect(thread.getByRole("img", { name: "Verified identity" })).toBeVisible();
   await expect(answerCard.locator(".bw-discussion-action-count")).toHaveText("1");
   await thread.getByRole("button", { name: "Delete comment" }).click();
   await expect(thread.getByText("Delete this reply?")).toBeVisible();
@@ -640,7 +653,8 @@ test("modern post comments preserve create, delete, pagination and close behavio
     username: "maya", body: "Well-deserved congratulations!",
     createdAt: "2026-11-08T07:00:00Z", canDelete: false };
   const fresh = { id: "c6000000-0000-4000-8000-000000000006",
-    username: "synthetic", body: "This is inspiring work.",
+    username: "synthetic", name: "Synthetic Member", verified: true,
+    photoId: "d1000000-0000-4000-8000-000000000001", body: "This is inspiring work.",
     createdAt: "2026-11-09T10:00:00Z", canDelete: true };
   await fixture(page, [post]);
   const actions = [];
@@ -675,6 +689,8 @@ test("modern post comments preserve create, delete, pagination and close behavio
   await expect(panel.getByText("23 / 1,000")).toBeVisible();
   await panel.getByRole("button", { name: "Post comment" }).click();
   await expect(panel.getByText("This is inspiring work.")).toBeVisible();
+  await expect(panel.getByRole("link", { name: "Synthetic Member" })).toBeVisible();
+  await expect(panel.getByRole("img", { name: "Verified identity" })).toBeVisible();
   await expect(panel.getByRole("button", { name: "Delete comment" })).toBeVisible();
   await panel.getByRole("button", { name: "Delete comment" }).click();
   await expect(panel.getByText("Delete this comment?")).toBeVisible();
