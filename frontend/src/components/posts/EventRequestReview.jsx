@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { organizationPostsApi as api } from "../../api/organization-posts";
 
@@ -10,11 +10,6 @@ export default function EventRequestReview({ eventId, onReviewed }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState(null);
-
-  useEffect(() => {
-    // A new event must never inherit pending review data from the previous one.
-    setItems(null); setCount(0); setHasMore(false); setError(""); setOpen(false);
-  }, [eventId]);
 
   async function load() {
     if (busy) return;
