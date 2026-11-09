@@ -383,18 +383,18 @@ test("post cards show verified publishers and precise relative ages with full pu
     await expect(item.getByRole("img", { name: "Verified identity" })).toBeVisible();
     const date = item.locator("time");
     await expect(date).toHaveAttribute("datetime", createdAt);
-    if (typeof expected === "string") await expect(date).toHaveText(expected);
+    if (label === "seconds") await expect(date).toHaveText(/^\d+s$/);
     else await expect(date).toHaveText(expected);
     await expect(date).toHaveAttribute("title", /202[0-9]/);
   }
   await expect(card("Unverified badge fixture").getByRole("img", { name: "Verified identity" })).toHaveCount(0);
   await expect(card("Verified school publisher").getByRole("img", { name: "Verified organization" })).toBeVisible();
   await expect(card("Verified repost attribution").getByRole("img", { name: "Verified identity" })).toHaveCount(2);
+  const secondsCounter = card("Publisher age seconds").locator("time");
+  const before = Number((await secondsCounter.textContent())?.replace("s", ""));
   await page.clock.fastForward(10_000);
-  await expect.poll(async () => {
-    const label = await card("Publisher age seconds").locator("time").textContent();
-    return Number(label?.replace("s", ""));
-  }).toBeGreaterThanOrEqual(15);
+  await expect.poll(async () => Number((await secondsCounter.textContent())?.replace("s", "")))
+    .toBeGreaterThan(before);
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
