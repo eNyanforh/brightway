@@ -212,6 +212,67 @@ test("my profile has three responsive tabs below the private dashboard on deskto
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
 });
 
+test("own post cards expose a top-right three-dot menu for edit and confirmed deletion", async ({ page }) => {
+  await fixture(page);
+  const id = "11111111-1111-4111-8111-111111111111";
+  const writes = [];
+  await page.route("**/api/v1/posts/me/" + id, route => {
+    const request = route.request();
+    if (request.method() === "PATCH") {
+      const body = request.postDataJSON();
+      writes.push({ method: "PATCH", body });
+      return route.fulfill({ json: { success: true, data: { post: {
+        id, type: "ACHIEVEMENT", body: body.body, tags: body.tags,
+        createdAt: "2026-11-09T09:00:00Z",
+        member: { name: "Synthetic Member", username: "synthetic", verified: true },
+      } } } });
+    }
+    if (request.method() === "DELETE") {
+      writes.push({ method: "DELETE" });
+      return route.fulfill({ json: { success: true, data: { id } } });
+    }
+    return route.continue();
+  });
+  await page.goto("/profile");
+  await page.getByRole("tab", { name: "Activity" }).click();
+  const first = page.locator("#profile-activity .bw-profile-activity-item").first();
+  await expect(first).toBeVisible();
+  const menuTrigger = first.getByRole("button", { name: "Post options" });
+  await expect(menuTrigger).toBeVisible();
+  const geometry = await first.evaluate(element => {
+    const card = element.getBoundingClientRect();
+    const menu = element.querySelector(".bw-post-options-trigger").getBoundingClientRect();
+    return { cardRight: card.right, menuRight: menu.right, cardTop: card.top, menuTop: menu.top };
+  });
+  expect(geometry.cardRight - geometry.menuRight).toBeLessThan(22);
+  expect(geometry.menuTop - geometry.cardTop).toBeLessThan(25);
+  await menuTrigger.click();
+  await expect(first.getByRole("menuitem", { name: "Edit post" })).toBeVisible();
+  await expect(first.getByRole("menuitem", { name: "Delete post" })).toBeVisible();
+  await first.getByRole("menuitem", { name: "Edit post" }).click();
+  const editor = page.getByRole("dialog", { name: "Edit post" });
+  await expect(editor).toBeVisible();
+  await editor.getByRole("textbox", { name: "Post description" }).fill("A newly edited learning achievement");
+  await editor.getByRole("button", { name: "Save changes" }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(first.getByText("A newly edited learning achievement")).toBeVisible();
+  expect(writes[0].method).toBe("PATCH");
+  expect(writes[0].body.expectedBody).toBe("Finished a community coding project.");
+
+  await menuTrigger.click();
+  await first.getByRole("menuitem", { name: "Delete post" }).click();
+  const confirmation = page.getByRole("dialog", { name: "Delete post" });
+  await expect(confirmation).toBeVisible();
+  await confirmation.getByRole("button", { name: "Cancel" }).click();
+  expect(writes).toHaveLength(1);
+  await menuTrigger.click();
+  await first.getByRole("menuitem", { name: "Delete post" }).click();
+  await confirmation.getByRole("button", { name: "Delete post" }).click();
+  await expect(first).not.toBeVisible();
+  expect(writes[1].method).toBe("DELETE");
+  await expect(page.locator("#profile-activity .bw-profile-activity-item")).toHaveCount(1);
+});
+
 test("profile tabs support keyboard navigation and bookmarked section anchors", async ({ page }) => {
   await fixture(page);
   await page.goto("/profile");
