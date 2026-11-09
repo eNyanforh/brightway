@@ -45,6 +45,7 @@ import { createSessionRoutes } from "../modules/auth/session.routes.js";
 import { createSessionService } from "../modules/auth/session.service.js";
 import { createProfileRoutes } from "../modules/profile/profile.routes.js";
 import { createProfileService } from "../modules/profile/profile.service.js";
+import { createProfileDashboardService } from "../modules/profile/profile-dashboard.service.js";
 import { createPhotoService } from "../modules/photos/photo.service.js";
 import { createR2Storage } from "../modules/photos/photo.storage.js";
 import { createPhotoRoutes } from "../modules/photos/photo.routes.js";
@@ -110,6 +111,7 @@ router.use("/auth", createSessionRoutes({
 
 router.use("/profile", createProfileRoutes({
   profiles: createProfileService({ prisma, contactReader: network.visibleContact }),
+  dashboard: createProfileDashboardService({ prisma }),
   sessions,
   clientUrl: env.CLIENT_URL,
   nodeEnv: env.NODE_ENV,
