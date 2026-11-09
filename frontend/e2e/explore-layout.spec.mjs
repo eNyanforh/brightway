@@ -426,6 +426,94 @@ test("purpose-driven post cards expose distinct actions and functional signup an
   await expect(questionCard.getByText("Report submitted for moderation.")).toBeVisible();
 });
 
+test("question cards display real answerers beneath topic tags and a distinct Answer action", async ({ page }) => {
+  const question = {
+    ...fixturePost,
+    id: "88888888-8888-4888-8888-888888888888",
+    type: "QUESTION",
+    body: "How can I learn full-stack development?",
+    questionDetails: { title: "How can I learn full-stack development?", intent: "GUIDANCE" },
+    tags: ["Coding", "Education"],
+    answerCount: 4,
+    answerParticipants: [
+      { username: "maya", name: "Maya Cole", photoId: null },
+      { username: "alex", name: "Alex Rivera", photoId: null },
+      { username: "jane", name: "Jane Doe", photoId: null },
+      { username: "sam", name: "Sam Brown", photoId: null },
+    ],
+  };
+  await fixture(page, [question]);
+  await page.goto("/explore");
+  const card = page.getByRole("article").filter({ hasText: question.body });
+  const topics = card.getByRole("list", { name: "Topic tags" });
+  const summary = card.getByLabel("Question answers");
+  const facepile = summary.getByRole("group", { name: "Members who answered" });
+  await expect(summary).toContainText("4 answers");
+  await expect(facepile.getByRole("link")).toHaveCount(3);
+  await expect(facepile.getByRole("link", { name: "Sam Brown answered" })).toHaveCount(0);
+  await expect(facepile.getByRole("link", { name: "Maya Cole answered" })).toHaveAttribute("href", "/people/maya");
+  await expect(facepile.getByRole("link", { name: "Alex Rivera answered" })).toContainText("AR");
+  const tagsBox = await topics.boundingBox();
+  const summaryBox = await summary.boundingBox();
+  expect(summaryBox.y).toBeGreaterThan(tagsBox.y);
+  const answer = card.getByRole("button", { name: "Answer", exact: true });
+  await expect(answer).toBeVisible();
+  const appearance = await answer.evaluate(element => ({
+    background: getComputedStyle(element).backgroundColor,
+    radius: getComputedStyle(element).borderRadius,
+  }));
+  expect(appearance.background).toBe("rgb(23, 92, 211)");
+  expect(appearance.radius).toBe("999px");
+  await expect(card.getByRole("button", { name: "Comments" })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+});
+
+test("answer count and facepile refresh after an answer is published", async ({ page }) => {
+  const question = {
+    ...fixturePost,
+    id: "99999999-9999-4999-8999-999999999999",
+    type: "QUESTION",
+    body: "Who can explain statistical sampling?",
+    questionDetails: { title: "Who can explain statistical sampling?", intent: "EXPLANATION" },
+    tags: ["Statistics"], answerCount: 0, answerParticipants: [],
+  };
+  await fixture(page, [question]);
+  await page.route("**/api/v1/explore/posts/member/**", async route => {
+    const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+    if (pathname === "/api/v1/explore/posts/member/" + question.id) {
+      return route.fulfill({ json: { success: true, data: { post: {
+        ...question, answerCount: 1,
+        answerParticipants: [{ username: "synthetic", name: "Synthetic Member", photoId: null }],
+      } } } });
+    }
+    if (pathname === "/api/v1/explore/posts/member/" + question.id + "/answers") {
+      if (request.method() === "GET") {
+        return route.fulfill({ json: { success: true, data: { items: [], sort: "top" } } });
+      }
+      const answer = {
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        username: "synthetic", body: request.postDataJSON().body,
+        createdAt: "2026-11-09T08:00:00Z", score: 0, myVote: 0, commentCount: 0, canDelete: true,
+      };
+      return route.fulfill({ status: 201, json: { success: true, data: { answer } } });
+    }
+    return route.fallback();
+  });
+  await page.goto("/explore");
+  const card = page.getByRole("article").filter({ hasText: question.body });
+  const summary = card.getByLabel("Question answers");
+  await expect(summary).toContainText("0 answers");
+  await expect(summary.getByRole("link")).toHaveCount(0);
+  await card.getByRole("button", { name: "Answer" }).click();
+  const form = card.getByRole("region", { name: "Answers" });
+  await form.getByRole("textbox", { name: "Your answer" }).fill("Use a probability sampling frame.");
+  await form.getByRole("button", { name: "Publish answer" }).click();
+  await expect(summary).toContainText("1 answer");
+  await expect(summary.getByRole("link", { name: "Synthetic Member answered" })).toBeVisible();
+});
+
 test("mobile event and question primary actions stay left of the right utility group", async ({ page, isMobile }) => {
   test.skip(!isMobile, "Mobile layout only");
   const [event, question] = ["EVENT", "QUESTION"].map((type, index) => ({

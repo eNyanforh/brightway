@@ -173,18 +173,51 @@ function likeSummary({ likes, _count }) {
   return { liked: likes.length > 0, count: _count.likes };
 }
 
+// Only read respondents with public profiles that are visible to this viewer.
+// Keep this preview bounded rather than requesting every answer for each card.
+function answerPreviewSelect(viewerId) {
+  return {
+    where: { deletedAt: null, author: visibleMember(viewerId) },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 12,
+    select: {
+      author: { select: {
+        id: true, username: true,
+        person: { select: {
+          firstName: true, middleName: true, lastName: true,
+          profile: { select: { photoId: true } },
+        } },
+      } },
+    },
+  };
+}
+
 function memberAttribution({ username, person }) {
   const { firstName, middleName, lastName } = person;
   return { username, name: [firstName, middleName, lastName].filter(Boolean).join(" ") };
 }
 
-function feedPost({ likes, _count, saves, reposts, registrations, ...post }) {
+function feedPost({ likes, _count, saves, reposts, registrations, answers = [], ...post }, blockedKeys = new Set()) {
+  const participants = [];
+  if (post.type === "QUESTION" && post.author) {
+    const seen = new Set();
+    for (const { author } of answers) {
+      if (seen.has(author.id) || (author.id !== post.author.id &&
+          blockedKeys.has(pairKey(blockPair(author.id, post.author.id))))) continue;
+      seen.add(author.id);
+      participants.push({
+        ...memberAttribution(author),
+        photoId: author.person.profile?.photoId ?? null,
+      });
+      if (participants.length === 3) break;
+    }
+  }
   return {
     ...(post.author ? memberPost(post) : post),
     reaction: likeSummary({ likes, _count }),
     views: _count.views ?? 0,
     ...(registrations && { registration: { registered: registrations.length > 0, count: _count.registrations ?? 0 } }),
-    ...(post.type === "QUESTION" && { answerCount: _count.answers ?? 0 }),
+    ...(post.type === "QUESTION" && { answerCount: _count.answers ?? 0, answerParticipants: participants }),
     saved: saves.length > 0,
     reposted: reposts.length > 0,
   };
@@ -245,6 +278,13 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     const pairs = new Map();
     for (const { row, post } of entries) {
       if (post.author) authorIds.add(post.author.id);
+      if (post.type === "QUESTION" && post.author) {
+        for (const { author } of post.answers ?? []) {
+          if (author.id === post.author.id) continue;
+          const pair = blockPair(author.id, post.author.id);
+          pairs.set(pairKey(pair), pair);
+        }
+      }
       if (row.account) {
         authorIds.add(row.account.id);
         const pair = blockPair(row.account.id, post.author?.id ?? post.authorId);
@@ -273,11 +313,11 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       if (post.author && !eligible.has(post.author.id)) continue;
       const { authorId, ...original } = post;
       if (!row.account) {
-        items.push(feedPost(original));
+        items.push(feedPost(original, blockedKeys));
         continue;
       }
       if (!eligible.has(row.account.id) || blockedKeys.has(pairKey(blockPair(row.account.id, post.author?.id ?? authorId)))) continue;
-      items.push({ ...feedPost(original), repost: repostAttribution(row, viewer) });
+      items.push({ ...feedPost(original, blockedKeys), repost: repostAttribution(row, viewer) });
     }
     return items;
   }
@@ -454,13 +494,16 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         ...memberPostSelect, ...select,
         _count: { select: { likes: true, views: true, registrations: true, answers: { where: { deletedAt: null } } } },
         registrations: { where: { accountId: actor.accountId }, select: { id: true } },
+        answers: answerPreviewSelect(actor.accountId),
       };
       const row = await postModel(prisma, ref.source).findUniqueOrThrow({
         where: { id: ref.id },
         select: ref.source === "member" ? memberSelectEngagement : { ...postSelect, ...select },
       });
       await assertNetworkSession(prisma, actor, now);
-      return { post: feedPost(row) };
+      const [post] = await projectVisiblePosts([row], actor.accountId);
+      if (!post) throw unavailable();
+      return { post };
     },
 
     async registerEvent(actor, idValue, input) {
@@ -655,6 +698,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         ...select,
         _count: { select: { likes: true, views: true, registrations: true, answers: { where: { deletedAt: null } } } },
         registrations: { where: { accountId: actor.accountId }, select: { id: true } },
+        answers: answerPreviewSelect(actor.accountId),
       };
       if (view === "saved") {
         const page = await savedFeed(actor.accountId, position, select, memberEngagementSelect);
