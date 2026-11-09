@@ -123,7 +123,7 @@ function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerP
   );
 }
 
-function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, onRegister, canManageEvent = false }) {
+export function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, onRegister, canManageEvent = false, trackViews = true }) {
   const [confirming, setConfirming] = useState(false);
   const [answersOpen, setAnswersOpen] = useState(false);
   const [answerCount, setAnswerCount] = useState(post.answerCount ?? 0);
@@ -174,7 +174,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
   }, [post.id]);
 
   useEffect(() => {
-    if (!timeline || typeof post.views !== "number" || !cardRef.current ||
+    if (!timeline || !trackViews || typeof post.views !== "number" || !cardRef.current ||
       typeof IntersectionObserver === "undefined") return undefined;
     const target = cardRef.current;
     const controller = new AbortController();
@@ -188,7 +188,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
     }, { threshold: 0.55 });
     observer.observe(target);
     return () => { observer.disconnect(); controller.abort(); };
-  }, [timeline, post.id, post.views, source]);
+  }, [timeline, trackViews, post.id, post.views, source]);
 
   async function sharePost() {
     setShareNotice("");
@@ -264,6 +264,9 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
           title={post.reposted ? "Undo repost" : "Repost"}
           data-active={post.reposted} onClick={() => onRepost(post)}>
           <NavigationIcon name="repost" size={19} />
+          {typeof post.repostCount === "number" && (
+            <span className="bw-action-count" aria-label={post.repostCount + " reposts"}>{post.repostCount.toLocaleString()}</span>
+          )}
         </button>
       )}
       <button type="button" className="bw-timeline-action" aria-label="Share" title="Share"
@@ -350,6 +353,7 @@ function PostCard({ post, timeline, busy, onWithdraw, onLike, onSave, onRepost, 
           <PostStory post={displayPost} topicTags={topicTags} timeline
             answerCount={answerCount} answerParticipants={answerParticipants} />
           <PostComments postId={post.id} source={source}
+            commentCount={post.commentCount}
             showComment={type !== "QUESTION"} primaryAction={primaryAction}>
             {controls}
           </PostComments>
