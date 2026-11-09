@@ -21,6 +21,7 @@ import ProfileContact from "../components/profile/ProfileContact";
 import ProfileCompletion from "../components/profile/ProfileCompletion";
 import ProfileHistory from "../components/profile/ProfileHistory";
 import ProfileActivities from "../components/profile/ProfileActivities";
+import ProfileCredentials from "../components/profile/ProfileCredentials";
 import ProfileEditor from "../components/profile/ProfileEditor";
 import "./profile.css";
 
@@ -688,6 +689,7 @@ export default function ProfilePage() {
             <a href="#profile-activity">Activities</a>
             <a href="#profile-experience">Experience</a>
             <a href="#profile-education">Education</a>
+            <a href="#profile-credentials">Credentials</a>
             <a href="#profile-skills">Skills</a>
             <a href="#profile-interests">Interests</a>
             <a href="#profile-direction">Career direction</a>
@@ -724,6 +726,8 @@ export default function ProfilePage() {
               />
             </div>
           ))}
+
+          <ProfileCredentials profile={profile} />
 
           <Section
             id="profile-skills"
