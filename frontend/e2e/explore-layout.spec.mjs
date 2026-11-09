@@ -439,6 +439,7 @@ test("question cards display real answerers beneath topic tags and a distinct An
       { username: "maya", name: "Maya Cole", photoId: null },
       { username: "alex", name: "Alex Rivera", photoId: null },
       { username: "jane", name: "Jane Doe", photoId: null },
+      { username: "sam", name: "Sam Brown", photoId: null },
     ],
   };
   await fixture(page, [question]);
@@ -449,6 +450,7 @@ test("question cards display real answerers beneath topic tags and a distinct An
   const facepile = summary.getByRole("group", { name: "Members who answered" });
   await expect(summary).toContainText("4 answers");
   await expect(facepile.getByRole("link")).toHaveCount(3);
+  await expect(facepile.getByRole("link", { name: "Sam Brown answered" })).toHaveCount(0);
   await expect(facepile.getByRole("link", { name: "Maya Cole answered" })).toHaveAttribute("href", "/people/maya");
   await expect(facepile.getByRole("link", { name: "Alex Rivera answered" })).toContainText("AR");
   const tagsBox = await topics.boundingBox();
