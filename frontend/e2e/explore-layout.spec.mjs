@@ -308,7 +308,15 @@ test("The feed renders different presentation cards for stored achievements, eve
       meetingUrl: "", coverTheme: "FOREST",
     } } : {}),
   }));
-  await fixture(page, [...typed, fixturePost]);
+  const explanationQuestion = {
+    ...fixturePost,
+    id: "a1111111-1111-4111-8111-111111111111",
+    body: "Explain sampling bias to a beginner.",
+    type: "QUESTION",
+    tags: ["Research"],
+    questionDetails: { title: "What is sampling bias?", intent: "EXPLANATION" },
+  };
+  await fixture(page, [...typed, fixturePost, explanationQuestion]);
   await page.goto("/explore");
   const explore = page.getByRole("region", { name: "Explore", exact: true });
   for (const format of formats) {
@@ -318,7 +326,7 @@ test("The feed renders different presentation cards for stored achievements, eve
     await expect(card.getByText(format.heading)).toHaveCount(0);
     if (format.type === "QUESTION") {
       await expect(card.getByRole("heading", { name: "How do I find a mentor for my first project?" })).toBeVisible();
-      await expect(card.getByText("Looking for guidance")).toBeVisible();
+      await expect(card.getByText("Looking for guidance")).toHaveCount(0);
     }
     if (format.type === "EVENT") {
       await expect(card.getByRole("heading", { name: "Student Research Workshop" })).toBeVisible();
@@ -332,6 +340,10 @@ test("The feed renders different presentation cards for stored achievements, eve
       await expect(card.getByRole("button", { name: "Comments" })).toBeVisible();
     }
   }
+  const explanation = explore.getByRole("article").filter({ hasText: explanationQuestion.body });
+  await expect(explanation.getByRole("heading", { name: "What is sampling bias?" })).toBeVisible();
+  await expect(explanation.getByText("Concept explanation")).toHaveCount(0);
+  await expect(explanation.getByRole("list", { name: "Topic tags" }).getByText("Research")).toBeVisible();
   const legacyCard = explore.getByRole("article").filter({ hasText: fixturePost.body });
   await expect(legacyCard.locator(".bw-post-story")).toHaveCount(0);
 });
@@ -339,7 +351,7 @@ test("The feed renders different presentation cards for stored achievements, eve
 test("post cards show verified publishers and precise relative ages with full publication dates", async ({ page }) => {
   await page.clock.install({ time: new Date("2026-11-09T12:00:00Z") });
   const durations = [
-    ["seconds", "2026-11-09T11:59:55Z", "5s"],
+    ["seconds", "2026-11-09T11:59:55Z", "Just now"],
     ["minutes", "2026-11-09T11:55:00Z", "5m"],
     ["hours", "2026-11-09T09:00:00Z", "3h"],
     ["days", "2026-11-07T12:00:00Z", "2d"],
@@ -383,18 +395,16 @@ test("post cards show verified publishers and precise relative ages with full pu
     await expect(item.getByRole("img", { name: "Verified identity" })).toBeVisible();
     const date = item.locator("time");
     await expect(date).toHaveAttribute("datetime", createdAt);
-    if (label === "seconds") await expect(date).toHaveText(/^\d+s$/);
-    else await expect(date).toHaveText(expected);
+    await expect(date).toHaveText(expected);
     await expect(date).toHaveAttribute("title", /202[0-9]/);
   }
   await expect(card("Unverified badge fixture").getByRole("img", { name: "Verified identity" })).toHaveCount(0);
   await expect(card("Verified school publisher").getByRole("img", { name: "Verified organization" })).toBeVisible();
   await expect(card("Verified repost attribution").getByRole("img", { name: "Verified identity" })).toHaveCount(2);
-  const secondsCounter = card("Publisher age seconds").locator("time");
-  const before = Number((await secondsCounter.textContent())?.replace("s", ""));
-  await page.clock.fastForward(10_000);
-  await expect.poll(async () => Number((await secondsCounter.textContent())?.replace("s", "")))
-    .toBeGreaterThan(before);
+  const recentTimestamp = card("Publisher age seconds").locator("time");
+  await expect(recentTimestamp).toHaveAttribute("aria-label", /Posted just now/);
+  await page.clock.fastForward(65_000);
+  await expect(recentTimestamp).toHaveText("1m");
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
