@@ -96,6 +96,58 @@ const set = (name, value) =>
     target: { value },
   });
 
+it("organizes the modern profile around identity, anchored sections and privacy controls without new requests", async () => {
+  const fetchMock = mount();
+  await ready();
+  const sections = screen.getByRole("navigation", { name: "Profile sections" });
+  const anchors = [
+    ["About", "#profile-about"], ["My direction", "#profile-direction"],
+    ["Skills", "#profile-skills"], ["Interests", "#profile-interests"],
+    ["Education", "#profile-education"], ["Experience", "#profile-experience"],
+    ["Contact", "#profile-contact"], ["Privacy", "#profile-privacy"],
+  ];
+  for (const [label, target] of anchors) {
+    const href = within(sections).getByRole("link", { name: label }).getAttribute("href");
+    expect(href).toBe(target);
+    expect(document.getElementById(target.slice(1))).toBeTruthy();
+  }
+  expect(screen.getByRole("navigation", { name: "Profile tools" })).toBeTruthy();
+  expect(within(screen.getByRole("navigation", { name: "Profile tools" }))
+    .getByRole("link", { name: "Account security" }).getAttribute("href")).toBe("/security");
+  expect(screen.getByText("Public profile private")).toBeTruthy();
+  expect(screen.getByText("Identity not verified")).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Control your profile" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Change profile picture" })).toBeTruthy();
+  expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profile/me"))).toHaveLength(1);
+  await userEvent.setup().click(screen.getByRole("button", { name: "Edit introduction", exact: true }));
+  expect(await screen.findByRole("dialog", { name: "Edit introduction" })).toBeTruthy();
+});
+
+it("shows only published fields on the redesigned public profile without a second view request", async () => {
+  const viewed = {
+    fullName: "Maya Cole", username: "maya", headline: "Software engineer and mentor",
+    bio: "Building accessible education software.", location: {
+      countryCode: "LR", region: "Montserrado", locality: "Monrovia",
+    }, careerField: { mode: "SPECIFIED", label: "Software development" },
+    careerGoals: "Mentor new developers.", skills: ["React", "TypeScript"],
+    interests: ["Education", "Community"],
+  };
+  const fetchMock = mount((url) =>
+    url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/people/maya");
+  await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
+  expect(screen.getByText("Published profile")).toBeTruthy();
+  const nav = screen.getByRole("navigation", { name: "Published profile sections" });
+  expect(within(nav).getByRole("link", { name: "About" }).getAttribute("href")).toBe("#published-about");
+  expect(within(nav).getByRole("link", { name: "Skills" }).getAttribute("href")).toBe("#published-skills");
+  expect(screen.getByRole("img", { name: "Profile avatar" })).toBeTruthy();
+  expect(screen.getByText("Building accessible education software.")).toBeTruthy();
+  expect(screen.getByText("Mentor new developers.")).toBeTruthy();
+  expect(screen.getByText("TypeScript")).toBeTruthy();
+  expect(screen.queryByText("existing@example.com")).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Contact" })).toBeNull();
+  expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profiles/maya/view"))).toHaveLength(1);
+});
+
 it("shows the saved profile first and uses the top picture as the profile navigation", async () => {
   const fetchMock = mount();
   await ready();

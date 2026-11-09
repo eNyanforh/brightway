@@ -16,3 +16,57 @@
 .bw-account-email .bw-profile-field { margin-top: 14px; }
 .bw-account-email .bw-profile-field input { width: 100%; min-width: 0; box-sizing: border-box; letter-spacing: 3px; }
 .bw-completion-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+
+/* Checklist progress is derived from the saved, version-matched server checks. */
+.bw-profile-completion-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .65rem;
+}
+.bw-profile-completion-header .bw-profile-eyebrow { margin: 0 0 .35rem; }
+.bw-profile-completion-header h2 { margin: 0; }
+.bw-profile-completion-percent {
+  flex: 0 0 auto;
+  min-width: 49px;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  border: 1px solid #d3e4fa;
+  border-radius: 10px;
+  background: #ebf3ff;
+  color: #1d59a9;
+  font-size: .84rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.bw-profile-completion-progress { display: grid; gap: .45rem; margin: 12px 0 7px; }
+.bw-profile-completion-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e5edf7;
+  overflow: hidden;
+}
+.bw-profile-completion-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1754b1, #3b83df);
+  transition: width .18s ease;
+}
+.bw-profile-completion-progress > span {
+  color: #60748f;
+  font-size: .73rem;
+  font-variant-numeric: tabular-nums;
+}
+.bw-profile-completion .bw-completion-list { margin: 11px 0; }
+.bw-profile-completion .bw-completion-list li { padding: 12px 0; font-size: .76rem; }
+.bw-profile-completion .bw-completion-list small { font-size: .7rem; }
+.bw-profile-completion .bw-completion-done,
+.bw-profile-completion .bw-completion-missing { width: 25px; height: 25px; }
+.bw-profile-completion .bw-completion-done { color: #16724f; background: #e8f6ef; }
+@media (prefers-reduced-motion: reduce) {
+  .bw-profile-completion-track > span { transition: none; }
+}
