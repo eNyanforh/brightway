@@ -688,6 +688,7 @@ export default function ProfilePage() {
             <a href="#profile-activity">Activities</a>
             <a href="#profile-experience">Experience</a>
             <a href="#profile-education">Education</a>
+            <a href="#profile-certifications">Certifications</a>
             <a href="#profile-skills">Skills</a>
             <a href="#profile-interests">Interests</a>
             <a href="#profile-direction">Career direction</a>
@@ -724,6 +725,36 @@ export default function ProfilePage() {
               />
             </div>
           ))}
+
+          <Section
+            id="profile-certifications"
+            title="Licenses and certifications"
+            editor="certifications"
+            action="Edit"
+            onEdit={open}
+            busy={busy}
+          >
+            {profile.certifications?.length ? (
+              <div className="bw-owner-certifications">
+                {profile.certifications.map((item, index) => (
+                  <article className="bw-owner-certification" key={index}>
+                    <span className="bw-owner-certification-icon"><Icon name="book" /></span>
+                    <div>
+                      <h3>{item.title}</h3>
+                      <p>{item.issuer} · Issued {item.issuedMonth}</p>
+                      {item.expiresMonth && <p>Expires {item.expiresMonth}</p>}
+                      <small>Self-reported · Not BrightWay verified</small>
+                      {/^https:\/\//i.test(item.credentialUrl || "") && (
+                        <a href={item.credentialUrl} target="_blank" rel="noopener noreferrer">View certificate</a>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="bw-profile-muted">Add certifications you have earned, including their issuers and dates.</p>
+            )}
+          </Section>
 
           <Section
             id="profile-skills"
@@ -817,7 +848,23 @@ export default function ProfilePage() {
                 <input type="checkbox" checked={profile.profilePublicEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profilePublicEnabled", event.target.checked)} />
                 <span>Publish my basic profile so signed-in BrightWay members can view it by username</span>
               </label>
-              <small>Only your name, headline, about text, location, career direction and goals, skills, and interests are published. Education, experience, and contact details stay private.</small>
+              <small>Basic profile publication includes your name, headline, about text, location, career direction and goals, skills, and interests. Additional sections below require separate permission. Contact information stays private here.</small>
+              <label>
+                <input type="checkbox" checked={profile.profileCertificationsPublicEnabled === true}
+                  disabled={privacySettingsDisabled} onChange={event => void saveProfileViewSetting("profileCertificationsPublicEnabled", event.target.checked)} />
+                <span>Show my self-reported licenses and certifications on my published profile</span>
+              </label>
+              <label>
+                <input type="checkbox" checked={profile.profileCredentialsPublicEnabled === true}
+                  disabled={privacySettingsDisabled} onChange={event => void saveProfileViewSetting("profileCredentialsPublicEnabled", event.target.checked)} />
+                <span>Show my verified education and experience credentials</span>
+              </label>
+              <label>
+                <input type="checkbox" checked={profile.profileAchievementsPublicEnabled === true}
+                  disabled={privacySettingsDisabled} onChange={event => void saveProfileViewSetting("profileAchievementsPublicEnabled", event.target.checked)} />
+                <span>Feature my published achievement posts on my public profile</span>
+              </label>
+              <small>All three optional sections default to off. Individual certifications are self-reported and do not receive a verified badge. If you turn off basic profile publication, all optional sections are hidden too.</small>
               <label>
                 <input type="checkbox" checked={profile.profileViewSharingEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profileViewSharingEnabled", event.target.checked)} />
                 <span>Share my name when I choose to view another person’s profile</span>
