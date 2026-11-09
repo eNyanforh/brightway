@@ -101,6 +101,21 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
     `);
     await assertNetworkSession(prisma, actor, now);
     const page = rows.slice(0, pageSize);
+    // Count only results actually returned, never hidden or blocked members.
+    // Deduplicate by viewer and UTC date; do not retain search text.
+    const currentTime = now();
+    const searchedOn = new Date(Date.UTC(
+      currentTime.getUTCFullYear(), currentTime.getUTCMonth(), currentTime.getUTCDate(),
+    ));
+    const members = page.filter(item => item.kind === "people");
+    if (members.length) {
+      await prisma.profileSearchAppearance.createMany({
+        data: members.map(item => ({
+          ownerId: item.id, viewerId: actor.accountId, searchedOn, createdAt: currentTime,
+        })),
+        skipDuplicates: true,
+      });
+    }
     const last = page.at(-1);
     const nextCursor = rows.length > pageSize ? Buffer.from(JSON.stringify({
       viewer: actor.accountId, q, filter: kind, rank: last.rank, kind: last.kind, username: last.username,
