@@ -91,10 +91,6 @@ function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerP
       {post.type === "EVENT" && <EventInfoCard details={post.eventDetails} />}
       {post.type === "QUESTION" && post.questionDetails?.title && (
         <div className="bw-question-feed-content">
-          <span className="bw-question-feed-intent">{({
-            EXPLANATION: "Concept explanation", FEEDBACK: "Feedback requested",
-            GUIDANCE: "Looking for guidance", DISCUSSION: "Open discussion",
-          })[post.questionDetails.intent] || "Community question"}</span>
           <h3>{post.questionDetails.title}</h3>
         </div>
       )}
