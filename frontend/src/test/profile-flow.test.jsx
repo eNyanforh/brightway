@@ -89,9 +89,12 @@ async function openProfile() {
 const ready = () =>
   screen.findByRole("heading", { name: "Test User", level: 1 });
 async function edit(name = "Edit introduction") {
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name, exact: true }));
+  const user = userEvent.setup();
+  if (/^Edit (education|experience|licenses and certifications)$/i.test(name))
+    await user.click(screen.getByRole("tab", { name: "Achievements" }));
+  else if (/^Edit (about|skills|interests|contact|my direction)$/i.test(name))
+    await user.click(screen.getByRole("tab", { name: "About Me" }));
+  await user.click(screen.getByRole("button", { name, exact: true }));
   return screen.findByRole("dialog");
 }
 const save = () =>
@@ -101,10 +104,17 @@ const set = (name, value) =>
     target: { value },
   });
 
-it("organizes the modern profile around a private analytics dashboard and sections without tabs", async () => {
+it("organizes the private profile into About Me, Achievements and Activity tabs", async () => {
   const fetchMock = mount();
   await ready();
-  expect(screen.queryByRole("navigation", { name: "Profile sections" })).toBeNull();
+  const tabs = screen.getByRole("tablist", { name: "Profile sections" });
+  expect(within(tabs).getAllByRole("tab").map(tab => tab.textContent)).toEqual([
+    "About Me", "Achievements", "Activity",
+  ]);
+  expect(screen.getByRole("tab", { name: "About Me" }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tabpanel", { name: "About Me" })).toBeTruthy();
+  expect(screen.queryByRole("tabpanel", { name: "Achievements" })).toBeNull();
+  expect(screen.queryByRole("tabpanel", { name: "Activity" })).toBeNull();
   const dashboard = screen.getByRole("region", { name: "Dashboard" });
   expect(dashboard).toBeTruthy();
   expect(dashboard.compareDocumentPosition(document.getElementById("profile-about")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -125,11 +135,30 @@ it("organizes the modern profile around a private analytics dashboard and sectio
   expect(within(hero).queryByRole("link", { name: "See activity" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "My profile" })).toBeNull();
   expect(screen.queryByText("YOUR BRIGHTWAY PROFILE")).toBeNull();
-  expect(screen.getByRole("heading", { name: "Activities" })).toBeTruthy();
-  expect(await screen.findByText("No activity yet")).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Activities" })).toBeNull();
+  expect(screen.getByRole("heading", { name: "About" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Skills" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Interests" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Contact" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "My direction" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Control your profile" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Change profile picture" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Edit my direction" })).toBeTruthy();
+
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("tab", { name: "Achievements" }));
+  expect(screen.getByRole("tabpanel", { name: "Achievements" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Education" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Experience" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Licenses and certifications" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "About" })).toBeNull();
+
+  await user.click(screen.getByRole("tab", { name: "Activity" }));
+  expect(screen.getByRole("tabpanel", { name: "Activity" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Activities" })).toBeTruthy();
+  expect(await screen.findByText("No activity yet")).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Education" })).toBeNull();
+  await user.click(screen.getByRole("tab", { name: "About Me" }));
   expect(screen.queryByRole("link", { name: "View public profile" })).toBeNull();
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profile/me"))).toHaveLength(1);
   await userEvent.setup().click(screen.getByRole("button", { name: "Edit introduction", exact: true }));
@@ -1045,6 +1074,7 @@ it("edits self-reported certifications without modifying other profile fields", 
   });
   await ready();
   const user = userEvent.setup();
+  await user.click(screen.getByRole("tab", { name: "Achievements" }));
   await user.click(screen.getByRole("button", { name: "Edit licenses and certifications" }));
   await user.click(screen.getByRole("button", { name: "Add certification" }));
   await user.type(screen.getByLabelText("Certification name"), certificate.title);
