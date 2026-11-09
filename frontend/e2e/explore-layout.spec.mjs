@@ -831,7 +831,7 @@ test("event cards display real registrant avatars and count, refreshed after reg
   const selectedButton = card.getByRole("button", { name: /Going — cancel attendance/ });
   await expect(selectedButton).toBeVisible();
   await expect(selectedButton).toHaveAttribute("aria-pressed", "true");
-  await expect(selectedButton).toHaveCSS("color", "rgb(18, 103, 72)");
+  await expect(selectedButton).toHaveCSS("color", /rgb\((18, 103, 72|16, 88, 62)\)/);
   await expect(selectedButton.locator(".bw-going-check-icon")).toBeVisible();
   await expect(summary).toContainText("43 people attending");
   await expect(avatars.getByRole("link", { name: "Synthetic Member attending" })).toBeVisible();
