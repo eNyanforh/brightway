@@ -11,6 +11,7 @@ import EventAttendeeSummary from "./EventAttendeeSummary";
 import EventRequestReview from "./EventRequestReview";
 import VerificationBadge from "../VerificationBadge";
 import PostTimestamp from "./PostTimestamp";
+import PostCaption from "./PostCaption";
 import "./posts.css";
 
 const postSource = post => post.organization ? "organization" : "member";
@@ -86,7 +87,7 @@ function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerP
   if (!format) return (
     <>
       {post.member && <PersonalPostTypeLabel type={post.type} />}
-      <p className="bw-post-text">{post.body}</p>
+      <PostCaption body={post.body} />
       {topicTags}
     </>
   );
@@ -108,7 +109,7 @@ function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerP
         </div>
       )}
       {!(post.type === "QUESTION" && post.questionDetails?.title?.trim() === post.body?.trim()) && (
-        <p className="bw-post-text bw-post-story-body">{post.body}</p>
+        <PostCaption body={post.body} className="bw-post-story-body" />
       )}
       {topicTags}
       {post.type === "EVENT" && post.registration && (
