@@ -550,6 +550,147 @@ test("purpose-driven post cards expose distinct actions and functional signup an
   await expect(questionCard.getByText("Report submitted for moderation.")).toBeVisible();
 });
 
+test("modern answer panel keeps voting, sorting and nested reply publishing usable", async ({ page }) => {
+  const question = {
+    ...fixturePost,
+    id: "c1000000-0000-4000-8000-000000000001",
+    type: "QUESTION",
+    tags: ["Coding"],
+    body: "How should beginners learn backend development?",
+    questionDetails: { title: "How should beginners learn backend development?", intent: "GUIDANCE" },
+    answerCount: 1,
+  };
+  const answerId = "c2000000-0000-4000-8000-000000000002";
+  const answers = [{ id: answerId, username: "maya", name: "Maya Cole",
+    body: "Start small, then build a complete API.", createdAt: "2026-11-09T09:00:00Z",
+    score: 2, myVote: 0, commentCount: 0, canDelete: false }];
+  const replies = [];
+  const sorts = [];
+  await fixture(page, [question]);
+  await page.route("**/api/v1/explore/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    const path = url.pathname;
+    const success = (data, status = 200) => route.fulfill({ status, json: { success: true, data } });
+    if (path === "/api/v1/explore/posts/member/" + question.id + "/answers" && request.method() === "GET") {
+      sorts.push(url.searchParams.get("sort"));
+      return success({ items: answers, sort: sorts.at(-1) });
+    }
+    if (path === "/api/v1/explore/answers/" + answerId + "/vote") {
+      const value = request.postDataJSON().value;
+      return success({ myVote: value, score: 2 + value });
+    }
+    if (path === "/api/v1/explore/answers/" + answerId + "/comments") {
+      if (request.method() === "GET") return success({ items: replies });
+      if (request.method() === "POST") {
+        const comment = { id: "c3000000-0000-4000-8000-000000000003",
+          username: "synthetic", body: request.postDataJSON().body,
+          createdAt: "2026-11-09T10:00:00Z", canDelete: true };
+        replies.push(comment);
+        return success({ comment }, 201);
+      }
+    }
+    if (path === "/api/v1/explore/answers/" + answerId + "/comments/c3000000-0000-4000-8000-000000000003"
+      && request.method() === "DELETE") {
+      replies.length = 0;
+      return success({ id: "c3000000-0000-4000-8000-000000000003" });
+    }
+    return route.fallback();
+  });
+  await page.goto("/explore");
+  const card = page.getByRole("article").filter({ hasText: question.body });
+  await card.getByRole("button", { name: "Answer" }).click();
+  const panel = card.getByRole("region", { name: "Answers" });
+  await expect(panel.getByText("Community answers")).toBeVisible();
+  await expect(panel.getByRole("textbox", { name: "Your answer" })).toBeVisible();
+  await expect(panel.getByText("0 / 2,000")).toBeVisible();
+  const answerCard = panel.locator(".bw-answer-card");
+  await expect(answerCard).toHaveCount(1);
+  await expect(answerCard.getByRole("link", { name: "Maya Cole" })).toHaveAttribute("href", "/people/maya");
+  await expect(answerCard.getByLabel("Answer score 2")).toBeVisible();
+  await answerCard.getByRole("button", { name: "Upvote answer by maya" }).click();
+  await expect(answerCard.getByLabel("Answer score 3")).toBeVisible();
+  await expect(answerCard.getByRole("button", { name: "Upvote answer by maya" })).toHaveAttribute("aria-pressed", "true");
+
+  await answerCard.locator(".bw-answer-comment-trigger").click();
+  const thread = answerCard.getByRole("region", { name: "Answer comments" });
+  await expect(thread.getByText("No replies yet. Add a helpful thought.")).toBeVisible();
+  await thread.getByRole("textbox", { name: "Comment on this answer" }).fill("Try building an Express API with tests.");
+  await expect(thread.getByText("39 / 1,000")).toBeVisible();
+  await thread.getByRole("button", { name: "Post comment" }).click();
+  await expect(thread.getByText("Try building an Express API with tests.")).toBeVisible();
+  await expect(answerCard.locator(".bw-discussion-action-count")).toHaveText("1");
+  await thread.getByRole("button", { name: "Delete comment" }).click();
+  await expect(thread.getByText("Delete this reply?")).toBeVisible();
+  await thread.getByRole("button", { name: "Confirm deletion" }).click();
+  await expect(thread.getByText("No replies yet. Add a helpful thought.")).toBeVisible();
+
+  await panel.getByLabel("Sort answers").selectOption("newest");
+  await expect.poll(() => sorts.at(-1)).toBe("newest");
+  await expect(panel.getByText("Start small, then build a complete API.")).toBeVisible();
+  await panel.getByRole("button", { name: "Close answers" }).click();
+  await expect(card.getByRole("region", { name: "Answers" })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+});
+
+test("modern post comments preserve create, delete, pagination and close behavior", async ({ page }) => {
+  const post = { ...fixturePost, id: "c4000000-0000-4000-8000-000000000004",
+    type: "ACHIEVEMENT", tags: ["Research"], body: "We published our research summary today." };
+  const older = { id: "c5000000-0000-4000-8000-000000000005",
+    username: "maya", body: "Well-deserved congratulations!",
+    createdAt: "2026-11-08T07:00:00Z", canDelete: false };
+  const fresh = { id: "c6000000-0000-4000-8000-000000000006",
+    username: "synthetic", body: "This is inspiring work.",
+    createdAt: "2026-11-09T10:00:00Z", canDelete: true };
+  await fixture(page, [post]);
+  const actions = [];
+  await page.route("**/api/v1/explore/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    const path = url.pathname;
+    const commentsPath = "/api/v1/explore/posts/member/" + post.id + "/comments";
+    const success = (data, status = 200) => route.fulfill({ status, json: { success: true, data } });
+    if (path === commentsPath && request.method() === "GET") {
+      return success(url.searchParams.has("cursor") ?
+        { items: [older], nextCursor: null } : { items: [], nextCursor: "NEXT" });
+    }
+    if (path === commentsPath && request.method() === "POST") {
+      actions.push("post");
+      return success({ comment: { ...fresh, body: request.postDataJSON().body } }, 201);
+    }
+    if (path === commentsPath + "/" + fresh.id && request.method() === "DELETE") {
+      actions.push("delete");
+      return success({ id: fresh.id });
+    }
+    return route.fallback();
+  });
+  await page.goto("/explore");
+  const card = page.getByRole("article").filter({ hasText: post.body });
+  const trigger = card.getByRole("button", { name: "Comments" });
+  await trigger.click();
+  const panel = card.getByRole("region", { name: "Post comments" });
+  await expect(panel.getByText("Start the conversation")).toBeVisible();
+  await expect(panel.getByRole("textbox", { name: "Write a comment" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Post comment" })).toBeDisabled();
+  await panel.getByRole("textbox", { name: "Write a comment" }).fill("This is inspiring work.");
+  await expect(panel.getByText("23 / 1,000")).toBeVisible();
+  await panel.getByRole("button", { name: "Post comment" }).click();
+  await expect(panel.getByText("This is inspiring work.")).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Delete comment" })).toBeVisible();
+  await panel.getByRole("button", { name: "Delete comment" }).click();
+  await expect(panel.getByText("Delete this comment?")).toBeVisible();
+  await panel.getByRole("button", { name: "Confirm deletion" }).click();
+  await expect(panel.getByText("Start the conversation")).toBeVisible();
+
+  await panel.getByRole("button", { name: "View older comments" }).click();
+  await expect(panel.getByText("Well-deserved congratulations!")).toBeVisible();
+  expect(actions).toEqual(["post", "delete"]);
+  await panel.getByRole("button", { name: "Close comments" }).click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(panel).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+});
+
 test("question cards display real answerers beneath topic tags and a distinct Answer action", async ({ page }) => {
   const question = {
     ...fixturePost,
