@@ -40,6 +40,7 @@ const published = {
 async function fixture(page) {
   let privateReads = 0;
   let publicViews = 0;
+  let activityReads = 0;
   await page.route("**/*", route => {
     const url = new URL(route.request().url());
     if (url.origin !== origin) return route.abort();
@@ -51,6 +52,22 @@ async function fixture(page) {
       case "/api/v1/profile/me":
         privateReads++;
         return reply({ profile });
+      case "/api/v1/posts/me":
+        activityReads++;
+        return reply(url.searchParams.has("cursor")
+          ? { access: {}, items: [{
+            id: "33333333-3333-4333-8333-333333333333", type: "QUESTION",
+            body: "How do I find a mentor?", createdAt: "2026-11-07T09:00:00Z",
+            questionDetails: { title: "Finding a mentor" }, tags: ["Learning"],
+          }], nextCursor: null }
+          : { access: {}, items: [
+            { id: "11111111-1111-4111-8111-111111111111", type: "ACHIEVEMENT",
+              body: "Finished a community coding project.", createdAt: "2026-11-09T09:00:00Z",
+              tags: ["Coding"] },
+            { id: "22222222-2222-4222-8222-222222222222", type: "EVENT",
+              body: "Join our community workshop.", createdAt: "2026-11-08T09:00:00Z",
+              eventDetails: { title: "Community workshop" }, tags: ["Career"] },
+          ], nextCursor: "older" });
       case "/api/v1/manual-identity/status":
         return reply({ accountId: account.id, profileVersion: 1, status: "NOT_STARTED",
           identityVerified: false, canSubmit: false });
@@ -60,7 +77,8 @@ async function fixture(page) {
       default: return reply({});
     }
   });
-  return { privateReads: () => privateReads, publicViews: () => publicViews };
+  return { privateReads: () => privateReads, publicViews: () => publicViews,
+    activityReads: () => activityReads };
 }
 
 test("my profile organizes the saved identity, section navigation, completion and privacy on desktop and mobile", async ({ page }) => {
@@ -72,6 +90,19 @@ test("my profile organizes the saved identity, section navigation, completion an
   await expect(navigation.getByRole("link", { name: "About" })).toHaveAttribute("href", "#profile-about");
   await expect(navigation.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "#profile-privacy");
   await expect(page.locator("#profile-about")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "My profile" })).toHaveCount(0);
+  await expect(page.getByText("YOUR BRIGHTWAY PROFILE")).toHaveCount(0);
+  await expect(navigation.getByRole("link", { name: "Activities" })).toHaveAttribute("href", "#profile-activity");
+  const activity = page.locator("#profile-activity");
+  await expect(activity.getByRole("heading", { name: "Activities" })).toBeVisible();
+  await expect(activity.getByText("Finished a community coding project.")).toBeVisible();
+  await expect(activity.getByText("Community workshop")).toBeVisible();
+  await expect(activity.getByRole("link", { name: "View post" }).first())
+    .toHaveAttribute("href", "/explore?source=member&post=11111111-1111-4111-8111-111111111111");
+  await activity.getByRole("button", { name: "Load older activity" }).click();
+  await expect(activity.getByText("Finding a mentor")).toBeVisible();
+  await expect(activity.locator(".bw-profile-activity-item")).toHaveCount(3);
+  expect(api.activityReads()).toBe(2);
   await expect(page.locator("#profile-privacy")).toBeVisible();
   await expect(page.getByText("Public profile private")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Profile checklist" })).toBeVisible();
