@@ -280,9 +280,9 @@ test("event admission displays capacity, ticket price, and pending status withou
   });
   await page.goto("/explore");
   const card = page.getByRole("article").filter({ hasText: "Advanced Research Session" });
-  await expect(card.getByRole("region", { name: "Event admission details" })).toContainText("USD 35.00");
-  await expect(card.getByRole("region", { name: "Event admission details" })).toContainText("Approval required");
-  await expect(card.getByRole("region", { name: "Event admission details" })).toContainText("Capacity: 2");
+  await expect(card.getByRole("group", { name: "Event admission details" })).toContainText("USD 35.00");
+  await expect(card.getByRole("group", { name: "Event admission details" })).toContainText("Approval required");
+  await expect(card.getByRole("group", { name: "Event admission details" })).toContainText("Capacity: 2");
   await expect(card.getByText("BrightWay does not collect payments.")).toBeVisible();
   await expect(card.locator(".bw-event-attendee-summary")).toContainText("1 person attending");
   await card.getByRole("button", { name: "I'm going" }).click();
