@@ -163,6 +163,15 @@ export default function NavigationIcon({
     case "bookmark":
       shape = <path d="M6 4h12v17l-6-4-6 4Z" />;
       break;
+    case "more-horizontal":
+      shape = <><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></>;
+      break;
+    case "edit":
+      shape = <><path d="m16 4 4 4-11.5 11.5-5 1 1-5L16 4Z" /><path d="m14 6 4 4" /></>;
+      break;
+    case "trash":
+      shape = <><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7m4-7v7" /></>;
+      break;
     case "menu":
       shape = <path d="M4 6h16M4 12h16M4 18h16" />;
       break;
