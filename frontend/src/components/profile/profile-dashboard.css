@@ -138,3 +138,61 @@
     border-top: 1px solid #e5ebf4;
   }
 }
+/* Small, bounded avatar stacks under the dashboard's two audience metrics.
+   Anonymous icons are silhouettes rather than fabricated user portraits. */
+.bw-dashboard-avatar-summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.bw-dashboard-avatar-group {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding-left: 6px;
+}
+.bw-dashboard-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 33px;
+  height: 33px;
+  flex: 0 0 33px;
+  margin-left: -6px;
+  overflow: hidden;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #e7effd;
+  color: #2d5e9e;
+  font-size: .88rem;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 1px 5px #183e6b1f;
+}
+.bw-dashboard-avatar:nth-child(even) { background: #ecf3f8; color: #486a90; }
+.bw-dashboard-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+.bw-dashboard-avatar-named:hover,
+.bw-dashboard-avatar-named:focus-visible {
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 0 2px #2b66b5;
+  outline: 0;
+}
+.bw-dashboard-avatar-anonymous {
+  background: #f1f4f8;
+  color: #6c8097;
+}
+.bw-dashboard-avatar-note {
+  color: #728197;
+  font-size: .69rem;
+  line-height: 1.35;
+}
