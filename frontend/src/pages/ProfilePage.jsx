@@ -726,34 +726,6 @@ export default function ProfilePage() {
           ))}
 
           <Section
-            id="profile-direction"
-            title="My direction"
-            editor="career"
-            onEdit={open}
-            busy={busy}
-          >
-            <div className="bw-profile-career">
-              <span className="bw-profile-career-icon">
-                <Icon name="sprout" />
-              </span>
-
-              <div>
-                <h3>
-                  {exploring
-                    ? "Open to discovering what’s next"
-                    : profile.careerField?.label ||
-                      "You don’t need to have it all figured out."}
-                </h3>
-
-                <p className="bw-profile-description">
-                  {profile.careerGoals ||
-                    "Add something you would like to learn, achieve, or contribute."}
-                </p>
-              </div>
-            </div>
-          </Section>
-
-          <Section
             id="profile-skills"
             title="Skills"
             editor="skills"
@@ -780,6 +752,34 @@ export default function ProfilePage() {
               empty="Add the topics and activities that spark your curiosity."
               neutral
             />
+          </Section>
+
+          <Section
+            id="profile-direction"
+            title="My direction"
+            editor="career"
+            onEdit={open}
+            busy={busy}
+          >
+            <div className="bw-profile-career">
+              <span className="bw-profile-career-icon">
+                <Icon name="sprout" />
+              </span>
+
+              <div>
+                <h3>
+                  {exploring
+                    ? "Open to discovering what’s next"
+                    : profile.careerField?.label ||
+                      "You don’t need to have it all figured out."}
+                </h3>
+
+                <p className="bw-profile-description">
+                  {profile.careerGoals ||
+                    "Add something you would like to learn, achieve, or contribute."}
+                </p>
+              </div>
+            </div>
           </Section>
 
           <div id="profile-contact" className="bw-profile-anchor-section">
