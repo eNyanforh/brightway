@@ -42,6 +42,10 @@ export const organizationPostsApi = {
   readPost: (source, id, signal) => request(explorePost(source, id), signal),
   setLike: (source, id, liked, signal) => request(explorePost(source, id) + "/like", signal, "PUT", { liked }),
   registerEvent: (id, registered, signal) => request(explorePost("member", id) + "/register", signal, "PUT", { registered }),
+  eventRequests: (id, signal) => request(explorePost("member", id) + "/registration-requests", signal),
+  decideEventRequest: (id, requestId, approved, signal) => request(
+    explorePost("member", id) + "/registration-requests/" + encodeURIComponent(requestId),
+    signal, "PUT", { approved }),
   recordView: (source, id, signal) => request(explorePost(source, id) + "/view", signal, "PUT"),
   reportQuestion: (id, payload, signal) => request(explorePost("member", id) + "/report", signal, "POST", payload),
   answers: (id, sort, signal) => request(explorePost("member", id) + "/answers" + query({ sort }), signal),
