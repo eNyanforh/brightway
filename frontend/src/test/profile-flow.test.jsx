@@ -59,6 +59,9 @@ function mount(
     }
     if (url.endsWith("/manual-identity/status"))
       return ok({ accountId: account.id, profileVersion: original.version, status: "NOT_STARTED", identityVerified: false, canSubmit: false });
+    if (url.endsWith("/posts/me"))
+      return ok({ access: { identityVerified: false, profilePublic: false },
+        items: [], nextCursor: null });
     if (url.endsWith("/admin/manual-identity/access"))
       return reply(403, { success: false, message: "Identity reviewer access is required." });
     return handler(url, options);
@@ -101,7 +104,8 @@ it("organizes the modern profile around identity, anchored sections and privacy 
   await ready();
   const sections = screen.getByRole("navigation", { name: "Profile sections" });
   const anchors = [
-    ["About", "#profile-about"], ["My direction", "#profile-direction"],
+    ["About", "#profile-about"], ["Activities", "#profile-activity"],
+    ["My direction", "#profile-direction"],
     ["Skills", "#profile-skills"], ["Interests", "#profile-interests"],
     ["Education", "#profile-education"], ["Experience", "#profile-experience"],
     ["Contact", "#profile-contact"], ["Privacy", "#profile-privacy"],
@@ -116,6 +120,10 @@ it("organizes the modern profile around identity, anchored sections and privacy 
     .getByRole("link", { name: "Account security" }).getAttribute("href")).toBe("/security");
   expect(screen.getByText("Public profile private")).toBeTruthy();
   expect(screen.getByText("Identity not verified")).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "My profile" })).toBeNull();
+  expect(screen.queryByText("YOUR BRIGHTWAY PROFILE")).toBeNull();
+  expect(screen.getByRole("heading", { name: "Activities" })).toBeTruthy();
+  expect(await screen.findByText("No activity yet")).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Control your profile" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Change profile picture" })).toBeTruthy();
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profile/me"))).toHaveLength(1);
