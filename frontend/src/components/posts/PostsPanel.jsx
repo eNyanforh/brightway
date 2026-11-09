@@ -6,6 +6,7 @@ import NavigationIcon from "../layout/NavigationIcon";
 import PersonalPostComposer, { PersonalPostTypeLabel, PostTopicTags } from "./PersonalPostComposer";
 import PostComments from "./PostComments";
 import QuestionAnswers from "./QuestionAnswers";
+import AvatarGroup from "./AvatarGroup";
 import "./posts.css";
 
 const time = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -48,7 +49,7 @@ function QuestionAnswerSummary({ count, participants }) {
   return (
     <div className="bw-question-answer-summary" aria-label="Question answers">
       {participants.length > 0 && (
-        <div className="bw-question-answer-facepile" role="group" aria-label="Members who answered">
+        <AvatarGroup max={3} className="bw-question-answer-facepile" label="Members who answered">
           {participants.map(person => {
             const initials = (person.name || person.username).trim().split(/\s+/).slice(0, 2)
               .map(part => part[0]).join("").toUpperCase();
@@ -60,7 +61,7 @@ function QuestionAnswerSummary({ count, participants }) {
               </Link>
             );
           })}
-        </div>
+        </AvatarGroup>
       )}
       <span className="bw-question-answer-count" aria-live="polite">
         <strong>{count.toLocaleString()}</strong> {count === 1 ? "answer" : "answers"}
