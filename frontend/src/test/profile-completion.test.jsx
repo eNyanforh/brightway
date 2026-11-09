@@ -38,6 +38,7 @@ function mount({ verify, send, getCompletion } = {}) {
     if (url.endsWith("/auth/me")) return ok({ account: { id: "account", username: "existing", email: original.contact.email,
       emailVerifiedAt: verified ? verifiedAt : null, person: { id: "person", firstName: "Existing", lastName: "User" } } });
     if (url.endsWith("/profile/me")) return ok({ profile: { ...original, completion: checklist(verified) } });
+    if (url.endsWith("/posts/me")) return ok({ access: {}, items: [], nextCursor: null });
     if (url.endsWith("/profile/me/completion")) return ok(getCompletion ? getCompletion() : checklist(verified));
     if (url.endsWith("/auth/email/request")) return send ? send() : ok({ email: original.contact.email, expiresAt: new Date(Date.now() + 600000).toISOString(), retryAfterSeconds: 60 });
     if (url.endsWith("/auth/email/verify")) {
