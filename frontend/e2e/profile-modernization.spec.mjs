@@ -164,6 +164,34 @@ test("profile introduction uses saved affiliations without inventing credentials
   await expect(page.getByRole("dialog")).toBeVisible();
 });
 
+test("credentials section displays confirmed claims and keeps pending claims unverified", async ({ page }) => {
+  await fixture(page, {
+    experience: { mode: "RECORDS", records: [{
+      id: "88888888-8888-4888-8888-888888888888",
+      role: "Software developer", organization: "Community Labs",
+      current: true, startMonth: "2025-01", status: "VERIFIED", type: "EMPLOYMENT",
+    }] },
+    education: { mode: "RECORDS", records: [{
+      id: "77777777-7777-4777-8777-777777777777",
+      institution: "Example University", qualification: "Computer Science",
+      current: true, startMonth: "2024-01", status: "IN_REVIEW",
+    }] },
+  });
+  await page.goto("/profile");
+  await expect(page.getByRole("navigation", { name: "Profile sections" })
+    .getByRole("link", { name: "Credentials" })).toHaveAttribute("href", "#profile-credentials");
+  const section = page.locator("#profile-credentials");
+  await expect(section.getByRole("heading", { name: "Credentials & verification" })).toBeVisible();
+  await expect(section).toContainText("Software developer");
+  await expect(section).toContainText("Community Labs");
+  await expect(section).toContainText("1 record is awaiting a verification decision.");
+  await expect(section).not.toContainText("Computer Science");
+  await expect(section.getByRole("link", { name: "View verification" }))
+    .toHaveAttribute("href", "/credentials/experience/88888888-8888-4888-8888-888888888888");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
+});
+
 test("published members can preview the existing consent-gated public profile", async ({ page }) => {
   await fixture(page, { profilePublicEnabled: true });
   await page.goto("/profile");
