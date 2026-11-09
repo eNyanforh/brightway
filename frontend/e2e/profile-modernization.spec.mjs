@@ -15,8 +15,16 @@ const profile = {
   location: { countryCode: "LR", region: "Montserrado", locality: "Monrovia" },
   careerField: { mode: "EXPLORING" }, careerGoals: "Create useful software.",
   skills: ["Communication"], interests: ["Technology"],
-  education: { mode: "NONE", records: [] },
-  experience: { mode: "NONE", records: [] },
+  education: { mode: "RECORDS", records: [{
+    id: "77777777-7777-4777-8777-777777777777", institution: "Example University",
+    qualification: "Computer Science", startMonth: "2024-09", current: true,
+    status: "SUBMITTED",
+  }] },
+  experience: { mode: "RECORDS", records: [{
+    id: "88888888-8888-4888-8888-888888888888", organization: "Population Studies Institute",
+    role: "IT Assistant", type: "EMPLOYMENT", startMonth: "2025-01", current: true,
+    status: "VERIFIED",
+  }] },
   contact: { email: account.email, emailVerifiedAt: null, phoneNumber: null,
     whatsappNumber: null, visibility: { email: "ONLY_ME", phone: "ONLY_ME", whatsapp: "ONLY_ME" } },
   profilePublicEnabled: false, profileViewSharingEnabled: false,
@@ -92,7 +100,20 @@ test("my profile organizes the saved identity, section navigation, completion an
   await expect(page.locator("#profile-about")).toBeVisible();
   await expect(page.getByRole("heading", { name: "My profile" })).toHaveCount(0);
   await expect(page.getByText("YOUR BRIGHTWAY PROFILE")).toHaveCount(0);
-  await expect(navigation.getByRole("link", { name: "Activities" })).toHaveAttribute("href", "#profile-activity");
+  await expect(navigation.getByRole("link", { name: "Activity" })).toHaveAttribute("href", "#profile-activity");
+  await expect(navigation.getByRole("link", { name: "Credentials" })).toHaveAttribute("href", "#profile-credentials");
+  await expect(navigation.locator("a").allTextContents()).resolves.toEqual([
+    "About", "Activity", "Experience", "Education", "Credentials", "Skills",
+    "Career direction", "Interests", "Contact", "Privacy",
+  ]);
+  const highlights = page.locator(".bw-profile-highlights");
+  await expect(highlights).toContainText("Population Studies Institute");
+  await expect(highlights).toContainText("Example University");
+  await expect(page.locator("#profile-credentials")).toContainText("IT Assistant");
+  await expect(page.locator("#profile-credentials")).toContainText("1 record is awaiting a verification decision.");
+  await expect(page.locator("#profile-credentials")).not.toContainText("Computer Science");
+  await expect(page.locator("#profile-experience").getByText("Verified", { exact: true })).toBeVisible();
+  await expect(page.locator("#profile-education").getByText("Submitted", { exact: true })).toBeVisible();
   const activity = page.locator("#profile-activity");
   await expect(activity.getByRole("heading", { name: "Activities" })).toBeVisible();
   await expect(activity.getByText("Finished a community coding project.")).toBeVisible();
@@ -132,6 +153,9 @@ test("published profile shows only shared fields in a responsive modern layout",
   await expect(page.getByText("Make technology education accessible.")).toBeVisible();
   await expect(page.getByText("synthetic@example.org")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Contact" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Experience" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Education" })).toHaveCount(0);
+  await expect(page.getByText("Population Studies Institute")).toHaveCount(0);
   expect(api.publicViews()).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
