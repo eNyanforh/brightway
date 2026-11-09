@@ -1001,3 +1001,35 @@ it("keeps an unrecognized saved county until the user selects a replacement", as
   const body = JSON.parse(fetchMock.mock.calls.find(([, options]) => options.method === "PATCH")[1].body);
   expect(body.changes).toEqual({ location: { region: "River Cess" } });
 });
+
+it("edits self-reported certifications without modifying other profile fields", async () => {
+  const certificate = {
+    title: "Data Analytics Professional Certificate",
+    issuer: "Training Center",
+    issuedMonth: "2026-09",
+    expiresMonth: null,
+    credentialUrl: "https://example.org/certificate/123",
+  };
+  const stored = { ...original, certifications: [] };
+  const fetchMock = mount((url, options) => {
+    if (options?.method === "PATCH") {
+      const { changes } = JSON.parse(options.body);
+      return ok({ profile: { ...stored, ...changes, version: 2 } });
+    }
+    return ok({ profile: stored });
+  });
+  await ready();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Edit licenses and certifications" }));
+  await user.click(screen.getByRole("button", { name: "Add certification" }));
+  await user.type(screen.getByLabelText("Certification name"), certificate.title);
+  await user.type(screen.getByLabelText("Issuing organization"), certificate.issuer);
+  fireEvent.change(screen.getByLabelText("Issued (month)"), { target: { value: certificate.issuedMonth } });
+  await user.type(screen.getByLabelText("Credential URL (optional)"), certificate.credentialUrl);
+  await save();
+  await screen.findByText("Profile saved.");
+  const payload = JSON.parse(fetchMock.mock.calls.find(([, options]) => options?.method === "PATCH")[1].body);
+  expect(payload).toEqual({ expectedVersion: 1, changes: { certifications: [certificate] } });
+  expect(screen.getByText(certificate.title)).toBeTruthy();
+  expect(screen.getByText("Self-reported · Not BrightWay verified")).toBeTruthy();
+});
