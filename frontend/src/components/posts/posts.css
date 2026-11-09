@@ -26,6 +26,36 @@
 .bw-post-card time { white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .bw-post-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: .85rem 0 .35rem; line-height: 1.55; }
+
+.bw-post-caption { min-width: 0; }
+.bw-post-panel .bw-post-caption-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: auto;
+  margin: 0 0 .45rem;
+  padding: .12rem .1rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #205a9e;
+  font-size: .78rem;
+  line-height: 1.5;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+.bw-post-panel .bw-post-caption-toggle:hover:enabled {
+  background: transparent;
+  color: #153f79;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.bw-post-caption-toggle:focus-visible {
+  outline: 2px solid #3679cb;
+  outline-offset: 3px;
+}
+
 .bw-post-panel button { border: 1px solid #c5d5ef; background: #fff; color: #163e84; padding: .5rem .8rem; border-radius: .55rem; font: inherit; font-weight: 650; cursor: pointer; }
 .bw-post-panel button:disabled { opacity: .65; cursor: default; }
 .bw-post-panel .bw-post-primary { background: #164cad; color: white; border-color: #164cad; }
@@ -280,7 +310,7 @@
   line-height: 1.25;
 }
 .bw-post-card .bw-post-type-label { margin-top: .65rem; }
-.bw-post-card .bw-post-type-label + .bw-post-text { margin-top: .35rem; }
+.bw-post-card .bw-post-type-label + .bw-post-caption .bw-post-text { margin-top: .35rem; }
 
 .bw-post-editor-actions { display: flex; align-items: center; gap: .45rem; }
 .bw-post-panel .bw-post-editor-cancel { border: 0; background: transparent; color: #506682; }
