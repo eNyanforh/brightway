@@ -318,7 +318,6 @@
 .bw-explore .bw-event-feed-content p { color: var(--explore-muted); font-size: .76rem; line-height: 1.45; }
 .bw-explore .bw-question-feed-content { margin: .4rem 0 .55rem; gap: .25rem; }
 .bw-explore .bw-question-feed-content h3 { color: var(--explore-ink); font-size: 1.02rem; font-weight: 720; line-height: 1.42; }
-.bw-explore .bw-question-feed-intent { font-size: .7rem; }
 
 /* Compact but accessible action targets. Preserve type-specific action order. */
 .bw-explore .bw-timeline-actions {
