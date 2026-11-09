@@ -38,6 +38,10 @@ enum PersonGender {
 }
 
 model Account {
+  profileVisitsReceived ProfileVisit[] @relation("ProfileVisitOwner")
+  profileVisitsMade ProfileVisit[] @relation("ProfileVisitViewer")
+  searchAppearancesReceived ProfileSearchAppearance[] @relation("ProfileSearchOwner")
+  searchAppearancesGenerated ProfileSearchAppearance[] @relation("ProfileSearchViewer")
   postReposts PostRepost[]
   savedPosts PostSave[]
   postComments PostComment[]
@@ -1515,4 +1519,30 @@ model ProfileViewNotification {
   @@unique([recipientId, viewerId, viewedOn])
   @@index([recipientId, readAt, createdAt, id])
   @@index([viewerId, createdAt])
+}
+
+model ProfileVisit {
+  id String @id @default(uuid())
+  ownerId String
+  owner Account @relation("ProfileVisitOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  viewerId String
+  viewer Account @relation("ProfileVisitViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+  viewedOn DateTime @db.Date
+  createdAt DateTime @default(now())
+  @@unique([ownerId, viewerId, viewedOn])
+  @@index([ownerId, viewedOn])
+  @@index([viewerId])
+}
+
+model ProfileSearchAppearance {
+  id String @id @default(uuid())
+  ownerId String
+  owner Account @relation("ProfileSearchOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  viewerId String
+  viewer Account @relation("ProfileSearchViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+  searchedOn DateTime @db.Date
+  createdAt DateTime @default(now())
+  @@unique([ownerId, viewerId, searchedOn])
+  @@index([ownerId, searchedOn])
+  @@index([viewerId])
 }
