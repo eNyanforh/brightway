@@ -96,7 +96,7 @@ test("my profile organizes the saved identity, section navigation, completion an
   const activity = page.locator("#profile-activity");
   await expect(activity.getByRole("heading", { name: "Activities" })).toBeVisible();
   await expect(activity.getByText("Finished a community coding project.")).toBeVisible();
-  await expect(activity.getByText("Community workshop")).toBeVisible();
+  await expect(activity.getByRole("heading", { name: "Community workshop", exact: true })).toBeVisible();
   await expect(activity.getByRole("link", { name: "View post" }).first())
     .toHaveAttribute("href", "/explore?source=member&post=11111111-1111-4111-8111-111111111111");
   await activity.getByRole("button", { name: "Load older activity" }).click();
