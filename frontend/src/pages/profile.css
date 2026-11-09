@@ -1621,6 +1621,7 @@
   .bw-profile-highlight + .bw-profile-highlight { border-top: 0; }
 }
 @media (max-width: 720px) {
+  .bw-profile-grid { grid-template-columns: minmax(0, 1fr); }
   .bw-profile-section-nav { position: static; }
   .bw-profile-hero .bw-profile-cover { height: 154px; padding: 20px; }
 }
