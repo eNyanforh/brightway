@@ -54,7 +54,7 @@ export function changesFromForm(form, profile) {
           location[field] = text;
       }
       if (Object.keys(location).length) changes.location = location;
-    } else if (JSON.stringify(value) !== JSON.stringify(profile[key] ?? null))
+    } else if (JSON.stringify(value) !== JSON.stringify(key === "certifications" ? (profile.certifications || []) : (profile[key] ?? null)))
       changes[key] = value;
   }
   const contact = contactChanges(form, profile);
