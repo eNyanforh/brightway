@@ -129,14 +129,14 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     createdCredentials.push(education.id);
     await prisma.credentialReview.create({ data: {
       profileId: ownerProfile.id, kind: "education", recordId: education.id,
-      revision: 1, status: "VERIFIED", issuerName: "Starz University",
+      revision: 1, status: "VERIFIED", issuerName: null,
     } });
     assert.equal(Object.hasOwn(await view(visitor, owner), "verifiedCredentials"), false);
     await preferences(owner, { profileCredentialsPublicEnabled: true });
     const verified = (await view(visitor, owner)).verifiedCredentials;
     assert.equal(verified.length, 1);
     assert.equal(verified[0].title, "Computer Science");
-    assert.equal(verified[0].verifiedBy, "Starz University");
+    assert.equal(verified[0].verifiedBy, "BrightWay");
     assert.equal(Object.hasOwn(verified[0], "evidence"), false);
     await prisma.educationRecord.update({ where: { id: education.id }, data: { revision: 2 } });
     assert.deepEqual((await view(visitor, owner)).verifiedCredentials, []);
