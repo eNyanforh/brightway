@@ -49,6 +49,11 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
   const [venue, setVenue] = useState("");
   const [meetingUrl, setMeetingUrl] = useState("");
   const [coverTheme, setCoverTheme] = useState("NAVY");
+  const [ticketPrice, setTicketPrice] = useState("0");
+  const [currency, setCurrency] = useState("USD");
+  const [requiresApproval, setRequiresApproval] = useState(false);
+  const [limitCapacity, setLimitCapacity] = useState(false);
+  const [capacity, setCapacity] = useState("50");
   const [timezone, setTimezone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   const [start, setStart] = useState(() => localInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)));
   const [end, setEnd] = useState(() => localInputValue(new Date(Date.now() + 26 * 60 * 60 * 1000)));
@@ -61,8 +66,12 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
     && Date.parse(eventEnd) - Date.parse(eventStart) <= 30 * 24 * 60 * 60 * 1000);
   const validLocation = (format === "ONLINE" || Boolean(venue.trim()))
     && (format === "IN_PERSON" || /^https?:\/\/\S+$/i.test(meetingUrl));
+  const validPrice = /^\\d+(?:\\.\\d{1,2})?$/.test(ticketPrice)
+    && Number(ticketPrice) <= 1_000_000;
+  const priceCents = validPrice ? Math.round(Number(ticketPrice) * 100) : 0;
+  const validCapacity = !limitCapacity || (/^[1-9]\\d*$/.test(capacity) && Number(capacity) <= 100_000);
   const valid = title.trim().length >= 3 && validSchedule && validLocation && body.trim() && tags.length
-    && !topicDraft.trim() && !disabled;
+    && validPrice && validCapacity && !topicDraft.trim() && !disabled;
   const allZones = zones.includes(timezone) ? zones : [timezone, ...zones];
 
   useEffect(() => {
@@ -117,7 +126,8 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
       title: title.trim(), startAt: eventStart, endAt: eventEnd,
       timezone, format, venue: format === "ONLINE" ? "" : venue.trim(),
       meetingUrl: format === "IN_PERSON" ? "" : meetingUrl.trim(),
-      coverTheme,
+      coverTheme, ticketPriceCents: priceCents, currency, requiresApproval,
+      capacity: limitCapacity ? Number(capacity) : null,
     });
   }
 
@@ -166,8 +176,61 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
                 {format !== "IN_PERSON" && <><label htmlFor={titleId + "-link"}>Meeting link</label>
                   <input id={titleId + "-link"} type="url" placeholder="https://meet.google.com/..." value={meetingUrl} onChange={e => setMeetingUrl(e.target.value)} maxLength={500} disabled={disabled} required /></>}
               </section>
+              <section className="bw-event-section bw-event-registration-section" aria-label="Registration settings">
+                <span className="bw-event-step">04 · REGISTRATION</span>
+                <div className="bw-event-setting-header">
+                  <strong>Tickets and attendance</strong>
+                  <p>Choose the price and how guests are admitted. BrightWay does not collect event payments yet.</p>
+                </div>
+                <div className="bw-event-two-fields">
+                  <div>
+                    <label htmlFor={titleId + "-price"}>Ticket price</label>
+                    <input id={titleId + "-price"} type="number" min="0" max="1000000" step="0.01"
+                      inputMode="decimal" value={ticketPrice} disabled={disabled}
+                      onChange={e => setTicketPrice(e.target.value)} required />
+                    <span className="bw-event-hint">Enter 0 for a free event.</span>
+                  </div>
+                  <div>
+                    <label htmlFor={titleId + "-currency"}>Currency</label>
+                    <select id={titleId + "-currency"} value={currency} disabled={disabled}
+                      onChange={e => setCurrency(e.target.value)}>
+                      <option value="USD">USD — US Dollar</option>
+                      <option value="LRD">LRD — Liberian Dollar</option>
+                    </select>
+                  </div>
+                </div>
+                {!validPrice && <p role="alert" className="bw-event-error">Enter a valid ticket price up to 1,000,000 with at most two decimal places.</p>}
+                <button className="bw-event-setting-toggle" type="button" role="switch"
+                  aria-checked={requiresApproval} disabled={disabled}
+                  onClick={() => setRequiresApproval(current => !current)}>
+                  <span className="bw-event-setting-copy">
+                    <strong>Require approval</strong>
+                    <span>Review attendance requests before confirming a place.</span>
+                  </span>
+                  <span className="bw-event-toggle-track" aria-hidden="true"><span /></span>
+                </button>
+                <button className="bw-event-setting-toggle" type="button" role="switch"
+                  aria-checked={limitCapacity} disabled={disabled}
+                  onClick={() => setLimitCapacity(current => !current)}>
+                  <span className="bw-event-setting-copy">
+                    <strong>Set a capacity limit</strong>
+                    <span>Stop confirming attendees after all seats are taken.</span>
+                  </span>
+                  <span className="bw-event-toggle-track" aria-hidden="true"><span /></span>
+                </button>
+                {limitCapacity && (
+                  <div className="bw-event-capacity-field">
+                    <label htmlFor={titleId + "-capacity"}>Maximum attendees</label>
+                    <input id={titleId + "-capacity"} type="number" min="1" max="100000"
+                      step="1" inputMode="numeric" required value={capacity} disabled={disabled}
+                      onChange={e => setCapacity(e.target.value)} />
+                    <span className="bw-event-hint">Only confirmed attendees count toward this limit. Pending requests do not reserve seats.</span>
+                  </div>
+                )}
+                {!validCapacity && <p role="alert" className="bw-event-error">Enter a capacity between 1 and 100,000.</p>}
+              </section>
               <section className="bw-event-section" aria-label="Discovery">
-                <span className="bw-event-step">04 · DISCOVERY</span>
+                <span className="bw-event-step">05 · DISCOVERY</span>
                 <label htmlFor={titleId + "-topics"}>Event topics</label>
                 <p>Choose at least one subject to help people discover your event.</p>
                 <div className="bw-event-topic-input"><input id={titleId + "-topics"} aria-label="Topic tags" value={topicDraft}
@@ -201,6 +264,13 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
                   <strong>{title.trim() || "Your event title"}</strong>
                   <span><NavigationIcon name="calendar" size={15} /> {eventStart ? new Date(eventStart).toLocaleString("en", { timeZone: timezone, dateStyle: "medium", timeStyle: "short" }) : "Choose a date"}</span>
                   <span><NavigationIcon name="pin" size={15} /> {format === "ONLINE" ? "Online event" : venue || (format === "HYBRID" ? "Hybrid event" : "Add a location")}</span>
+                  <span><NavigationIcon name="ticket" size={15} />
+                    {validPrice && priceCents > 0 ? currency + " " + (priceCents / 100).toFixed(2) : "Free admission"}
+                  </span>
+                  <span><NavigationIcon name="network" size={15} />
+                    {requiresApproval ? "Host approval required" : "Instant confirmation"}
+                    {limitCapacity && validCapacity ? " · " + capacity + " seats" : ""}
+                  </span>
                 </div>
               </div>
               <span className="bw-event-theme-label">Cover style</span>
@@ -212,7 +282,7 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
             </aside>
           </div>
           <footer className="bw-event-builder-footer">
-            <span>Event posts are public. Guest registration and ticketing are not enabled yet.</span>
+            <span>Registration is available in BrightWay. Ticket prices are informational; payment collection and ticket issuance are not yet supported.</span>
             <div><button type="button" onClick={onCancel} disabled={disabled}>Cancel</button><button className="bw-event-publish" type="submit" disabled={!valid}>Publish event</button></div>
           </footer>
         </form>
