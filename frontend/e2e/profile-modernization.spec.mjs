@@ -268,7 +268,7 @@ test("own post cards expose a top-right three-dot menu for edit and confirmed de
   await menuTrigger.click();
   await first.getByRole("menuitem", { name: "Delete post" }).click();
   await confirmation.getByRole("button", { name: "Delete post" }).click();
-  await expect(first).not.toBeVisible();
+  await expect(page.locator("#post-member-11111111-1111-4111-8111-111111111111")).toHaveCount(0);
   expect(writes[1].method).toBe("DELETE");
   await expect(page.locator("#profile-activity .bw-profile-activity-item")).toHaveCount(1);
 });
