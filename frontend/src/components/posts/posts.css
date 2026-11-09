@@ -129,6 +129,7 @@
 .bw-question-answer-avatar {
   display: grid;
   place-items: center;
+  position: relative;
   flex: 0 0 30px;
   box-sizing: border-box;
   width: 30px;
@@ -151,6 +152,8 @@
 }
 .bw-question-answer-avatar:nth-child(even) { background: #e9f2ee; color: #2f655b; }
 .bw-question-answer-avatar img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -1367,6 +1370,7 @@
 .bw-discussion-author { gap: .56rem; align-items: flex-start; }
 .bw-discussion-avatar-link { display: inline-flex; flex: 0 0 auto; text-decoration: none; }
 .bw-discussion-avatar {
+  position: relative;
   display: grid;
   place-items: center;
   flex: 0 0 36px;
@@ -1382,6 +1386,8 @@
   line-height: 1;
 }
 .bw-discussion-avatar img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
