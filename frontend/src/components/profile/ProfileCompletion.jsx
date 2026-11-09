@@ -16,6 +16,9 @@ export default function ProfileCompletion({ profile, busy, dirty, onEdit, onRefr
   const identityVerified = hasVerifiedIdentity(identity);
   const canRequestIdentity = identity?.canSubmit === true && identity.identityVerified === false && ["NOT_STARTED", "ACTION_REQUIRED", "DECLINED", "INVALIDATED", "EXPIRED"].includes(identity.status);
   const missing = current ? completion.checks.filter((item) => !item.satisfied).length : 0;
+  const totalChecks = current ? completion.checks.length : 0;
+  const satisfiedChecks = totalChecks - missing;
+  const checklistPercent = totalChecks ? Math.round((satisfiedChecks / totalChecks) * 100) : 0;
   const verifiedEmail = current
     ? completion.checks.some((item) => item.code === "EMAIL_VERIFICATION_REQUIRED" && item.satisfied)
     : Boolean(profile.contact?.emailVerifiedAt);
@@ -25,8 +28,24 @@ export default function ProfileCompletion({ profile, busy, dirty, onEdit, onRefr
     catch (failure) { setError(failure.message); }
   }
   return <section className="bw-profile-card bw-profile-side-block bw-profile-completion" aria-labelledby="profile-checklist-title">
-    <h2 id="profile-checklist-title">Profile checklist</h2>
+    <div className="bw-profile-completion-header">
+      <div>
+        <p className="bw-profile-eyebrow">YOUR PROGRESS</p>
+        <h2 id="profile-checklist-title">Profile checklist</h2>
+      </div>
+      {current && <strong className="bw-profile-completion-percent">{checklistPercent}%</strong>}
+    </div>
     <p>This checklist uses your saved profile information.</p>
+    {current && (
+      <div className="bw-profile-completion-progress">
+        <div className="bw-profile-completion-track" role="progressbar"
+          aria-label="Profile checklist progress" aria-valuemin={0} aria-valuemax={totalChecks}
+          aria-valuenow={satisfiedChecks}>
+          <span style={{ width: checklistPercent + "%" }} />
+        </div>
+        <span>{satisfiedChecks} of {totalChecks} requirements met</span>
+      </div>
+    )}
     {dirty && <p className="bw-completion-note">Save your edits to update the checklist.</p>}
     {!current ? <p>Refresh to see your latest profile requirements.</p>
       : <>
