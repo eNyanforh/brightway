@@ -42,8 +42,9 @@ export default function PostManageMenu({ post, busy = false, onEdit, onDelete })
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-  savingRef.current = saving || busy;
   const locked = saving || busy;
+
+  useEffect(() => { savingRef.current = locked; }, [locked]);
   const member = Boolean(post.member);
   const isEvent = post.type === "EVENT";
   const isQuestion = post.type === "QUESTION";
