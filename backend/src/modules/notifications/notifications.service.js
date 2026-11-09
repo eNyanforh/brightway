@@ -49,7 +49,7 @@ function publicProfile(account, profile, sections = {}) {
   };
 }
 
-async function verifiedCredentials(tx, profileId) {
+export async function verifiedCredentials(tx, profileId) {
   // Source of truth is the reviewed record AND its matching current revision.
   // Do not return evidence, reviewer notes, personal contact data or review history.
   const [reviews, education, experience] = await Promise.all([
