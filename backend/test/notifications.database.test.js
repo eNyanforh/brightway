@@ -218,6 +218,8 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.deepEqual(await post(owner, "/notifications/" + notice.id + "/dismiss"), { dismissed: true });
     assert.deepEqual((await inbox(owner)).items, []);
     await preferences(owner, { profilePublicEnabled: false });
+    // Turning off basic publication revokes every optional public section.
+    await view(visitor, owner, { status: 404 });
     assert.deepEqual((await request(visitor, suggestionPath)).items, []);
     assert.deepEqual((await search(visitor, owner.username)).items, []);
   } finally {
