@@ -594,30 +594,22 @@ export default function ProfilePage() {
 
               <div className="bw-profile-identity-overview">
                 <div className="bw-profile-identity-main">
-                  <h1 id="profile-person-name" className="bw-profile-verified-name"><span>{name}</span>{identityVerified && <VerificationBadge />}</h1>
-
-              <p className="bw-profile-handle">
-                @{account.username}
-              </p>
-
-              <p className="bw-profile-headline">
-                {profile.headline ||
-                  "Add a headline that sounds like you."}
-              </p>
-
-              <p className="bw-profile-location">
-                <Icon name="location" />
-                {location || "Location not added yet"}
-              </p>
-
-              {profile.careerField && (
-                <span className="bw-profile-direction-tag">
-                  <Icon name="sprout" />
-                  {exploring
-                    ? "Exploring my path"
-                    : profile.careerField.label}
-                </span>
-              )}
+                  <h1 id="profile-person-name" className="bw-profile-verified-name">
+                    <span>{name}</span>{identityVerified && <VerificationBadge />}
+                  </h1>
+                  <p className="bw-profile-handle">@{account.username}</p>
+                  <p className="bw-profile-headline">
+                    {profile.headline || "Add a headline that sounds like you."}
+                  </p>
+                  <p className="bw-profile-location">
+                    <Icon name="location" /> {location || "Location not added yet"}
+                  </p>
+                  {profile.careerField && (
+                    <span className="bw-profile-direction-tag">
+                      <Icon name="sprout" />
+                      {exploring ? "Exploring my path" : profile.careerField.label}
+                    </span>
+                  )}
                 </div>
                 <ProfileHighlights profile={profile} />
               </div>
