@@ -133,14 +133,8 @@ model Session {
   @@index([expiresAt])
 }
 
-// Owner-only draft data. No verification or publishing state is client editable.
+// Member profiles are visible; only contact fields have per-field visibility.
 model Profile {
-  profileViewSharingEnabled Boolean @default(false)
-  profileViewNotificationsEnabled Boolean @default(false)
-  profilePublicEnabled Boolean @default(false)
-  profileCertificationsPublicEnabled Boolean @default(false)
-  profileCredentialsPublicEnabled Boolean @default(false)
-  profileAchievementsPublicEnabled Boolean @default(false)
   certifications Json @default("[]")
   latestPhotoReviewId String? @unique
   latestPhotoReview ProfilePhotoReview? @relation("LatestPhotoReview", fields: [latestPhotoReviewId], references: [id], onDelete: Restrict)

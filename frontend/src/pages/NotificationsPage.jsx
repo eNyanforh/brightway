@@ -90,7 +90,7 @@ export default function NotificationsPage() {
         <div>
           <p className="bw-notifications-eyebrow">YOUR BRIGHTWAY UPDATES</p>
           <h1>Notifications</h1>
-          <p>Profile view updates are shared only when both people have opted in.</p>
+          <p>Profile views and other updates from your BrightWay network.</p>
         </div>
         {inbox?.items.some(item => !item.readAt) && (
           <button type="button" disabled={disabled} onClick={() => void markAllRead()}>
@@ -110,8 +110,7 @@ export default function NotificationsPage() {
       {inbox?.items.length === 0 && (
         <div className="bw-notifications-empty">
           <h2>You’re all caught up</h2>
-          <p>When someone who has opted in views your published profile, the update will appear here.</p>
-          <Link to="/profile">Review your profile privacy choices</Link>
+          <p>New profile view notifications will appear here.</p>
         </div>
       )}
       {inbox?.items.length > 0 && (

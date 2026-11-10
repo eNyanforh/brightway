@@ -47,8 +47,6 @@ test("dashboard returns only the signed-in owner's seven-day aggregate totals", 
   assert.equal(byKind.search.ownerId, owner);
   assert.equal(byKind.viewers.where.ownerId, owner);
   assert.equal(byKind.viewers.where.viewer.status, "ACTIVE");
-  assert.equal(byKind.viewers.where.viewer.person.profile.is.profilePublicEnabled, true);
-  assert.equal(byKind.viewers.where.viewer.person.profile.is.profileViewSharingEnabled, true);
   assert.equal(byKind.viewers.where.viewer.networkLeft.none.rightAccountId, owner);
   assert.equal(byKind.viewers.where.viewer.networkRight.none.leftAccountId, owner);
   assert.deepEqual(byKind.viewers.distinct, ["viewerId"]);
@@ -84,7 +82,7 @@ test("dashboard rejects invalid and revoked sessions without exposing metrics", 
   assert.equal(countCalled, false);
 });
 
-test("dashboard never returns private or searcher identities when no viewer consents", async () => {
+test("dashboard never returns searcher identities when no recent viewers are available", async () => {
   const prisma = {
     $queryRaw: async () => [{ id: session }],
     profileVisit: { count: async () => 8, findMany: async () => [] },

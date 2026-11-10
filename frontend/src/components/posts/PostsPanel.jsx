@@ -395,7 +395,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const inlineComposer = timeline && Boolean(composerAccount);
   const memberComposer = personal || inlineComposer;
   const [page, setPage] = useState(null);
-  const canPublish = !disabled && Boolean(personal ? page?.access?.identityVerified && page.access.profilePublic : inlineComposer || page);
+  const canPublish = !disabled && Boolean(personal ? page?.access?.identityVerified : inlineComposer || page);
   const [body, setBody] = useState("");
   const [type, setType] = useState("ACHIEVEMENT");
   const [composerOpen, setComposerOpen] = useState(false);
@@ -611,7 +611,6 @@ export default function PostsPanel({ organization, personal = false, view = "for
       {personal && page && !canPublish && (
         <div className="bw-post-empty">
           {!page.access?.identityVerified && <p><Link to="/manual-identity">Verify your identity</Link> to publish personal posts.</p>}
-          {!page.access?.profilePublic && <p><Link to="/profile">Publish your public profile</Link> so readers can see who shared the post.</p>}
         </div>
       )}
       {organization && (

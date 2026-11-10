@@ -46,7 +46,6 @@ function peopleCandidates(query, viewer) {
     ) matches
     JOIN "Person" p ON p.id = matches."personId"
     JOIN "Account" a ON a."personId" = p.id
-    JOIN "Profile" profile ON profile."personId" = p.id AND profile."profilePublicEnabled"
     WHERE a.status = 'ACTIVE' AND a.id <> ${viewer}
       AND NOT EXISTS (
         SELECT 1 FROM "NetworkPair" b
@@ -101,7 +100,7 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
     `);
     await assertNetworkSession(prisma, actor, now);
     const page = rows.slice(0, pageSize);
-    // Count only results actually returned, never hidden or blocked members.
+    // Count only results actually returned, never blocked members.
     // Deduplicate by viewer and UTC date; do not retain search text.
     const currentTime = now();
     const searchedOn = new Date(Date.UTC(

@@ -19,8 +19,6 @@ const profile = {
   experience: { mode: "NONE", records: [] },
   contact: { email: account.email, emailVerifiedAt: null, phoneNumber: null,
     whatsappNumber: null, visibility: { email: "ONLY_ME", phone: "ONLY_ME", whatsapp: "ONLY_ME" } },
-  profilePublicEnabled: false, profileViewSharingEnabled: false,
-  profileViewNotificationsEnabled: false,
   completion: { profileVersion: 1, complete: false, eligibleToRequestVerification: false,
     checks: [
       { code: "SKILL_REQUIRED", label: "At least one skill", editor: "skills", satisfied: true },
@@ -226,12 +224,11 @@ test("my profile has three responsive tabs below the private dashboard on deskto
   expect(chronological[0]).toBeLessThan(chronological[1]);
   expect(chronological[1]).toBeLessThan(chronological[2]);
   expect(api.activityReads()).toBe(2);
-  await expect(page.locator("#profile-privacy")).toBeVisible();
+  await expect(page.locator("#profile-privacy")).toHaveCount(0);
   await expect(page.getByText("Public profile private")).toHaveCount(0);
    await expect(page.getByText("Identity not verified")).toHaveCount(0);
    await expect(page.locator(".bw-profile-hero").getByRole("button", { name: "Edit career direction" })).toHaveCount(0);
    await expect(page.locator(".bw-profile-hero").getByRole("link", { name: "See activity" })).toHaveCount(0);
-   await expect(page.getByRole("checkbox", { name: /Publish my basic profile/ })).not.toBeChecked();
   await expect(page.getByRole("heading", { name: "Profile checklist" })).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Profile checklist progress" }))
     .toHaveAttribute("aria-valuenow", "1");
@@ -454,11 +451,11 @@ test("Activities keeps the regular post author layout with long verified names",
   await expect(rail.getByRole("img", { name: "Verified identity" })).toHaveCount(2);
 });
 
-test("published profile shows only shared fields in a responsive modern layout", async ({ page }) => {
+test("member profile respects contact visibility in a responsive modern layout", async ({ page }) => {
   const api = await fixture(page);
   await page.goto("/people/maya");
   await expect(page.getByRole("heading", { level: 1, name: "Maya Cole" })).toBeVisible();
-  await expect(page.getByText("Published profile", { exact: true })).toBeVisible();
+  await expect(page.getByText("BrightWay member", { exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: "Profile avatar" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Published profile sections" })
     .getByRole("link", { name: "Career direction" })).toHaveAttribute("href", "#published-direction");
@@ -504,11 +501,10 @@ test("profile introduction uses saved affiliations without inventing credentials
   await expect(page.getByRole("dialog")).toBeVisible();
 });
 
-test("published members keep consent settings without redundant hero buttons", async ({ page }) => {
-  await fixture(page, { profilePublicEnabled: true });
+test("member profiles have no publication controls or redundant hero buttons", async ({ page }) => {
+  await fixture(page);
   await page.goto("/profile");
   await expect(page.getByRole("heading", { level: 1, name: "Synthetic Member" })).toBeVisible();
-  await expect(page.getByRole("checkbox", { name: /Publish my basic profile/ })).toBeChecked();
   await expect(page.locator(".bw-profile-hero").getByText("Public profile published")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "View public profile" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "See activity" })).toHaveCount(0);

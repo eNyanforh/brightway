@@ -303,8 +303,8 @@ it("Explore loads comments on demand and retries a draft without refreshing the 
   expect(f.fetch.mock.calls.filter(([url]) => url.includes("/explore/posts?"))).toHaveLength(1);
 });
 
-it("the personal Post destination checks verification and lets authors withdraw after unpublishing their profile", async () => {
-  let verified = false, published = true;
+it("the personal Post destination checks verification and lets authors withdraw their posts", async () => {
+  let verified = false, hasPosts = false;
   const body = "Join our research showcase on November 12 at 10 a.m. in the campus library.";
   const post = { id: "personal-post", body, type: "EVENT", tags: ["Research"], createdAt: "2026-11-05T10:00:00Z", member: { username: "owner", name: "Test Owner" } };
   const f = mount("/explore", (url, options) => {
@@ -319,8 +319,8 @@ it("the personal Post destination checks verification and lets authors withdraw 
     }
     if (url.endsWith("/posts/me/personal-post") && options?.method === "DELETE") return reply({ id: post.id });
     if (url.endsWith("/posts/me")) return reply({
-      items: published ? [] : [post], nextCursor: null,
-      access: { identityVerified: verified, profilePublic: published },
+      items: hasPosts ? [post] : [], nextCursor: null,
+      access: { identityVerified: verified },
     });
     return reply(context);
   });
@@ -342,10 +342,9 @@ it("the personal Post destination checks verification and lets authors withdraw 
   expect(screen.getByRole("link", { name: "Test Owner" }).getAttribute("href")).toBe("/people/owner");
   expect(within(screen.getByRole("article")).getByText("Event", { exact: true })).toBeTruthy();
   expect(within(screen.getByRole("list", { name: "Topic tags" })).getByText("Research")).toBeTruthy();
-  published = false;
+  hasPosts = true;
   await f.user.click(refresh);
-  await screen.findByRole("link", { name: "Publish your public profile" });
-  expect(screen.queryByRole("button", { name: "Create an Event" })).toBeNull();
+  await screen.findByRole("button", { name: "Create an Event" });
   await f.user.click(screen.getByRole("button", { name: "Post options" }));
   await f.user.click(screen.getByRole("menuitem", { name: "Delete post" }));
   await f.user.click(within(screen.getByRole("dialog", { name: "Delete post" }))

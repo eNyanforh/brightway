@@ -137,7 +137,7 @@ it("organizes the private profile into About Me, Achievements and Activity tabs"
   expect(within(searches).getAllByRole("img", { name: "Anonymous search appearance" })).toHaveLength(3);
   await userEvent.setup().click(within(dashboard).getByRole("button", { name: /9.*Profile views/ }));
   expect(within(dashboard).getByText(/Counted once per viewer per UTC day/)).toBeTruthy();
-  expect(within(dashboard).getByRole("link", { name: "View shared profile notifications" }).getAttribute("href")).toBe("/notifications");
+  expect(within(dashboard).getByRole("link", { name: "View profile notifications" }).getAttribute("href")).toBe("/notifications");
   expect(screen.getByRole("navigation", { name: "Profile tools" })).toBeTruthy();
   expect(within(screen.getByRole("navigation", { name: "Profile tools" }))
     .getByRole("link", { name: "Account security" }).getAttribute("href")).toBe("/security");
@@ -155,7 +155,8 @@ it("organizes the private profile into About Me, Achievements and Activity tabs"
   expect(screen.getByRole("heading", { name: "Interests" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Contact" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "My direction" })).toBeTruthy();
-  expect(screen.getByRole("heading", { name: "Control your profile" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Control your profile" })).toBeNull();
+  expect(screen.queryByRole("checkbox", { name: /Publish my basic profile/ })).toBeNull();
   expect(screen.getByRole("button", { name: "Change profile picture" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Edit my direction" })).toBeTruthy();
 
@@ -208,9 +209,8 @@ it("shows only published fields on the redesigned public profile without a secon
   const fetchMock = mount((url) =>
     url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/people/maya");
   await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
-  expect(screen.getByText("Published profile")).toBeTruthy();
-  // Optional proof sections must remain hidden when the server did not
-  // explicitly authorize their projection, even for a published basic profile.
+  expect(screen.getByText("BrightWay member")).toBeTruthy();
+  // Proof sections render only when the server provides eligible content.
   expect(screen.queryByRole("heading", { name: "Verified credentials" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Licenses and certifications" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Professional achievements" })).toBeNull();

@@ -51,27 +51,11 @@ export function profileView(row, person = row?.person) {
   return { ...view, completion: evaluateProfileCompletion(view) };
 }
 
-// Only account-owner responses include the publishing and notification choices.
-export const privateProfileSelect = {
-  ...ownerProfileSelect,
-  profileViewSharingEnabled: true,
-  profileViewNotificationsEnabled: true,
-  profilePublicEnabled: true,
-  profileCertificationsPublicEnabled: true,
-  profileCredentialsPublicEnabled: true,
-  profileAchievementsPublicEnabled: true,
-};
+// Profiles are visible by default; only contact information has visibility controls.
+export const privateProfileSelect = ownerProfileSelect;
 
 export function privateProfileView(row, person) {
-  return {
-    ...profileView(row, person),
-    profileViewSharingEnabled: row?.profileViewSharingEnabled === true,
-    profileViewNotificationsEnabled: row?.profileViewNotificationsEnabled === true,
-    profilePublicEnabled: row?.profilePublicEnabled === true,
-    profileCertificationsPublicEnabled: row?.profileCertificationsPublicEnabled === true,
-    profileCredentialsPublicEnabled: row?.profileCredentialsPublicEnabled === true,
-    profileAchievementsPublicEnabled: row?.profileAchievementsPublicEnabled === true,
-  };
+  return profileView(row, person);
 }
 
 function conflict() {

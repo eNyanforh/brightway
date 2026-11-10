@@ -51,7 +51,7 @@ async function fixture(page) {
   return state;
 }
 
-test("opening a published profile leaves the account's workspace request intact", async ({ page }) => {
+test("opening a member profile leaves the account's workspace request intact", async ({ page }) => {
   const state = await fixture(page);
   const work = Promise.withResolvers();
   state.waitForWork = work.promise;

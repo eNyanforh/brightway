@@ -33,12 +33,6 @@ export const profilePatchSchema = z.strictObject({
     careerGoals: text(1000).optional(),
     skills: entries.optional(),
     interests: entries.optional(),
-    profileViewSharingEnabled: z.boolean().optional(),
-    profileViewNotificationsEnabled: z.boolean().optional(),
-    profilePublicEnabled: z.boolean().optional(),
-    profileCertificationsPublicEnabled: z.boolean().optional(),
-    profileCredentialsPublicEnabled: z.boolean().optional(),
-    profileAchievementsPublicEnabled: z.boolean().optional(),
     certifications: z.array(z.strictObject({
       title: z.string().trim().min(2).max(160),
       issuer: z.string().trim().min(2).max(160),
