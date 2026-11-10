@@ -340,7 +340,7 @@ test("event host can review, approve and decline attendance requests", async ({ 
   await card.getByRole("button", { name: "Manage attendance requests" }).click();
   const panel = card.getByRole("region", { name: "Attendance requests" });
   await expect(panel).toContainText("Pending approval");
-  await expect(panel.getByRole("link", { name: "Maya Cole" })).toHaveAttribute("href", "/people/maya");
+  await expect(panel.getByRole("link", { name: "Maya Cole" })).toHaveAttribute("href", "/maya");
   await expect(panel.getByText("@private_member")).toBeVisible();
   await panel.getByRole("button", { name: "Approve" }).first().click();
   await expect(card.locator(".bw-event-attendee-summary")).toContainText("1 person attending");
@@ -749,7 +749,7 @@ test("modern answer panel keeps voting, sorting and nested reply publishing usab
   await expect(panel.getByText("0 / 2,000")).toBeVisible();
   const answerCard = panel.locator(".bw-answer-card");
   await expect(answerCard).toHaveCount(1);
-  await expect(answerCard.getByRole("link", { name: "Maya Cole" })).toHaveAttribute("href", "/people/maya");
+  await expect(answerCard.getByRole("link", { name: "Maya Cole" })).toHaveAttribute("href", "/maya");
   await expect(answerCard.getByRole("img", { name: "Verified identity" })).toBeVisible();
   await expect(answerCard.locator(".bw-discussion-avatar img")).toHaveAttribute("src",
     new RegExp("/explore/members/maya/photo/" + imageId + "$"));
@@ -883,7 +883,7 @@ test("question cards display real answerers beneath topic tags and a distinct An
   await expect(summary).toContainText("4 answers");
   await expect(facepile.getByRole("link")).toHaveCount(3);
   await expect(facepile.getByRole("link", { name: "Sam Brown answered" })).toHaveCount(0);
-  await expect(facepile.getByRole("link", { name: "Maya Cole answered" })).toHaveAttribute("href", "/people/maya");
+  await expect(facepile.getByRole("link", { name: "Maya Cole answered" })).toHaveAttribute("href", "/maya");
   await expect(facepile.getByRole("link", { name: "Alex Rivera answered" })).toContainText("AR");
   const tagsBox = await topics.boundingBox();
   const summaryBox = await summary.boundingBox();
@@ -950,7 +950,7 @@ test("event cards display real registrant avatars and count, refreshed after reg
   const avatars = summary.getByRole("group", { name: "People attending" });
   await expect(avatars.getByRole("link")).toHaveCount(3);
   await expect(avatars.getByRole("link", { name: "Maya Cole attending" }))
-    .toHaveAttribute("href", "/people/maya");
+    .toHaveAttribute("href", "/maya");
   await expect(avatars.getByRole("link", { name: "Lena Cooper attending" })).toHaveCount(0);
   await expect(avatars.locator("img")).toHaveCount(2);
   await expect.poll(() => avatars.locator("img").first()
