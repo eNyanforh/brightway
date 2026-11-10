@@ -151,7 +151,12 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 20,
         });
-        sections.achievements = sections.activities.filter(post => post.type === "ACHIEVEMENT").slice(0, 8);
+        sections.achievements = await tx.memberPost.findMany({
+          where: { authorId: target.id, type: "ACHIEVEMENT", withdrawnAt: null },
+          select: { id: true, body: true, tags: true, createdAt: true },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 8,
+        });
         const currentTime = now();
         // Visits are recorded once per viewer per UTC day. Only the owner
         // sees recent visitor details; blocks remain effective.
