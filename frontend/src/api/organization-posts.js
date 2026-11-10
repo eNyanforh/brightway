@@ -61,6 +61,7 @@ export const organizationPostsApi = {
   addComment: (source, id, draft, signal) => request(explorePost(source, id) + "/comments", signal, "POST", draft),
   deleteComment: (source, id, commentId, signal) => request(explorePost(source, id) + "/comments/" + encodeURIComponent(commentId), signal, "DELETE"),
   memberList: (cursor, signal) => readPage("/posts/me" + (cursor ? query({ cursor }) : ""), signal),
+  publicMemberList: (username, cursor, signal) => readPage("/posts/members/" + encodeURIComponent(username) + (cursor ? query({ cursor }) : ""), signal),
   memberPublish: (body, signal) => request("/posts/me", signal, "POST", body),
   memberEdit: (postId, payload, signal) => request("/posts/me/" + encodeURIComponent(postId), signal, "PATCH", payload),
   memberWithdraw: (postId, signal) => request("/posts/me/" + encodeURIComponent(postId), signal, "DELETE"),
