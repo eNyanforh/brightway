@@ -1,13 +1,13 @@
 import { createProfilePhotoReviewService } from "./profile-photo-review.service.js";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { processPhoto } from "./photo.image.js";
+import { processPhoto, processCoverPhoto } from "./photo.image.js";
 
 export const draftHash = (token) => createHash("sha256").update(token).digest("hex");
 export const validDraftToken = (token) => typeof token === "string" && /^[a-f0-9]{64}$/.test(token);
 export const DRAFT_LIFETIME_MS = 30 * 60 * 1000;
 const error = (status, message) => Object.assign(new Error(message), { status });
 
-export function createPhotoService({ prisma, storage, process = processPhoto, now = () => new Date() }) {
+export function createPhotoService({ prisma, storage, process = processPhoto, processCover = processCoverPhoto, now = () => new Date() }) {
   const replacements = createProfilePhotoReviewService({ prisma, storage, now });
   async function draft(token) {
     if (!validDraftToken(token)) throw error(401, "Start signup again to upload a photo.");
@@ -87,6 +87,84 @@ export function createPhotoService({ prisma, storage, process = processPhoto, no
         throw failure;
       }
     },
+    async uploadCover(personId, expectedVersion, bytes, type) {
+      const prepared = await processCover(bytes, type);
+      const asset = await upload({ personId }, bytes, type, prepared);
+      try {
+        return await prisma.$transaction(async tx => {
+          const row = await tx.profile.findUnique({
+            where: { personId }, select: { id: true, version: true, coverPhotoId: true },
+          });
+          if (!row || row.version !== expectedVersion) throw error(409, "Your profile changed. Reload it before changing your cover photo.");
+          if ((await tx.photoAsset.updateMany({
+            where: { id: asset.id, personId, state: "READY", expiresAt: { gt: now() } },
+            data: { state: "CLAIMED" },
+          })).count !== 1) throw error(409, "Cover photo upload expired. Please retry.");
+          if ((await tx.profile.updateMany({
+            where: { personId, version: expectedVersion },
+            data: { coverPhotoId: asset.id, version: { increment: 1 } },
+          })).count !== 1) throw error(409, "Your profile changed. Reload it before changing your cover photo.");
+          if (row.coverPhotoId) await tx.photoAsset.updateMany({
+            where: { id: row.coverPhotoId, personId, state: "CLAIMED" },
+            data: { state: "DELETE_PENDING" },
+          });
+          return { coverPhotoId: asset.id, profileVersion: expectedVersion + 1 };
+        });
+      } catch (failure) {
+        await prisma.photoAsset.updateMany({
+          where: { id: asset.id, personId, state: "READY" },
+          data: { state: "DELETE_PENDING" },
+        }).catch(() => {});
+        throw failure;
+      }
+    },
+    async removeCover(personId, expectedVersion) {
+      return prisma.$transaction(async tx => {
+        const row = await tx.profile.findUnique({ where: { personId }, select: { version: true, coverPhotoId: true } });
+        if (!row || row.version !== expectedVersion) throw error(409, "Your profile changed. Reload it before changing your cover photo.");
+        if (!row.coverPhotoId) return { coverPhotoId: null, profileVersion: row.version };
+        if ((await tx.profile.updateMany({
+          where: { personId, version: expectedVersion },
+          data: { coverPhotoId: null, version: { increment: 1 } },
+        })).count !== 1) throw error(409, "Your profile changed. Reload it before changing your cover photo.");
+        await tx.photoAsset.updateMany({
+          where: { id: row.coverPhotoId, personId, state: "CLAIMED" },
+          data: { state: "DELETE_PENDING" },
+        });
+        return { coverPhotoId: null, profileVersion: expectedVersion + 1 };
+      });
+    },
+    async readCover(viewerId, username, assetId) {
+      async function authorizedCover() {
+        const owner = await prisma.account.findUnique({
+          where: { username },
+          select: {
+            id: true, status: true, personId: true,
+            person: { select: { profile: { select: { coverPhotoId: true } } } },
+          },
+        });
+        if (!owner || owner.status !== "ACTIVE" || owner.person?.profile?.coverPhotoId !== assetId)
+          throw error(404, "Cover photo not found.");
+        if (viewerId !== owner.id) {
+          const [leftAccountId, rightAccountId] = [viewerId, owner.id].sort();
+          const relationship = await prisma.networkPair.findUnique({
+            where: { leftAccountId_rightAccountId: { leftAccountId, rightAccountId } },
+            select: { leftBlocked: true, rightBlocked: true },
+          });
+          if (relationship?.leftBlocked || relationship?.rightBlocked) throw error(404, "Cover photo not found.");
+        }
+        return owner;
+      }
+      const owner = await authorizedCover();
+      const asset = await prisma.photoAsset.findFirst({
+        where: { id: assetId, personId: owner.personId, state: "CLAIMED" },
+        select: { storageKey: true },
+      });
+      if (!asset) throw error(404, "Cover photo not found.");
+      const bytes = await storage.get(asset.storageKey);
+      await authorizedCover();
+      return bytes;
+    },
     async readOwner(personId, assetId) {
       const asset = await prisma.photoAsset.findFirst({ where: { id: assetId, personId, state: "CLAIMED" }, select: { storageKey: true } });
       if (!asset) throw error(404, "Photo not found.");
@@ -100,7 +178,7 @@ export function createPhotoService({ prisma, storage, process = processPhoto, no
       let deleted = 0;
       for (const asset of pending) {
         // Never delete the current profile photo.
-        const referenced = await prisma.profile.count({ where: { photoId: asset.id } });
+        const referenced = await prisma.profile.count({ where: { OR: [{ photoId: asset.id }, { coverPhotoId: asset.id }] } });
         if (referenced) continue;
         await storage.delete(asset.storageKey);
         await prisma.photoAsset.updateMany({ where: { id: asset.id, state: "DELETE_PENDING" }, data: { state: "DELETED" } });
