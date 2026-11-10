@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { searchDirectory } from "../api/directory-search";
 import { memberPhotoUrl } from "../api/organization-posts";
 import NavigationIcon from "../components/layout/NavigationIcon";
+import VerificationBadge from "../components/VerificationBadge";
 import "./directory-search.css";
 
 const filters = [
@@ -36,7 +37,7 @@ function SearchResultCard({ item }) {
         <span className="bw-directory-result-info">
           <span className="bw-directory-result-name">
             <strong>{item.name}</strong>
-            {item.verified === true && <span className="bw-directory-verified" title="Verified" aria-label="Verified">✓</span>}
+            {item.verified === true && <VerificationBadge kind={isPerson ? "identity" : "organization"} />}
           </span>
           <span className="bw-directory-handle">@{item.username}</span>
           {isPerson && item.headline && <span className="bw-directory-headline">{item.headline}</span>}
@@ -108,7 +109,7 @@ function SearchResults({ q, kind }) {
         <div className="bw-directory-empty">
           <span className="bw-directory-empty-icon"><NavigationIcon name="search" size={24} /></span>
           <h2>No matches found</h2>
-          <p>No results for “{q}”. Try a shorter name, username, skill, or organization name.</p>
+          <p>No results for “{q}”. Try a shorter name, headline, username, or organization name.</p>
         </div>
       )}
       {page?.items.length > 0 && (
@@ -140,13 +141,13 @@ export default function DirectorySearchPage() {
       <header className="bw-directory-hero">
         <span className="bw-directory-eyebrow"><NavigationIcon name="search" size={16} /> Discover BrightWay</span>
         <h1>Search BrightWay</h1>
-        <p>Find people by name, skill, or career field, and discover verified organizations.</p>
+        <p>Find people by name, username, headline, or career field, and discover verified organizations.</p>
       </header>
 
       <form className="bw-directory-search-form" role="search" aria-label="Directory search" onSubmit={submit}>
         <span className="bw-directory-form-icon"><NavigationIcon name="search" size={20} /></span>
         <input key={q} name="q" type="search" aria-label="Name or username"
-          placeholder="Search people, skills, or organizations"
+          placeholder="Search names, careers, or organizations"
           defaultValue={q} minLength={2} maxLength={80} required />
         <button type="submit">Search</button>
       </form>
