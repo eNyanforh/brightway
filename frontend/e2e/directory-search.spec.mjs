@@ -21,6 +21,7 @@ test("the personal header opens directory search and filters results on desktop 
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
       case "/api/v1/work/access": return reply({ hasWork: false });
       case "/api/v1/explore/posts": return reply({ items: [], nextCursor: null });
+      case "/api/v1/search/content": return reply({ items: [], nextCursor: null });
       case "/api/v1/search": {
         const query = Object.fromEntries(url.searchParams);
         searches.push(query);
