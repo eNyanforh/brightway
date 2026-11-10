@@ -1175,7 +1175,9 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const position = readActivityCursor(cursor, actor.accountId, member.id, kind);
       const publicPostAuthor = {
         ...visibleMember(actor.accountId),
-        ...unblockedAuthor(member.id),
+        // Combine both block filters with AND. Spreading either filter after
+        // the other would overwrite networkLeft/networkRight and leak posts.
+        AND: [unblockedAuthor(member.id)],
       };
       const publicOrganizationAuthor = {
         status: "ACTIVE",
