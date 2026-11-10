@@ -36,14 +36,15 @@ test("search has separate content filters, real post links, and an honest opport
   const card = page.getByRole("link", { name: /How does AI literacy improve schools/ });
   await expect(card).toHaveAttribute("href", question.href);
   await expect(page.getByRole("img", { name: "Verified identity" })).toBeVisible();
-  await page.getByRole("link", { name: "Events", exact: true }).click();
+  const filters = page.getByRole("navigation", { name: "Search filters" });
+  await filters.getByRole("link", { name: "Events", exact: true }).click();
   await expect(page.getByRole("link", { name: /School innovation weekend/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /How does AI literacy improve schools/ })).toHaveCount(0);
-  await page.getByRole("link", { name: "All", exact: true }).click();
+  await filters.getByRole("link", { name: "All", exact: true }).click();
   await expect(page.getByRole("heading", { name: "People and organizations" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Community content" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Maya Cole/ }).first()).toBeVisible();
-  await page.getByRole("link", { name: "Opportunities", exact: true }).click();
+  await filters.getByRole("link", { name: "Opportunities", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Opportunity discovery is coming" })).toBeVisible();
   expect(calls).toEqual(["questions", "events", "all"]);
   expect(errors).toEqual([]);
