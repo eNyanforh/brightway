@@ -84,13 +84,7 @@ function PublishedPerson({ username }) {
           <h1 className="bw-public-person-name"><span>{profile.fullName}</span>{profile.identityVerified === true && <VerificationBadge />}</h1>
           <p className="bw-public-person-handle">@{profile.username}</p>
           {profile.headline && <p className="bw-public-person-headline">{profile.headline}</p>}
-          {location && <p className="bw-public-person-location">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
-              strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>{location}
-          </p>}
+          {location && <p className="bw-public-person-location">{location}</p>}
         </div>
       </header>
     </div>
