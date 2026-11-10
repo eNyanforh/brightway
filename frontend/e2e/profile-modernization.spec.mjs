@@ -165,7 +165,7 @@ test("my profile has three responsive tabs below the private dashboard on deskto
   const viewers = dashboard.getByRole("group", { name: "Recent profile viewers" });
   await expect(viewers.getByRole("link")).toHaveCount(2);
   await expect(viewers.getByRole("link", { name: "Profile Visitor viewed your profile" }))
-    .toHaveAttribute("href", "/people/visitor");
+    .toHaveAttribute("href", "/visitor");
   await expect(viewers.getByRole("img", { name: "Private profile view" })).toHaveCount(1);
   const searches = dashboard.getByRole("group", { name: "Anonymous search appearances" });
   await expect(searches.getByRole("link")).toHaveCount(0);
@@ -453,12 +453,14 @@ test("Activities keeps the regular post author layout with long verified names",
 
 test("member profile respects contact visibility in a responsive modern layout", async ({ page }) => {
   const api = await fixture(page);
-  await page.goto("/people/maya");
+  await page.goto("/maya");
   await expect(page.getByRole("heading", { level: 1, name: "Maya Cole" })).toBeVisible();
-  await expect(page.getByText("BrightWay member", { exact: true })).toBeVisible();
+  await expect(page.getByText("BrightWay member", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("img", { name: "Profile avatar" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Published profile sections" })
-    .getByRole("link", { name: "Career direction" })).toHaveAttribute("href", "#published-direction");
+  const tabs = page.getByRole("tablist", { name: "Public profile sections" });
+  await expect(tabs.getByRole("tab", { name: "About Me" })).toHaveAttribute("aria-selected", "true");
+  await expect(tabs.getByRole("tab", { name: "Achievements" })).toBeVisible();
+  await expect(tabs.getByRole("tab", { name: "Activities" })).toBeVisible();
   await expect(page.getByText("Helping students create their first projects.")).toBeVisible();
   await expect(page.getByText("TypeScript", { exact: true })).toBeVisible();
   await expect(page.getByText("Make technology education accessible.")).toBeVisible();
@@ -533,11 +535,10 @@ test("public professional proof separates verified records from self-reported ce
     }],
   };
   await fixture(page, {}, publicSections);
-  await page.goto("/people/maya");
-  const nav = page.getByRole("navigation", { name: "Published profile sections" });
-  await expect(nav.getByRole("link", { name: "Verified credentials" })).toBeVisible();
-  await expect(nav.getByRole("link", { name: "Certifications" })).toBeVisible();
-  await expect(nav.getByRole("link", { name: "Achievements" })).toBeVisible();
+  await page.goto("/maya");
+  const tabs = page.getByRole("tablist", { name: "Public profile sections" });
+  await tabs.getByRole("tab", { name: "Achievements" }).click();
+  await expect(tabs.getByRole("tab", { name: "Achievements" })).toHaveAttribute("aria-selected", "true");
   const review = page.locator("#published-credentials");
   await expect(review.getByText("BSc Computer Science")).toBeVisible();
   await expect(review.getByText(/Verified credential · Starz University/)).toBeVisible();
@@ -554,6 +555,42 @@ test("public professional proof separates verified records from self-reported ce
   await expect(page.getByText("synthetic@example.org")).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
+});
+
+test("public member routes use root handles, keep private contacts hidden and show three keyboard tabs", async ({ page }) => {
+  await fixture(page, {}, {
+    identityVerified: false,
+    photoId: "55555555-5555-4555-8555-555555555555",
+    coverPhoto: { id: "66666666-6666-4666-8666-666666666666" },
+    activities: [
+      { id: "88888888-8888-4888-8888-888888888888", type: "ACHIEVEMENT",
+        body: "Launched a student project.", createdAt: "2026-11-08T09:00:00Z", tags: ["Coding"] },
+      { id: "99999999-9999-4999-8999-999999999999", type: "EVENT",
+        body: "Hosted a career workshop.", createdAt: "2026-11-07T09:00:00Z", tags: ["Education"] },
+      { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", type: "QUESTION",
+        body: "How do I learn UI design?", createdAt: "2026-11-06T09:00:00Z", tags: ["Design"] },
+    ],
+  });
+  await page.goto("/people/maya");
+  await expect(page).toHaveURL(/\\/maya$/);
+  await expect(page.getByText("BrightWay member", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".bw-public-person-avatar")).toHaveAttribute("src",
+    /explore\\/members\\/maya\\/photo\\/55555555-5555-4555-8555-555555555555/);
+  await expect(page.locator(".bw-public-person-cover-image")).toHaveAttribute("src",
+    /profiles\\/maya\\/cover\\/66666666-6666-4666-8666-666666666666/);
+  const tabs = page.getByRole("tablist", { name: "Public profile sections" });
+  await expect(tabs.getByRole("tab")).toHaveCount(3);
+  await tabs.getByRole("tab", { name: "About Me" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(tabs.getByRole("tab", { name: "Achievements" })).toHaveAttribute("aria-selected", "true");
+  await tabs.getByRole("tab", { name: "Activities" }).click();
+  await expect(page.getByText("Launched a student project.")).toBeVisible();
+  await expect(page.getByText("Hosted a career workshop.")).toBeVisible();
+  await expect(page.getByText("How do I learn UI design?")).toBeVisible();
+  await expect(page.getByText("synthetic@example.org")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Contact" })).toHaveCount(0);
+  await page.goto("/profile");
+  await expect(page.getByRole("heading", { level: 1, name: "Synthetic Member" })).toBeVisible();
 });
 
 test("owner profile lines align tightly and cover photo is uploaded without branding", async ({ page }) => {
@@ -592,7 +629,7 @@ test("owner profile lines align tightly and cover photo is uploaded without bran
 
 test("public member cover and identity details align without a generic BrightWay banner", async ({ page }) => {
   await fixture(page, {}, { coverPhoto: { id: "22222222-2222-4222-8222-222222222222" } });
-  await page.goto("/people/maya");
+  await page.goto("/maya");
   await expect(page.getByText("BRIGHTWAY / COMMUNITY")).toHaveCount(0);
   await expect(page.locator(".bw-public-person-cover-image")).toHaveAttribute(
     "src", /profiles\/maya\/cover\/22222222-2222-4222-8222-222222222222/,
