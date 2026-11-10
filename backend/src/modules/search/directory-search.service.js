@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { memberProfilePath } from "../../../../shared/member-profile-paths.mjs";
 import { z } from "zod";
 import { assertNetworkSession } from "../network/network-authority.js";
 import { fail } from "../network/network.schema.js";
@@ -122,7 +123,7 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
     return {
       items: page.map(item => ({
         kind: item.kind, name: item.name, username: item.username,
-        href: item.kind === "people" ? "/people/" + encodeURIComponent(item.username) : "/organizations/" + encodeURIComponent(item.id),
+        href: item.kind === "people" ? memberProfilePath(item.username) : "/organizations/" + encodeURIComponent(item.id),
       })),
       nextCursor,
     };

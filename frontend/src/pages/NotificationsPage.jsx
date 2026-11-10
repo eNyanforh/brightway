@@ -119,7 +119,7 @@ export default function NotificationsPage() {
             <li className={item.readAt ? "is-read" : "is-unread"} key={item.id}>
               <span className="bw-notifications-dot" aria-hidden="true" />
               <div>
-                <p><Link to={"/people/" + encodeURIComponent(item.viewer.username)}><strong>{item.viewer.fullName}</strong> (@{item.viewer.username})</Link> viewed your profile.</p>
+                <p><Link to={"/" + encodeURIComponent(item.viewer.username)}><strong>{item.viewer.fullName}</strong> (@{item.viewer.username})</Link> viewed your profile.</p>
                 <time dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time>
               </div>
               <div className="bw-notifications-actions">

@@ -17,6 +17,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
   const accounts = [];
   const createdCredentials = [];
   const createdPosts = [];
+  const createdPhotos = [];
   const server = app.listen(0, "127.0.0.1");
   await new Promise(resolve => server.once("listening", resolve));
   const base = "http://127.0.0.1:" + server.address().port + "/api/v1";
@@ -31,12 +32,12 @@ test("the real app exposes member profiles by default and preserves inbox owners
     } });
     accounts.push(row);
     const token = randomBytes(32).toString("hex");
-    await prisma.session.create({ data: {
+    const session = await prisma.session.create({ data: {
       accountId: row.id,
       tokenHash: tokenHash(token),
       expiresAt: new Date(Date.now() + 86400000),
     } });
-    return { ...row, cookie: "brightway_session=" + token, version: 0 };
+    return { ...row, cookie: "brightway_session=" + token, sessionId: session.id, version: 0 };
   }
 
   async function request(actor, path, { method = "GET", body, status = 200, requestOrigin = origin } = {}) {
@@ -72,7 +73,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
       request(actor, "/search?" + new URLSearchParams({ q, kind: "people", ...options }), { status });
     await search(null, owner.username, {}, 401);
     await search(visitor, "!!", {}, 400);
-    const hit = { kind: "people", name: "Synthetic owner", username: owner.username, href: "/people/" + owner.username };
+    const hit = { kind: "people", name: "Synthetic owner", username: owner.username, href: "/" + owner.username };
     assert.deepEqual(await search(visitor, "synt own"), { items: [hit], nextCursor: null });
     assert.deepEqual((await search(visitor, "@" + owner.username)).items, [hit]);
     const searchStats = await dashboard(owner);
@@ -107,8 +108,23 @@ test("the real app exposes member profiles by default and preserves inbox owners
     await view(null, owner, { status: 401 });
     await view(visitor, owner, { requestOrigin: "https://foreign.invalid", status: 403 });
 
+    const photo = await prisma.photoAsset.create({ data: {
+      personId: owner.personId, storageKey: "test/portrait-" + randomUUID() + ".webp",
+      state: "CLAIMED", expiresAt: new Date(Date.now() + 86400000),
+    } });
+    createdPhotos.push(photo.id);
+    await prisma.profile.update({ where: { personId: owner.personId }, data: { photoId: photo.id } });
     const profile = await view(visitor, owner);
     assert.equal(profile.headline, "Published fixture");
+    assert.equal(profile.photoId, photo.id, "current portrait appears without identity verification");
+    const { createOrganizationPosts } = await import("../src/modules/posts/organization-posts.service.js");
+    const posts = createOrganizationPosts({ prisma });
+    assert.deepEqual(await posts.memberPhoto(
+      { accountId: visitor.id, sessionId: visitor.sessionId }, owner.username, photo.id,
+    ), { personId: owner.personId, photoId: photo.id },
+    "the current portrait is visible without badge approval");
+    assert.equal((await view(owner, owner)).photoId, photo.id, "the owner can open their public profile");
+    assert.equal((await dashboard(owner)).profileViews, 1, "self-view never creates a visitor entry");
     await view(visitor, owner);
     assert.equal((await dashboard(owner)).profileViews, 1, "repeated public visits from one member count once per UTC day");
     assert.deepEqual((await dashboard(owner)).recentProfileViewers, [{
@@ -258,8 +274,15 @@ test("the real app exposes member profiles by default and preserves inbox owners
     assert.equal(undeleted.body, editedBody);
     assert.equal((await dashboard(owner)).postImpressions, 0, "deleted post views are excluded");
     assert.equal((await dashboard(visitor)).postImpressions, 0, "only the author's posts are counted");
-    assert.equal(Object.hasOwn(await view(visitor, owner), "achievements"), false,
-      "Unverified member posts must not be promoted onto a public profile");
+    const published = await view(visitor, owner);
+    assert.deepEqual(published.achievements, [], "withdrawn achievements must not appear");
+    assert.deepEqual(new Set(published.activities.map(item => item.type)), new Set(["QUESTION", "EVENT"]));
+    assert.equal(published.activities.some(item => item.id === achievement.id), false,
+      "withdrawn posts do not appear in the activity tab");
+    for (const item of published.activities) {
+      assert.deepEqual(Object.keys(item).sort(), ["body", "createdAt", "id", "tags", "type"].sort(),
+        "activity projections must not leak registration, meeting, or other private details");
+    }
 
     assert.equal((await dashboard(owner)).recentProfileViewers.length, 1);
     await preferences(visitor, { headline: "Learning with BrightWay" });
@@ -343,6 +366,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
         prisma.memberPost.deleteMany({ where: { id: { in: createdPosts } } }),
         prisma.educationRecord.deleteMany({ where: { id: { in: createdCredentials } } }),
         prisma.profile.deleteMany({ where: { personId: { in: people } } }),
+        prisma.photoAsset.deleteMany({ where: { id: { in: createdPhotos } } }),
         prisma.session.deleteMany({ where: { accountId: { in: ids } } }),
         prisma.account.deleteMany({ where: { id: { in: ids } } }),
         prisma.person.deleteMany({ where: { id: { in: people } } }),

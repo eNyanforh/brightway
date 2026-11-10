@@ -32,7 +32,7 @@ function utcDay(value) {
 function publicProfile(account, profile, sections = {}) {
   return {
     username: account.username,
-    photoId: sections.identityVerified === true ? profile.photoId : null,
+    photoId: profile.photoId,
     coverPhoto: profile.coverPhotoId ? { id: profile.coverPhotoId } : null,
     fullName: [account.person.firstName, account.person.middleName, account.person.lastName].filter(Boolean).join(" "),
     headline: profile.headline,
@@ -108,7 +108,7 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
       const username = parse(usernameSchema, inputUsername);
       await actorAccount(prisma, actor);
       const initial = await prisma.account.findUnique({ where: { username }, select: { id: true } });
-      if (!initial || initial.id === actor.accountId) throw fail(404, "This public profile is unavailable.");
+      if (!initial) throw fail(404, "This public profile is unavailable.");
 
       return prisma.$transaction(async tx => {
         await lockNetworkAccounts(tx, [actor.accountId, initial.id]);
@@ -117,11 +117,13 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
           where: { username },
           select: { id: true, username: true, status: true, personId: true, person: { select: { firstName: true, middleName: true, lastName: true } } },
         });
-        if (!target || target.id !== initial.id || target.status !== "ACTIVE" || target.id === viewer.id) throw fail(404, "This public profile is unavailable.");
+        if (!target || target.id !== initial.id || target.status !== "ACTIVE") throw fail(404, "This public profile is unavailable.");
 
-        const [leftAccountId, rightAccountId] = [viewer.id, target.id].sort();
-        const relationship = await tx.networkPair.findUnique({ where: { leftAccountId_rightAccountId: { leftAccountId, rightAccountId } }, select: { leftBlocked: true, rightBlocked: true } });
-        if (relationship?.leftBlocked || relationship?.rightBlocked) throw fail(404, "This public profile is unavailable.");
+        if (viewer.id !== target.id) {
+          const [leftAccountId, rightAccountId] = [viewer.id, target.id].sort();
+          const relationship = await tx.networkPair.findUnique({ where: { leftAccountId_rightAccountId: { leftAccountId, rightAccountId } }, select: { leftBlocked: true, rightBlocked: true } });
+          if (relationship?.leftBlocked || relationship?.rightBlocked) throw fail(404, "This public profile is unavailable.");
+        }
 
         const profileIds = [viewer.personId, target.personId].sort();
         await tx.$queryRaw(Prisma.sql`SELECT "personId" FROM "Profile" WHERE "personId" IN (${Prisma.join(profileIds)}) ORDER BY "personId" FOR UPDATE`);
@@ -139,25 +141,35 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
           }))
           : [];
         sections.verifiedCredentials = await withCredentialOrganizationAvatars(tx, await verifiedCredentials(tx, profile.id));
-        if (sections.identityVerified) {
-          sections.achievements = await tx.memberPost.findMany({
-            where: { authorId: target.id, type: "ACHIEVEMENT", withdrawnAt: null },
-            select: { id: true, body: true, tags: true, createdAt: true },
-            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            take: 8,
-          });
-        }
+        // Published posts are public profile activity regardless of the author's
+        // current identity-badge status. The member was authorized at publish time.
+        // Keep the projection narrow: never return private event meeting links,
+        // attendee/approval details, unpublished drafts or account contacts.
+        sections.activities = await tx.memberPost.findMany({
+          where: { authorId: target.id, withdrawnAt: null },
+          select: { id: true, type: true, body: true, tags: true, createdAt: true },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 20,
+        });
+        sections.achievements = await tx.memberPost.findMany({
+          where: { authorId: target.id, type: "ACHIEVEMENT", withdrawnAt: null },
+          select: { id: true, body: true, tags: true, createdAt: true },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 8,
+        });
         const currentTime = now();
         // Visits are recorded once per viewer per UTC day. Only the owner
         // sees recent visitor details; blocks remain effective.
-        await tx.profileVisit.createMany({
-          data: [{ ownerId: target.id, viewerId: viewer.id, viewedOn: utcDay(currentTime), createdAt: currentTime }],
-          skipDuplicates: true,
-        });
-        await tx.profileViewNotification.createMany({
-          data: [{ recipientId: target.id, viewerId: viewer.id, viewedOn: utcDay(currentTime), createdAt: currentTime }],
-          skipDuplicates: true,
-        });
+        if (viewer.id !== target.id) {
+          await tx.profileVisit.createMany({
+            data: [{ ownerId: target.id, viewerId: viewer.id, viewedOn: utcDay(currentTime), createdAt: currentTime }],
+            skipDuplicates: true,
+          });
+          await tx.profileViewNotification.createMany({
+            data: [{ recipientId: target.id, viewerId: viewer.id, viewedOn: utcDay(currentTime), createdAt: currentTime }],
+            skipDuplicates: true,
+          });
+        }
         await assertNetworkSession(tx, actor, now);
         return publicProfile(target, profile, sections);
       });

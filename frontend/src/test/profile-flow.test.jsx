@@ -130,7 +130,7 @@ it("organizes the private profile into About Me, Achievements and Activity tabs"
   const people = within(dashboard).getByRole("group", { name: "Recent profile viewers" });
   expect(within(people).getAllByRole("link")).toHaveLength(2);
   expect(within(people).getByRole("link", { name: "Sharing Viewer viewed your profile" })
-    .getAttribute("href")).toBe("/people/share_one");
+    .getAttribute("href")).toBe("/share_one");
   expect(within(people).getAllByRole("img", { name: "Private profile view" })).toHaveLength(1);
   const searches = within(dashboard).getByRole("group", { name: "Anonymous search appearances" });
   expect(within(searches).queryAllByRole("link")).toHaveLength(0);
@@ -207,8 +207,9 @@ it("styles only server-approved public history records as verified, with formatt
       organizationAvatar: { id: "school-1", name: "Starz University", photoUrl: "/org-logo.webp" },
     }],
   };
-  mount((url) => url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/people/maya");
+  mount((url) => url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/maya");
   await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
+  await userEvent.setup().click(screen.getByRole("tab", { name: "Achievements" }));
   const record = screen.getByText("BSc Computer Science").closest(".bw-public-person-history-record");
   expect(record).toBeTruthy();
   expect(within(record).getByText("Sep 2022 – Present")).toBeTruthy();
@@ -231,17 +232,18 @@ it("shows only published fields on the redesigned public profile without a secon
     interests: ["Education", "Community"],
   };
   const fetchMock = mount((url) =>
-    url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/people/maya");
+    url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/maya");
   await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
-  expect(screen.getByText("BrightWay member")).toBeTruthy();
-  // Proof sections render only when the server provides eligible content.
-  expect(screen.queryByRole("heading", { name: "Verified credentials" })).toBeNull();
-  expect(screen.queryByRole("heading", { name: "Licenses and certifications" })).toBeNull();
-  expect(screen.queryByRole("heading", { name: "Professional achievements" })).toBeNull();
+  expect(screen.queryByText("BrightWay member")).toBeNull();
   expect(screen.queryByRole("img", { name: "Verified identity" })).toBeNull();
-  const nav = screen.getByRole("navigation", { name: "Published profile sections" });
-  expect(within(nav).getByRole("link", { name: "About" }).getAttribute("href")).toBe("#published-about");
-  expect(within(nav).getByRole("link", { name: "Skills" }).getAttribute("href")).toBe("#published-skills");
+  const tabs = screen.getByRole("tablist", { name: "Public profile sections" });
+  expect(within(tabs).getAllByRole("tab").map(tab => tab.textContent)).toEqual([
+    "About Me", "Achievements", "Activities",
+  ]);
+  expect(within(tabs).getByRole("tab", { name: "About Me" }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tabpanel", { name: "About Me" })).toBeTruthy();
+  expect(screen.queryByRole("tabpanel", { name: "Achievements" })).toBeNull();
+  expect(screen.queryByRole("tabpanel", { name: "Activities" })).toBeNull();
   expect(screen.getByRole("img", { name: "Profile avatar" })).toBeTruthy();
   expect(screen.getByText("Building accessible education software.")).toBeTruthy();
   expect(screen.getByText("Mentor new developers.")).toBeTruthy();
@@ -249,6 +251,41 @@ it("shows only published fields on the redesigned public profile without a secon
   expect(screen.queryByText("existing@example.com")).toBeNull();
   expect(screen.queryByRole("heading", { name: "Contact" })).toBeNull();
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profiles/maya/view"))).toHaveLength(1);
+});
+
+it("renders public activities without leaking contact details or requiring an identity badge for current photos", async () => {
+  const viewed = {
+    fullName: "Maya Cole", username: "maya", identityVerified: false,
+    photoId: "55555555-5555-4555-8555-555555555555",
+    coverPhoto: { id: "66666666-6666-4666-8666-666666666666" },
+    achievements: [{ id: "a1", type: "ACHIEVEMENT", body: "Completed a course.",
+      tags: ["Learning"], createdAt: "2026-11-02T10:00:00Z" }],
+    activities: [
+      { id: "a1", type: "ACHIEVEMENT", body: "Completed a course.",
+        tags: ["Learning"], createdAt: "2026-11-02T10:00:00Z" },
+      { id: "e1", type: "EVENT", body: "Hosting a learning session.",
+        tags: ["Education"], createdAt: "2026-11-01T10:00:00Z" },
+      { id: "q1", type: "QUESTION", body: "How can I learn backend development?",
+        tags: ["Coding"], createdAt: "2026-10-31T10:00:00Z" },
+    ],
+  };
+  mount(url => url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/maya");
+  await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
+  expect(screen.getByRole("img", { name: "Profile avatar" }).getAttribute("src"))
+    .toBe("/api/v1/explore/members/maya/photo/55555555-5555-4555-8555-555555555555");
+  expect(document.querySelector(".bw-public-person-cover-image").getAttribute("src"))
+    .toBe("/api/v1/profiles/maya/cover/66666666-6666-4666-8666-666666666666");
+  expect(screen.queryByRole("img", { name: "Verified identity" })).toBeNull();
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("tab", { name: "Achievements" }));
+  expect(within(screen.getByRole("tabpanel", { name: "Achievements" }))
+    .getByText("Completed a course.")).toBeTruthy();
+  await user.click(screen.getByRole("tab", { name: "Activities" }));
+  expect(screen.getByText("Hosting a learning session.")).toBeTruthy();
+  expect(screen.getByText("How can I learn backend development?")).toBeTruthy();
+  expect(within(screen.getByRole("tabpanel", { name: "Activities" })).getAllByRole("link", { name: /View post/ })).toHaveLength(3);
+  expect(screen.queryByText("synthetic@example.org")).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Contact" })).toBeNull();
 });
 
 it("shows the saved profile first and uses the top picture as the profile navigation", async () => {

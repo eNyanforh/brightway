@@ -8,7 +8,7 @@ function AttendeeAvatar({ person }) {
     ? memberPhotoUrl(person.username, person.photoId) : null;
   const [failedPhoto, setFailedPhoto] = useState(null);
   return (
-    <Link className="bw-event-attendee-avatar" to={"/people/" + encodeURIComponent(person.username)}
+    <Link className="bw-event-attendee-avatar" to={"/" + encodeURIComponent(person.username)}
       title={person.name} aria-label={person.name + " attending"}>
       {photo && failedPhoto !== photo
         ? <img src={photo} alt="" loading="lazy" onError={() => setFailedPhoto(photo)} />

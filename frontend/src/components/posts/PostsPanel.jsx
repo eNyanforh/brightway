@@ -68,7 +68,7 @@ function QuestionAnswerSummary({ count, participants }) {
               .map(part => part[0]).join("").toUpperCase();
             return (
               <Link key={person.username} className="bw-question-answer-avatar"
-                to={"/people/" + encodeURIComponent(person.username)}
+                to={"/" + encodeURIComponent(person.username)}
                 title={person.name} aria-label={person.name + " answered"}>
                 {person.photoId ? <img src={memberPhotoUrl(person.username, person.photoId)} alt="" loading="lazy" /> : initials}
               </Link>
@@ -152,7 +152,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
   const publisher = post.organization || post.member;
   const source = postSource(post);
   const type = post.member ? post.type ?? "POST" : "ORGANIZATION";
-  const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/people/" + encodeURIComponent(post.member.username);
+  const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/" + encodeURIComponent(post.member.username);
   const topicTags = post.member && <PostTopicTags tags={post.tags} />;
   const imageUrl = post.member?.photoId
     ? memberPhotoUrl(post.member.username, post.member.photoId)
@@ -331,7 +331,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
         {post.repost && (
           <p className="bw-timeline-repost">
             <NavigationIcon name="repost" size={15} />
-            <Link to={post.repost.mine ? "/profile" : "/people/" + encodeURIComponent(post.repost.member.username)}>
+            <Link to={post.repost.mine ? "/profile" : "/" + encodeURIComponent(post.repost.member.username)}>
               {post.repost.mine ? "You" : post.repost.member.name}
             </Link>
             {post.repost.member.verified === true && <VerificationBadge />}

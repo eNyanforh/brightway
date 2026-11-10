@@ -49,7 +49,7 @@ function RecentViewerAvatar({ viewer }) {
     ? memberPhotoUrl(viewer.username, viewer.photoId) : null;
   return (
     <Link className="bw-dashboard-avatar bw-dashboard-avatar-named"
-      to={"/people/" + encodeURIComponent(viewer.username)}
+      to={"/" + encodeURIComponent(viewer.username)}
       title={viewer.name} aria-label={viewer.name + " viewed your profile"}>
       {photo && !failed ? <img src={photo} alt="" loading="lazy" onError={() => setFailed(true)} />
         : <span aria-hidden="true">{viewer.name?.trim().slice(0, 1).toUpperCase() || "?"}</span>}

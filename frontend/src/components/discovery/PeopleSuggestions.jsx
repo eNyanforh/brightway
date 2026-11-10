@@ -49,7 +49,7 @@ export default function PeopleSuggestions() {
     <ul className="bw-suggestion-list">
       {result.map(person => (
         <li key={person.username}>
-          <Link to={"/people/" + encodeURIComponent(person.username)}>{person.name}</Link>
+          <Link to={"/" + encodeURIComponent(person.username)}>{person.name}</Link>
           <span className="bw-suggestion-username">@{person.username}</span>
           <ul className="bw-suggestion-reasons" aria-label="Why this person is suggested">
             {person.reasons.map(reason => <li key={reason}>{reason}</li>)}

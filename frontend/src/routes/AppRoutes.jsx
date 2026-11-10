@@ -7,7 +7,8 @@ import ManagementGate from "../auth/ManagementGate";
 import ManagementLayout from "../layouts/ManagementLayout";
 import ManagementLoginPage from "../pages/ManagementLoginPage";
 import ManagementSecurityPage from "../pages/ManagementSecurityPage";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation, useParams } from "react-router-dom";
+import { memberProfilePath } from "../../../shared/member-profile-paths.mjs";
 import { lazy, Suspense } from "react";
 const OrganizationSetupGate = lazy(() => import("../components/organizations/OrganizationSetupGate"));
 const OrganizationWorkspacePage = lazy(() => import("../pages/OrganizationWorkspacePage"));
@@ -48,6 +49,12 @@ const PublicPersonPage = lazy(() => import("../pages/PublicPersonPage"));
 import OpportunitiesPage from "../pages/OpportunitiesPage";
 import ProfilePage from "../pages/ProfilePage";
 import LearningPage from "../pages/LearningPage";
+
+function LegacyMemberProfileRedirect() {
+  const { username = "" } = useParams();
+  const { search, hash } = useLocation();
+  return <Navigate to={{ pathname: memberProfilePath(username), search, hash }} replace />;
+}
 
 export default function AppRoutes() {
   return (
@@ -119,11 +126,12 @@ export default function AppRoutes() {
 
           <Route path="/network" element={<Suspense fallback={<p role="status">Loading your network…</p>}><NetworkPage /></Suspense>} />
           <Route path="/notifications" element={<Suspense fallback={<p role="status">Loading notifications…</p>}><NotificationsPage /></Suspense>} />
-          <Route path="/people/:username" element={<Suspense fallback={<p role="status">Opening profile…</p>}><PublicPersonPage /></Suspense>} />
+          <Route path="/people/:username" element={<LegacyMemberProfileRedirect />} />
 
           <Route path="/opportunities" element={<OpportunitiesPage />} />
 
           <Route path="/learning" element={<LearningPage />} />
+          <Route path="/:username" element={<Suspense fallback={<p role="status">Opening profile…</p>}><PublicPersonPage /></Suspense>} />
         </Route>
       </Route>
 
