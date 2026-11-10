@@ -40,8 +40,12 @@ async function request(
     );
   }
   if (!response.ok || payload.success !== true) {
+    const missingCoverRoute = path === "/profile/me/cover" && response.status === 404
+      && typeof payload.message === "string" && payload.message.startsWith("Route not found:");
     throw new ApiError(
-      payload.message || "Unable to save your profile.",
+      missingCoverRoute
+        ? "Cover photo is not available on the running API. Update and restart the BrightWay backend, run the cover-photo migration, and retry."
+        : payload.message || "Unable to save your profile.",
       response.status,
       payload.errors || [],
     );
