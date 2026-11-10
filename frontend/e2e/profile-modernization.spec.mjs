@@ -157,7 +157,7 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
         ] : [
           { id: "99999999-9999-4999-8999-999999999999", kind: "answer",
             body: "Build a small application and share what you learned.",
-            createdAt: "2026-11-05T09:00:00Z", score: 3,
+            createdAt: "2026-11-05T09:00:00Z", upvoteCount: 4, downvoteCount: 1,
             post: { source: "member", id: "33333333-3333-4333-8333-333333333333",
               label: "How do I find a mentor?" } },
         ], nextCursor: null });
@@ -660,7 +660,8 @@ test("public and private Activities both provide Posts, Comments, and Answers", 
     "/explore?source=member&post=11111111-1111-4111-8111-111111111111");
   await tabs.getByRole("tab", { name: "Answers" }).click();
   await expect(page.getByText("Build a small application and share what you learned.")).toBeVisible();
-  await expect(page.getByText("3 net votes")).toBeVisible();
+  await expect(page.getByText("4 upvotes")).toBeVisible();
+  await expect(page.getByText("1 downvotes")).toBeVisible();
   await expect(page.getByText("Excellent work on your milestone.")).toHaveCount(0);
   await page.goto("/profile");
   await page.getByRole("tablist", { name: "Profile sections" })
