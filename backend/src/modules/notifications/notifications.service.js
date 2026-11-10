@@ -141,16 +141,8 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
           }))
           : [];
         sections.verifiedCredentials = await withCredentialOrganizationAvatars(tx, await verifiedCredentials(tx, profile.id));
-        // Published posts are public profile activity regardless of the author's
-        // current identity-badge status. The member was authorized at publish time.
-        // Keep the projection narrow: never return private event meeting links,
-        // attendee/approval details, unpublished drafts or account contacts.
-        sections.activities = await tx.memberPost.findMany({
-          where: { authorId: target.id, withdrawnAt: null },
-          select: { id: true, type: true, body: true, tags: true, createdAt: true },
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          take: 20,
-        });
+        // The Activities tab loads the paginated post-card feed from
+        // /posts/members/:username, keeping this identity response small.
         sections.achievements = await tx.memberPost.findMany({
           where: { authorId: target.id, type: "ACHIEVEMENT", withdrawnAt: null },
           select: { id: true, body: true, tags: true, createdAt: true },
