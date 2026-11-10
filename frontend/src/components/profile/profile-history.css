@@ -1,60 +1,263 @@
+/* Education and experience are compact professional timeline cards. */
+.bw-history-section .bw-history-section-head {
+  align-items: center;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+}
+.bw-history-section-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.bw-history-section-title > div { min-width: 0; }
+.bw-history-section-symbol,
+.bw-history-empty-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #dce7f5;
+  border-radius: 11px;
+  background: #f0f5fc;
+  color: #2e619c;
+}
+.bw-history-section-symbol .bw-icon,
+.bw-history-empty-icon .bw-icon { width: 19px; height: 19px; }
+.bw-history-section-subtitle {
+  margin: 3px 0 0;
+  color: #728199;
+  font-size: .73rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
 .bw-history-list {
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 .bw-history-record {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: start;
+  gap: 15px;
   min-width: 0;
+  padding: 18px;
+  border: 1px solid #e1e8f1;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(25, 47, 77, .035);
+}
+.bw-history-record-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid #dfe7f0;
+  border-radius: 12px;
+  background: #f5f8fc;
+  color: #4b6685;
+  flex-shrink: 0;
+}
+.bw-history-record-icon .bw-icon { width: 24px; height: 24px; }
+img.bw-history-record-icon {
+  display: block;
+  object-fit: contain;
+  background: #fff;
+  padding: 5px;
+}
+.bw-history-record-content { min-width: 0; }
+.bw-history-record-heading h3 {
+  color: #1c304b;
+  font-size: .99rem;
+  font-weight: 760;
+  line-height: 1.35;
+  letter-spacing: -.015em;
+  margin: 1px 0 4px;
   overflow-wrap: anywhere;
 }
-.bw-history-record + .bw-history-record {
-  border-top: 1px solid #e5eaf1;
-  padding-top: 18px;
+.bw-history-record-organization {
+  color: #445a75;
+  margin: 0;
+  font-size: .83rem;
+  font-weight: 610;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
-.bw-history-record h3 {
-  margin: 0 0 4px;
-  font-size: 14px;
-  font-weight: 650;
+.bw-history-record-organization a {
+  color: #285a99;
+  font-weight: 690;
+  text-decoration: none;
 }
-.bw-history-record > p {
-  margin: 0 0 5px;
-  color: #647087;
-  font-size: 12px;
+.bw-history-record-organization a:hover { text-decoration: underline; }
+.bw-history-record-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 10px;
+  margin-top: 9px;
+  color: #73839a;
+  font-size: .75rem;
+  line-height: 1.5;
 }
-.bw-history-record small {
-  display: block;
-  color: #647087;
-  font-size: 11px;
+.bw-history-record-dates { color: #667993; font-variant-numeric: tabular-nums; }
+.bw-history-record-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d5ebe3;
+  border-radius: 999px;
+  background: #f0faf6;
+  color: #2a7559;
+  padding: 2px 9px;
+  font-size: .68rem;
+  font-weight: 740;
+}
+.bw-history-record-current::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #29976b;
+}
+.bw-history-record-type {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #f2f5f9;
+  color: #566b85;
+  padding: 2px 9px;
+  font-size: .69rem;
+  font-weight: 630;
+}
+.bw-history-record-description {
+  margin: 12px 0 0;
+  color: #425a74;
+  font-size: .82rem;
+  line-height: 1.68;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bw-history-record-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding-top: 13px;
+  margin-top: 13px;
+  border-top: 1px solid #eef1f6;
 }
 .bw-history-status {
-  display: inline-block;
-  padding: 4px 8px;
-  margin: 8px 0;
-  border-radius: 6px;
-  background: #edf3fc;
-  color: #3464a8;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  border-radius: 999px;
+  background: #f3f5f8;
+  color: #66758c;
+  padding: 4px 10px;
+  font-size: .69rem;
+  font-weight: 730;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
+.bw-history-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  background: currentColor;
+  border-radius: 100%;
+}
+.bw-history-record[data-status="pending"] .bw-history-status {
+  color: #326da9;
+  background: #eaf3ff;
+}
+.bw-history-record[data-status="verified"] .bw-history-status {
+  color: #197455;
+  background: #e9f7f0;
+}
+.bw-history-record[data-status="attention"] .bw-history-status {
+  color: #976322;
+  background: #fff6e6;
+}
+.bw-history-record[data-status="critical"] .bw-history-status {
+  color: #ab443b;
+  background: #fff0ef;
+}
+.bw-history-record-verification {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #245d9e;
+  text-decoration: none;
+  font-size: .74rem;
+  font-weight: 730;
+  line-height: 1.35;
+}
+.bw-history-record-verification:hover { text-decoration: underline; }
+.bw-history-record-verification .bw-icon { width: 14px; height: 14px; }
+.bw-history-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 20px;
+  border: 1px dashed #d8e3f0;
+  border-radius: 14px;
+  background: #fafcff;
+}
+.bw-history-empty-icon { background: #fff; }
+.bw-history-empty > div { min-width: 0; }
+.bw-history-empty-title {
+  margin: 1px 0 5px;
+  color: #2b405a;
+  font-size: .88rem;
+  font-weight: 730;
+  line-height: 1.45;
+}
+.bw-history-empty .bw-profile-muted { font-size: .79rem; line-height: 1.6; }
+.bw-history-empty-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  border: 1px solid #d5e3f6;
+  border-radius: 9px;
+  background: #fff;
+  color: #245f9e;
+  padding: 8px 11px;
+  font-size: .76rem;
+  font-weight: 720;
+  cursor: pointer;
+}
+.bw-history-empty-action:hover:enabled { background: #eff6ff; }
+.bw-history-empty-action:disabled { opacity: .6; cursor: not-allowed; }
+.bw-history-empty-action .bw-icon { width: 14px; height: 14px; }
+
+/* Keep the existing editing workflow and record-level permissions. */
 .bw-profile-dialog .bw-history-record-editor {
   margin: 18px 0;
-  padding: 16px;
-  border: 1px solid #e5eaf1;
-  border-radius: 10px;
+  padding: 19px;
+  border: 1px solid #dfe7f1;
+  border-radius: 13px;
+  background: #fcfdff;
   min-width: 0;
 }
 .bw-history-record-editor legend {
-  padding: 0 6px;
-  font-size: 12px;
-  font-weight: 650;
+  padding: 0 8px;
+  font-size: .78rem;
+  font-weight: 760;
+  color: #2d4c70;
 }
-.bw-history-record-editor .bw-profile-field-row {
-  margin-bottom: 18px;
-}
+.bw-history-record-editor .bw-profile-field-row { margin-bottom: 18px; }
 .bw-history-checkbox {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 18px;
-  font-size: 12px;
+  gap: 9px;
+  margin: 2px 0 18px;
+  font-size: .8rem;
+  font-weight: 600;
+  color: #3f5875;
   cursor: pointer;
 }
 .bw-history-checkbox input {
@@ -64,59 +267,16 @@
   accent-color: #175cd3;
 }
 @media (pointer: coarse) {
-  .bw-history-checkbox {
-    min-height: 44px;
-  }
-}
-
-/* Professional-profile timeline: emblem, role, organization and review state. */
-.bw-history-record {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 13px;
-}
-.bw-history-record-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border: 1px solid #dbe7f5;
-  border-radius: 11px;
-  background: #eff5fd;
-  color: #235c9d;
-}
-.bw-history-record-icon .bw-icon {
-  width: 21px;
-  height: 21px;
-}
-.bw-history-record-content { min-width: 0; }
-.bw-history-record-content > p {
-  margin: 0 0 6px;
-  color: #5b6c82;
-  line-height: 1.5;
-  font-size: 12px;
-}
-.bw-history-record-content > h3 {
-  margin: 0 0 4px;
-  font-weight: 760;
-  font-size: 14px;
-  color: #203956;
-}
-.bw-history-record-content > a {
-  display: inline-flex;
-  margin: 4px 0 8px;
-  font-size: .76rem;
+  .bw-history-checkbox { min-height: 44px; }
 }
 @media (max-width: 480px) {
-  .bw-history-record {
-    grid-template-columns: 36px minmax(0,1fr);
-    gap: 10px;
-  }
-  .bw-history-record-icon { width: 36px; height: 36px; }
+  .bw-history-section .bw-history-section-head { align-items: flex-start; }
+  .bw-history-record { grid-template-columns: 42px minmax(0, 1fr); gap: 11px; padding: 14px 12px; }
+  .bw-history-record-icon { width: 42px; height: 42px; border-radius: 10px; }
+  .bw-history-record-icon .bw-icon { width: 20px; height: 20px; }
+  img.bw-history-record-icon { padding: 4px; }
+  .bw-history-record-heading h3 { font-size: .91rem; }
+  .bw-history-record-footer { align-items: flex-start; gap: 11px; }
+  .bw-history-empty { padding: 15px 12px; }
+  .bw-profile-dialog .bw-history-record-editor { padding: 14px; }
 }
-
-img.bw-history-record-icon {
-  display: block; object-fit: cover; background: #fff; padding: 0;
-}
-.bw-history-record-content p a { color: inherit; font-weight: 650; text-decoration: none; }
-.bw-history-record-content p a:hover { text-decoration: underline; }
