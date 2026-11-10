@@ -137,6 +137,31 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
             answerCount: 2, answerParticipants: [],
           } : {}),
         })), nextCursor: null });
+      case "/api/v1/posts/me/activity":
+      case "/api/v1/posts/members/maya/activity": {
+        const kind = url.searchParams.get("kind");
+        const member = url.pathname.includes("/maya/")
+          ? { username: "maya", name: "Maya Cole", photoId: null }
+          : { username: "synthetic", name: "Synthetic Member", photoId: null };
+        return reply({ member, items: kind === "comments" ? [
+          { id: "77777777-7777-4777-8777-777777777777", kind: "comment",
+            body: "Excellent work on your milestone.", createdAt: "2026-11-07T09:00:00Z",
+            context: "My learning milestone.",
+            post: { source: "member", id: "11111111-1111-4111-8111-111111111111",
+              label: "My learning milestone." } },
+          { id: "88888888-8888-4888-8888-888888888888", kind: "reply",
+            body: "I agree with this answer.", createdAt: "2026-11-06T09:00:00Z",
+            context: "Start with a hands-on project.",
+            post: { source: "member", id: "33333333-3333-4333-8333-333333333333",
+              label: "How do I find a mentor?" } },
+        ] : [
+          { id: "99999999-9999-4999-8999-999999999999", kind: "answer",
+            body: "Build a small application and share what you learned.",
+            createdAt: "2026-11-05T09:00:00Z", score: 3,
+            post: { source: "member", id: "33333333-3333-4333-8333-333333333333",
+              label: "How do I find a mentor?" } },
+        ], nextCursor: null });
+      }
       case "/api/v1/profiles/maya/view":
         publicViews++;
         return reply({ ...published, ...publishedOverrides });
@@ -617,6 +642,35 @@ test("public member routes use root handles, keep private contacts hidden and sh
   await expect(page.getByRole("heading", { name: "Contact" })).toHaveCount(0);
   await page.goto("/profile");
   await expect(page.getByRole("heading", { level: 1, name: "Synthetic Member" })).toBeVisible();
+});
+
+test("public and private Activities both provide Posts, Comments, and Answers", async ({ page }) => {
+  await fixture(page);
+  await page.goto("/maya");
+  await page.getByRole("tablist", { name: "Public profile sections" })
+    .getByRole("tab", { name: "Activities" }).click();
+  const tabs = page.getByRole("tablist", { name: "Activity categories" });
+  await expect(tabs.getByRole("tab")).toHaveCount(3);
+  await expect(tabs.getByRole("tab", { name: "Posts" })).toHaveAttribute("aria-selected", "true");
+  await tabs.getByRole("tab", { name: "Comments" }).click();
+  await expect(page.getByText("Excellent work on your milestone.")).toBeVisible();
+  await expect(page.getByText("I agree with this answer.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Member comments" })
+    .getByRole("link", { name: "My learning milestone." })).toHaveAttribute("href",
+    "/explore?source=member&post=11111111-1111-4111-8111-111111111111");
+  await tabs.getByRole("tab", { name: "Answers" }).click();
+  await expect(page.getByText("Build a small application and share what you learned.")).toBeVisible();
+  await expect(page.getByText("3 net votes")).toBeVisible();
+  await expect(page.getByText("Excellent work on your milestone.")).toHaveCount(0);
+  await page.goto("/profile");
+  await page.getByRole("tablist", { name: "Profile sections" })
+    .getByRole("tab", { name: "Activity" }).click();
+  await page.getByRole("tablist", { name: "Activity categories" })
+    .getByRole("tab", { name: "Comments" }).click();
+  await expect(page.getByRole("region", { name: "Your comments" })
+    .getByText("Excellent work on your milestone.")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth))
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
 });
 
 test("owner profile lines align tightly and cover photo is uploaded without branding", async ({ page }) => {
