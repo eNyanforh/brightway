@@ -19,7 +19,15 @@ export function errorHandler(err, req, res, next) {
       ? err.status
       : 500;
 
-  console.error("API error:", { status: statusCode, name: err.name, code: err.code });
+  // Log only the matched route template, never raw URLs, member usernames,
+  // image IDs, credentials or request bodies.
+  console.error("API error:", {
+    status: statusCode,
+    name: err.name,
+    code: err.code,
+    method: req.method,
+    route: req.route?.path ?? "unmatched",
+  });
 
   const message =
     statusCode === 500 && env.NODE_ENV === "production"
