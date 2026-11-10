@@ -278,7 +278,7 @@ it("organizes private Activities into Posts, Comments and Answers with matching 
   await user.click(within(tabs).getByRole("tab", { name: "Answers" }));
   await screen.findByText("Start with a simple data model and test it.");
   expect(screen.getByText("5 upvotes")).toBeTruthy();
-  expect(screen.getByText("1 downvotes")).toBeTruthy();
+  expect(screen.getByText("1 downvote")).toBeTruthy();
   expect(screen.getByRole("link", { name: "How do I learn SQL?" }).getAttribute("href"))
     .toBe("/explore?source=member&post=cccccccc-cccc-4ccc-8ccc-cccccccccccc");
   expect(fetchMock.mock.calls.some(([url]) => url.includes("/posts/me/activity?kind=comments"))).toBe(true);
