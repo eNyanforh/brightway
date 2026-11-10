@@ -33,7 +33,7 @@ test("Explore loads people suggestions only when opened", async ({ page }) => {
   await expect(toggle).toBeVisible();
   expect(reads).toBe(0);
   await toggle.click();
-  await expect(page.getByRole("link", { name: "Maya Cole" })).toHaveAttribute("href", "/people/maya");
+  await expect(page.getByRole("link", { name: "Maya Cole" })).toHaveAttribute("href", "/maya");
   await expect(page.getByText("Shared skills", { exact: true })).toBeVisible();
   await toggle.click();
   await expect(page.getByRole("link", { name: "Maya Cole" })).toHaveCount(0);
