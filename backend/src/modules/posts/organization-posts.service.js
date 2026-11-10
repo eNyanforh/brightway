@@ -550,13 +550,16 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     return target;
   }
 
-  async function writeVisiblePost(actor, ref, operation) {
+  async function writeVisiblePost(actor, ref, operation, { forbidOwnQuestionAnswer = false } = {}) {
     await assertNetworkSession(prisma, actor, now);
     const { source, id } = ref;
     const member = source === "member";
-    const select = member ? { authorId: true } : { authorId: true, organizationId: true };
+    const select = member ? { authorId: true, type: true } : { authorId: true, organizationId: true };
     const target = await postModel(prisma, source).findUnique({ where: { id }, select });
     if (!target) throw unavailable();
+    if (forbidOwnQuestionAnswer && member && target.type === "QUESTION" && target.authorId === actor.accountId) {
+      throw fail(403, "You cannot answer your own question. You can comment on other members’ answers.");
+    }
 
     return prisma.$transaction(async tx => {
       // Match block and post mutation lock order before rechecking visibility.
@@ -851,8 +854,11 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const id = parse(identifier, idValue, "Choose a valid question.");
       const { body, requestKey } = parse(textInput(2000), input, "Write an answer between 1 and 2,000 characters.");
       return writeVisiblePost(actor, { source: "member", id }, async tx => {
-        const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true } });
+        const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true, authorId: true } });
         if (post.type !== "QUESTION") throw fail(400, "Answers are only available for questions.");
+        if (post.authorId === actor.accountId) {
+          throw fail(403, "You cannot answer your own question. You can comment on other members’ answers.");
+        }
         await verifiedContributor(tx, actor.accountId);
         const key = { authorId: actor.accountId, requestKey };
         const previous = await tx.questionAnswer.findUnique({ where: { authorId_requestKey: key } });
@@ -884,7 +890,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         return { answer: { id: answer.id, body: answer.body, createdAt: answer.createdAt,
           ...discussionAttribution(answer.author, true), canDelete: true, score: 0, myVote: 0,
           upvoteCount: 0, downvoteCount: 0, commentCount: 0 } };
-      });
+      }, { forbidOwnQuestionAnswer: true });
     },
 
     async voteAnswer(actor, answerId, input) {

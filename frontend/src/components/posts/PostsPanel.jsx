@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { organizationPostsApi as api, memberPhotoUrl } from "../../api/organization-posts";
 import { organizationPictureUrl } from "../../api/organization-profile";
@@ -11,6 +11,7 @@ import EventAttendeeSummary from "./EventAttendeeSummary";
 import EventRequestReview from "./EventRequestReview";
 import VerificationBadge from "../VerificationBadge";
 import PostTimestamp from "./PostTimestamp";
+import { AuthContext } from "../../auth/auth-context";
 import PostCaption from "./PostCaption";
 import PostManageMenu from "./PostManageMenu";
 import "./posts.css";
@@ -126,6 +127,10 @@ function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerP
 }
 
 export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onSave, onRepost, onRegister, canManageEvent = false, canManage = false, trackViews = true }) {
+  const session = useContext(AuthContext);
+  const isQuestionPublisher = post.type === "QUESTION" && Boolean(session?.account?.username)
+    && session.account.username === post.member?.username;
+  const answerActionLabel = isQuestionPublisher ? "Answers" : "Answer";
   const [answersOpen, setAnswersOpen] = useState(false);
   const [answerCount, setAnswerCount] = useState(post.answerCount ?? 0);
   const [answerParticipants, setAnswerParticipants] = useState(post.answerParticipants ?? []);
@@ -220,10 +225,10 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
 
   const primaryAction = type === "QUESTION" ? (
     <button type="button" className="bw-timeline-action bw-answer-primary-action"
-      aria-label="Answer" title="Answer" aria-expanded={answersOpen}
+      aria-label={answerActionLabel} title={answerActionLabel} aria-expanded={answersOpen}
       onClick={() => setAnswersOpen(open => !open)}>
       <NavigationIcon name="answer" size={19} />
-      <span>Answer</span>
+      <span>{answerActionLabel}</span>
     </button>
   ) : type === "EVENT" ? (
     <button type="button" className="bw-timeline-action bw-register-action"
@@ -272,7 +277,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
       )}
       <button type="button" className="bw-timeline-action" aria-label="Share" title="Share"
         onClick={() => void sharePost()}><NavigationIcon name="share" size={19} /></button>
-      {type === "QUESTION" && (
+      {type === "QUESTION" && !isQuestionPublisher && (
         <button type="button" className="bw-timeline-action" aria-label="Report question" title="Report"
           aria-expanded={reportOpen} disabled={reported} onClick={() => setReportOpen(open => !open)}>
           <NavigationIcon name="flag" size={19} />
@@ -319,7 +324,8 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
         </form>
       )}
       {answersOpen && type === "QUESTION" && (
-        <QuestionAnswers questionId={post.id} onClose={() => setAnswersOpen(false)} onCountChange={answerCountChanged} />
+        <QuestionAnswers questionId={post.id} isQuestionPublisher={isQuestionPublisher}
+          onClose={() => setAnswersOpen(false)} onCountChange={answerCountChanged} />
       )}
     </>
   );

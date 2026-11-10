@@ -381,6 +381,13 @@ test("the real app exposes member profiles by default and preserves inbox owners
       initialSubmittedAt: new Date(), targetAt: new Date(Date.now() + 86400000),
       windowStart: new Date(), calendarVersion: "test",
     } });
+    const answerCountBefore = await prisma.questionAnswer.count({ where: { questionId: question.id } });
+    await request(owner, "/explore/posts/member/" + question.id + "/answers", {
+      method: "POST", body: { body: "Answering my own question must be denied.", requestKey: randomUUID() },
+      status: 403,
+    });
+    assert.equal(await prisma.questionAnswer.count({ where: { questionId: question.id } }), answerCountBefore,
+      "the question publisher cannot create an answer through the API");
     const comment = await prisma.postComment.create({ data: {
       authorId: owner.id, memberPostId: eventPost.id, requestKey: randomUUID(),
       body: "Looking forward to hosting the workshop.",

@@ -169,25 +169,29 @@ test("database manual identity requests serialize retries and decisions, revoke 
         assert.deepEqual(await posts.reportQuestion(viewerActor, post.id, { reason: "SPAM" }), { reported: true });
         assert.deepEqual(await posts.reportQuestion(viewerActor, post.id, { reason: "SPAM" }), { reported: true });
         const answerDraft = { body: "Start with the research question and a realistic plan.", requestKey: randomUUID() };
-        const { answer } = await posts.addAnswer(actor, post.id, answerDraft);
-        assert.equal((await posts.addAnswer(actor, post.id, answerDraft)).answer.id, answer.id);
-        assert.equal(answer.name, "Sample owner");
-        assert.equal(answer.photoId, photo.id);
-        assert.equal(answer.verified, true);
-        assert.deepEqual([answer.upvoteCount, answer.downvoteCount], [0, 0]);
-        const visibleAnswer = (await posts.answers(viewerActor, post.id, { sort: "top" })).items[0];
+        await assert.rejects(posts.addAnswer(actor, post.id, answerDraft), { status: 403 },
+          "the question publisher may review and comment on answers but cannot answer");
+        assert.equal(await db.questionAnswer.count({ where: { questionId: post.id } }), 0);
+        // Seed an answer from another participant to cover voting and the
+        // publisher's ability to comment without granting self-answer permission.
+        const answer = await db.questionAnswer.create({ data: {
+          questionId: post.id, authorId: viewer.id,
+          requestKey: randomUUID(), body: answerDraft.body,
+        } });
+        const visibleAnswer = (await posts.answers(actor, post.id, { sort: "top" })).items[0];
         assert.equal(visibleAnswer.id, answer.id);
-        assert.deepEqual([visibleAnswer.name, visibleAnswer.photoId, visibleAnswer.verified], ["Sample owner", photo.id, true]);
+        assert.equal(visibleAnswer.username, viewer.username);
+        assert.equal(visibleAnswer.verified, undefined);
         assert.deepEqual([visibleAnswer.upvoteCount, visibleAnswer.downvoteCount], [0, 0]);
-        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 1 }),
+        assert.deepEqual(await posts.voteAnswer(actor, answer.id, { value: 1 }),
           { score: 1, myVote: 1, upvoteCount: 1, downvoteCount: 0 });
-        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 1 }),
+        assert.deepEqual(await posts.voteAnswer(actor, answer.id, { value: 1 }),
           { score: 1, myVote: 1, upvoteCount: 1, downvoteCount: 0 });
-        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: -1 }),
+        assert.deepEqual(await posts.voteAnswer(actor, answer.id, { value: -1 }),
           { score: -1, myVote: -1, upvoteCount: 0, downvoteCount: 1 });
-        assert.deepEqual(await posts.voteAnswer(viewerActor, answer.id, { value: 0 }),
+        assert.deepEqual(await posts.voteAnswer(actor, answer.id, { value: 0 }),
           { score: 0, myVote: 0, upvoteCount: 0, downvoteCount: 0 });
-        await assert.rejects(posts.voteAnswer(actor, answer.id, { value: 1 }), { status: 400 });
+        await assert.rejects(posts.voteAnswer(viewerActor, answer.id, { value: 1 }), { status: 400 });
         const { comment } = await posts.addAnswerComment(viewerActor, answer.id,
           { body: "Can you give an example?", requestKey: randomUUID() });
         assert.equal((await posts.answerComments(actor, answer.id)).items[0].id, comment.id);
@@ -201,7 +205,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
         await posts.deleteAnswerComment(actor, answer.id, ownerReply.id);
         await posts.deleteAnswerComment(viewerActor, answer.id, comment.id);
         assert.equal((await posts.answerComments(actor, answer.id)).items.length, 0);
-        await posts.deleteAnswer(actor, answer.id);
+        await posts.deleteAnswer(viewerActor, answer.id);
         await assert.rejects(posts.voteAnswer(viewerActor, answer.id, { value: 1 }), { status: 404 });
       }
       await posts.memberWithdraw(actor, post.id);

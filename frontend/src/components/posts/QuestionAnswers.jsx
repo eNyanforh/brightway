@@ -118,7 +118,7 @@ function AnswerComments({ answerId, commentCount = 0, onCountChange }) {
   );
 }
 
-export default function QuestionAnswers({ questionId, onClose, onCountChange }) {
+export default function QuestionAnswers({ questionId, onClose, onCountChange, isQuestionPublisher = false }) {
   const sortId = useId();
   const [sort, setSort] = useState("top");
   const [retry, setRetry] = useState(0);
@@ -143,7 +143,7 @@ export default function QuestionAnswers({ questionId, onClose, onCountChange }) 
 
   async function publish(event) {
     event.preventDefault();
-    if (!draft.trim() || pending) return;
+    if (isQuestionPublisher || !draft.trim() || pending) return;
     setPending(true); setError("");
     requestKey.current ??= crypto.randomUUID();
     try {
@@ -202,13 +202,15 @@ export default function QuestionAnswers({ questionId, onClose, onCountChange }) 
           <span className="bw-discussion-panel-icon"><NavigationIcon name="reply" size={20} /></span>
           <div>
             <strong>Community answers</strong>
-            <p>Share what you know. Helpful answers rise through member voting.</p>
+            <p>{isQuestionPublisher
+              ? "Read the responses to your question and join the discussion by commenting on answers."
+              : "Share what you know. Helpful answers rise through member voting."}</p>
           </div>
         </div>
         <button type="button" className="bw-discussion-close" aria-label="Close answers" onClick={onClose}>×</button>
       </header>
 
-      <form className="bw-question-answer-form bw-discussion-composer" onSubmit={publish}>
+      {!isQuestionPublisher && <form className="bw-question-answer-form bw-discussion-composer" onSubmit={publish}>
         <label htmlFor={"answer-" + questionId}>Your answer</label>
         <textarea id={"answer-" + questionId} rows={4} maxLength={2000} value={draft} disabled={pending}
           placeholder="Share your knowledge, experience, or a practical solution…"
@@ -220,7 +222,7 @@ export default function QuestionAnswers({ questionId, onClose, onCountChange }) 
             {pending ? "Publishing…" : "Publish answer"}
           </button>
         </div>
-      </form>
+      </form>}
 
       {error && <p className="bw-post-error" role="alert">{error}</p>}
       <div className="bw-discussion-toolbar">
@@ -241,8 +243,10 @@ export default function QuestionAnswers({ questionId, onClose, onCountChange }) 
       {items?.length === 0 && (
         <div className="bw-discussion-empty">
           <span className="bw-discussion-empty-icon"><NavigationIcon name="reply" size={23} /></span>
-          <strong>Be the first to answer</strong>
-          <p>Your experience could help someone move forward.</p>
+          <strong>{isQuestionPublisher ? "No answers yet" : "Be the first to answer"}</strong>
+          <p>{isQuestionPublisher
+            ? "Responses from other members will appear here when they answer your question."
+            : "Your experience could help someone move forward."}</p>
         </div>
       )}
       {items?.length > 0 && (
