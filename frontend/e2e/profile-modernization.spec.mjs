@@ -572,12 +572,12 @@ test("public member routes use root handles, keep private contacts hidden and sh
     ],
   });
   await page.goto("/people/maya");
-  await expect(page).toHaveURL(/\\/maya$/);
+  await expect(page).toHaveURL(/\/maya$/);
   await expect(page.getByText("BrightWay member", { exact: true })).toHaveCount(0);
   await expect(page.locator(".bw-public-person-avatar")).toHaveAttribute("src",
-    /explore\\/members\\/maya\\/photo\\/55555555-5555-4555-8555-555555555555/);
+    /explore\/members\/maya\/photo\/55555555-5555-4555-8555-555555555555/);
   await expect(page.locator(".bw-public-person-cover-image")).toHaveAttribute("src",
-    /profiles\\/maya\\/cover\\/66666666-6666-4666-8666-666666666666/);
+    /profiles\/maya\/cover\/66666666-6666-4666-8666-666666666666/);
   const tabs = page.getByRole("tablist", { name: "Public profile sections" });
   await expect(tabs.getByRole("tab")).toHaveCount(3);
   await tabs.getByRole("tab", { name: "About Me" }).focus();
