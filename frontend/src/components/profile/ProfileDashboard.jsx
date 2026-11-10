@@ -9,10 +9,10 @@ const metrics = [
   {
     key: "profileViews",
     label: "Profile views",
-    description: "See how often members viewed your public profile.",
-    detail: "Counted once per viewer per UTC day. Only active, unblocked members who currently choose to share their identity and publish their profiles appear by name. Other views remain anonymous.",
+    description: "See how often members viewed your profile.",
+    detail: "Counted once per viewer per UTC day. Recent active, unblocked visitors appear below. Contact details are never shown.",
     route: "/notifications",
-    routeLabel: "View shared profile notifications",
+    routeLabel: "View profile notifications",
   },
   {
     key: "postImpressions",
@@ -26,14 +26,14 @@ const metrics = [
     key: "searchAppearances",
     label: "Search appearances",
     description: "See how often you appeared in member searches.",
-    detail: "Counts an eligible result once per searching member per UTC day. The avatar placeholders represent anonymous search activity, not identifiable searchers. Search terms and searcher identities are never displayed.",
+    detail: "Counts an eligible result once per searching member per UTC day. Recent active, unblocked searchers are shown below; their search terms are not disclosed.",
   },
 ];
 
 function AnonymousAvatar({ kind }) {
   return (
     <span className="bw-dashboard-avatar bw-dashboard-avatar-anonymous"
-      role="img" aria-label={kind === "searchAppearances" ? "Anonymous search appearance" : "Private profile view"}>
+      role="img" aria-label={kind === "searchAppearances" ? "Additional search appearance" : "Additional profile view"}>
       <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
         strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <circle cx="12" cy="8" r="3.2" />
@@ -43,14 +43,14 @@ function AnonymousAvatar({ kind }) {
   );
 }
 
-function ConsentingViewerAvatar({ viewer }) {
+function MemberMetricAvatar({ viewer, metric }) {
   const [failed, setFailed] = useState(false);
   const photo = viewer.photoId && viewer.username
     ? memberPhotoUrl(viewer.username, viewer.photoId) : null;
   return (
     <Link className="bw-dashboard-avatar bw-dashboard-avatar-named"
       to={"/people/" + encodeURIComponent(viewer.username)}
-      title={viewer.name} aria-label={viewer.name + " viewed your profile"}>
+      title={viewer.name} aria-label={viewer.name + (metric === "profileViews" ? " viewed your profile" : " found you in search")}>
       {photo && !failed ? <img src={photo} alt="" loading="lazy" onError={() => setFailed(true)} />
         : <span aria-hidden="true">{viewer.name?.trim().slice(0, 1).toUpperCase() || "?"}</span>}
     </Link>
@@ -61,22 +61,20 @@ function MetricAvatars({ metric, count, viewers }) {
   if (!Number.isSafeInteger(count) || count <= 0
     || !["profileViews", "searchAppearances"].includes(metric)) return null;
   const shown = Math.min(count, 3);
-  const named = metric === "profileViews" && Array.isArray(viewers)
+  const named = Array.isArray(viewers)
     ? viewers.filter(person => person && typeof person.username === "string"
       && person.username && typeof person.name === "string" && person.name).slice(0, shown)
     : [];
   return (
     <div className="bw-dashboard-avatar-summary">
       <AvatarGroup className="bw-dashboard-avatar-group" max={3}
-        label={metric === "profileViews" ? "Recent profile viewers" : "Anonymous search appearances"}>
-        {named.map(person => <ConsentingViewerAvatar key={person.username} viewer={person} />)}
+        label={metric === "profileViews" ? "Recent profile viewers" : "Recent searchers"}>
+        {named.map(person => <MemberMetricAvatar key={person.username} viewer={person} metric={metric} />)}
         {Array.from({ length: shown - named.length }, (_, index) =>
           <AnonymousAvatar key={"private-" + index} kind={metric} />)}
       </AvatarGroup>
       <span className="bw-dashboard-avatar-note">
-        {metric === "profileViews"
-          ? (named.length ? "Shared and private viewers" : "Private viewers")
-          : "Anonymous search activity"}
+        {metric === "profileViews" ? "Recent profile visitors" : "Recent searchers"}
       </span>
     </div>
   );
@@ -164,7 +162,7 @@ export default function ProfileDashboard({ accountId }) {
                 value={Number.isSafeInteger(stats[metric.key]) && stats[metric.key] >= 0
                   ? stats[metric.key].toLocaleString() : "—"}
                 count={stats[metric.key]}
-                viewers={metric.key === "profileViews" ? stats.recentProfileViewers : []}
+                viewers={metric.key === "profileViews" ? stats.recentProfileViewers : stats.recentSearchers}
                 selected={selected}
                 onSelect={setSelected}
               />
