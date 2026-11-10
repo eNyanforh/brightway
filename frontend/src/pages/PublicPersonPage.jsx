@@ -55,7 +55,6 @@ function PublishedPerson({ username }) {
 
   const { profile, error } = result;
   if (error) return <section className="bw-public-person bw-public-person-loading">
-    <Link className="bw-public-person-back" to="/network">Back to Network</Link>
     <h1>Profile unavailable</h1>
     <p role="alert">{error.message}</p>
   </section>;
@@ -85,9 +84,6 @@ function PublishedPerson({ username }) {
   };
 
   return <article className="bw-public-person">
-    <Link className="bw-public-person-back" to="/network">
-      <span aria-hidden="true">←</span> Back to Network
-    </Link>
     <div className="bw-public-person-hero">
       <div className={`bw-public-person-cover ${profile.coverPhoto?.id ? "has-photo" : ""}`} aria-label="Member cover photo">
         {profile.coverPhoto?.id && <img src={coverPhotoUrl(profile.username, profile.coverPhoto.id)}
