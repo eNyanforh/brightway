@@ -4,9 +4,8 @@ const period = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Private owner analytics: totals never identify searchers. The bounded profile
- * viewer preview includes only active public members who currently consent to
- * sharing their identity and have no blocks with the owner. No raw IDs, search
- * queries, or non-consenting visitor details leave this service.
+ * viewer preview includes only active members with no blocks against
+ * the owner. Raw IDs and search queries never leave this service.
  */
 export function createProfileDashboardService({ prisma, now = () => new Date() }) {
   return {
@@ -33,9 +32,6 @@ export function createProfileDashboardService({ prisma, now = () => new Date() }
             ownerId: actor.accountId, createdAt: { gte: measuredSince },
             viewer: {
               status: "ACTIVE",
-              person: { profile: { is: {
-                profilePublicEnabled: true, profileViewSharingEnabled: true,
-              } } },
               networkLeft: { none: { rightAccountId: actor.accountId, OR: blocked } },
               networkRight: { none: { leftAccountId: actor.accountId, OR: blocked } },
             },
