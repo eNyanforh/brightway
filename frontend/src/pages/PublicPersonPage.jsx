@@ -6,7 +6,7 @@ import { memberPhotoUrl } from "../api/organization-posts";
 import OrganizationAvatar from "../components/profile/OrganizationAvatar";
 import { monthLabel } from "./profile-history-form";
 import { useAuth } from "../auth/useAuth";
-import VerificationBadge from "../components/VerificationBadge";
+import ProfileActivities from "../components/profile/ProfileActivities";
 import Icon from "../components/layout/Icon";
 import "./public-person.css";
 
@@ -69,7 +69,6 @@ function PublishedPerson({ username }) {
   const certifications = Array.isArray(profile.certifications) ? profile.certifications : [];
   const verifiedCredentials = Array.isArray(profile.verifiedCredentials) ? profile.verifiedCredentials : [];
   const achievements = Array.isArray(profile.achievements) ? profile.achievements : [];
-  const activities = Array.isArray(profile.activities) ? profile.activities : [];
   const tabs = [
     { key: "about", label: "About Me", icon: "book" },
     { key: "achievements", label: "Achievements", icon: "sprout" },
@@ -97,7 +96,7 @@ function PublishedPerson({ username }) {
       <header className="bw-public-person-identity">
         <PersonAvatar username={profile.username} photoId={profile.photoId} />
         <div className="bw-public-person-intro">
-          <h1 className="bw-public-person-name"><span>{profile.fullName}</span>{profile.identityVerified === true && <VerificationBadge />}</h1>
+          <h1 className="bw-public-person-name"><span>{profile.fullName}</span></h1>
           <p className="bw-public-person-handle">@{profile.username}</p>
           {profile.headline && <p className="bw-public-person-headline">{profile.headline}</p>}
           {location && <p className="bw-public-person-location">{location}</p>}
@@ -154,8 +153,7 @@ function PublishedPerson({ username }) {
         aria-labelledby="public-tab-achievements" tabIndex={0} hidden={activeTab !== "achievements"}>
       {verifiedCredentials.length > 0 && (
         <section id="published-credentials" aria-labelledby="published-credentials-title">
-          <h2 id="published-credentials-title">Verified credentials</h2>
-          <p className="bw-public-person-section-help">Education and experience records reviewed by an authorized issuer or BrightWay.</p>
+          <h2 id="published-credentials-title">Education and experience</h2>
           <div className="bw-public-person-records">
             {verifiedCredentials.map(record => (
               <article className="bw-public-person-record bw-public-person-history-record" key={record.kind + record.id}>
@@ -175,11 +173,6 @@ function PublishedPerson({ username }) {
                       {monthLabel(record.startMonth)} – {record.current ? "Present" : monthLabel(record.endMonth) || "Not specified"}
                     </p>
                   </div>
-                  <div className="bw-public-person-record-footer">
-                    <span className="bw-public-person-verified" aria-label="Verified credential">
-                      ✓ Verified credential · {record.verifiedBy}
-                    </span>
-                  </div>
                 </div>
               </article>
             ))}
@@ -189,7 +182,6 @@ function PublishedPerson({ username }) {
       {certifications.length > 0 && (
         <section id="published-certifications" aria-labelledby="published-certifications-title">
           <h2 id="published-certifications-title">Licenses and certifications</h2>
-          <p className="bw-public-person-section-help">Self-reported certifications, not independently verified by BrightWay.</p>
           <div className="bw-public-person-records">
             {certifications.map((item, index) => (
               <article className="bw-public-person-record" key={index}>
@@ -237,48 +229,11 @@ function PublishedPerson({ username }) {
       </div>
       <div className="bw-public-person-panel" role="tabpanel" id="public-panel-activities"
         aria-labelledby="public-tab-activities" tabIndex={0} hidden={activeTab !== "activities"}>
-        {activities.length > 0 ? (
-          <section id="published-activities" aria-labelledby="published-activities-title">
-            <div className="bw-public-person-activities-head">
-              <h2 id="published-activities-title">Recent activity</h2>
-              <p>Published posts from this member.</p>
-            </div>
-            <div className="bw-public-person-activities">
-              {activities.map(item => (
-                <article className="bw-public-person-activity" key={item.id}>
-                  <div className="bw-public-person-achievement-meta">
-                    <strong><Icon name={item.type === "ACHIEVEMENT" ? "sprout" : item.type === "EVENT" ? "compass" : "book"} />
-                      {({ ACHIEVEMENT: "Achievement", EVENT: "Event", QUESTION: "Question", POST: "Post" })[item.type] || "Post"}
-                    </strong>
-                    <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString()}</time>
-                  </div>
-                  <p>{item.body}</p>
-                  {item.tags?.length > 0 && (
-                    <ul className="bw-public-person-list">
-                      {item.tags.map(tag => <li key={tag}>{tag}</li>)}
-                    </ul>
-                  )}
-                  <Link to={`/explore?source=member&post=${encodeURIComponent(item.id)}`}>
-                    View post <Icon name="arrow" />
-                  </Link>
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : (
-          <div className="bw-public-person-empty">
-            <strong>No activity yet</strong>
-            <p>Published achievements, events, questions and posts will appear here.</p>
-          </div>
-        )}
+        {activeTab === "activities" && <ProfileActivities username={profile.username} />}
       </div>
     </div>
 
-    <p className="bw-public-person-note">
-      Member profiles, current profile photos and cover photos are visible to signed-in BrightWay members.
-      Only contact details follow the member's contact visibility settings. Verification evidence remains restricted.
-      Standalone certifications are self-reported; only reviewed records carry a verified label.
-    </p>
+
   </article>;
 }
 

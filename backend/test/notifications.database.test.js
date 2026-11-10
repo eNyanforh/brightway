@@ -174,6 +174,20 @@ test("the real app exposes member profiles by default and preserves inbox owners
       authorId: visitor.id, requestKey: randomUUID(), body: "Congratulations." } });
     await prisma.postRepost.create({ data: { memberPostId: achievement.id, accountId: visitor.id } });
     await prisma.postSave.create({ data: { memberPostId: achievement.id, accountId: owner.id } });
+    const publicUrl = "/posts/members/" + owner.username;
+    await request(null, publicUrl, { status: 401 });
+    await request(visitor, publicUrl + "?unexpected=1", { status: 400 });
+    const publicHistory = await request(visitor, publicUrl);
+    assert.equal(publicHistory.items.length, 1);
+    assert.equal(publicHistory.items[0].id, achievement.id);
+    assert.equal(publicHistory.items[0].member.username, owner.username);
+    assert.deepEqual(publicHistory.items[0].reaction, { count: 1, liked: true });
+    assert.equal(publicHistory.items[0].views, 1);
+    assert.equal(publicHistory.items[0].commentCount, 1);
+    assert.equal(publicHistory.items[0].repostCount, 1);
+    assert.equal(publicHistory.items[0].saved, false);
+    assert.equal(publicHistory.items[0].reposted, true);
+    assert.ok(!Object.hasOwn(publicHistory.items[0], "contact"));
     const memberHistory = await request(owner, "/posts/me");
     assert.equal(memberHistory.items.length, 1);
     assert.equal(memberHistory.items[0].id, achievement.id);
@@ -249,6 +263,11 @@ test("the real app exposes member profiles by default and preserves inbox owners
     } });
     const eventEdit = { expectedBody: eventPost.body, expectedTags: ["Education"],
       body: "Join the learning community.", tags: ["Education"], eventDetails };
+    const publicAll = await request(visitor, publicUrl);
+    assert.deepEqual(new Set(publicAll.items.map(row => row.type)), new Set(["ACHIEVEMENT", "EVENT", "QUESTION"]));
+    assert.ok(publicAll.items.some(row => row.type === "QUESTION" && row.answerCount === 0));
+    assert.ok(publicAll.items.some(row => row.type === "EVENT" && row.registration.count === 0));
+    assert.equal(Object.hasOwn(publicAll.items[0], "canManage"), false);
     const safeEvent = await request(owner, "/posts/me/" + eventPost.id,
       { method: "PATCH", body: eventEdit });
     assert.equal(safeEvent.post.body, eventEdit.body);
@@ -276,13 +295,12 @@ test("the real app exposes member profiles by default and preserves inbox owners
     assert.equal((await dashboard(visitor)).postImpressions, 0, "only the author's posts are counted");
     const published = await view(visitor, owner);
     assert.deepEqual(published.achievements, [], "withdrawn achievements must not appear");
-    assert.deepEqual(new Set(published.activities.map(item => item.type)), new Set(["QUESTION", "EVENT"]));
-    assert.equal(published.activities.some(item => item.id === achievement.id), false,
-      "withdrawn posts do not appear in the activity tab");
-    for (const item of published.activities) {
-      assert.deepEqual(Object.keys(item).sort(), ["body", "createdAt", "id", "tags", "type"].sort(),
-        "activity projections must not leak registration, meeting, or other private details");
-    }
+    assert.equal(Object.hasOwn(published, "activities"), false,
+      "public profile identity must not return a duplicate, unpaginated activity feed");
+    const afterWithdrawal = await request(visitor, publicUrl);
+    assert.deepEqual(new Set(afterWithdrawal.items.map(item => item.type)), new Set(["QUESTION", "EVENT"]));
+    assert.equal(afterWithdrawal.items.some(item => item.id === achievement.id), false,
+      "withdrawn posts do not appear in the public activity timeline");
 
     assert.equal((await dashboard(owner)).recentProfileViewers.length, 1);
     await preferences(visitor, { headline: "Learning with BrightWay" });
@@ -336,6 +354,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
     assert.deepEqual((await inbox(visitor)).items, []);
     await view(visitor, owner, { status: 404 });
     await view(owner, visitor, { status: 404 });
+    await request(visitor, publicUrl, { status: 404 });
     assert.deepEqual((await request(visitor, suggestionPath)).items, [otherSuggestion]);
     assert.deepEqual((await request(owner, suggestionPath)).items, [otherSuggestion]);
     assert.deepEqual((await search(visitor, owner.username)).items, []);

@@ -119,6 +119,24 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
       case "/api/v1/manual-identity/status":
         return reply({ accountId: account.id, profileVersion: 1, status: "NOT_STARTED",
           identityVerified: false, canSubmit: false });
+      case "/api/v1/posts/members/maya":
+        return reply({ items: (publishedOverrides.activities ?? []).map(item => ({
+          ...item,
+          member: { username: "maya", name: "Maya Cole",
+            photoId: publishedOverrides.photoId ?? null, verified: false },
+          reaction: { count: 4, liked: false },
+          views: 28, commentCount: 2, repostCount: 1, reposted: false, saved: false,
+          ...(item.type === "EVENT" ? {
+            eventDetails: { title: "Career workshop", startAt: "2026-11-12T14:00:00Z",
+              endAt: "2026-11-12T16:00:00Z", timezone: "Africa/Monrovia",
+              format: "IN_PERSON", venue: "Monrovia", ticketPriceCents: 0 },
+            registration: { count: 3, registered: false }, eventAttendees: [],
+          } : {}),
+          ...(item.type === "QUESTION" ? {
+            questionDetails: { title: item.body },
+            answerCount: 2, answerParticipants: [],
+          } : {}),
+        })), nextCursor: null });
       case "/api/v1/profiles/maya/view":
         publicViews++;
         return reply({ ...published, ...publishedOverrides });
@@ -456,6 +474,8 @@ test("member profile respects contact visibility in a responsive modern layout",
   await page.goto("/maya");
   await expect(page.getByRole("heading", { level: 1, name: "Maya Cole" })).toBeVisible();
   await expect(page.getByText("BrightWay member", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".bw-public-person-note")).toHaveCount(0);
+  await expect(page.locator(".bw-public-person-identity").getByRole("img", { name: "Verified identity" })).toHaveCount(0);
   await expect(page.getByRole("img", { name: "Profile avatar" })).toBeVisible();
   const tabs = page.getByRole("tablist", { name: "Public profile sections" });
   await expect(tabs.getByRole("tab", { name: "About Me" })).toHaveAttribute("aria-selected", "true");
@@ -541,11 +561,12 @@ test("public professional proof separates verified records from self-reported ce
   await expect(tabs.getByRole("tab", { name: "Achievements" })).toHaveAttribute("aria-selected", "true");
   const review = page.locator("#published-credentials");
   await expect(review.getByText("BSc Computer Science")).toBeVisible();
-  await expect(review.getByText(/Verified credential · Starz University/)).toBeVisible();
+  await expect(review.getByText(/Verified credential · Starz University/)).toHaveCount(0);
+  await expect(review.getByRole("heading", { name: "Education and experience" })).toBeVisible();
   await expect(review.getByRole("img", { name: "Verified identity" })).toHaveCount(0);
   const certificates = page.locator("#published-certifications");
   await expect(certificates.getByText("Cloud Fundamentals")).toBeVisible();
-  await expect(certificates.getByText(/not independently verified/i)).toBeVisible();
+  await expect(certificates.getByText(/not independently verified/i)).toHaveCount(0);
   await expect(certificates.getByRole("link", { name: "View certificate" }))
     .toHaveAttribute("href", "https://example.org/cert");
   const achievements = page.locator("#published-achievements");
@@ -587,6 +608,11 @@ test("public member routes use root handles, keep private contacts hidden and sh
   await expect(page.getByText("Launched a student project.")).toBeVisible();
   await expect(page.getByText("Hosted a career workshop.")).toBeVisible();
   await expect(page.getByText("How do I learn UI design?")).toBeVisible();
+  const rail = page.getByRole("region", { name: "Member posts" });
+  await expect(rail.locator(".bw-profile-activity-item .bw-timeline-post")).toHaveCount(3);
+  await expect(rail.getByLabel("28 views")).toHaveCount(3);
+  await expect(rail.getByRole("link", { name: /View full post/ })).toHaveCount(3);
+  await expect(rail.getByRole("button", { name: "Post options" })).toHaveCount(0);
   await expect(page.getByText("synthetic@example.org")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Contact" })).toHaveCount(0);
   await page.goto("/profile");

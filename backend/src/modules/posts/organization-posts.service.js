@@ -1118,6 +1118,103 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       });
     },
 
+    async publicMemberList(actor, usernameValue, query) {
+      const username = parse(publicPhotoUsername, usernameValue, "Choose a valid member.");
+      const { cursor } = parse(workspaceQuery, query, "Reload this member's activity.");
+      await assertNetworkSession(prisma, actor, now);
+      const account = await prisma.account.findFirst({
+        where: { username, status: "ACTIVE", ...unblockedAuthor(actor.accountId) },
+        select: { id: true },
+      });
+      if (!account) throw fail(404, "This member profile is unavailable.");
+
+      const scope = "member-activity:" + account.id;
+      const position = readCursor(cursor, actor.accountId, scope);
+      const ownActivity = { where: { accountId: actor.accountId }, select: { id: true } };
+      const select = {
+        ...memberPostSelect,
+        ...likeSelect(actor.accountId),
+        saves: ownActivity,
+        reposts: ownActivity,
+        registrations: { where: { accountId: actor.accountId }, select: { status: true } },
+        answers: answerPreviewSelect(actor.accountId),
+        _count: { select: {
+          likes: true, views: true, reposts: true,
+          comments: { where: { deletedAt: null } },
+          answers: { where: { deletedAt: null } },
+          registrations: { where: { status: "APPROVED" } },
+        } },
+      };
+      const rows = await findPosts(prisma.memberPost, select,
+        { authorId: account.id }, position, "member");
+      const shown = rows.slice(0, pageSize);
+      const access = await memberEligibility(prisma, account.id);
+      const events = shown.filter(post => post.type === "EVENT")
+        .map(post => ({ id: post.id, authorId: account.id }));
+      const attendees = events.length
+        ? await eventAttendeePreviews(prisma, events, actor.accountId) : new Map();
+
+      // Answer avatars must not bypass author/respondent blocks simply
+      // because the current viewer has not blocked the respondent.
+      const responderPairs = new Map();
+      for (const post of shown) {
+        if (post.type !== "QUESTION") continue;
+        for (const { author } of post.answers ?? []) {
+          if (author.id === account.id) continue;
+          const pair = blockPair(author.id, account.id);
+          responderPairs.set(pairKey(pair), pair);
+        }
+      }
+      const blockedRows = responderPairs.size
+        ? await prisma.networkPair.findMany({
+          where: {
+            AND: [{ OR: [...responderPairs.values()] },
+              { OR: [{ leftBlocked: true }, { rightBlocked: true }] }],
+          },
+          select: { leftAccountId: true, rightAccountId: true },
+        }) : [];
+      const blockedRespondents = new Set(blockedRows.map(pairKey));
+      const items = shown.map(({ likes, saves, reposts, registrations, answers, _count, ...post }) => {
+        const blockedMeetingLink = post.type === "EVENT"
+          && post.eventDetails?.requiresApproval === true
+          && account.id !== actor.accountId
+          && registrations[0]?.status !== "APPROVED";
+        const safePost = blockedMeetingLink ? {
+          ...post, eventDetails: { ...post.eventDetails, meetingUrl: "" },
+        } : post;
+        return {
+          ...memberPost(safePost, access.identityVerified),
+          saved: saves.length > 0,
+          reposted: reposts.length > 0,
+          answerParticipants: post.type === "QUESTION"
+            ? [...new Map(answers
+              .filter(({ author }) => author.id === account.id ||
+                !blockedRespondents.has(pairKey(blockPair(author.id, account.id))))
+              .map(({ author }) => [author.id, memberAttribution(author)])).values()].slice(0, 3) : [],
+          reaction: { count: _count.likes, liked: likes.length > 0 },
+          views: _count.views,
+          commentCount: _count.comments,
+          repostCount: _count.reposts,
+          ...(post.type === "QUESTION" ? { answerCount: _count.answers } : {}),
+          ...(post.type === "EVENT" ? {
+            registration: {
+              count: _count.registrations,
+              registered: registrations[0]?.status === "APPROVED",
+              status: registrations[0]?.status ?? null,
+            },
+            eventAttendees: attendees.get(post.id) ?? [],
+          } : {}),
+        };
+      });
+      await assertNetworkSession(prisma, actor, now);
+      const stillVisible = await prisma.account.findFirst({
+        where: { id: account.id, status: "ACTIVE", ...unblockedAuthor(actor.accountId) },
+        select: { id: true },
+      });
+      if (!stillVisible) throw fail(404, "This member profile is unavailable.");
+      return { items, nextCursor: cursorFor(rows, actor.accountId, scope) };
+    },
+
     async memberList(actor, query) {
       const { cursor } = parse(workspaceQuery, query, "Reload your posts page.");
       await assertNetworkSession(prisma, actor, now);

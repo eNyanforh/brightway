@@ -9,7 +9,8 @@ const postLink = id => "/explore?" + new URLSearchParams({ source: "member", pos
 /** Complete owner post history in a vertical, single-column timeline.
  * Older posts append below existing posts, retaining all post interactions.
  */
-export default function ProfileActivities({ accountId }) {
+export default function ProfileActivities({ accountId, username = null }) {
+  const publicProfile = Boolean(username);
   const [page, setPage] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,7 +24,9 @@ export default function ProfileActivities({ accountId }) {
     setLoading(true);
     setError("");
     try {
-      const result = await api.memberList(cursor, controller.signal);
+      const result = username
+        ? await api.publicMemberList(username, cursor, controller.signal)
+        : await api.memberList(cursor, controller.signal);
       if (controller.signal.aborted) return;
       setPage(previous => {
         if (!cursor || !previous) return result;
@@ -39,11 +42,14 @@ export default function ProfileActivities({ accountId }) {
         if (!controller.signal.aborted) setLoading(false);
       }
     }
-  }, []);
+  }, [username]);
 
   useEffect(() => {
     let mounted = true;
-    queueMicrotask(() => { if (mounted) void load(); });
+    queueMicrotask(() => { if (mounted) {
+      setPage(null);
+      void load();
+    } });
     return () => {
       mounted = false;
       controllerRef.current?.abort();
@@ -127,8 +133,8 @@ export default function ProfileActivities({ accountId }) {
     }
   }
   return (
-    <section id="profile-activity" className="bw-profile-activities"
-      aria-label="Your community posts">
+    <section id={publicProfile ? "public-profile-activity" : "profile-activity"} className="bw-profile-activities"
+      aria-label={publicProfile ? "Member activity" : "Your community posts"}>
 
       {!page && loading && <p role="status" className="bw-profile-muted">Loading activity…</p>}
       {error && (
@@ -140,19 +146,19 @@ export default function ProfileActivities({ accountId }) {
       {page?.items.length === 0 && (
         <div className="bw-profile-activity-empty">
           <strong>No activity yet</strong>
-          <p>Your published achievements, events, and questions will appear here.</p>
-          <Link to="/posts">Explore posting options</Link>
+          <p>{publicProfile ? "Published achievements, events and questions will appear here." : "Your published achievements, events, and questions will appear here."}</p>
+          {!publicProfile && <Link to="/posts">Explore posting options</Link>}
         </div>
       )}
       {page?.items.length > 0 && (
         <div className="bw-profile-activity-list"
-          role="region" aria-label="Your posts">
+          role="region" aria-label={publicProfile ? "Member posts" : "Your posts"}>
             {page.items.map(post => (
               <div className="bw-profile-activity-item bw-post-panel bw-timeline-panel"
                 data-activity-type={post.type} key={post.id}>
                 <PostCard
                   post={post} timeline trackViews={false} busy={loading || Boolean(mutatingId)}
-                  canManage canManageEvent onWithdraw={withdraw} onEdit={editPost} onLike={like}
+                  canManage={!publicProfile} canManageEvent={!publicProfile} onWithdraw={withdraw} onEdit={editPost} onLike={like}
                   onSave={save} onRepost={repost} onRegister={register}
                 />
                 <Link className="bw-profile-activity-link" to={postLink(post.id)}>
@@ -169,7 +175,7 @@ export default function ProfileActivities({ accountId }) {
           <button type="button" disabled={loading} onClick={() => void load()}>
             Refresh activity
           </button>
-          <Link className="bw-profile-activity-all" to="/posts">All posts</Link>
+          {!publicProfile && <Link className="bw-profile-activity-all" to="/posts">All posts</Link>}
         </div>
       )}
     </section>

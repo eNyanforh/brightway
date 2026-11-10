@@ -181,17 +181,6 @@
 .bw-public-person-list--muted li {
   border-color: #e0e7f0; background: #f4f7fb; color: #516987;
 }
-.bw-public-person-note {
-  display: block;
-  margin: 16px 0 0;
-  padding: 15px 18px;
-  border: 1px solid #e3ebf5;
-  border-radius: 12px;
-  background: #f9fbfe;
-  color: #647993;
-  font-size: .76rem;
-  line-height: 1.6;
-}
 .bw-public-person-loading {
   min-height: 145px;
   padding: 25px;
@@ -435,19 +424,6 @@ img.bw-public-person-record-icon {
   padding-top: 13px;
   border-top: 1px solid #eef1f6;
 }
-.bw-public-person-history-record .bw-public-person-verified {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: #e9f7f0;
-  color: #197455;
-  font-size: .69rem;
-  font-weight: 730;
-  line-height: 1.3;
-}
 @media (max-width: 480px) {
   .bw-public-person-history-record {
     grid-template-columns: 42px minmax(0, 1fr);
@@ -566,3 +542,14 @@ img.bw-public-person-record-icon {
   .bw-public-person-tab .bw-icon { width: 15px; height: 15px; }
   .bw-public-person-activity { padding: 14px 12px; }
 }
+
+/* Public activity uses the exact same timeline cards as a member's private Activity tab. */
+.bw-public-person-content section.bw-profile-activities {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.bw-public-person-content .bw-profile-activity-list { width: 100%; }
+.bw-public-person-content .bw-profile-activity-item.bw-post-panel { width: 100%; }
