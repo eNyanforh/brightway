@@ -262,6 +262,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
       "Unverified member posts must not be promoted onto a public profile");
 
     assert.equal((await dashboard(owner)).recentProfileViewers.length, 1);
+    await preferences(visitor, { headline: "Learning with BrightWay" });
     const suggestionPath = "/explore/suggestions/people";
     await request(null, suggestionPath, { status: 401 });
     await request(visitor, suggestionPath + "?viewer=" + owner.id, { status: 400 });
