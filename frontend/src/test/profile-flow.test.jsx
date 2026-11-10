@@ -197,6 +197,30 @@ it("keeps photo-review policy in the picture editor without displaying a review 
   expect(within(editor).getByText(/Your approved photo stays visible while BrightWay reviews the replacement/)).toBeTruthy();
 });
 
+it("styles only server-approved public history records as verified, with formatted dates", async () => {
+  const viewed = {
+    fullName: "Maya Cole", username: "maya", headline: "Mentor",
+    verifiedCredentials: [{
+      id: "credential-1", kind: "education", title: "BSc Computer Science",
+      organization: "Starz University", startMonth: "2022-09", endMonth: null,
+      current: true, verifiedBy: "Starz University",
+      organizationAvatar: { id: "school-1", name: "Starz University", photoUrl: "/org-logo.webp" },
+    }],
+  };
+  mount((url) => url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/people/maya");
+  await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
+  const record = screen.getByText("BSc Computer Science").closest(".bw-public-person-history-record");
+  expect(record).toBeTruthy();
+  expect(within(record).getByText("Sep 2022 – Present")).toBeTruthy();
+  expect(within(record).getByRole("link", { name: "Starz University" }).getAttribute("href"))
+    .toBe("/organizations/school-1");
+  expect(within(record).getByRole("img", { name: "Starz University profile picture" }).getAttribute("src"))
+    .toBe("/org-logo.webp");
+  expect(within(record).getByLabelText("Verified credential").textContent)
+    .toContain("Verified credential · Starz University");
+  expect(screen.queryByText("Not submitted for verification")).toBeNull();
+});
+
 it("shows only published fields on the redesigned public profile without a second view request", async () => {
   const viewed = {
     fullName: "Maya Cole", username: "maya", headline: "Software engineer and mentor",
@@ -819,6 +843,62 @@ it("saves multiple education records with month/year dates and current enrollmen
   expect(writes[0].body.records[0].status).toBeUndefined();
   expect(writes[0].body.records[0]._key).toBeUndefined();
   expect(screen.getAllByText("Not submitted for verification")).toHaveLength(2);
+});
+
+it("renders modern history cards with organization avatars, dates, types and truthful review states", async () => {
+  const profile = {
+    ...original,
+    experience: { mode: "RECORDS", records: [{
+      id: "experience-1", organization: "Community Labs", role: "Frontend engineer",
+      type: "EMPLOYMENT", current: true, startMonth: "2025-01", endMonth: null,
+      status: "IN_REVIEW", description: "Built accessible learning features.",
+      organizationAvatar: { id: "lab-1", name: "Community Labs", photoUrl: "/api/v1/organizations/lab-1/photo" },
+    }] },
+    education: { mode: "RECORDS", records: [{
+      id: "education-1", institution: "Starz University", qualification: "Computer Science",
+      current: false, startMonth: "2021-09", endMonth: "2025-06", status: "VERIFIED",
+      description: "Capstone in education technology.",
+    }] },
+  };
+  mount(() => ok({ profile }));
+  await ready();
+  await userEvent.setup().click(screen.getByRole("tab", { name: "Achievements" }));
+  const experience = document.querySelector("#profile-experience .bw-history-record");
+  expect(within(experience).getByRole("heading", { name: "Frontend engineer" })).toBeTruthy();
+  expect(experience.dataset.status).toBe("pending");
+  expect(within(experience).getByRole("img", { name: "Community Labs profile picture" })
+    .getAttribute("src")).toBe("/api/v1/organizations/lab-1/photo");
+  expect(within(experience).getByRole("link", { name: "Community Labs" })
+    .getAttribute("href")).toBe("/organizations/lab-1");
+  expect(within(experience).getByText("Jan 2025 – Present")).toBeTruthy();
+  expect(within(experience).getByText("Currently working")).toBeTruthy();
+  expect(within(experience).getByText("Paid employment")).toBeTruthy();
+  expect(within(experience).getByText("In review")).toBeTruthy();
+  expect(within(experience).queryByText("Verified", { exact: true })).toBeNull();
+  expect(within(experience).getByText("Built accessible learning features.")).toBeTruthy();
+  expect(within(experience).getByRole("link", { name: /Verification details/ })
+    .getAttribute("href")).toBe("/credentials/experience/experience-1");
+
+  const education = document.querySelector("#profile-education .bw-history-record");
+  expect(within(education).getByRole("heading", { name: "Computer Science" })).toBeTruthy();
+  expect(education.dataset.status).toBe("verified");
+  expect(within(education).getByText("Sep 2021 – Jun 2025")).toBeTruthy();
+  expect(within(education).getByText("Verified")).toBeTruthy();
+  expect(within(education).getByText("Capstone in education technology.")).toBeTruthy();
+  expect(within(education).queryByRole("link", { name: "Starz University" })).toBeNull();
+});
+
+it("keeps the no-formal-education declaration distinguishable from an empty history", async () => {
+  mount(() => ok({ profile: { ...original,
+    education: { mode: "NONE", records: [] },
+    experience: { mode: "UNSET", records: [] },
+  } }));
+  await ready();
+  await userEvent.setup().click(screen.getByRole("tab", { name: "Achievements" }));
+  expect(screen.getByText("No formal education declared.")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Update history" })).toBeTruthy();
+  expect(screen.getByText("Build your experience history")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Add experience" })).toBeTruthy();
 });
 
 it("accepts all four experience types in separate records", async () => {
