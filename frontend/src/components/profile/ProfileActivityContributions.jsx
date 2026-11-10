@@ -41,8 +41,11 @@ function ContributionCard({ item, member, kind }) {
       </div>
     </div>
     <p className="bw-profile-contribution-body">{item.body}</p>
-    {item.kind === "answer" && Number.isInteger(item.score) && (
-      <p className="bw-profile-contribution-score">{item.score} net {item.score === 1 ? "vote" : "votes"}</p>
+    {item.kind === "answer" && Number.isInteger(item.upvoteCount) && Number.isInteger(item.downvoteCount) && (
+      <p className="bw-profile-contribution-score">
+        <span>{item.upvoteCount} upvotes</span><span aria-hidden="true"> · </span>
+        <span>{item.downvoteCount} downvotes</span>
+      </p>
     )}
     <div className="bw-profile-contribution-context">
       <span className="bw-profile-contribution-context-kind">
