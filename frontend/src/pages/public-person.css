@@ -535,6 +535,7 @@ img.bw-public-person-record-icon {
 }
 
 /* Public activity uses the exact same timeline cards as a member's private Activity tab. */
+.bw-public-person-content section.bw-profile-contributions,
 .bw-public-person-content section.bw-profile-activities {
   padding: 0;
   border: 0;
@@ -544,3 +545,14 @@ img.bw-public-person-record-icon {
 }
 .bw-public-person-content .bw-profile-activity-list { width: 100%; }
 .bw-public-person-content .bw-profile-activity-item.bw-post-panel { width: 100%; }
+
+/* Public contribution cards are full-width timeline entries, not nested section cards. */
+.bw-public-person-content .bw-profile-contribution-card p,
+.bw-public-person-content .bw-profile-contribution-context p {
+  margin: 0;
+}
+.bw-public-person-content .bw-profile-contribution-card .bw-profile-contribution-body {
+  margin: 12px 0 14px;
+  color: #243c5a;
+}
+.bw-public-person-content .bw-profile-contribution-context p { color: #5c718c; }
