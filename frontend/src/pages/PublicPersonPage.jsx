@@ -65,6 +65,8 @@ function PublishedPerson({ username }) {
   const certifications = Array.isArray(profile.certifications) ? profile.certifications : [];
   const verifiedCredentials = Array.isArray(profile.verifiedCredentials) ? profile.verifiedCredentials : [];
   const achievements = Array.isArray(profile.achievements) ? profile.achievements : [];
+  const education = Array.isArray(profile.education) ? profile.education.filter(record => !record.verified) : [];
+  const experience = Array.isArray(profile.experience) ? profile.experience.filter(record => !record.verified) : [];
 
   return <article className="bw-public-person">
     <Link className="bw-public-person-back" to="/network">
@@ -93,9 +95,11 @@ function PublishedPerson({ username }) {
     </div>
 
     {(profile.bio || hasDirection || skills.length || interests.length ||
-      certifications.length || verifiedCredentials.length || achievements.length) && (
+      certifications.length || verifiedCredentials.length || achievements.length || education.length || experience.length) && (
       <nav className="bw-public-person-nav" aria-label="Profile sections">
         {profile.bio && <a href="#published-about">About</a>}
+        {experience.length > 0 && <a href="#published-experience">Experience</a>}
+        {education.length > 0 && <a href="#published-education">Education</a>}
         {verifiedCredentials.length > 0 && <a href="#published-credentials">Verified credentials</a>}
         {certifications.length > 0 && <a href="#published-certifications">Certifications</a>}
         {achievements.length > 0 && <a href="#published-achievements">Achievements</a>}
@@ -109,6 +113,28 @@ function PublishedPerson({ username }) {
       {profile.bio && <section id="published-about" aria-labelledby="published-about-title">
         <h2 id="published-about-title">About</h2>
         <p>{profile.bio}</p>
+      </section>}
+      {experience.length > 0 && <section id="published-experience" aria-labelledby="published-experience-title">
+        <h2 id="published-experience-title">Experience</h2>
+        <p className="bw-public-person-section-help">Self-reported experience; not independently verified.</p>
+        <div className="bw-public-person-records">{experience.map(record => <article key={record.id} className="bw-public-person-record">
+          <span className="bw-public-person-record-icon"><Icon name="briefcase" /></span>
+          <div><h3>{record.title}</h3><p>{record.organization}</p>
+            <small>{record.startMonth} – {record.current ? "Present" : record.endMonth || "Not specified"}</small>
+            {record.description && <p>{record.description}</p>}
+          </div>
+        </article>)}</div>
+      </section>}
+      {education.length > 0 && <section id="published-education" aria-labelledby="published-education-title">
+        <h2 id="published-education-title">Education</h2>
+        <p className="bw-public-person-section-help">Self-reported education; not independently verified.</p>
+        <div className="bw-public-person-records">{education.map(record => <article key={record.id} className="bw-public-person-record">
+          <span className="bw-public-person-record-icon"><Icon name="book" /></span>
+          <div><h3>{record.title}</h3><p>{record.organization}</p>
+            <small>{record.startMonth} – {record.current ? "Present" : record.endMonth || "Not specified"}</small>
+            {record.description && <p>{record.description}</p>}
+          </div>
+        </article>)}</div>
       </section>}
       {verifiedCredentials.length > 0 && (
         <section id="published-credentials" aria-labelledby="published-credentials-title">
@@ -186,9 +212,9 @@ function PublishedPerson({ username }) {
     </div>
 
     <p className="bw-public-person-note">
-      This view includes only the member's published profile details and sections
-      they separately enabled. Contact information and verification evidence remain private.
-      Standalone certifications are self-reported; only reviewed records carry a verified label.
+      Profiles and professional details are visible to signed-in members.
+      Email, phone and WhatsApp details follow the member's contact visibility choices.
+      Verification evidence is restricted. Only reviewed credentials carry a verified label.
     </p>
   </article>;
 }
