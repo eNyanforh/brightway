@@ -9,10 +9,10 @@ const metrics = [
   {
     key: "profileViews",
     label: "Profile views",
-    description: "See how often members viewed your public profile.",
-    detail: "Counted once per viewer per UTC day. Only active, unblocked members who currently choose to share their identity and publish their profiles appear by name. Other views remain anonymous.",
+    description: "See how often members viewed your profile.",
+    detail: "Counted once per viewer per UTC day. Recent active, unblocked viewers may appear by name. Only the profile owner sees these analytics.",
     route: "/notifications",
-    routeLabel: "View shared profile notifications",
+    routeLabel: "View profile notifications",
   },
   {
     key: "postImpressions",
@@ -43,7 +43,7 @@ function AnonymousAvatar({ kind }) {
   );
 }
 
-function ConsentingViewerAvatar({ viewer }) {
+function RecentViewerAvatar({ viewer }) {
   const [failed, setFailed] = useState(false);
   const photo = viewer.photoId && viewer.username
     ? memberPhotoUrl(viewer.username, viewer.photoId) : null;
@@ -69,13 +69,13 @@ function MetricAvatars({ metric, count, viewers }) {
     <div className="bw-dashboard-avatar-summary">
       <AvatarGroup className="bw-dashboard-avatar-group" max={3}
         label={metric === "profileViews" ? "Recent profile viewers" : "Anonymous search appearances"}>
-        {named.map(person => <ConsentingViewerAvatar key={person.username} viewer={person} />)}
+        {named.map(person => <RecentViewerAvatar key={person.username} viewer={person} />)}
         {Array.from({ length: shown - named.length }, (_, index) =>
           <AnonymousAvatar key={"private-" + index} kind={metric} />)}
       </AvatarGroup>
       <span className="bw-dashboard-avatar-note">
         {metric === "profileViews"
-          ? (named.length ? "Shared and private viewers" : "Private viewers")
+          ? (named.length ? "Recent viewers" : "Profile view activity")
           : "Anonymous search activity"}
       </span>
     </div>
