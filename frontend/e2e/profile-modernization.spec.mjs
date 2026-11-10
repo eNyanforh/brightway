@@ -60,7 +60,12 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
         privateReads++;
         return reply({ profile: { ...profile, ...profileOverrides } });
       case "/api/v1/profile/me/dashboard":
-        return reply({ periodDays: 7, profileViews: 9, postImpressions: 0, searchAppearances: 6 });
+        return reply({ periodDays: 7, profileViews: 9, postImpressions: 0,
+          searchAppearances: 6, recentProfileViewers: [
+            { username: "visitor", name: "Profile Visitor", photoId: null },
+            { username: "learner", name: "Learning Member", photoId: null },
+          ],
+        });
       case "/api/v1/posts/me":
         activityReads++;
         return reply(url.searchParams.has("cursor")
@@ -126,6 +131,23 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
     activityReads: () => activityReads };
 }
 
+test("dashboard avatar stacks remain compact and anonymous on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await fixture(page);
+  await page.goto("/profile");
+  const dashboard = page.getByRole("region", { name: "Dashboard" });
+  const viewers = dashboard.getByRole("group", { name: "Recent profile viewers" });
+  const searches = dashboard.getByRole("group", { name: "Anonymous search appearances" });
+  await expect(viewers).toBeVisible();
+  await expect(searches).toBeVisible();
+  const bounds = await dashboard.locator(".bw-dashboard-avatar").evaluateAll(elements =>
+    elements.map(el => el.getBoundingClientRect().toJSON()));
+  expect(bounds).toHaveLength(6);
+  expect(bounds.every(rect => rect.width <= 34 && rect.height <= 34 && rect.x >= 0
+    && rect.right <= 390)).toBe(true);
+  await expect(searches.getByRole("link")).toHaveCount(0);
+});
+
 test("my profile has three responsive tabs below the private dashboard on desktop and mobile", async ({ page }) => {
   const api = await fixture(page);
   await page.goto("/profile");
@@ -142,6 +164,18 @@ test("my profile has three responsive tabs below the private dashboard on deskto
   await expect(dashboard.getByRole("button", { name: /9.*Profile views/ })).toBeVisible();
   await expect(dashboard.getByRole("button", { name: /0.*Post impressions/ })).toBeVisible();
   await expect(dashboard.getByRole("button", { name: /6.*Search appearances/ })).toBeVisible();
+  const viewers = dashboard.getByRole("group", { name: "Recent profile viewers" });
+  await expect(viewers.getByRole("link")).toHaveCount(2);
+  await expect(viewers.getByRole("link", { name: "Profile Visitor viewed your profile" }))
+    .toHaveAttribute("href", "/people/visitor");
+  await expect(viewers.getByRole("img", { name: "Private profile view" })).toHaveCount(1);
+  const searches = dashboard.getByRole("group", { name: "Anonymous search appearances" });
+  await expect(searches.getByRole("link")).toHaveCount(0);
+  await expect(searches.getByRole("img", { name: "Anonymous search appearance" })).toHaveCount(3);
+  const avatars = await dashboard.locator(".bw-dashboard-avatar").evaluateAll(elements =>
+    elements.map(element => ({ width: element.getBoundingClientRect().width,
+      height: element.getBoundingClientRect().height })));
+  expect(avatars.every(avatar => avatar.width <= 34 && avatar.height <= 34)).toBe(true);
   await expect(page.locator("#profile-about")).toBeVisible();
   expect(await dashboard.evaluate(element => element.compareDocumentPosition(document.getElementById("profile-about")) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
   await expect(page.getByRole("heading", { name: "My profile" })).toHaveCount(0);
