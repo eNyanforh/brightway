@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { organizationPostsApi as api } from "../../api/organization-posts";
 import { PostCard } from "../posts/PostsPanel";
+import ProfileActivityContributions from "./ProfileActivityContributions";
 import "./profile-activities.css";
 
 const postLink = id => "/explore?" + new URLSearchParams({ source: "member", post: id });
@@ -9,7 +10,7 @@ const postLink = id => "/explore?" + new URLSearchParams({ source: "member", pos
 /** Complete owner post history in a vertical, single-column timeline.
  * Older posts append below existing posts, retaining all post interactions.
  */
-export default function ProfileActivities({ accountId, username = null }) {
+function ProfilePostTimeline({ accountId, username = null }) {
   const publicProfile = Boolean(username);
   const [page, setPage] = useState(null);
   const [error, setError] = useState("");
@@ -180,4 +181,53 @@ export default function ProfileActivities({ accountId, username = null }) {
       )}
     </section>
   );
+}
+
+
+const activityTabs = [
+  { key: "posts", label: "Posts" },
+  { key: "comments", label: "Comments" },
+  { key: "answers", label: "Answers" },
+];
+
+/** Shared public and private activity categories with identical post presentation. */
+export default function ProfileActivities({ accountId, username = null }) {
+  const [category, setCategory] = useState("posts");
+  const onTabKeyDown = (event, index) => {
+    const next = event.key === "ArrowRight" ? (index + 1) % activityTabs.length
+      : event.key === "ArrowLeft" ? (index - 1 + activityTabs.length) % activityTabs.length
+      : event.key === "Home" ? 0 : event.key === "End" ? activityTabs.length - 1 : null;
+    if (next === null) return;
+    event.preventDefault();
+    setCategory(activityTabs[next].key);
+    event.currentTarget.parentElement
+      ?.querySelectorAll('[role="tab"]')[next]?.focus();
+  };
+  return <div className="bw-profile-activity-shell">
+    <div className="bw-profile-activity-tabs" role="tablist" aria-label="Activity categories">
+      {activityTabs.map((tab, index) => (
+        <button type="button" role="tab" key={tab.key}
+          id={"activity-category-tab-" + tab.key}
+          className={"bw-profile-activity-tab" + (category === tab.key ? " is-active" : "")}
+          aria-selected={category === tab.key}
+          aria-controls={"activity-category-panel-" + tab.key}
+          tabIndex={category === tab.key ? 0 : -1}
+          onClick={() => setCategory(tab.key)}
+          onKeyDown={event => onTabKeyDown(event, index)}>
+          {tab.label}
+        </button>
+      ))}
+    </div>
+    {activityTabs.map(tab => (
+      <div key={tab.key} role="tabpanel" tabIndex={0}
+        id={"activity-category-panel-" + tab.key}
+        aria-labelledby={"activity-category-tab-" + tab.key}
+        className="bw-profile-activity-category-panel"
+        hidden={category !== tab.key}>
+        {category === tab.key && (tab.key === "posts"
+          ? <ProfilePostTimeline accountId={accountId} username={username} />
+          : <ProfileActivityContributions kind={tab.key} username={username} />)}
+      </div>
+    ))}
+  </div>;
 }
