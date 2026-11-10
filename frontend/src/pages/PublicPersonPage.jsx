@@ -4,6 +4,7 @@ import { notificationsApi } from "../api/notifications";
 import { coverPhotoUrl } from "../api/profile";
 import { memberPhotoUrl } from "../api/organization-posts";
 import OrganizationAvatar from "../components/profile/OrganizationAvatar";
+import { monthLabel } from "./profile-history-form";
 import { useAuth } from "../auth/useAuth";
 import VerificationBadge from "../components/VerificationBadge";
 import Icon from "../components/layout/Icon";
@@ -113,17 +114,28 @@ function PublishedPerson({ username }) {
           <p className="bw-public-person-section-help">Education and experience records reviewed by an authorized issuer or BrightWay.</p>
           <div className="bw-public-person-records">
             {verifiedCredentials.map(record => (
-              <article className="bw-public-person-record" key={record.kind + record.id}>
+              <article className="bw-public-person-record bw-public-person-history-record" key={record.kind + record.id}>
                 <OrganizationAvatar key={record.organizationAvatar?.photoUrl || record.id}
                   organization={record.organizationAvatar} className="bw-public-person-record-icon"
                   icon={record.kind === "education" ? "book" : "briefcase"} />
-                <div>
-                  <h3>{record.title}</h3>
-                  <p>{record.organizationAvatar ? (
-                    <Link to={`/organizations/${record.organizationAvatar.id}`}>{record.organization}</Link>
-                  ) : record.organization}</p>
-                  <small>{record.startMonth} – {record.current ? "Present" : record.endMonth || "Not specified"}</small>
-                  <span className="bw-public-person-verified" aria-label="Verified credential">✓ Verified credential · {record.verifiedBy}</span>
+                <div className="bw-public-person-record-body">
+                  <div className="bw-public-person-record-heading">
+                    <span className="bw-public-person-credential-kind">
+                      {record.kind === "education" ? "Education" : "Experience"}
+                    </span>
+                    <h3>{record.title}</h3>
+                    <p className="bw-public-person-record-organization">{record.organizationAvatar ? (
+                      <Link to={`/organizations/${record.organizationAvatar.id}`}>{record.organization}</Link>
+                    ) : record.organization}</p>
+                    <p className="bw-public-person-record-date">
+                      {monthLabel(record.startMonth)} – {record.current ? "Present" : monthLabel(record.endMonth) || "Not specified"}
+                    </p>
+                  </div>
+                  <div className="bw-public-person-record-footer">
+                    <span className="bw-public-person-verified" aria-label="Verified credential">
+                      ✓ Verified credential · {record.verifiedBy}
+                    </span>
+                  </div>
                 </div>
               </article>
             ))}
