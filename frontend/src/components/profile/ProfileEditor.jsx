@@ -16,7 +16,7 @@ const countries = countryCodes
   .map((code) => ({ code, name: names?.of(code) || code }))
   .sort((a, b) => a.name.localeCompare(b.name));
 const titles = {
-  contact: "Contact and privacy",
+  contact: "Contact information",
   intro: "Edit introduction",
   about: "A little about you",
   career: "Where do you want to go?",
