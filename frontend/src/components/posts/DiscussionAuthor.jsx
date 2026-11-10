@@ -9,7 +9,7 @@ export default function DiscussionAuthor({ entry, compact = false }) {
   const [failedPhoto, setFailedPhoto] = useState(null);
   const username = entry.username || "";
   const name = entry.name || (username ? "@" + username : "BrightWay member");
-  const profileUrl = username ? "/people/" + encodeURIComponent(username) : null;
+  const profileUrl = username ? "/" + encodeURIComponent(username) : null;
   // Public photos are deliberately only displayed with server-approved identity metadata.
   const photo = entry.verified === true && entry.photoId && username
     ? memberPhotoUrl(username, entry.photoId) : null;
