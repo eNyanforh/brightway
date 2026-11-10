@@ -114,3 +114,9 @@
   }
   .bw-history-record-icon { width: 36px; height: 36px; }
 }
+
+img.bw-history-record-icon {
+  display: block; object-fit: cover; background: #fff; padding: 0;
+}
+.bw-history-record-content p a { color: inherit; font-weight: 650; text-decoration: none; }
+.bw-history-record-content p a:hover { text-decoration: underline; }

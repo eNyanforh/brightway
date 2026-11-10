@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { notificationsApi } from "../api/notifications";
+import { coverPhotoUrl } from "../api/profile";
+import { memberPhotoUrl } from "../api/organization-posts";
+import OrganizationAvatar from "../components/profile/OrganizationAvatar";
 import { useAuth } from "../auth/useAuth";
 import VerificationBadge from "../components/VerificationBadge";
 import Icon from "../components/layout/Icon";
@@ -15,9 +18,8 @@ function locationLabel(location = {}) {
     .filter(Boolean).join(", ");
 }
 
-function PersonAvatar() {
-  // This endpoint only shares the owner's published text fields. Do not
-  // invent a photograph or identity verification when neither is provided.
+function PersonAvatar({ username, photoId }) {
+  if (photoId) return <img className="bw-public-person-avatar" src={memberPhotoUrl(username, photoId)} alt="Profile avatar" />;
   return <span className="bw-public-person-avatar" aria-label="Profile avatar" role="img">
     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -71,23 +73,18 @@ function PublishedPerson({ username }) {
       <span aria-hidden="true">←</span> Back to Network
     </Link>
     <div className="bw-public-person-hero">
-      <div className="bw-public-person-cover" aria-hidden="true">
-        <span>BRIGHTWAY / COMMUNITY</span>
+      <div className={`bw-public-person-cover ${profile.coverPhoto?.id ? "has-photo" : ""}`} aria-label="Member cover photo">
+        {profile.coverPhoto?.id && <img src={coverPhotoUrl(profile.username, profile.coverPhoto.id)}
+          className="bw-public-person-cover-image" alt="" />}
       </div>
       <header className="bw-public-person-identity">
-        <PersonAvatar />
+        <PersonAvatar username={profile.username} photoId={profile.photoId} />
         <div className="bw-public-person-intro">
           <span className="bw-public-person-status">BrightWay member</span>
           <h1 className="bw-public-person-name"><span>{profile.fullName}</span>{profile.identityVerified === true && <VerificationBadge />}</h1>
           <p className="bw-public-person-handle">@{profile.username}</p>
           {profile.headline && <p className="bw-public-person-headline">{profile.headline}</p>}
-          {location && <p className="bw-public-person-location">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
-              strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>{location}
-          </p>}
+          {location && <p className="bw-public-person-location">{location}</p>}
         </div>
       </header>
     </div>
@@ -117,10 +114,14 @@ function PublishedPerson({ username }) {
           <div className="bw-public-person-records">
             {verifiedCredentials.map(record => (
               <article className="bw-public-person-record" key={record.kind + record.id}>
-                <span className="bw-public-person-record-icon"><Icon name={record.kind === "education" ? "book" : "briefcase"} /></span>
+                <OrganizationAvatar key={record.organizationAvatar?.photoUrl || record.id}
+                  organization={record.organizationAvatar} className="bw-public-person-record-icon"
+                  icon={record.kind === "education" ? "book" : "briefcase"} />
                 <div>
                   <h3>{record.title}</h3>
-                  <p>{record.organization}</p>
+                  <p>{record.organizationAvatar ? (
+                    <Link to={`/organizations/${record.organizationAvatar.id}`}>{record.organization}</Link>
+                  ) : record.organization}</p>
                   <small>{record.startMonth} – {record.current ? "Present" : record.endMonth || "Not specified"}</small>
                   <span className="bw-public-person-verified" aria-label="Verified credential">✓ Verified credential · {record.verifiedBy}</span>
                 </div>

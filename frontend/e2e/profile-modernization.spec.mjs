@@ -555,3 +555,56 @@ test("public professional proof separates verified records from self-reported ce
   expect(await page.evaluate(() => document.documentElement.scrollWidth))
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth + 1));
 });
+
+test("owner profile lines align tightly and cover photo is uploaded without branding", async ({ page }) => {
+  await fixture(page);
+  await page.goto("/profile");
+  await expect(page.locator(".bw-profile-cover")).toBeVisible();
+  await expect(page.getByText("BRIGHTWAY / MEMBER PROFILE")).toHaveCount(0);
+  const lines = await page.locator(".bw-profile-intro-primary").evaluate(element => {
+    const rect = selector => element.querySelector(selector).getBoundingClientRect();
+    const [name, handle, headline, location] = [".bw-profile-verified-name", ".bw-profile-handle",
+      ".bw-profile-headline", ".bw-profile-location"].map(rect);
+    return { x: [name.x, handle.x, headline.x, location.x], gaps: [
+      handle.top - name.bottom, headline.top - handle.bottom, location.top - headline.bottom,
+    ] };
+  });
+  expect(Math.max(...lines.x) - Math.min(...lines.x)).toBeLessThanOrEqual(2);
+  expect(lines.gaps.every(gap => gap >= -1 && gap <= 14)).toBe(true);
+
+  let uploadCount = 0;
+  await page.route("**/api/v1/profile/me/cover", async route => {
+    if (route.request().method() !== "POST") return route.continue();
+    uploadCount++;
+    expect(route.request().headers()["x-profile-version"]).toBe("1");
+    return route.fulfill({ status: 201, json: { success: true,
+      data: { coverPhotoId: "22222222-2222-4222-8222-222222222222", profileVersion: 2 } } });
+  });
+  await page.locator(".bw-profile-cover-input").setInputFiles({
+    name: "my-cover.png", mimeType: "image/png", buffer: Buffer.from("test-cover-bytes"),
+  });
+  await expect(page.getByText("Cover photo updated.")).toBeVisible();
+  expect(uploadCount).toBe(1);
+  await expect(page.locator(".bw-profile-cover-image")).toHaveAttribute(
+    "src", /profiles\/synthetic\/cover\/22222222-2222-4222-8222-222222222222/,
+  );
+});
+
+test("public member cover and identity details align without a generic BrightWay banner", async ({ page }) => {
+  await fixture(page, {}, { coverPhoto: { id: "22222222-2222-4222-8222-222222222222" } });
+  await page.goto("/people/maya");
+  await expect(page.getByText("BRIGHTWAY / COMMUNITY")).toHaveCount(0);
+  await expect(page.locator(".bw-public-person-cover-image")).toHaveAttribute(
+    "src", /profiles\/maya\/cover\/22222222-2222-4222-8222-222222222222/,
+  );
+  const lines = await page.locator(".bw-public-person-intro").evaluate(element => {
+    const rect = selector => element.querySelector(selector).getBoundingClientRect();
+    const [name, handle, headline, location] = [".bw-public-person-name", ".bw-public-person-handle",
+      ".bw-public-person-headline", ".bw-public-person-location"].map(rect);
+    return { x: [name.x, handle.x, headline.x, location.x], gaps: [
+      handle.top - name.bottom, headline.top - handle.bottom, location.top - headline.bottom,
+    ] };
+  });
+  expect(Math.max(...lines.x) - Math.min(...lines.x)).toBeLessThanOrEqual(2);
+  expect(lines.gaps.every(gap => gap >= -1 && gap <= 14)).toBe(true);
+});

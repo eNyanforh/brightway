@@ -1,5 +1,6 @@
 import { photoReviewSelect, photoReviewView } from "../photos/profile-photo.policy.js";
 import { contactSettingsSelect, createContactReader, ownerContactView, personContactSelect } from "./profile-contact.js";
+import { withProfileOrganizationAvatars } from "./profile-organizations.js";
 import { normalizeInterests } from "./profile-interests.js";
 import { normalizeSkills } from "./profile-skills.js";
 import { educationSelect, experienceSelect, saveProfileHistory } from "./profile-history.service.js";
@@ -17,7 +18,7 @@ export const ownerProfileSelect = {
   id: true, version: true, countryCode: true, region: true, locality: true,
   headline: true, bio: true, certifications: true, careerFieldMode: true, careerField: true,
   careerGoals: true, skills: true, interests: true, createdAt: true, updatedAt: true,
-  photo: { select: { id: true } },
+  photo: { select: { id: true } }, coverPhotoId: true,
 };
 
 export function profileView(row, person = row?.person) {
@@ -26,6 +27,7 @@ export function profileView(row, person = row?.person) {
     id: row?.id ?? null,
     version: row?.version ?? 0,
     photo: row?.photo ?? null,
+    coverPhoto: row?.coverPhotoId ? { id: row.coverPhotoId } : null,
     photoReview: photoReviewView(row?.latestPhotoReview ? [row.latestPhotoReview] : [], person?.account?.photoReviewRequired === true),
     education: { mode: row?.educationMode ?? "UNSET", records: (row?.educationRecords ?? []).filter((r) => r.status !== "FALSE_CREDENTIAL") },
     experience: { mode: row?.experienceMode ?? "UNSET", records: (row?.experienceRecords ?? []).filter((r) => r.status !== "FALSE_CREDENTIAL") },
@@ -68,12 +70,12 @@ export function createProfileService({ prisma, relationshipFor, contactReader })
     async read(personId) {
       const row = await prisma.profile.findUnique({ where: { personId }, select: privateProfileSelect });
       const person = row ? row.person : await prisma.person.findUnique({ where: { id: personId }, select: personContactSelect });
-      return privateProfileView(row, person);
+      return withProfileOrganizationAvatars(prisma, privateProfileView(row, person));
     },
     async patch(personId, input) {
       const data = profileUpdateData(input.changes);
       try {
-        return await prisma.$transaction(async (tx) => {
+        const saved = await prisma.$transaction(async (tx) => {
           const existing = await tx.profile.findUnique({ where: { personId }, select: { id: true, version: true, interests: true, skills: true } });
           if (!existing) {
             if (input.expectedVersion !== 0) throw conflict();
@@ -97,13 +99,15 @@ export function createProfileService({ prisma, relationshipFor, contactReader })
           const row = await tx.profile.findUnique({ where: { personId }, select: privateProfileSelect });
           return privateProfileView(row);
         });
+        return withProfileOrganizationAvatars(prisma, saved);
       } catch (error) {
         if (error.code === "P2002") throw conflict();
         throw error;
       }
     },
     async saveHistory(personId, kind, input) {
-      return privateProfileView(await saveProfileHistory({ prisma, personId, kind, input, select: privateProfileSelect }));
+      const saved = privateProfileView(await saveProfileHistory({ prisma, personId, kind, input, select: privateProfileSelect }));
+      return withProfileOrganizationAvatars(prisma, saved);
     },
     async completion(personId) {
       return (await this.read(personId)).completion;

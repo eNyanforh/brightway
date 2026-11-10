@@ -162,7 +162,9 @@ model Profile {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   photoId            String?            @unique
-  photo              PhotoAsset?        @relation(fields: [photoId], references: [id], onDelete: Restrict)
+  photo              PhotoAsset?        @relation("CurrentProfilePhoto", fields: [photoId], references: [id], onDelete: Restrict)
+  coverPhotoId       String?            @unique
+  coverPhoto         PhotoAsset?        @relation("ProfileCoverPhoto", fields: [coverPhotoId], references: [id], onDelete: Restrict)
   whatsappNumber     String?            @db.VarChar(16)
   emailVisibility    ContactVisibility  @default(ONLY_ME)
   phoneVisibility    ContactVisibility  @default(ONLY_ME)
@@ -207,7 +209,8 @@ model PhotoAsset {
   draft      SignupDraft? @relation(fields: [draftId], references: [id], onDelete: Restrict)
   personId   String?
   person     Person?      @relation(fields: [personId], references: [id], onDelete: Restrict)
-  currentFor Profile?
+  currentFor Profile? @relation("CurrentProfilePhoto")
+  coverFor   Profile? @relation("ProfileCoverPhoto")
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
 

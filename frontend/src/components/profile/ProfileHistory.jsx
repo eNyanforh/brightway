@@ -15,6 +15,7 @@ import {
   validateHistory,
 } from "../../pages/profile-history-form";
 import Icon from "../layout/Icon";
+import OrganizationAvatar from "./OrganizationAvatar";
 import "./profile-history.css";
 
 const statusLabels = {
@@ -447,13 +448,17 @@ export default function ProfileHistory({
           <div className="bw-history-list">
             {history.records.map((item) => (
               <article className="bw-history-record" key={item.id}>
-                <span className="bw-history-record-icon" aria-hidden="true">
-                  <Icon name={kind === "education" ? "book" : "briefcase"} />
-                </span>
+                <OrganizationAvatar key={item.organizationAvatar?.photoUrl || item.id}
+                  organization={item.organizationAvatar} icon={kind === "education" ? "book" : "briefcase"}
+                  className="bw-history-record-icon" />
                 <div className="bw-history-record-content">
                   <h3>{kind === "education" ? item.qualification : item.role}</h3>
                 <p>
-                  {kind === "education" ? item.institution : item.organization}
+                  {item.organizationAvatar ? (
+                    <Link to={`/organizations/${item.organizationAvatar.id}`}>
+                      {kind === "education" ? item.institution : item.organization}
+                    </Link>
+                  ) : (kind === "education" ? item.institution : item.organization)}
                 </p>
                 {kind === "experience" && <p>{experienceOptions[item.type]}</p>}
                 <small>

@@ -19,9 +19,9 @@ async function request(
       signal,
       headers: image
         ? { "Content-Type": image.type, "X-Profile-Version": String(version) }
-        : body
-          ? { "Content-Type": "application/json" }
-          : undefined,
+        : version !== undefined
+          ? { "X-Profile-Version": String(version) }
+          : body ? { "Content-Type": "application/json" } : undefined,
       body: image || (body ? JSON.stringify(body) : undefined),
     });
   } catch (error) {
@@ -76,8 +76,15 @@ export const profileApi = {
         version,
       })
     ).data,
+  uploadCover: async (image, version) =>
+    (await request("/profile/me/cover", { method: "POST", image, version })).data,
+  removeCover: async (version) =>
+    (await request("/profile/me/cover", { method: "DELETE", version })).data,
 };
 
 export function photoUrl(id) {
   return baseUrl + "/photos/" + encodeURIComponent(id);
+}
+export function coverPhotoUrl(username, id) {
+  return baseUrl + "/profiles/" + encodeURIComponent(username) + "/cover/" + encodeURIComponent(id);
 }

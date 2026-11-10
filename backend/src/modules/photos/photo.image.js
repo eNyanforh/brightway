@@ -24,3 +24,27 @@ export async function processPhoto(bytes, type) {
     throw Object.assign(new Error("Choose a valid, still JPEG, PNG or WebP photo, at least 128 × 128 pixels."), { status: 415 });
   } finally { active--; }
 }
+/** Landscape banners are uploaded separately from square identity portrait photos. */
+export async function processCoverPhoto(bytes, type) {
+  if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > PHOTO_MAX_BYTES) {
+    throw Object.assign(new Error("Choose a cover photo up to 5 MiB."), { status: 413 });
+  }
+  if (active >= 2) throw Object.assign(new Error("Photo processing is busy. Please retry."), { status: 503 });
+  active++;
+  try {
+    const image = sharp(bytes, { limitInputPixels: 20000000, failOn: "warning" });
+    const metadata = await image.metadata();
+    const width = metadata.autoOrient?.width ?? metadata.width;
+    const height = metadata.autoOrient?.height ?? metadata.height;
+    if (!formats.has(type) || metadata.format !== formats.get(type) ||
+        (metadata.pages ?? 1) !== 1 || width < 700 || height < 240 ||
+        width / height < 1.5 || width / height > 6) throw new Error("invalid cover");
+    const { data, info } = await image.rotate()
+      .resize(1920, 1080, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 82, effort: 4 }).toBuffer({ resolveWithObject: true });
+    if (data.length > 3 * 1024 * 1024) throw new Error("large output");
+    return { bytes: data, width: info.width, height: info.height };
+  } catch {
+    throw Object.assign(new Error("Choose a valid landscape JPEG, PNG or WebP cover photo at least 700 × 240 pixels."), { status: 415 });
+  } finally { active--; }
+}
