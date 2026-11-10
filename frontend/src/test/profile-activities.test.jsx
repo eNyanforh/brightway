@@ -85,6 +85,36 @@ it("shows complete posts in a title-free vertical feed, with engagement and pagi
   expect(fetchMock).toHaveBeenCalledTimes(3);
 });
 
+it("renders another member's activity with the same cards and no owner controls", async () => {
+  const publicAuthor = { name: "Maya Cole", username: "maya", photoId: null, verified: false };
+  const achievement = proof("11111111-1111-4111-8111-111111111111", "ACHIEVEMENT",
+    "Published a portfolio achievement.", { member: publicAuthor });
+  const question = proof("33333333-3333-4333-8333-333333333333", "QUESTION",
+    "How should I plan my capstone?", {
+      member: publicAuthor, questionDetails: { title: "Planning a capstone" },
+      answerCount: 2, answerParticipants: [],
+    });
+  const fetchMock = vi.fn(async url => json(url.includes("cursor=next-page")
+    ? { items: [question], nextCursor: null }
+    : { items: [achievement], nextCursor: "next-page" }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(<MemoryRouter><ProfileActivities username="maya" /></MemoryRouter>);
+
+  await screen.findByText("Published a portfolio achievement.");
+  const rail = screen.getByRole("region", { name: "Member posts" });
+  expect(screen.getByRole("region", { name: "Member activity" })).toBeTruthy();
+  expect(within(rail).getByLabelText("43 views")).toBeTruthy();
+  expect(within(rail).getByRole("link", { name: "Maya Cole" }).getAttribute("href")).toBe("/maya");
+  expect(within(rail).queryByRole("button", { name: "Post options" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "All posts" })).toBeNull();
+  expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/posts/members/maya");
+
+  await userEvent.setup().click(screen.getByRole("button", { name: "Load older activity" }));
+  await screen.findByText("Planning a capstone");
+  expect(within(rail).getAllByRole("article")).toHaveLength(2);
+  expect(fetchMock.mock.calls[1][0]).toContain("/posts/members/maya?cursor=next-page");
+});
+
 it("keeps real reactions interactive while showing server totals", async () => {
   const first = proof("11111111-1111-4111-8111-111111111111", "ACHIEVEMENT", "My project");
   const fetchMock = vi.fn(async (url, options) =>
