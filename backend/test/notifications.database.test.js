@@ -82,6 +82,8 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.deepEqual((await search(visitor, "@" + owner.username)).items, [hit]);
     const searchStats = await dashboard(owner);
     assert.equal(searchStats.searchAppearances, 1, "repeated searches from one member count once per UTC day");
+    assert.deepEqual(searchStats.recentProfileViewers, [], "directory searches never expose searchers");
+    assert.equal(Object.hasOwn(searchStats, "searcherAvatars"), false);
     assert.equal(searchStats.profileViews, 0, "directory appearances are not profile views");
     assert.equal(Object.hasOwn(searchStats, "viewerId"), false);
     assert.deepEqual((await search(owner, owner.username)).items, []);
@@ -114,6 +116,8 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.equal(profile.headline, "Published fixture");
     await view(visitor, owner);
     assert.equal((await dashboard(owner)).profileViews, 1, "repeated public visits from one member count once per UTC day");
+    assert.deepEqual((await dashboard(owner)).recentProfileViewers, [],
+      "visitor identity stays private until they explicitly enable sharing");
     assert.equal((await dashboard(visitor)).profileViews, 0, "visits belong to the profile owner only");
     for (const field of ["contact", "email", "phoneNumber", "education", "experience", ...Object.keys(published)]) {
       assert.equal(Object.hasOwn(profile, field), false, field);
@@ -272,6 +276,14 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.equal(Object.hasOwn(hidden, "verifiedCredentials"), false);
 
     await preferences(visitor, published);
+    assert.deepEqual((await dashboard(owner)).recentProfileViewers, [{
+      username: visitor.username, name: "Synthetic visitor", photoId: null,
+    }], "sharing opt-in permits only currently public visitors to appear by name");
+    await preferences(visitor, { profileViewSharingEnabled: false });
+    assert.deepEqual((await dashboard(owner)).recentProfileViewers, [],
+      "turning off consent immediately hides previously recorded profile viewers");
+    await preferences(visitor, { profileViewSharingEnabled: true });
+    assert.equal((await dashboard(owner)).recentProfileViewers.length, 1);
     const suggestionPath = "/explore/suggestions/people";
     await request(null, suggestionPath, { status: 401 });
     await request(visitor, suggestionPath + "?viewer=" + owner.id, { status: 400 });
@@ -316,6 +328,8 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.equal((await inbox(visitor)).items.length, 1);
     const networkAction = "/network/people/" + owner.username + "/actions";
     const block = await post(visitor, networkAction, { action: "BLOCK", expectedVersion: 0, requestKey: randomUUID() });
+    assert.deepEqual((await dashboard(owner)).recentProfileViewers, [],
+      "a block hides previously consented visitor avatars");
     assert.deepEqual((await inbox(owner)).items, []);
     assert.deepEqual((await inbox(visitor)).items, []);
     await view(visitor, owner, { status: 404 });
@@ -325,6 +339,8 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.deepEqual((await search(visitor, owner.username)).items, []);
     assert.deepEqual((await search(owner, visitor.username)).items, []);
     await post(visitor, networkAction, { action: "UNBLOCK", expectedVersion: block.version, requestKey: randomUUID() });
+    assert.equal((await dashboard(owner)).recentProfileViewers.length, 1,
+      "unblocked visible visitors who still consent may appear again");
     assert.deepEqual((await inbox(owner)).items, []);
     assert.deepEqual((await inbox(visitor)).items, []);
 
