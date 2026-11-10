@@ -303,7 +303,7 @@ it("Explore loads comments on demand and retries a draft without refreshing the 
   expect(f.fetch.mock.calls.filter(([url]) => url.includes("/explore/posts?"))).toHaveLength(1);
 });
 
-it("the personal Post destination checks verification and lets authors withdraw after unpublishing their profile", async () => {
+it("the personal Post destination checks verification and allows deletion without profile publication switches", async () => {
   let verified = false, published = true;
   const body = "Join our research showcase on November 12 at 10 a.m. in the campus library.";
   const post = { id: "personal-post", body, type: "EVENT", tags: ["Research"], createdAt: "2026-11-05T10:00:00Z", member: { username: "owner", name: "Test Owner" } };
@@ -344,8 +344,8 @@ it("the personal Post destination checks verification and lets authors withdraw 
   expect(within(screen.getByRole("list", { name: "Topic tags" })).getByText("Research")).toBeTruthy();
   published = false;
   await f.user.click(refresh);
-  await screen.findByRole("link", { name: "Publish your public profile" });
-  expect(screen.queryByRole("button", { name: "Create an Event" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Publish your public profile" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Create an Event" })).toBeTruthy();
   await f.user.click(screen.getByRole("button", { name: "Post options" }));
   await f.user.click(screen.getByRole("menuitem", { name: "Delete post" }));
   await f.user.click(within(screen.getByRole("dialog", { name: "Delete post" }))
