@@ -3,8 +3,8 @@ import { expect, test } from "@playwright/test";
 const origin = "http://127.0.0.1:4187";
 const id = "11111111-1111-4111-8111-111111111111";
 const account = { id, username: "synthetic", person: { firstName: "Synthetic", lastName: "Reader" } };
-const person = { kind: "people", name: "Maya Cole", username: "maya", href: "/maya" };
-const organization = { kind: "organizations", name: "Maya Learning Centre", username: "maya_learning", href: "/organizations/" + id };
+const person = { kind: "people", name: "Maya Cole", username: "maya", headline: "Student designer", verified: true, href: "/maya" };
+const organization = { kind: "organizations", name: "Maya Learning Centre", username: "maya_learning", verified: true, href: "/organizations/" + id };
 
 test("the personal header opens directory search and filters results on desktop and mobile", async ({ page, isMobile }) => {
   const searches = [];
@@ -45,8 +45,11 @@ test("the personal header opens directory search and filters results on desktop 
     await field.press("Enter");
   }
   await expect(page.getByRole("link", { name: /Maya Cole/ })).toHaveAttribute("href", person.href);
+  await expect(page.getByText("Student designer")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Verified identity" })).toBeVisible();
   await page.getByRole("button", { name: "More results" }).click();
   await expect(page.getByRole("link", { name: /Maya Learning Centre/ })).toHaveAttribute("href", organization.href);
+  await expect(page.getByRole("img", { name: "Verified organization" })).toBeVisible();
   await page.getByRole("link", { name: "Organizations", exact: true }).click();
   await expect(page.getByRole("link", { name: "Organizations", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("link", { name: /Maya Cole/ })).toHaveCount(0);
