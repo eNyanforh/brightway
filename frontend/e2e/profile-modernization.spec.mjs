@@ -671,7 +671,7 @@ test("question publishers review and comment on answers; other members can answe
   await expect(ownQuestion.getByRole("button", { name: "Answers", exact: true })).toBeVisible();
   await expect(ownQuestion.getByRole("button", { name: "Answer", exact: true })).toHaveCount(0);
   await ownQuestion.getByRole("button", { name: "Answers", exact: true }).click();
-  await expect(ownQuestion.getByText("Read the responses to your question")).toBeVisible();
+  await expect(ownQuestion.getByText(/Read the responses to your question/)).toBeVisible();
   await expect(ownQuestion.getByRole("textbox", { name: "Your answer" })).toHaveCount(0);
   await expect(ownQuestion.getByRole("button", { name: "Publish answer" })).toHaveCount(0);
   await expect(ownQuestion.getByText("Find a mentor through purposeful projects.")).toBeVisible();
