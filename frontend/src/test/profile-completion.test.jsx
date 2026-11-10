@@ -68,7 +68,7 @@ it("allows legacy users to view their profile and uses the server checklist to o
   expect(screen.getByText("1 of 3 requirements met")).toBeTruthy();
   expect(screen.queryByText(/Country-specific region requirements/)).toBeNull();
   await userEvent.setup().click(screen.getByRole("button", { name: "Complete phone number" }));
-  await screen.findByRole("dialog", { name: "Contact and privacy" });
+  await screen.findByRole("dialog", { name: "Contact information" });
   expect(screen.getByLabelText("Phone number").value).toBe("");
   expect(screen.queryByLabelText(/SMS/)).toBeNull();
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profile/me"))).toHaveLength(1);
