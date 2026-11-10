@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { notificationsApi } from "../api/notifications";
+import { profileApi } from "../api/profile";
 import { useAuth } from "../auth/useAuth";
 import VerificationBadge from "../components/VerificationBadge";
 import Icon from "../components/layout/Icon";
@@ -27,7 +28,7 @@ function PersonAvatar() {
   </span>;
 }
 
-function PublishedPerson({ username }) {
+function MemberProfile({ username }) {
   const [result, setResult] = useState(null);
 
   useEffect(() => {
@@ -37,7 +38,8 @@ function PublishedPerson({ username }) {
       if (signal.aborted) return;
       try {
         const profile = await notificationsApi.viewProfile(username, signal);
-        if (!signal.aborted) setResult({ profile });
+        const contact = await profileApi.visibleContact(username, signal).catch(() => ({}));
+        if (!signal.aborted) setResult({ profile, contact });
       } catch (error) {
         if (!signal.aborted) setResult({ error });
       }
@@ -49,7 +51,7 @@ function PublishedPerson({ username }) {
     <p role="status">Opening profile…</p>
   </section>;
 
-  const { profile, error } = result;
+  const { profile, error, contact = {} } = result;
   if (error) return <section className="bw-public-person bw-public-person-loading">
     <Link className="bw-public-person-back" to="/network">Back to Network</Link>
     <h1>Profile unavailable</h1>
@@ -65,6 +67,7 @@ function PublishedPerson({ username }) {
   const certifications = Array.isArray(profile.certifications) ? profile.certifications : [];
   const verifiedCredentials = Array.isArray(profile.verifiedCredentials) ? profile.verifiedCredentials : [];
   const achievements = Array.isArray(profile.achievements) ? profile.achievements : [];
+  const visibleContacts = Object.entries({ Email: contact?.email, Phone: contact?.phoneNumber, WhatsApp: contact?.whatsappNumber }).filter(([,value]) => value);
   const education = Array.isArray(profile.education) ? profile.education.filter(record => !record.verified) : [];
   const experience = Array.isArray(profile.experience) ? profile.experience.filter(record => !record.verified) : [];
 
@@ -95,7 +98,7 @@ function PublishedPerson({ username }) {
     </div>
 
     {(profile.bio || hasDirection || skills.length || interests.length ||
-      certifications.length || verifiedCredentials.length || achievements.length || education.length || experience.length) && (
+      certifications.length || verifiedCredentials.length || achievements.length || education.length || experience.length || visibleContacts.length) && (
       <nav className="bw-public-person-nav" aria-label="Profile sections">
         {profile.bio && <a href="#published-about">About</a>}
         {experience.length > 0 && <a href="#published-experience">Experience</a>}
@@ -106,6 +109,7 @@ function PublishedPerson({ username }) {
         {hasDirection && <a href="#published-direction">Career direction</a>}
         {skills.length > 0 && <a href="#published-skills">Skills</a>}
         {interests.length > 0 && <a href="#published-interests">Interests</a>}
+        {visibleContacts.length > 0 && <a href="#member-contact">Contact</a>}
       </nav>
     )}
 
@@ -209,6 +213,17 @@ function PublishedPerson({ username }) {
         <h2 id="published-interests-title">Interests</h2>
         <ul className="bw-public-person-list bw-public-person-list--muted">{interests.map(item => <li key={item}>{item}</li>)}</ul>
       </section>}
+      {visibleContacts.length > 0 && <section id="member-contact" aria-labelledby="member-contact-title">
+        <h2 id="member-contact-title">Contact</h2>
+        <p className="bw-public-person-section-help">Only the contact details this member has chosen to share with you.</p>
+        <div className="bw-public-person-records">{visibleContacts.map(([label, value]) =>
+          <div className="bw-public-person-record" key={label}>
+            <span className="bw-public-person-record-icon"><Icon name="mail" /></span>
+            <div><strong>{label}</strong>
+              <p><a href={(label === "Email" ? "mailto:" : "tel:") + value}>{value}</a></p>
+            </div>
+          </div>)}</div>
+      </section>}
     </div>
 
     <p className="bw-public-person-note">
@@ -222,5 +237,5 @@ function PublishedPerson({ username }) {
 export default function PublicPersonPage() {
   const { username = "" } = useParams();
   const { account } = useAuth();
-  return <PublishedPerson key={JSON.stringify([account.id, username])} username={username} />;
+  return <MemberProfile key={JSON.stringify([account.id, username])} username={username} />;
 }
