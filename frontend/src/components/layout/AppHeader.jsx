@@ -44,7 +44,7 @@ export default function AppHeader({
         {personalSearch && (
           <form className="bw-design-search" role="search" aria-label="Header search" onSubmit={submitSearch}>
             <NavigationIcon name="search" size={19} />
-            <input name="q" type="search" aria-label="Search people and organizations" placeholder="People and organizations…" minLength={2} maxLength={80} required />
+            <input name="q" type="search" aria-label="Search BrightWay content and people" placeholder="Search BrightWay…" minLength={2} maxLength={80} required />
             <button type="submit">Search</button>
           </form>
         )}
