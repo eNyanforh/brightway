@@ -41,7 +41,7 @@ it("Strict Mode and overlapping focus events share initial reads and preserve ex
 it("looks up an exact username and submits one cookie-bound versioned request without ownership or trust flags", async () => {
   let release; const pending = new Promise(resolve => { release = resolve; });
   const f = mount({ handler(url, options, state) { if (options.method === "POST") { state.writes.push(JSON.parse(options.body)); return pending; } } }); await find(f);
-  expect(screen.getByRole("link", { name: "View profile" }).getAttribute("href")).toBe("/people/grace");
+  expect(screen.getByRole("link", { name: "View profile" }).getAttribute("href")).toBe("/grace");
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/profiles/grace/view"))).toBe(false);
   const button = screen.getByRole("button", { name: "Connect", exact: true }); fireEvent.click(button); fireEvent.click(button);
   await waitFor(() => expect(f.data.writes).toHaveLength(1)); expect(f.data.writes[0]).toEqual({ action: "REQUEST", expectedVersion: 0, requestKey: expect.any(String) });
