@@ -54,6 +54,7 @@ import { createNotificationsRoutes } from "../modules/notifications/notification
 import { createPeopleSuggestions } from "../modules/recommendations/people-suggestions.service.js";
 import { createPeopleSuggestionRoutes } from "../modules/recommendations/people-suggestions.routes.js";
 import { createDirectorySearch } from "../modules/search/directory-search.service.js";
+import { createContentSearch } from "../modules/search/content-search.service.js";
 import { createDirectorySearchRoutes } from "../modules/search/directory-search.routes.js";
 import { createOrganizationPosts } from "../modules/posts/organization-posts.service.js";
 import { createOrganizationPostRoutes } from "../modules/posts/organization-posts.routes.js";
@@ -72,11 +73,16 @@ const sessions = createSessionService({ prisma, mfa });
 const network = createNetworkService({ prisma });
 router.use(createNetworkRoutes({ network, following: createFollowingService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createNotificationsRoutes({ notifications: createNotificationsService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-router.use(createDirectorySearchRoutes({ search: createDirectorySearch({ prisma }), sessions, nodeEnv: env.NODE_ENV }));
+const publicPosts = createOrganizationPosts({ prisma });
+router.use(createDirectorySearchRoutes({
+  search: createDirectorySearch({ prisma }),
+  contentSearch: createContentSearch({ prisma, posts: publicPosts }),
+  sessions, nodeEnv: env.NODE_ENV,
+}));
 router.use(createPeopleSuggestionRoutes({ suggest: createPeopleSuggestions({ prisma }), sessions, nodeEnv: env.NODE_ENV }));
 const photoStorage = createR2Storage();
 const photos = createPhotoService({ prisma, storage: photoStorage });
-router.use(createOrganizationPostRoutes({ posts: createOrganizationPosts({ prisma }), photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createOrganizationPostRoutes({ posts: publicPosts, photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const managementCases = createManagementCases({ prisma });
 const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
 router.use(createManagementAuthRoutes({ authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
