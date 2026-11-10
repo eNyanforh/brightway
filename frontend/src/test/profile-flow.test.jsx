@@ -208,9 +208,8 @@ it("shows only published fields on the redesigned public profile without a secon
   const fetchMock = mount((url) =>
     url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/people/maya");
   await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
-  expect(screen.getByText("Published profile")).toBeTruthy();
-  // Optional proof sections must remain hidden when the server did not
-  // explicitly authorize their projection, even for a published basic profile.
+  expect(screen.getByText("BrightWay member")).toBeTruthy();
+  // Proof sections render only when the server provides eligible content.
   expect(screen.queryByRole("heading", { name: "Verified credentials" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Licenses and certifications" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Professional achievements" })).toBeNull();
