@@ -357,3 +357,107 @@ img.bw-public-person-avatar { display: block; object-fit: cover; }
 img.bw-public-person-record-icon {
   display: block; object-fit: cover; background: #fff; padding: 0;
 }
+
+/* Verified education/experience records reuse the professional card language.
+   Only the server-reviewed entries reach this section. */
+.bw-public-person-records:has(.bw-public-person-history-record) { gap: 12px; }
+.bw-public-person-history-record {
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 15px;
+  padding: 18px;
+  border: 1px solid #e1e8f1;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(25, 47, 77, .035);
+}
+.bw-public-person-history-record + .bw-public-person-history-record {
+  padding-top: 18px;
+  border-top: 1px solid #e1e8f1;
+}
+.bw-public-person-history-record .bw-public-person-record-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #f5f8fc;
+  color: #4b6685;
+  border-color: #dfe7f0;
+}
+.bw-public-person-history-record img.bw-public-person-record-icon {
+  object-fit: contain;
+  padding: 5px;
+  background: #fff;
+}
+.bw-public-person-record-body { min-width: 0; }
+.bw-public-person-credential-kind {
+  display: inline-block;
+  margin-bottom: 5px;
+  color: #68819c;
+  font-size: .68rem;
+  font-weight: 760;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.bw-public-person-history-record h3 {
+  margin: 0 0 5px;
+  color: #1c304b;
+  font-size: .99rem;
+  font-weight: 760;
+  line-height: 1.35;
+  letter-spacing: -.015em;
+}
+.bw-public-person-history-record p.bw-public-person-record-organization {
+  margin: 0 0 7px;
+  color: #445a75;
+  font-size: .83rem;
+  font-weight: 610;
+  line-height: 1.5;
+}
+.bw-public-person-history-record .bw-public-person-record-organization a {
+  display: inline;
+  margin: 0;
+  color: #285a99;
+  font-size: inherit;
+  font-weight: 690;
+  text-decoration: none;
+}
+.bw-public-person-history-record .bw-public-person-record-organization a:hover {
+  text-decoration: underline;
+}
+.bw-public-person-history-record p.bw-public-person-record-date {
+  color: #667993;
+  margin: 0;
+  font-size: .75rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.bw-public-person-record-footer {
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid #eef1f6;
+}
+.bw-public-person-history-record .bw-public-person-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #e9f7f0;
+  color: #197455;
+  font-size: .69rem;
+  font-weight: 730;
+  line-height: 1.3;
+}
+@media (max-width: 480px) {
+  .bw-public-person-history-record {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 11px;
+    padding: 14px 12px;
+  }
+  .bw-public-person-history-record .bw-public-person-record-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+  }
+  .bw-public-person-history-record img.bw-public-person-record-icon { padding: 4px; }
+}
