@@ -77,7 +77,7 @@ function PublishedPerson({ username }) {
       <header className="bw-public-person-identity">
         <PersonAvatar />
         <div className="bw-public-person-intro">
-          <span className="bw-public-person-status">Published profile</span>
+          <span className="bw-public-person-status">Member profile</span>
           <h1 className="bw-public-person-name"><span>{profile.fullName}</span>{profile.identityVerified === true && <VerificationBadge />}</h1>
           <p className="bw-public-person-handle">@{profile.username}</p>
           {profile.headline && <p className="bw-public-person-headline">{profile.headline}</p>}
@@ -94,7 +94,7 @@ function PublishedPerson({ username }) {
 
     {(profile.bio || hasDirection || skills.length || interests.length ||
       certifications.length || verifiedCredentials.length || achievements.length) && (
-      <nav className="bw-public-person-nav" aria-label="Published profile sections">
+      <nav className="bw-public-person-nav" aria-label="Profile sections">
         {profile.bio && <a href="#published-about">About</a>}
         {verifiedCredentials.length > 0 && <a href="#published-credentials">Verified credentials</a>}
         {certifications.length > 0 && <a href="#published-certifications">Certifications</a>}
