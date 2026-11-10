@@ -339,7 +339,7 @@ it("the personal Post destination checks verification and lets authors withdraw 
   await f.user.type(screen.getByRole("textbox", { name: "Topic tags" }), "Research{Enter}");
   await f.user.click(publish);
   await screen.findByText("Event published.");
-  expect(screen.getByRole("link", { name: "Test Owner" }).getAttribute("href")).toBe("/people/owner");
+  expect(screen.getByRole("link", { name: "Test Owner" }).getAttribute("href")).toBe("/owner");
   expect(within(screen.getByRole("article")).getByText("Event", { exact: true })).toBeTruthy();
   expect(within(screen.getByRole("list", { name: "Topic tags" })).getByText("Research")).toBeTruthy();
   hasPosts = true;
