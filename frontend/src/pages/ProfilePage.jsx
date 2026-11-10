@@ -5,7 +5,8 @@ import { hasVerifiedIdentity } from "./manual-identity-format";
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
-import { profileApi } from "../api/profile";
+import { profileApi, coverPhotoUrl } from "../api/profile";
+import OrganizationAvatar from "../components/profile/OrganizationAvatar";
 import {
   changesFromForm,
   editorFields,
@@ -48,13 +49,16 @@ function featuredRecord(history, field) {
   return valid.find((record) => record.current === true) || valid[0] || null;
 }
 
-function ProfileAffiliation({ icon, label, name, description }) {
+function ProfileAffiliation({ icon, label, name, description, organizationAvatar }) {
   return (
     <div className="bw-profile-affiliation">
-      <span className="bw-profile-affiliation-icon"><Icon name={icon} /></span>
+      <OrganizationAvatar key={organizationAvatar?.photoUrl || name}
+        organization={organizationAvatar} icon={icon} className="bw-profile-affiliation-icon" />
       <span className="bw-profile-affiliation-copy">
         <small>{label}</small>
-        <strong>{name}</strong>
+        {organizationAvatar ? (
+          <Link to={`/organizations/${organizationAvatar.id}`} className="bw-profile-affiliation-link">{name}</Link>
+        ) : <strong>{name}</strong>}
         {description && <span>{description}</span>}
       </span>
     </div>
@@ -125,6 +129,7 @@ export default function ProfilePage() {
   const [pictureAttempt, setPictureAttempt] = useState(0);
   const [activeTab, setActiveTab] = useState(() => tabForProfileHash(window.location.hash));
   const tabButtons = useRef({});
+  const coverInputRef = useRef(null);
 
   useEffect(() => {
     const syncHash = () => setActiveTab(tabForProfileHash(window.location.hash));
@@ -487,6 +492,48 @@ export default function ProfilePage() {
     }
   }
 
+  async function updateCover(event) {
+    const image = event.target.files?.[0];
+    event.target.value = "";
+    if (!image || busy || mutation.current) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(image.type) || image.size > 5 * 1024 * 1024) {
+      setDraft(previous => ({ ...previous, error: new Error("Choose a JPEG, PNG or WebP cover photo up to 5 MiB.") }));
+      return;
+    }
+    mutation.current = true;
+    setDraft(previous => ({ ...previous, busy: true, error: null, notice: "" }));
+    try {
+      const result = await profileApi.uploadCover(image, profile.version);
+      setDraft(previous => ({
+        ...previous, busy: false, error: null, notice: "Cover photo updated.",
+        profile: { ...previous.profile, coverPhoto: { id: result.coverPhotoId }, version: result.profileVersion },
+      }));
+    } catch (error) {
+      setDraft(previous => ({ ...previous, error }));
+    } finally {
+      mutation.current = false;
+      setDraft(previous => ({ ...previous, busy: false }));
+    }
+  }
+
+  async function removeCover() {
+    if (busy || mutation.current || !profile?.coverPhoto) return;
+    mutation.current = true;
+    setDraft(previous => ({ ...previous, busy: true, error: null, notice: "" }));
+    try {
+      const result = await profileApi.removeCover(profile.version);
+      setDraft(previous => ({
+        ...previous, profile: { ...previous.profile, coverPhoto: null, version: result.profileVersion },
+        notice: "Cover photo removed.",
+      }));
+    } catch (error) {
+      setDraft(previous => ({ ...previous, error }));
+    } finally {
+      mutation.current = false;
+      setDraft(previous => ({ ...previous, busy: false }));
+    }
+  }
+
   if (!profile) {
     return (
       <section className="bw-profile-loading">
@@ -591,11 +638,25 @@ export default function ProfilePage() {
       <div className="bw-profile-grid">
         <div className="bw-profile-main">
           <section className="bw-profile-card bw-profile-hero" aria-labelledby="profile-person-name">
-            <div className="bw-profile-cover">
-              <div className="bw-profile-cover-brand">
-                <span>BRIGHTWAY / MEMBER PROFILE</span>
+            <div className={`bw-profile-cover ${profile.coverPhoto?.id ? "has-photo" : ""}`}>
+              {profile.coverPhoto?.id && (
+                <img className="bw-profile-cover-image" src={coverPhotoUrl(account.username, profile.coverPhoto.id)}
+                  alt="" />
+              )}
+              <div className="bw-profile-cover-actions">
+                <input ref={coverInputRef} className="bw-profile-cover-input" type="file"
+                  accept="image/jpeg,image/png,image/webp" aria-label="Upload profile cover photo"
+                  disabled={busy} onChange={event => void updateCover(event)} />
+                <button type="button" className="bw-profile-cover-action"
+                  disabled={busy} onClick={() => coverInputRef.current?.click()}>
+                  <Icon name="camera" />
+                  {profile.coverPhoto?.id ? "Change cover photo" : "Add cover photo"}
+                </button>
+                {profile.coverPhoto?.id && (
+                  <button type="button" className="bw-profile-cover-action" disabled={busy}
+                    onClick={() => void removeCover()}>Remove</button>
+                )}
               </div>
-              <span className="bw-profile-cover-motif" aria-hidden="true" />
             </div>
 
             <div className="bw-profile-identity">
@@ -635,6 +696,7 @@ export default function ProfilePage() {
                     <span>{name}</span>
                     {identityVerified && <VerificationBadge />}
                   </h1>
+                  <p className="bw-profile-handle">@{account.username}</p>
                   <p className="bw-profile-headline">
                     {profile.headline || "Add a headline that sounds like you."}
                   </p>
@@ -642,7 +704,6 @@ export default function ProfilePage() {
                     <Icon name="location" />
                     {location || "Location not added yet"}
                   </p>
-                  <p className="bw-profile-handle">@{account.username}</p>
                   {profile.careerField && (
                     <span className="bw-profile-direction-tag">
                       <Icon name="sprout" />
@@ -658,6 +719,7 @@ export default function ProfilePage() {
                         label={featuredWork.current ? "Current experience" : "Experience"}
                         name={featuredWork.organization}
                         description={featuredWork.role}
+                        organizationAvatar={featuredWork.organizationAvatar}
                       />
                     )}
                     {featuredEducation && (
@@ -666,6 +728,7 @@ export default function ProfilePage() {
                         label={featuredEducation.current ? "Current education" : "Education"}
                         name={featuredEducation.institution}
                         description={featuredEducation.qualification}
+                        organizationAvatar={featuredEducation.organizationAvatar}
                       />
                     )}
                   </div>
