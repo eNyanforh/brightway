@@ -851,8 +851,11 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const id = parse(identifier, idValue, "Choose a valid question.");
       const { body, requestKey } = parse(textInput(2000), input, "Write an answer between 1 and 2,000 characters.");
       return writeVisiblePost(actor, { source: "member", id }, async tx => {
-        const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true } });
+        const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true, authorId: true } });
         if (post.type !== "QUESTION") throw fail(400, "Answers are only available for questions.");
+        if (post.authorId === actor.accountId) {
+          throw fail(403, "You cannot answer your own question. You can comment on other members’ answers.");
+        }
         await verifiedContributor(tx, actor.accountId);
         const key = { authorId: actor.accountId, requestKey };
         const previous = await tx.questionAnswer.findUnique({ where: { authorId_requestKey: key } });
