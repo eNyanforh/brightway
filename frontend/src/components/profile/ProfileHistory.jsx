@@ -27,6 +27,15 @@ const statusLabels = {
   UNABLE_TO_VERIFY: "Unable to verify",
   FALSE_CREDENTIAL: "False credential",
 };
+const statusTone = {
+  DRAFT: "neutral",
+  SUBMITTED: "pending",
+  IN_REVIEW: "pending",
+  VERIFIED: "verified",
+  ACTION_REQUIRED: "attention",
+  UNABLE_TO_VERIFY: "attention",
+  FALSE_CREDENTIAL: "critical",
+};
 
 function HistoryDialog({ kind, draft, setDraft, onReload }) {
   const { refresh } = useAuth();
@@ -422,11 +431,31 @@ export default function ProfileHistory({
 }) {
   const title = kind === "education" ? "Education" : "Experience";
   const history = draft.profile[kind] || { mode: "UNSET", records: [] };
+  const records = history.records || [];
+  const isEducation = kind === "education";
+  const empty = history.mode === "NONE"
+    ? (isEducation ? "No formal education declared." : "No work experience declared.")
+    : (isEducation
+      ? "Add the schools, programs and qualifications that shaped your learning."
+      : "Show your work, internships, volunteering and professional experience.");
+
   return (
     <>
-      <section className="bw-profile-card bw-profile-section">
-        <div className="bw-profile-section-head">
-          <h2>{title}</h2>
+      <section className="bw-profile-card bw-profile-section bw-history-section">
+        <div className="bw-profile-section-head bw-history-section-head">
+          <div className="bw-history-section-title">
+            <span className="bw-history-section-symbol" aria-hidden="true">
+              <Icon name={isEducation ? "book" : "briefcase"} />
+            </span>
+            <div>
+              <h2>{title}</h2>
+              {records.length > 0 && (
+                <p className="bw-history-section-subtitle">
+                  {records.length} {records.length === 1 ? "entry" : "entries"} in your profile
+                </p>
+              )}
+            </div>
+          </div>
           <button
             className="bw-profile-edit"
             disabled={busy}
@@ -438,51 +467,72 @@ export default function ProfileHistory({
             <span>Edit</span>
           </button>
         </div>
-        {history.mode === "NONE" ? (
-          <p className="bw-profile-muted">
-            {kind === "education"
-              ? "No formal education declared."
-              : "No work experience declared."}
-          </p>
-        ) : history.records.length ? (
-          <div className="bw-history-list">
-            {history.records.map((item) => (
-              <article className="bw-history-record" key={item.id}>
-                <OrganizationAvatar key={item.organizationAvatar?.photoUrl || item.id}
-                  organization={item.organizationAvatar} icon={kind === "education" ? "book" : "briefcase"}
-                  className="bw-history-record-icon" />
+        {records.length > 0 ? (
+          <div className="bw-history-list" aria-label={`${title} records`}>
+            {records.map((item) => (
+              <article className="bw-history-record" key={item.id} data-status={statusTone[item.status] || "neutral"}>
+                <OrganizationAvatar
+                  key={item.organizationAvatar?.photoUrl || item.id}
+                  organization={item.organizationAvatar}
+                  icon={isEducation ? "book" : "briefcase"}
+                  className="bw-history-record-icon"
+                />
                 <div className="bw-history-record-content">
-                  <h3>{kind === "education" ? item.qualification : item.role}</h3>
-                <p>
-                  {item.organizationAvatar ? (
-                    <Link to={`/organizations/${item.organizationAvatar.id}`}>
-                      {kind === "education" ? item.institution : item.organization}
-                    </Link>
-                  ) : (kind === "education" ? item.institution : item.organization)}
-                </p>
-                {kind === "experience" && <p>{experienceOptions[item.type]}</p>}
-                <small>
-                  {monthLabel(item.startMonth)} –{" "}
-                  {item.current ? "Present" : monthLabel(item.endMonth)}
-                </small>
-                <span className="bw-history-status">
-                  {statusLabels[item.status] ||
-                    "Not submitted for verification"}
-                </span>
-                <Link to={`/credentials/${kind}/${item.id}`}>Verification details</Link>
+                  <div className="bw-history-record-heading">
+                    <h3>{isEducation ? item.qualification : item.role}</h3>
+                    <p className="bw-history-record-organization">
+                      {item.organizationAvatar ? (
+                        <Link to={`/organizations/${item.organizationAvatar.id}`}>
+                          {isEducation ? item.institution : item.organization}
+                        </Link>
+                      ) : (isEducation ? item.institution : item.organization)}
+                    </p>
+                  </div>
+                  <div className="bw-history-record-meta">
+                    <span className="bw-history-record-dates">
+                      {monthLabel(item.startMonth)} – {item.current ? "Present" : monthLabel(item.endMonth)}
+                    </span>
+                    {item.current && (
+                      <span className="bw-history-record-current">
+                        {isEducation ? "Currently studying" : "Currently working"}
+                      </span>
+                    )}
+                    {!isEducation && experienceOptions[item.type] && (
+                      <span className="bw-history-record-type">{experienceOptions[item.type]}</span>
+                    )}
+                  </div>
                   {item.description && (
-                    <p className="bw-profile-description">{item.description}</p>
+                    <p className="bw-history-record-description">{item.description}</p>
                   )}
+                  <div className="bw-history-record-footer">
+                    <span className="bw-history-status">
+                      {statusLabels[item.status] || statusLabels.DRAFT}
+                    </span>
+                    <Link className="bw-history-record-verification" to={`/credentials/${kind}/${item.id}`}>
+                      Verification details <Icon name="arrow" />
+                    </Link>
+                  </div>
                 </div>
               </article>
             ))}
           </div>
         ) : (
-          <p className="bw-profile-muted">
-            {kind === "education"
-              ? "Add your studies or declare that you have no formal education."
-              : "Add employment, internships, volunteering, or self-employment. You can also declare no work experience."}
-          </p>
+          <div className="bw-history-empty">
+            <span className="bw-history-empty-icon" aria-hidden="true">
+              <Icon name={isEducation ? "book" : "briefcase"} />
+            </span>
+            <div>
+              <p className="bw-history-empty-title">
+                {history.mode === "NONE" ? empty : `Build your ${title.toLowerCase()} history`}
+              </p>
+              {history.mode !== "NONE" && <p className="bw-profile-muted">{empty}</p>}
+              <button type="button" className="bw-history-empty-action" disabled={busy}
+                onClick={() => onEdit(kind)}>
+                {history.mode === "NONE" ? "Update history" : `Add ${title.toLowerCase()}`}
+                <Icon name="arrow" />
+              </button>
+            </div>
+          </div>
         )}
       </section>
       {draft.editor === kind && (
