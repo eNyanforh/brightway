@@ -330,9 +330,6 @@ test("certifications are owner-controlled, schema-validated and never grant veri
   };
   const parsed = profilePatchSchema.parse({ expectedVersion: 0, changes: {
     certifications: [valid],
-    profileCertificationsPublicEnabled: true,
-    profileCredentialsPublicEnabled: true,
-    profileAchievementsPublicEnabled: true,
   } });
   assert.deepEqual(parsed.changes.certifications, [valid]);
   for (const certificate of [
@@ -358,10 +355,14 @@ test("certifications are owner-controlled, schema-validated and never grant veri
   const initial = await service.patch("owner", parsed);
   assert.equal(initial.version, 1);
   assert.deepEqual(initial.certifications, [valid]);
-  assert.equal(initial.profileCertificationsPublicEnabled, true);
-  assert.equal(initial.profileCredentialsPublicEnabled, true);
-  assert.equal(initial.profileAchievementsPublicEnabled, true);
   assert.equal(initial.certifications[0].verified, undefined);
+  for (const obsolete of ["profilePublicEnabled", "profileCertificationsPublicEnabled",
+    "profileCredentialsPublicEnabled", "profileAchievementsPublicEnabled",
+    "profileViewSharingEnabled", "profileViewNotificationsEnabled"]) {
+    assert.equal(Object.hasOwn(initial, obsolete), false);
+    assert.equal(profilePatchSchema.safeParse({ expectedVersion: 1,
+      changes: { [obsolete]: true } }).success, false);
+  }
   await assert.rejects(service.patch("owner", { expectedVersion: 0, changes: { certifications: [] } }), { status: 409 });
   assert.equal((await service.read("other")).certifications.length, 0);
 });
