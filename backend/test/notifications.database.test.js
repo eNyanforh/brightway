@@ -6,7 +6,7 @@ import { tokenHash } from "../src/modules/auth/session.service.js";
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const origin = "http://localhost:5173";
 
-test("the real app keeps profile view consent, inbox ownership and block cleanup in PostgreSQL", {
+test("the real app exposes member profiles by default while enforcing contact privacy and block cleanup", {
   skip: !testDatabaseUrl && "Set TEST_DATABASE_URL to a separate migrated test database",
 }, async () => {
   process.env.NODE_ENV = "test";
@@ -64,14 +64,8 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     const owner = await account("owner");
     const visitor = await account("visitor");
     const other = await account("other");
-    const published = {
-      profilePublicEnabled: true,
-      profileViewSharingEnabled: true,
-      profileViewNotificationsEnabled: true,
-    };
-    await view(visitor, owner, { status: 404 });
     await request(null, "/profile/me/dashboard", { status: 401 });
-    await preferences(owner, { ...published, headline: "Published fixture" });
+    await preferences(owner, { headline: "Published fixture" });
     assert.deepEqual(((stats) => [stats.profileViews, stats.postImpressions, stats.searchAppearances])(await dashboard(owner)), [0, 0, 0]);
     const search = (actor, q, options = {}, status = 200) =>
       request(actor, "/search?" + new URLSearchParams({ q, kind: "people", ...options }), { status });
@@ -82,12 +76,17 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.deepEqual((await search(visitor, "@" + owner.username)).items, [hit]);
     const searchStats = await dashboard(owner);
     assert.equal(searchStats.searchAppearances, 1, "repeated searches from one member count once per UTC day");
-    assert.deepEqual(searchStats.recentProfileViewers, [], "directory searches never expose searchers");
-    assert.equal(Object.hasOwn(searchStats, "searcherAvatars"), false);
+    assert.deepEqual(searchStats.recentProfileViewers, [], "directory searches are not profile visits");
+    assert.deepEqual(searchStats.recentSearchers, [{
+      username: visitor.username, name: "Synthetic visitor", photoId: null,
+    }], "search appearance previews identify the active member, not their search terms");
     assert.equal(searchStats.profileViews, 0, "directory appearances are not profile views");
     assert.equal(Object.hasOwn(searchStats, "viewerId"), false);
     assert.deepEqual((await search(owner, owner.username)).items, []);
-    assert.deepEqual((await search(visitor, other.username)).items, []);
+    assert.deepEqual((await search(visitor, other.username)).items, [{
+      kind: "people", name: "Synthetic other", username: other.username,
+      href: "/people/" + other.username,
+    }], "members are findable without publishing a profile");
     assert.deepEqual((await search(visitor, owner.email)).items, []);
     assert.deepEqual((await search(visitor, "x') OR 1=1 --")).items, []);
 
@@ -96,7 +95,7 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
       const row = await prisma.account.create({ data: {
         username: `search_${batch}_${String(i).padStart(2, "0")}`,
         email: `search_${batch}_${i}@example.invalid`, passwordHash: "synthetic-unusable-hash",
-        person: { create: { firstName: "Directory", lastName: batch, profile: { create: { profilePublicEnabled: true } } } },
+        person: { create: { firstName: "Directory", lastName: batch } },
       } });
       accounts.push(row);
     }
@@ -116,21 +115,24 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.equal(profile.headline, "Published fixture");
     await view(visitor, owner);
     assert.equal((await dashboard(owner)).profileViews, 1, "repeated public visits from one member count once per UTC day");
-    assert.deepEqual((await dashboard(owner)).recentProfileViewers, [],
-      "visitor identity stays private until they explicitly enable sharing");
+    assert.deepEqual((await dashboard(owner)).recentProfileViewers, [{
+      username: visitor.username, name: "Synthetic visitor", photoId: null,
+    }], "the profile dashboard shows the real visitor without an opt-in");
     assert.equal((await dashboard(visitor)).profileViews, 0, "visits belong to the profile owner only");
-    for (const field of ["contact", "email", "phoneNumber", "education", "experience", ...Object.keys(published)]) {
+    for (const field of ["contact", "email", "phoneNumber",
+      "profilePublicEnabled", "profileViewSharingEnabled", "profileViewNotificationsEnabled"]) {
       assert.equal(Object.hasOwn(profile, field), false, field);
     }
-    assert.deepEqual((await inbox(owner)).items, []);
+    assert.deepEqual(profile.education, []);
+    assert.deepEqual(profile.experience, []);
+    assert.equal((await inbox(owner)).items.length, 1,
+      "profile view notifications are automatic and daily-deduplicated");
 
-    // The public profile stays minimal until the member enables each section.
+    // Professional sections are automatically part of the member profile.
     const certificate = { title: "Data Analysis Certificate", issuer: "Training Center",
       issuedMonth: "2026-08", expiresMonth: null,
       credentialUrl: "https://certificates.example.org/abc" };
     await preferences(owner, { certifications: [certificate] });
-    assert.equal(Object.hasOwn(await view(visitor, owner), "certifications"), false);
-    await preferences(owner, { profileCertificationsPublicEnabled: true });
     assert.deepEqual((await view(visitor, owner)).certifications, [{ ...certificate, verified: false }]);
     const ownerProfile = await prisma.profile.findUnique({
       where: { personId: owner.personId }, select: { id: true },
@@ -145,8 +147,6 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
       profileId: ownerProfile.id, kind: "education", recordId: education.id,
       revision: 1, status: "VERIFIED", issuerName: null,
     } });
-    assert.equal(Object.hasOwn(await view(visitor, owner), "verifiedCredentials"), false);
-    await preferences(owner, { profileCredentialsPublicEnabled: true });
     const verified = (await view(visitor, owner)).verifiedCredentials;
     assert.equal(verified.length, 1);
     assert.equal(verified[0].title, "Computer Science");
@@ -266,24 +266,18 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.equal(undeleted.body, editedBody);
     assert.equal((await dashboard(owner)).postImpressions, 0, "deleted post views are excluded");
     assert.equal((await dashboard(visitor)).postImpressions, 0, "only the author's posts are counted");
-    await preferences(owner, { profileAchievementsPublicEnabled: true });
     assert.equal(Object.hasOwn(await view(visitor, owner), "achievements"), false,
-      "Unverified member posts must not be promoted onto a public profile");
-    await preferences(owner, { profileCertificationsPublicEnabled: false,
-      profileCredentialsPublicEnabled: false });
-    const hidden = await view(visitor, owner);
-    assert.equal(Object.hasOwn(hidden, "certifications"), false);
-    assert.equal(Object.hasOwn(hidden, "verifiedCredentials"), false);
+      "Only posts from verified members can appear as featured achievements");
+    const visible = await view(visitor, owner);
+    assert.equal(visible.certifications.length, 1);
+    assert.equal(visible.verifiedCredentials.length, 0,
+      "superseded credentials remain unverified instead of falsely badged");
+    assert.equal(visible.education.length, 1, "education records remain visible after verification becomes stale");
 
-    await preferences(visitor, published);
+    await preferences(visitor, { headline: "Learning and growing" });
     assert.deepEqual((await dashboard(owner)).recentProfileViewers, [{
       username: visitor.username, name: "Synthetic visitor", photoId: null,
-    }], "sharing opt-in permits only currently public visitors to appear by name");
-    await preferences(visitor, { profileViewSharingEnabled: false });
-    assert.deepEqual((await dashboard(owner)).recentProfileViewers, [],
-      "turning off consent immediately hides previously recorded profile viewers");
-    await preferences(visitor, { profileViewSharingEnabled: true });
-    assert.equal((await dashboard(owner)).recentProfileViewers.length, 1);
+    }], "visitors are visible without a separate sharing switch");
     const suggestionPath = "/explore/suggestions/people";
     await request(null, suggestionPath, { status: 401 });
     await request(visitor, suggestionPath + "?viewer=" + owner.id, { status: 400 });
@@ -303,13 +297,10 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     } finally {
       await prisma.networkFollow.delete({ where: { id: follow.id } });
     }
-    await preferences(owner, { profileViewNotificationsEnabled: false });
-    await view(visitor, owner);
-    assert.deepEqual((await inbox(owner)).items, []);
-    await preferences(owner, { profileViewNotificationsEnabled: true });
     await request(visitor, "/network/people/" + owner.username);
     await request(visitor, "/network/people/" + owner.username + "/contact");
-    assert.deepEqual((await inbox(owner)).items, []);
+    assert.equal((await inbox(owner)).items.length, 1,
+      "browsing network or contacts does not create additional view notifications");
 
     await Promise.all([view(visitor, owner), view(visitor, owner)]);
     const { items } = await inbox(owner);
@@ -344,16 +335,16 @@ test("the real app keeps profile view consent, inbox ownership and block cleanup
     assert.deepEqual((await inbox(owner)).items, []);
     assert.deepEqual((await inbox(visitor)).items, []);
 
-    await preferences(other, { profileViewSharingEnabled: true });
     await view(other, owner);
     const notice = (await inbox(owner)).items[0];
     assert.deepEqual(await post(owner, "/notifications/" + notice.id + "/dismiss"), { dismissed: true });
     assert.deepEqual((await inbox(owner)).items, []);
-    await preferences(owner, { profilePublicEnabled: false });
-    // Turning off basic publication revokes every optional public section.
-    await view(visitor, owner, { status: 404 });
-    assert.deepEqual((await request(visitor, suggestionPath)).items, []);
-    assert.deepEqual((await search(visitor, owner.username)).items, []);
+    await request(owner, "/profile/me", { method: "PATCH",
+      body: { expectedVersion: owner.version, changes: { profilePublicEnabled: false } }, status: 400 });
+    const stillVisible = await view(visitor, owner);
+    assert.equal(stillVisible.username, owner.username,
+      "outdated profile publication toggles cannot hide a member account");
+    assert.deepEqual((await search(visitor, owner.username)).items, [hit]);
   } finally {
     try {
       await new Promise(resolve => server.close(resolve));
