@@ -205,7 +205,6 @@ function visibleMember(accountId) {
     ...unblockedAuthor(accountId),
     status: "ACTIVE",
     manualIdentityRequest: { state: "APPROVED" },
-    person: { profile: { profilePublicEnabled: true } },
   };
 }
 
@@ -316,20 +315,20 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
   const identity = createManualIdentityReviewService({ prisma, now });
 
   async function memberEligibility(db, accountId) {
-    const { status, ctx } = await identity.inspectAccount(db, accountId);
-    return { identityVerified: status === "APPROVED", profilePublic: ctx.profilePublic };
+    const { status } = await identity.inspectAccount(db, accountId);
+    return { identityVerified: status === "APPROVED" };
   }
 
   async function approvedDiscussionAuthors(db, rows) {
     const accounts = [...new Set(rows.map(row => row.author.id))];
     const approved = new Set();
     // Bounded concurrent checks retain the effective verification rules used
-    // by the feed, including invalidated identity and unpublished profiles.
+    // by the feed, including invalidated identity.
     for (let offset = 0; offset < accounts.length; offset += 4) {
       await Promise.all(accounts.slice(offset, offset + 4).map(async id => {
         try {
           const access = await memberEligibility(db, id);
-          if (access.identityVerified && access.profilePublic) approved.add(id);
+          if (access.identityVerified) approved.add(id);
         } catch (error) {
           if (error.status !== 403) throw error;
         }
@@ -421,7 +420,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       await Promise.all(authors.slice(offset, offset + 4).map(async id => {
         try {
           const access = await memberEligibility(prisma, id);
-          if (access.identityVerified && access.profilePublic) eligible.add(id);
+          if (access.identityVerified) eligible.add(id);
         } catch (error) {
           if (error.status !== 403) throw error;
         }
@@ -503,7 +502,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     if (!target) throw unavailable();
     if (member) {
       const access = await memberEligibility(db, target.authorId);
-      if (!access.identityVerified || !access.profilePublic) throw unavailable();
+      if (!access.identityVerified) throw unavailable();
     }
     return target;
   }
@@ -601,8 +600,8 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
   async function verifiedContributor(db, accountId) {
     await lockMemberProfile(db, accountId);
     const access = await memberEligibility(db, accountId);
-    if (!access.identityVerified || !access.profilePublic) {
-      throw fail(403, "Verify your identity and publish your public profile before answering questions.");
+    if (!access.identityVerified) {
+      throw fail(403, "Verify your identity before answering questions.");
     }
   }
 
@@ -632,7 +631,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       });
       if (!member || member.person.profile?.photoId !== photoId) throw fail(404, "This profile photo is unavailable.");
       const access = await memberEligibility(prisma, member.id);
-      if (!access.identityVerified || !access.profilePublic) throw fail(404, "This profile photo is unavailable.");
+      if (!access.identityVerified) throw fail(404, "This profile photo is unavailable.");
       await assertNetworkSession(prisma, actor, now);
       return { personId: member.personId, photoId };
     },
@@ -898,13 +897,13 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
           if (old.answerId !== answer.id || old.body !== body || old.deletedAt)
             throw fail(409, "This request belongs to another comment.");
           const access = await memberEligibility(tx, actor.accountId);
-          return { comment: commentView(old, actor.accountId, access.identityVerified && access.profilePublic) };
+          return { comment: commentView(old, actor.accountId, access.identityVerified) };
         }
         const row = await tx.answerComment.create({
           data: { ...key, answerId: answer.id, body, createdAt: now() }, select: commentSelect,
         });
         const access = await memberEligibility(tx, actor.accountId);
-        return { comment: commentView(row, actor.accountId, access.identityVerified && access.profilePublic) };
+        return { comment: commentView(row, actor.accountId, access.identityVerified) };
       });
     },
 
@@ -1040,8 +1039,8 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         }
         await lockMemberProfile(tx, actor.accountId);
         const access = await memberEligibility(tx, actor.accountId);
-        if (!access.identityVerified || !access.profilePublic) {
-          throw fail(403, "Verify your identity and publish your public profile before reposting.");
+        if (!access.identityVerified) {
+          throw fail(403, "Verify your identity before reposting.");
         }
         await tx.postRepost.createMany({ data: [{ ...data, createdAt: now() }], skipDuplicates: true });
         const row = await tx.postRepost.findFirstOrThrow({ where: data, select: repostSelect });
@@ -1093,14 +1092,14 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
             throw fail(409, "This request already belongs to another comment. Edit your draft before trying again.");
           }
           const access = await memberEligibility(tx, actor.accountId);
-          return { comment: commentView(comment, actor.accountId, access.identityVerified && access.profilePublic) };
+          return { comment: commentView(comment, actor.accountId, access.identityVerified) };
         }
 
         const recent = await tx.postComment.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the commenting limit. Try again in 15 minutes.");
         const comment = await tx.postComment.create({ data: { ...key, ...target, body, createdAt: now() }, select: commentSelect });
         const access = await memberEligibility(tx, actor.accountId);
-        return { comment: commentView(comment, actor.accountId, access.identityVerified && access.profilePublic) };
+        return { comment: commentView(comment, actor.accountId, access.identityVerified) };
       });
     },
 
@@ -1166,11 +1165,10 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     async memberPublish(actor, input) {
       const data = parse(memberPostInput, input, "Choose a post type, write 1 to 2,000 characters, and add 1 to 5 distinct topic tags.");
       return memberWrite(actor, async tx => {
-        // Public-profile updates lock this same row.
+        // Profile updates lock this same row.
         await lockMemberProfile(tx, actor.accountId);
         const access = await memberEligibility(tx, actor.accountId);
         if (!access.identityVerified) throw fail(403, "Verify your identity before publishing a personal post.");
-        if (!access.profilePublic) throw fail(403, "Publish your public profile before sharing personal posts.");
         const key = { authorId: actor.accountId, requestKey: data.requestKey };
         const previous = await tx.memberPost.findUnique({ where: { authorId_requestKey: key }, select: { ...memberPostSelect, withdrawnAt: true } });
         if (previous) {
