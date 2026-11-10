@@ -248,7 +248,7 @@ it("organizes private Activities into Posts, Comments and Answers with matching 
         label: "How should I normalize tables?" } },
   ];
   const answers = [{ id: "33333333-3333-4333-8333-333333333333", kind: "answer",
-    body: "Start with a simple data model and test it.", score: 4,
+    body: "Start with a simple data model and test it.", upvoteCount: 5, downvoteCount: 1,
     createdAt: "2026-11-07T10:00:00Z",
     post: { source: "member", id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
       label: "How do I learn SQL?" } }];
@@ -277,7 +277,8 @@ it("organizes private Activities into Posts, Comments and Answers with matching 
 
   await user.click(within(tabs).getByRole("tab", { name: "Answers" }));
   await screen.findByText("Start with a simple data model and test it.");
-  expect(screen.getByText("4 net votes")).toBeTruthy();
+  expect(screen.getByText("5 upvotes")).toBeTruthy();
+  expect(screen.getByText("1 downvotes")).toBeTruthy();
   expect(screen.getByRole("link", { name: "How do I learn SQL?" }).getAttribute("href"))
     .toBe("/explore?source=member&post=cccccccc-cccc-4ccc-8ccc-cccccccccccc");
   expect(fetchMock.mock.calls.some(([url]) => url.includes("/posts/me/activity?kind=comments"))).toBe(true);
