@@ -63,7 +63,7 @@ export default function EventRequestReview({ eventId, onReviewed }) {
                 <li className="bw-event-request" key={request.id}>
                   <div className="bw-event-request-person">
                     <strong>{request.name && request.verified
-                      ? <Link to={"/people/" + encodeURIComponent(request.username)}>{request.name}</Link>
+                      ? <Link to={"/" + encodeURIComponent(request.username)}>{request.name}</Link>
                       : "@" + request.username}</strong>
                     <small>Requested {new Date(request.createdAt).toLocaleDateString()}</small>
                   </div>
