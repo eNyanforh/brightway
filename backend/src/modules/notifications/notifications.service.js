@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { withCredentialOrganizationAvatars } from "../profile/profile-organizations.js";
 import { assertNetworkSession, lockNetworkAccounts } from "../network/network-authority.js";
 import { fail, parse, usernameSchema } from "../network/network.schema.js";
 import { createManualIdentityReviewService } from "../manual-identity/manual-identity-review.service.js";
@@ -8,6 +9,8 @@ const cursorSchema = z.strictObject({ owner: z.uuid(), at: z.iso.datetime(), id:
 const notificationIdSchema = z.uuid();
 const viewProfileSelect = {
   id: true,
+  photoId: true,
+  coverPhotoId: true,
   certifications: true,
   headline: true,
   bio: true,
@@ -29,6 +32,8 @@ function utcDay(value) {
 function publicProfile(account, profile, sections = {}) {
   return {
     username: account.username,
+    photoId: sections.identityVerified === true ? profile.photoId : null,
+    coverPhoto: profile.coverPhotoId ? { id: profile.coverPhotoId } : null,
     fullName: [account.person.firstName, account.person.middleName, account.person.lastName].filter(Boolean).join(" "),
     headline: profile.headline,
     bio: profile.bio,
@@ -133,7 +138,7 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
             verified: false,
           }))
           : [];
-        sections.verifiedCredentials = await verifiedCredentials(tx, profile.id);
+        sections.verifiedCredentials = await withCredentialOrganizationAvatars(tx, await verifiedCredentials(tx, profile.id));
         if (sections.identityVerified) {
           sections.achievements = await tx.memberPost.findMany({
             where: { authorId: target.id, type: "ACHIEVEMENT", withdrawnAt: null },
