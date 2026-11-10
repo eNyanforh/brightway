@@ -234,6 +234,7 @@ it("shows only published fields on the redesigned public profile without a secon
   const fetchMock = mount((url) =>
     url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/maya");
   await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
+  expect(screen.queryByRole("link", { name: /Back to Network/i })).toBeNull();
   expect(screen.queryByText("BrightWay member")).toBeNull();
   expect(screen.queryByRole("img", { name: "Verified identity" })).toBeNull();
   const tabs = screen.getByRole("tablist", { name: "Public profile sections" });
