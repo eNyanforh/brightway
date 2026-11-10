@@ -82,12 +82,6 @@ test("read is side-effect free and returns a virtual empty draft for existing ac
   const service = createProfileService({ prisma: db });
   assert.deepEqual(await service.read("owner"), {
     ...profileView(null),
-    profileViewSharingEnabled: false,
-    profileViewNotificationsEnabled: false,
-    profilePublicEnabled: false,
-    profileCertificationsPublicEnabled: false,
-    profileCredentialsPublicEnabled: false,
-    profileAchievementsPublicEnabled: false,
   });
   assert.equal(db.rows.size, 0);
   assert.equal(db.calls[0][1].where.personId, "owner");
