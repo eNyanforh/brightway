@@ -71,6 +71,7 @@ export function createOrganizationPostRoutes({ posts, photos, sessions, clientUr
   router.get(comments, access, respond((req, actor) => posts.comments(actor, req.params.source, req.params.id, req.query)));
   router.post(comments, access, trustedOrigin, writes, respond((req, actor) => posts.addComment(actor, req.params.source, req.params.id, req.body), 201));
   router.delete(comments + "/:commentId", access, trustedOrigin, writes, respond((req, actor) => posts.deleteComment(actor, req.params.source, req.params.id, req.params.commentId)));
+  router.get("/posts/members/:username", access, respond((req, actor) => posts.publicMemberList(actor, req.params.username, req.query)));
   router.get("/posts/me", access, respond((req, actor) => posts.memberList(actor, req.query)));
   router.post("/posts/me", access, trustedOrigin, writes, respond((req, actor) => posts.memberPublish(actor, req.body), 201));
   router.patch("/posts/me/:id", access, trustedOrigin, writes, respond((req, actor) => posts.memberEdit(actor, req.params.id, req.body)));
