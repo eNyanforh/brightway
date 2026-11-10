@@ -863,7 +863,8 @@ it("renders modern history cards with organization avatars, dates, types and tru
   mount(() => ok({ profile }));
   await ready();
   await userEvent.setup().click(screen.getByRole("tab", { name: "Achievements" }));
-  const experience = screen.getByText("Frontend engineer").closest(".bw-history-record");
+  const experience = document.querySelector("#profile-experience .bw-history-record");
+  expect(within(experience).getByRole("heading", { name: "Frontend engineer" })).toBeTruthy();
   expect(experience.dataset.status).toBe("pending");
   expect(within(experience).getByRole("img", { name: "Community Labs profile picture" })
     .getAttribute("src")).toBe("/api/v1/organizations/lab-1/photo");
@@ -878,7 +879,8 @@ it("renders modern history cards with organization avatars, dates, types and tru
   expect(within(experience).getByRole("link", { name: /Verification details/ })
     .getAttribute("href")).toBe("/credentials/experience/experience-1");
 
-  const education = screen.getByText("Computer Science").closest(".bw-history-record");
+  const education = document.querySelector("#profile-education .bw-history-record");
+  expect(within(education).getByRole("heading", { name: "Computer Science" })).toBeTruthy();
   expect(education.dataset.status).toBe("verified");
   expect(within(education).getByText("Sep 2021 – Jun 2025")).toBeTruthy();
   expect(within(education).getByText("Verified")).toBeTruthy();
