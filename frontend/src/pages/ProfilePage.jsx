@@ -150,7 +150,6 @@ export default function ProfilePage() {
 
   const profile = draft?.profile;
   const busy = draft?.busy || profileLoading;
-  const privacySettingsDisabled = busy || [401, 409].includes(draft?.error?.status);
   const { identityStatus, identityError, refreshIdentityStatus } = useIdentityStatus(profile?.version);
   const identityVerified = hasVerifiedIdentity(identityStatus);
   const photoReviewRequired = profile?.photoReview?.required === true || identityVerified;
@@ -485,25 +484,6 @@ export default function ProfilePage() {
         ...previous,
         busy: false,
       }));
-    }
-  }
-
-  async function saveProfileViewSetting(field, value) {
-    if (privacySettingsDisabled || mutation.current) return;
-    mutation.current = true;
-    setDraft((previous) => ({ ...previous, busy: true, error: null, notice: "" }));
-    try {
-      const next = await profileApi.save(profile.version, { [field]: value });
-      setDraft((previous) => ({
-        ...previous,
-        profile: next,
-        notice: "Privacy setting saved.",
-      }));
-    } catch (error) {
-      setDraft((previous) => ({ ...previous, error }));
-    } finally {
-      mutation.current = false;
-      setDraft((previous) => ({ ...previous, busy: false }));
     }
   }
 
@@ -858,44 +838,6 @@ export default function ProfilePage() {
             onVerified={emailVerified}
           />
 
-          <section id="profile-privacy" className="bw-profile-card bw-profile-side-block bw-profile-view-privacy" aria-labelledby="profile-view-privacy-title">
-            <p className="bw-profile-eyebrow">VISIBILITY & PRIVACY</p>
-            <h2 id="profile-view-privacy-title">Control your profile</h2>
-            <p>Choose what others can see. Your contact information has separate privacy settings.</p>
-            <div className="bw-profile-privacy-options">
-              <label>
-                <input type="checkbox" checked={profile.profilePublicEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profilePublicEnabled", event.target.checked)} />
-                <span>Publish my basic profile so signed-in BrightWay members can view it by username</span>
-              </label>
-              <small>Basic profile publication includes your name, headline, about text, location, career direction and goals, skills, and interests. Additional sections below require separate permission. Contact information stays private here.</small>
-              <label>
-                <input type="checkbox" checked={profile.profileCertificationsPublicEnabled === true}
-                  disabled={privacySettingsDisabled} onChange={event => void saveProfileViewSetting("profileCertificationsPublicEnabled", event.target.checked)} />
-                <span>Show my self-reported licenses and certifications on my published profile</span>
-              </label>
-              <label>
-                <input type="checkbox" checked={profile.profileCredentialsPublicEnabled === true}
-                  disabled={privacySettingsDisabled} onChange={event => void saveProfileViewSetting("profileCredentialsPublicEnabled", event.target.checked)} />
-                <span>Show my verified education and experience credentials</span>
-              </label>
-              <label>
-                <input type="checkbox" checked={profile.profileAchievementsPublicEnabled === true}
-                  disabled={privacySettingsDisabled} onChange={event => void saveProfileViewSetting("profileAchievementsPublicEnabled", event.target.checked)} />
-                <span>Feature my published achievement posts on my public profile</span>
-              </label>
-              <small>All three optional sections default to off. Individual certifications are self-reported and do not receive a verified badge. If you turn off basic profile publication, all optional sections are hidden too.</small>
-              <label>
-                <input type="checkbox" checked={profile.profileViewSharingEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profileViewSharingEnabled", event.target.checked)} />
-                <span>Share my name when I choose to view another person’s profile</span>
-              </label>
-              <label>
-                <input type="checkbox" checked={profile.profileViewNotificationsEnabled === true} disabled={privacySettingsDisabled} onChange={(event) => void saveProfileViewSetting("profileViewNotificationsEnabled", event.target.checked)} />
-                <span>Let me know when someone who shares their visit views my profile</span>
-              </label>
-            </div>
-            <small>Profile view alerts require both people to opt in. Repeat views from the same person are combined daily. Turning sharing off stops future notifications but does not erase notifications already sent. All options default to off.</small>
-          </section>
-
           <nav className="bw-profile-card bw-profile-side-block bw-profile-account-tools"
             aria-label="Profile tools">
             <p className="bw-profile-eyebrow">ACCOUNT TOOLS</p>
@@ -907,8 +849,8 @@ export default function ProfilePage() {
             <Icon name="lock" />
 
             <span>
-              Your draft is private. Editing it doesn’t verify your
-              identity.
+              Your contact details remain controlled by your contact visibility settings.
+              Editing your profile does not verify your identity.
             </span>
           </p>
 
