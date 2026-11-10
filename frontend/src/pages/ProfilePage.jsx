@@ -700,10 +700,7 @@ export default function ProfilePage() {
                   <p className="bw-profile-headline">
                     {profile.headline || "Add a headline that sounds like you."}
                   </p>
-                  <p className="bw-profile-location">
-                    <Icon name="location" />
-                    {location || "Location not added yet"}
-                  </p>
+                  <p className="bw-profile-location">{location || "Location not added yet"}</p>
                   {profile.careerField && (
                     <span className="bw-profile-direction-tag">
                       <Icon name="sprout" />
