@@ -372,6 +372,90 @@ test("the real app exposes member profiles by default and preserves inbox owners
     const stillVisible = await view(visitor, owner);
     assert.equal(stillVisible.username, owner.username, "profiles remain visible with no publication toggle");
     assert.deepEqual((await search(visitor, owner.username)).items, [hit]);
+
+    // Activity categories are independent from the post-only profile timeline.
+    // Existing verified publication status lets other members read discussions
+    // without exposing drafts, withdrawn posts or deleted contributions.
+    await prisma.manualIdentityRequest.create({ data: {
+      accountId: owner.id, state: "APPROVED", currentAttemptId: randomUUID(),
+      initialSubmittedAt: new Date(), targetAt: new Date(Date.now() + 86400000),
+      windowStart: new Date(), calendarVersion: "test",
+    } });
+    const comment = await prisma.postComment.create({ data: {
+      authorId: owner.id, memberPostId: eventPost.id, requestKey: randomUUID(),
+      body: "Looking forward to hosting the workshop.",
+    } });
+    const withdrawnComment = await prisma.postComment.create({ data: {
+      authorId: owner.id, memberPostId: achievement.id, requestKey: randomUUID(),
+      body: "Do not reveal comments on withdrawn achievements.",
+    } });
+    const answer = await prisma.questionAnswer.create({ data: {
+      questionId: question.id, authorId: visitor.id,
+      requestKey: randomUUID(), body: "Practice by creating a database schema.",
+    } });
+    const reply = await prisma.answerComment.create({ data: {
+      answerId: answer.id, authorId: owner.id, requestKey: randomUUID(),
+      body: "This is a helpful recommendation.",
+    } });
+    const commentsUrl = "/posts/members/" + owner.username + "/activity?kind=comments";
+    const answersUrl = "/posts/members/" + visitor.username + "/activity?kind=answers";
+    await request(null, commentsUrl, { status: 401 });
+    await request(other, commentsUrl + "&irrelevant=1", { status: 400 });
+    const comments = await request(other, commentsUrl);
+    assert.deepEqual(new Set(comments.items.map(item => item.kind)), new Set(["comment", "reply"]));
+    assert.ok(comments.items.some(item => item.id === comment.id && item.post.id === eventPost.id));
+    assert.ok(comments.items.some(item => item.id === reply.id && item.post.id === question.id));
+    assert.ok(!comments.items.some(item => item.id === withdrawnComment.id),
+      "comments on withdrawn posts are not public");
+    assert.equal(comments.items[0].post.source, "member");
+    assert.equal(Object.hasOwn(comments.items[0], "email"), false);
+    assert.equal(Object.hasOwn(comments.items[0], "meetingUrl"), false);
+    assert.equal((await request(owner, "/posts/me/activity?kind=comments")).items.length, 2,
+      "owners see the same visible contributions without a username");
+    const answers = await request(other, answersUrl);
+    assert.equal(answers.items.length, 1);
+    assert.equal(answers.items[0].kind, "answer");
+    assert.equal(answers.items[0].post.id, question.id);
+    assert.equal(answers.items[0].body, "Practice by creating a database schema.");
+    assert.equal(answers.items[0].upvoteCount, 0);
+    assert.equal(answers.items[0].downvoteCount, 0);
+    assert.equal((await request(visitor, "/posts/me/activity?kind=answers")).items.length, 1);
+    await request(owner, "/posts/me/activity?kind=posts", { status: 400 });
+
+    // Multiple comment sources share one cursor without losing or repeating a row.
+    const base = Date.now() - 200000;
+    await prisma.postComment.createMany({ data: Array.from({ length: 22 }, (_, index) => ({
+      authorId: owner.id, memberPostId: eventPost.id, requestKey: randomUUID(),
+      body: "Discussion contribution " + index,
+      createdAt: new Date(base + index * 100),
+    })) });
+    const first = await request(other, commentsUrl);
+    assert.equal(first.items.length, 20);
+    assert.ok(first.nextCursor);
+    await request(visitor, commentsUrl + "&cursor=" + encodeURIComponent(first.nextCursor),
+      { status: 400 });
+    await request(other, answersUrl + "&cursor=" + encodeURIComponent(first.nextCursor),
+      { status: 400 });
+    const second = await request(other, commentsUrl + "&cursor=" + encodeURIComponent(first.nextCursor));
+    assert.equal(second.nextCursor, null);
+    assert.equal(second.items.length, 4);
+    assert.equal(new Set([...first.items, ...second.items].map(item => item.id)).size, 24);
+
+    await prisma.postComment.update({ where: { id: comment.id },
+      data: { deletedAt: new Date() } });
+    await prisma.answerComment.update({ where: { id: reply.id },
+      data: { deletedAt: new Date() } });
+    const afterDeletion = await request(other, commentsUrl);
+    assert.ok(!afterDeletion.items.some(item => item.id === comment.id),
+      "deleted post comments are not shown");
+    assert.ok(!afterDeletion.items.some(item => item.id === reply.id),
+      "deleted replies are not shown");
+    const blockAgain = await post(other, "/network/people/" + owner.username + "/actions",
+      { action: "BLOCK", expectedVersion: 0, requestKey: randomUUID() });
+    assert.ok(blockAgain.version > 0);
+    await request(other, commentsUrl, { status: 404 });
+    assert.deepEqual((await request(other, answersUrl)).items, [],
+      "answers to a blocked question author must not leak through the activity list");
   } finally {
     try {
       await new Promise(resolve => server.close(resolve));
@@ -387,6 +471,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
         prisma.profile.deleteMany({ where: { personId: { in: people } } }),
         prisma.photoAsset.deleteMany({ where: { id: { in: createdPhotos } } }),
         prisma.session.deleteMany({ where: { accountId: { in: ids } } }),
+        prisma.manualIdentityRequest.deleteMany({ where: { accountId: { in: ids } } }),
         prisma.account.deleteMany({ where: { id: { in: ids } } }),
         prisma.person.deleteMany({ where: { id: { in: people } } }),
       ]);

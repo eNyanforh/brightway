@@ -305,3 +305,167 @@
   .bw-profile-activity-item .bw-timeline-avatar { width: 34px; height: 34px; }
   .bw-profile-activity-list { gap: 10px; }
 }
+
+
+/* Nested Activity categories use a compact, responsive navigation bar on both profile views. */
+.bw-profile-activity-shell { display: grid; gap: 16px; min-width: 0; }
+.bw-profile-activity-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  min-width: 0;
+  padding: 4px;
+  border-radius: 13px;
+  background: #f3f7fc;
+  border: 1px solid #e0e8f3;
+}
+.bw-profile-activity-tab {
+  flex: 1 0 auto;
+  min-width: 90px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #62748d;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 740;
+  cursor: pointer;
+}
+.bw-profile-activity-tab:hover { background: #fff; color: #24548d; }
+.bw-profile-activity-tab.is-active {
+  color: #1c579d;
+  background: white;
+  border-color: #d6e4f5;
+  box-shadow: 0 2px 7px #193b6010;
+}
+.bw-profile-activity-tab:focus-visible { outline: 2px solid #276bd4; outline-offset: -2px; }
+.bw-profile-activity-category-panel { min-width: 0; }
+.bw-profile-activity-category-panel[hidden] { display: none !important; }
+.bw-profile-contributions { min-width: 0; }
+.bw-profile-contribution-list { display: grid; gap: 14px; }
+.bw-profile-contribution-card {
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid #e0e9f4;
+  border-radius: 15px;
+  color: #243c5a;
+  background: #fff;
+  box-shadow: 0 4px 12px #172e520a;
+}
+.bw-profile-contribution-author {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+.bw-profile-contribution-portrait { display: block; text-decoration: none; }
+.bw-profile-contribution-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #e9f1fc;
+  color: #205ba5;
+  font-weight: 800;
+}
+.bw-profile-contribution-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.bw-profile-contribution-byline {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+  min-width: 0;
+  color: #697c95;
+  font-size: .77rem;
+  line-height: 1.5;
+}
+.bw-profile-contribution-byline > a {
+  color: #1b2d4b;
+  text-decoration: none;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.bw-profile-contribution-byline > a:hover { text-decoration: underline; }
+.bw-profile-contribution-action {
+  flex-basis: 100%;
+  color: #4c6585;
+  font-size: .74rem;
+}
+.bw-profile-contribution-body {
+  margin: 12px 0 14px;
+  font-size: .9rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.bw-profile-contribution-score {
+  margin: -6px 0 12px;
+  font-size: .74rem;
+  font-weight: 700;
+  color: #507092;
+}
+.bw-profile-contribution-context {
+  display: grid;
+  gap: 7px;
+  padding: 12px 14px;
+  border-left: 3px solid #bdd1ed;
+  border-radius: 0 10px 10px 0;
+  background: #f7faff;
+  min-width: 0;
+}
+.bw-profile-contribution-context-kind {
+  color: #69819f;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+.bw-profile-contribution-context a {
+  color: #2b4c75;
+  font-size: .83rem;
+  font-weight: 740;
+  line-height: 1.5;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.bw-profile-contribution-context a:hover { text-decoration: underline; }
+.bw-profile-contribution-context p {
+  color: #5c718c;
+  margin: 0;
+  font-size: .77rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.bw-profile-contribution-discussion {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 13px;
+  color: #245caa;
+  font-size: .76rem;
+  font-weight: 770;
+  text-decoration: none;
+}
+.bw-profile-contribution-discussion:hover { text-decoration: underline; }
+.bw-profile-contribution-card a:focus-visible {
+  outline: 2px solid #276bd4;
+  outline-offset: 3px;
+}
+@media (max-width: 550px) {
+  .bw-profile-activity-shell { gap: 12px; }
+  .bw-profile-activity-tabs { gap: 2px; padding: 3px; }
+  .bw-profile-activity-tab { min-width: 76px; padding: 9px 10px; font-size: .76rem; }
+  .bw-profile-contribution-card { padding: 13px 12px; }
+  .bw-profile-contribution-author { grid-template-columns: 34px minmax(0, 1fr); gap: 9px; }
+  .bw-profile-contribution-avatar { width: 34px; height: 34px; }
+}
