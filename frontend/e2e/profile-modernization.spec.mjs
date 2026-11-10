@@ -108,6 +108,15 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
           body: "Very helpful achievement.", createdAt: "2026-11-09T10:00:00Z",
           canDelete: false,
         }] : [], nextCursor: null });
+      case "/api/v1/explore/answers/answer-1/comments": {
+        if (route.request().method() === "GET") return reply({ items: [] });
+        if (route.request().method() === "POST") return reply({ comment: {
+          id: "answer-comment-1", body: route.request().postDataJSON().body,
+          username: account.username, name: "Synthetic Member", canDelete: true,
+          createdAt: "2026-11-10T13:00:00Z",
+        } });
+        throw Error("Unexpected answer comments request");
+      }
       case "/api/v1/explore/posts/member/33333333-3333-4333-8333-333333333333/answers":
         return reply({ items: showDiscussionPhotos ? [{
           id: "answer-1", name: "Answering Member", username: "answerer",
@@ -394,7 +403,9 @@ test("profile Activities keeps commenter and answer photos at post-card avatar s
   const previewPhoto = question.locator(".bw-question-answer-avatar img");
   await expect(previewPhoto).toBeVisible();
   await expect(previewPhoto).toHaveJSProperty("naturalWidth", 1200);
-  await question.getByRole("button", { name: "Answer", exact: true }).click();
+  await expect(question.getByRole("button", { name: "Answer", exact: true })).toHaveCount(0);
+  await question.getByRole("button", { name: "Answers", exact: true }).click();
+  await expect(question.getByRole("textbox", { name: "Your answer" })).toHaveCount(0);
   const answerPhoto = question.locator(".bw-discussion-avatar img");
   await expect(answerPhoto).toBeVisible();
   await expect(answerPhoto).toHaveJSProperty("naturalWidth", 1200);
@@ -642,6 +653,44 @@ test("public member routes use root handles, keep private contacts hidden and sh
   await expect(page.getByRole("heading", { name: "Contact" })).toHaveCount(0);
   await page.goto("/profile");
   await expect(page.getByRole("heading", { level: 1, name: "Synthetic Member" })).toBeVisible();
+});
+
+test("question publishers review and comment on answers; other members can answer", async ({ page }) => {
+  const questionId = "33333333-3333-4333-8333-333333333333";
+  const publicQuestion = {
+    id: questionId, type: "QUESTION", body: "How do I find a mentor?",
+    questionDetails: { title: "Finding a mentor" },
+    tags: ["Learning"], createdAt: "2026-11-07T09:00:00Z",
+    answerCount: 1, answerParticipants: [],
+  };
+  await fixture(page, {}, { activities: [publicQuestion] }, "Finished a community coding project.", {}, true);
+  await page.goto("/profile");
+  await page.getByRole("tab", { name: "Activity", exact: true }).click();
+  await page.getByRole("button", { name: "Load older activity" }).click();
+  const ownQuestion = page.locator('.bw-profile-activity-item[data-activity-type="QUESTION"]');
+  await expect(ownQuestion.getByRole("button", { name: "Answers", exact: true })).toBeVisible();
+  await expect(ownQuestion.getByRole("button", { name: "Answer", exact: true })).toHaveCount(0);
+  await ownQuestion.getByRole("button", { name: "Answers", exact: true }).click();
+  await expect(ownQuestion.getByText("Read the responses to your question")).toBeVisible();
+  await expect(ownQuestion.getByRole("textbox", { name: "Your answer" })).toHaveCount(0);
+  await expect(ownQuestion.getByRole("button", { name: "Publish answer" })).toHaveCount(0);
+  await expect(ownQuestion.getByText("Find a mentor through purposeful projects.")).toBeVisible();
+  await ownQuestion.getByRole("button", { name: "Comment", exact: true }).click();
+  const comment = ownQuestion.getByRole("textbox", { name: "Comment on this answer" });
+  await expect(comment).toBeVisible();
+  await comment.fill("Thank you, this helped me.");
+  await ownQuestion.getByRole("button", { name: "Post comment" }).click();
+  await expect(ownQuestion.getByText("Thank you, this helped me.")).toBeVisible();
+
+  await page.goto("/maya");
+  await page.getByRole("tablist", { name: "Public profile sections" })
+    .getByRole("tab", { name: "Activities" }).click();
+  const otherQuestion = page.locator('.bw-profile-activity-item[data-activity-type="QUESTION"]');
+  await expect(otherQuestion.getByRole("button", { name: "Answer", exact: true })).toBeVisible();
+  await expect(otherQuestion.getByRole("button", { name: "Answers", exact: true })).toHaveCount(0);
+  await otherQuestion.getByRole("button", { name: "Answer", exact: true }).click();
+  await expect(otherQuestion.getByRole("textbox", { name: "Your answer" })).toBeVisible();
+  await expect(otherQuestion.getByRole("button", { name: "Publish answer" })).toBeVisible();
 });
 
 test("public and private Activities both provide Posts, Comments, and Answers", async ({ page }) => {
