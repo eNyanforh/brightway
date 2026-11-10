@@ -32,7 +32,7 @@ function AnswerComments({ answerId, commentCount = 0, onCountChange }) {
 
   async function publish(event) {
     event.preventDefault();
-    if (isQuestionPublisher || !draft.trim() || pending) return;
+    if (!draft.trim() || pending) return;
     setPending(true); setError("");
     requestKey.current ??= crypto.randomUUID();
     try {
@@ -143,7 +143,7 @@ export default function QuestionAnswers({ questionId, onClose, onCountChange, is
 
   async function publish(event) {
     event.preventDefault();
-    if (!draft.trim() || pending) return;
+    if (isQuestionPublisher || !draft.trim() || pending) return;
     setPending(true); setError("");
     requestKey.current ??= crypto.randomUUID();
     try {
