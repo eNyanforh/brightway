@@ -129,13 +129,13 @@ async function fixture(page, profileOverrides = {}, publishedOverrides = {}, act
     activityReads: () => activityReads };
 }
 
-test("dashboard avatar stacks remain compact and anonymous on mobile", async ({ page }) => {
+test("dashboard avatar stacks remain compact on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await fixture(page);
   await page.goto("/profile");
   const dashboard = page.getByRole("region", { name: "Dashboard" });
   const viewers = dashboard.getByRole("group", { name: "Recent profile viewers" });
-  const searches = dashboard.getByRole("group", { name: "Anonymous search appearances" });
+  const searches = dashboard.getByRole("group", { name: "Recent searchers" });
   await expect(viewers).toBeVisible();
   await expect(searches).toBeVisible();
   const bounds = await dashboard.locator(".bw-dashboard-avatar").evaluateAll(elements =>
@@ -166,10 +166,10 @@ test("my profile has three responsive tabs below the private dashboard on deskto
   await expect(viewers.getByRole("link")).toHaveCount(2);
   await expect(viewers.getByRole("link", { name: "Profile Visitor viewed your profile" }))
     .toHaveAttribute("href", "/people/visitor");
-  await expect(viewers.getByRole("img", { name: "Private profile view" })).toHaveCount(1);
-  const searches = dashboard.getByRole("group", { name: "Anonymous search appearances" });
+  await expect(viewers.getByRole("img", { name: "Additional profile view" })).toHaveCount(1);
+  const searches = dashboard.getByRole("group", { name: "Recent searchers" });
   await expect(searches.getByRole("link")).toHaveCount(0);
-  await expect(searches.getByRole("img", { name: "Anonymous search appearance" })).toHaveCount(3);
+  await expect(searches.getByRole("img", { name: "Additional search appearance" })).toHaveCount(3);
   const avatars = await dashboard.locator(".bw-dashboard-avatar").evaluateAll(elements =>
     elements.map(element => ({ width: element.getBoundingClientRect().width,
       height: element.getBoundingClientRect().height })));
