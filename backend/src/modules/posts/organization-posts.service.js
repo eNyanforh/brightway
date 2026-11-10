@@ -550,13 +550,16 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
     return target;
   }
 
-  async function writeVisiblePost(actor, ref, operation) {
+  async function writeVisiblePost(actor, ref, operation, { forbidOwnQuestionAnswer = false } = {}) {
     await assertNetworkSession(prisma, actor, now);
     const { source, id } = ref;
     const member = source === "member";
-    const select = member ? { authorId: true } : { authorId: true, organizationId: true };
+    const select = member ? { authorId: true, type: true } : { authorId: true, organizationId: true };
     const target = await postModel(prisma, source).findUnique({ where: { id }, select });
     if (!target) throw unavailable();
+    if (forbidOwnQuestionAnswer && member && target.type === "QUESTION" && target.authorId === actor.accountId) {
+      throw fail(403, "You cannot answer your own question. You can comment on other members’ answers.");
+    }
 
     return prisma.$transaction(async tx => {
       // Match block and post mutation lock order before rechecking visibility.
@@ -887,7 +890,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         return { answer: { id: answer.id, body: answer.body, createdAt: answer.createdAt,
           ...discussionAttribution(answer.author, true), canDelete: true, score: 0, myVote: 0,
           upvoteCount: 0, downvoteCount: 0, commentCount: 0 } };
-      });
+      }, { forbidOwnQuestionAnswer: true });
     },
 
     async voteAnswer(actor, answerId, input) {
