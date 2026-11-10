@@ -4,12 +4,17 @@ import { searchDirectory } from "../api/directory-search";
 import { memberPhotoUrl } from "../api/organization-posts";
 import NavigationIcon from "../components/layout/NavigationIcon";
 import VerificationBadge from "../components/VerificationBadge";
+import ContentSearchResults from "./ContentSearchResults";
 import "./directory-search.css";
 
 const filters = [
   ["all", "All"],
   ["people", "People"],
   ["organizations", "Organizations"],
+  ["achievements", "Achievements"],
+  ["questions", "Questions"],
+  ["events", "Events"],
+  ["opportunities", "Opportunities"],
 ];
 
 function initials(name) {
@@ -141,13 +146,13 @@ export default function DirectorySearchPage() {
       <header className="bw-directory-hero">
         <span className="bw-directory-eyebrow"><NavigationIcon name="search" size={16} /> Discover BrightWay</span>
         <h1>Search BrightWay</h1>
-        <p>Find people by name, username, headline, or career field, and discover verified organizations.</p>
+        <p>Discover people, organizations, achievements, questions, events, and new opportunities as they become available.</p>
       </header>
 
       <form className="bw-directory-search-form" role="search" aria-label="Directory search" onSubmit={submit}>
         <span className="bw-directory-form-icon"><NavigationIcon name="search" size={20} /></span>
         <input key={q} name="q" type="search" aria-label="Name or username"
-          placeholder="Search names, careers, or organizations"
+          placeholder="Search BrightWay"
           defaultValue={q} minLength={2} maxLength={80} required />
         <button type="submit">Search</button>
       </form>
@@ -162,13 +167,30 @@ export default function DirectorySearchPage() {
               </Link>
             ))}
           </nav>
-          <SearchResults key={JSON.stringify([q, kind])} q={q} kind={kind} />
+          {kind === "all" ? (
+            <>
+              <h2 className="bw-directory-group-heading">People and organizations</h2>
+              <SearchResults key={JSON.stringify([q, "all"])} q={q} kind="all" />
+              <h2 className="bw-directory-group-heading">Community content</h2>
+              <ContentSearchResults key={JSON.stringify([q, "content"])} q={q} kind="all" />
+            </>
+          ) : kind === "people" || kind === "organizations" ? (
+            <SearchResults key={JSON.stringify([q, kind])} q={q} kind={kind} />
+          ) : kind === "opportunities" ? (
+            <section className="bw-directory-intro" aria-label="Opportunity search status">
+              <span className="bw-directory-intro-icon"><NavigationIcon name="opportunities" size={22} /></span>
+              <h2>Opportunity discovery is coming</h2>
+              <p>Published opportunities will appear here once BrightWay's verified-provider opportunity workflow is available. No opportunity listings are indexed yet.</p>
+            </section>
+          ) : (
+            <ContentSearchResults key={JSON.stringify([q, kind])} q={q} kind={kind} />
+          )}
         </>
       ) : (
         <div className="bw-directory-intro">
           <span className="bw-directory-intro-icon"><NavigationIcon name="network" size={22} /></span>
           <h2>Discover your next connection</h2>
-          <p>Enter at least two characters to search public profiles and approved organizations. Contact details are not included in search results.</p>
+          <p>Enter at least two characters to search public profiles, approved organizations, and community content. Personal contact details are never included in search results.</p>
         </div>
       )}
     </section>
