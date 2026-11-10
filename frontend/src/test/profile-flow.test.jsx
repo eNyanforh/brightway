@@ -131,10 +131,10 @@ it("organizes the private profile into About Me, Achievements and Activity tabs"
   expect(within(people).getAllByRole("link")).toHaveLength(2);
   expect(within(people).getByRole("link", { name: "Sharing Viewer viewed your profile" })
     .getAttribute("href")).toBe("/people/share_one");
-  expect(within(people).getAllByRole("img", { name: "Private profile view" })).toHaveLength(1);
-  const searches = within(dashboard).getByRole("group", { name: "Anonymous search appearances" });
+  expect(within(people).getAllByRole("img", { name: "Additional profile view" })).toHaveLength(1);
+  const searches = within(dashboard).getByRole("group", { name: "Recent searchers" });
   expect(within(searches).queryAllByRole("link")).toHaveLength(0);
-  expect(within(searches).getAllByRole("img", { name: "Anonymous search appearance" })).toHaveLength(3);
+  expect(within(searches).getAllByRole("img", { name: "Additional search appearance" })).toHaveLength(3);
   await userEvent.setup().click(within(dashboard).getByRole("button", { name: /9.*Profile views/ }));
   expect(within(dashboard).getByText(/Counted once per viewer per UTC day/)).toBeTruthy();
   expect(within(dashboard).getByRole("link", { name: "View profile notifications" }).getAttribute("href")).toBe("/notifications");
