@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { createManualIdentityReviewService } from "../manual-identity/manual-identity-review.service.js";
 import { memberProfilePath } from "../../../../shared/member-profile-paths.mjs";
 import { z } from "zod";
 import { assertNetworkSession } from "../network/network-authority.js";
@@ -35,11 +36,17 @@ function readCursor(cursor, viewer, q, filter) {
 function peopleCandidates(query, viewer) {
   return Prisma.sql`
     SELECT 'people'::text AS kind, a.id, a.username,
-           concat_ws(' ', p."firstName", nullif(p."middleName", ''), p."lastName") AS name
+           concat_ws(' ', p."firstName", nullif(p."middleName", ''), p."lastName") AS name,
+           profile.headline, profile."photoId"
     FROM (
       SELECT p.id AS "personId"
       FROM "Person" p
       WHERE to_tsvector('simple', p."firstName" || ' ' || coalesce(p."middleName", '') || ' ' || p."lastName")
+            @@ to_tsquery('simple', ${query})
+      UNION
+      SELECT profile."personId" FROM "Profile" profile
+      WHERE to_tsvector('simple', coalesce(profile.headline, '') || ' ' ||
+            coalesce(profile."careerField", '') || ' ' || coalesce(profile.bio, ''))
             @@ to_tsquery('simple', ${query})
       UNION
       SELECT a."personId" FROM "Account" a
@@ -47,6 +54,7 @@ function peopleCandidates(query, viewer) {
     ) matches
     JOIN "Person" p ON p.id = matches."personId"
     JOIN "Account" a ON a."personId" = p.id
+    LEFT JOIN "Profile" profile ON profile."personId" = p.id
     WHERE a.status = 'ACTIVE' AND a.id <> ${viewer}
       AND NOT EXISTS (
         SELECT 1 FROM "NetworkPair" b
@@ -59,7 +67,8 @@ function peopleCandidates(query, viewer) {
 
 function organizationCandidates(query) {
   return Prisma.sql`
-    SELECT 'organizations'::text AS kind, o.id, o.username, o.name
+    SELECT 'organizations'::text AS kind, o.id, o.username, o.name,
+           NULL::text AS headline, NULL::text AS "photoId"
     FROM "Organization" o
     JOIN "OrganizationRequest" r ON r.id = o."requestId" AND r.status = 'APPROVED'
     WHERE o.status = 'ACTIVE' AND o."profileReadyAt" IS NOT NULL
@@ -70,6 +79,7 @@ function organizationCandidates(query) {
 }
 
 export function createDirectorySearch({ prisma, now = () => new Date() }) {
+  const identity = createManualIdentityReviewService({ prisma, now });
   return async (actor, input) => {
     const parsed = querySchema.safeParse(input);
     if (!parsed.success) throw fail(400, "Enter a search of 2 to 80 characters and choose a valid filter.");
@@ -94,7 +104,7 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
         END AS rank
         FROM matches
       )
-      SELECT kind, id, username, name, rank FROM ranked
+      SELECT kind, id, username, name, headline, "photoId", rank FROM ranked
       ${after ? Prisma.sql`WHERE (rank, kind, username) > (${after.rank}::int, ${after.kind}, ${after.username})` : Prisma.empty}
       ORDER BY rank, kind, username
       LIMIT ${pageSize + 1}
@@ -116,6 +126,20 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
         skipDuplicates: true,
       });
     }
+    // Identity verification is resolved through the same authority as public profiles.
+    // Do not infer verified status from submitted evidence or an old approval flag.
+    const verified = new Set();
+    for (let offset = 0; offset < members.length; offset += 4) {
+      await Promise.all(members.slice(offset, offset + 4).map(async item => {
+        try {
+          const result = await identity.inspectAccount(prisma, item.id);
+          if (result.status === "APPROVED") verified.add(item.id);
+        } catch (error) {
+          if (error.status !== 403) throw error;
+        }
+      }));
+    }
+    await assertNetworkSession(prisma, actor, now);
     const last = page.at(-1);
     const nextCursor = rows.length > pageSize ? Buffer.from(JSON.stringify({
       viewer: actor.accountId, q, filter: kind, rank: last.rank, kind: last.kind, username: last.username,
@@ -123,6 +147,9 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
     return {
       items: page.map(item => ({
         kind: item.kind, name: item.name, username: item.username,
+        headline: item.kind === "people" ? item.headline : null,
+        photoId: item.kind === "people" ? item.photoId : null,
+        verified: item.kind === "organizations" || verified.has(item.id),
         href: item.kind === "people" ? memberProfilePath(item.username) : "/organizations/" + encodeURIComponent(item.id),
       })),
       nextCursor,
