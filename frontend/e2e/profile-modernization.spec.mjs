@@ -19,8 +19,6 @@ const profile = {
   experience: { mode: "NONE", records: [] },
   contact: { email: account.email, emailVerifiedAt: null, phoneNumber: null,
     whatsappNumber: null, visibility: { email: "ONLY_ME", phone: "ONLY_ME", whatsapp: "ONLY_ME" } },
-  profilePublicEnabled: false, profileViewSharingEnabled: false,
-  profileViewNotificationsEnabled: false,
   completion: { profileVersion: 1, complete: false, eligibleToRequestVerification: false,
     checks: [
       { code: "SKILL_REQUIRED", label: "At least one skill", editor: "skills", satisfied: true },
@@ -226,12 +224,12 @@ test("my profile has three responsive tabs below the private dashboard on deskto
   expect(chronological[0]).toBeLessThan(chronological[1]);
   expect(chronological[1]).toBeLessThan(chronological[2]);
   expect(api.activityReads()).toBe(2);
-  await expect(page.locator("#profile-privacy")).toBeVisible();
+  await expect(page.locator("#profile-privacy")).toHaveCount(0);
   await expect(page.getByText("Public profile private")).toHaveCount(0);
    await expect(page.getByText("Identity not verified")).toHaveCount(0);
    await expect(page.locator(".bw-profile-hero").getByRole("button", { name: "Edit career direction" })).toHaveCount(0);
    await expect(page.locator(".bw-profile-hero").getByRole("link", { name: "See activity" })).toHaveCount(0);
-   await expect(page.getByRole("checkbox", { name: /Publish my basic profile/ })).not.toBeChecked();
+   await expect(page.getByRole("checkbox", { name: /Publish my basic profile/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Profile checklist" })).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Profile checklist progress" }))
     .toHaveAttribute("aria-valuenow", "1");
@@ -458,9 +456,9 @@ test("published profile shows only shared fields in a responsive modern layout",
   const api = await fixture(page);
   await page.goto("/people/maya");
   await expect(page.getByRole("heading", { level: 1, name: "Maya Cole" })).toBeVisible();
-  await expect(page.getByText("Published profile", { exact: true })).toBeVisible();
+  await expect(page.getByText("Member profile", { exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: "Profile avatar" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Published profile sections" })
+  await expect(page.getByRole("navigation", { name: "Profile sections" })
     .getByRole("link", { name: "Career direction" })).toHaveAttribute("href", "#published-direction");
   await expect(page.getByText("Helping students create their first projects.")).toBeVisible();
   await expect(page.getByText("TypeScript", { exact: true })).toBeVisible();
@@ -505,10 +503,10 @@ test("profile introduction uses saved affiliations without inventing credentials
 });
 
 test("published members keep consent settings without redundant hero buttons", async ({ page }) => {
-  await fixture(page, { profilePublicEnabled: true });
+  await fixture(page);
   await page.goto("/profile");
   await expect(page.getByRole("heading", { level: 1, name: "Synthetic Member" })).toBeVisible();
-  await expect(page.getByRole("checkbox", { name: /Publish my basic profile/ })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: /Publish my basic profile/ })).toHaveCount(0);
   await expect(page.locator(".bw-profile-hero").getByText("Public profile published")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "View public profile" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "See activity" })).toHaveCount(0);
@@ -538,7 +536,7 @@ test("public professional proof separates verified records from self-reported ce
   };
   await fixture(page, {}, publicSections);
   await page.goto("/people/maya");
-  const nav = page.getByRole("navigation", { name: "Published profile sections" });
+  const nav = page.getByRole("navigation", { name: "Profile sections" });
   await expect(nav.getByRole("link", { name: "Verified credentials" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Certifications" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Achievements" })).toBeVisible();
