@@ -197,6 +197,26 @@ it("keeps photo-review policy in the picture editor without displaying a review 
   expect(within(editor).getByText(/Your approved photo stays visible while BrightWay reviews the replacement/)).toBeTruthy();
 });
 
+it("displays only server-authorized email and phone details on a public member profile", async () => {
+  const viewed = {
+    fullName: "Maya Cole", username: "maya", headline: "Software engineer",
+    bio: "Building accessible education software.",
+    location: { countryCode: "LR" }, skills: [], interests: [],
+  };
+  mount(url => url.endsWith("/profiles/maya/view") ? ok(viewed)
+    : url.endsWith("/profile/maya/contact")
+      ? ok({ contact: { email: "maya@example.org", phoneNumber: "+231770000000" } })
+      : ok({ profile: original }), "/people/maya");
+  await screen.findByRole("heading", { name: "Maya Cole" });
+  const section = await screen.findByRole("heading", { name: "Contact" });
+  expect(section).toBeTruthy();
+  expect(screen.getByRole("link", { name: "maya@example.org" }).getAttribute("href"))
+    .toBe("mailto:maya@example.org");
+  expect(screen.getByRole("link", { name: "+231770000000" }).getAttribute("href"))
+    .toBe("tel:+231770000000");
+  expect(screen.queryByText("maya-whatsapp-private@example.org")).toBeNull();
+});
+
 it("shows only published fields on the redesigned public profile without a second view request", async () => {
   const viewed = {
     fullName: "Maya Cole", username: "maya", headline: "Software engineer and mentor",
