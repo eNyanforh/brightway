@@ -67,6 +67,34 @@ export function createPhotoRoutes({ photos, sessions, clientUrl, nodeEnv, limite
     } catch (error) { next(error); }
     finally { req.brightwayPhotoRelease(); }
   });
+  router.post("/profile/me/cover", origin, limits, auth, (req, res, next) => {
+    const value = req.get("X-Profile-Version");
+    if (!/^(0|[1-9]\\d*)$/.test(value ?? "") || Number(value) > 2147483646) {
+      return res.status(400).json({ success: false, message: "Send the current X-Profile-Version header." });
+    }
+    next();
+  }, mime, slot, bytes, async (req, res, next) => {
+    req.brightwayPhotoActive = true;
+    try {
+      const cover = await photos.uploadCover(req.auth.account.person.id, Number(req.get("X-Profile-Version")), req.body, req.get("Content-Type"));
+      res.status(201).json({ success: true, data: cover });
+    } catch (error) { next(error); }
+    finally { req.brightwayPhotoRelease(); }
+  });
+  router.delete("/profile/me/cover", origin, limits, auth, async (req, res, next) => {
+    const value = req.get("X-Profile-Version");
+    if (!/^(0|[1-9]\\d*)$/.test(value ?? "") || Number(value) > 2147483646)
+      return res.status(400).json({ success: false, message: "Send the current X-Profile-Version header." });
+    try {
+      res.json({ success: true, data: await photos.removeCover(req.auth.account.person.id, Number(value)) });
+    } catch (error) { next(error); }
+  });
+  router.get("/profiles/:username/cover/:id", auth, async (req, res, next) => {
+    try {
+      const image = await photos.readCover(req.auth.account.id, req.params.username.toLowerCase(), req.params.id);
+      res.type("image/webp").send(image);
+    } catch (error) { next(error); }
+  });
   router.get("/photos/:id", auth, async (req, res, next) => {
     try {
       const photo = await photos.readOwner(req.auth.account.person.id, req.params.id);
