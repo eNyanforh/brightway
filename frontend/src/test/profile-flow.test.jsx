@@ -307,7 +307,7 @@ it("renders public activities without leaking contact details or requiring an id
   const rail = screen.getByRole("region", { name: "Member posts" });
   expect(within(rail).getAllByRole("article")).toHaveLength(3);
   expect(within(rail).getAllByLabelText("15 views")).toHaveLength(3);
-  expect(within(rail).getAllByLabelText("2 comments")).toHaveLength(3);
+  expect(within(rail).getAllByLabelText("2 comments")).toHaveLength(2); // Questions have an Answer action, not comments.
   expect(within(rail).getByText("Learning session")).toBeTruthy();
   expect(within(rail).getByText("How do I learn backend development?")).toBeTruthy();
   expect(within(rail).getAllByRole("link", { name: /View full post/ })).toHaveLength(3);
