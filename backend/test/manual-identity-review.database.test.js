@@ -78,8 +78,6 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(decisions.find((r) => r.status === "rejected").reason.status, 409);
     assert.equal(await db.manualIdentityAudit.count({ where: { requestId, action: "DECIDED" } }), 1);
     assert.equal((await reviews.status(owner.id)).identityVerified, true);
-    await assert.rejects(posts.memberPublish(actor, draft), { status: 403 });
-    await db.profile.update({ where: { id: profile.id }, data: { profilePublicEnabled: true } });
     const [publication, retry] = await Promise.all([posts.memberPublish(actor, draft), posts.memberPublish(actor, draft)]);
     const postId = publication.post.id;
     assert.equal(retry.post.id, postId);
@@ -421,16 +419,10 @@ test("database manual identity requests serialize retries and decisions, revoke 
     await assert.rejects(like(true), { status: 404 });
     assert.equal(await republished("for-you"), undefined);
     await db.networkPair.delete({ where: { id: block.id } });
-    await db.profile.update({ where: { id: profile.id }, data: { profilePublicEnabled: false } });
-    await assert.rejects(posts.memberPhoto(viewerActor, owner.username, photo.id), { status: 404 });
-    assert.equal(await seesPost("for-you"), false);
-    assert.equal((await posts.memberList(actor, {})).items[0].id, postId);
-    await assert.rejects(commentsAsViewer(), { status: 404 });
-    assert.deepEqual((await savedFeed()).items, []);
-    assert.equal(await republished("for-you"), undefined);
-    await assert.rejects(like(true), { status: 404 });
-    await db.profile.update({ where: { id: profile.id }, data: { profilePublicEnabled: true } });
+    // Profile publishing flags no longer determine visibility; approved identity
+    // and block relationships are the remaining posting visibility gates.
     assert.equal(await seesPost("for-you"), true);
+    assert.equal((await posts.memberList(actor, {})).items[0].id, postId);
     await db.profile.update({ where: { id: profile.id }, data: { headline: "Updated headline", version: { increment: 1 } } });
     assert.equal((await reviews.status(owner.id)).identityVerified, true);
     // Actual PostgreSQL triggers, rather than simulated hashes, protect change-and-revert.
