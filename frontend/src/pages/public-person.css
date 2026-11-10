@@ -6,15 +6,6 @@
   color: #1b3150;
 }
 .bw-public-person * { box-sizing: border-box; }
-.bw-public-person-back {
-  display: inline-flex; align-items: center; gap: .45rem;
-  margin-bottom: 15px;
-  font-size: .8rem;
-  font-weight: 750;
-  color: #245ba7;
-  text-decoration: none;
-}
-.bw-public-person-back:hover { text-decoration: underline; }
 .bw-public-person-hero {
   overflow: hidden;
   border: 1px solid #dfebf7;
