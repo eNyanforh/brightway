@@ -290,10 +290,12 @@ test("the real app exposes member profiles by default while enforcing contact pr
     } });
     await prisma.profile.create({ data: { personId: other.personId, skills: ["JavaScript"], interests: ["Technology"] } });
     const suggestion = { name: "Synthetic owner", username: owner.username, reasons: ["Shared skills", "Shared interests", "Same career field"] };
-    assert.deepEqual((await request(visitor, suggestionPath)).items, [suggestion]);
+    const otherSuggestion = { name: "Synthetic other", username: other.username,
+      reasons: ["Shared skills", "Shared interests"] };
+    assert.deepEqual((await request(visitor, suggestionPath)).items, [suggestion, otherSuggestion]);
     const follow = await prisma.networkFollow.create({ data: { followerId: visitor.id, targetAccountId: owner.id, active: true } });
     try {
-      assert.deepEqual((await request(visitor, suggestionPath)).items, []);
+      assert.deepEqual((await request(visitor, suggestionPath)).items, [otherSuggestion]);
     } finally {
       await prisma.networkFollow.delete({ where: { id: follow.id } });
     }
@@ -325,8 +327,12 @@ test("the real app exposes member profiles by default while enforcing contact pr
     assert.deepEqual((await inbox(visitor)).items, []);
     await view(visitor, owner, { status: 404 });
     await view(owner, visitor, { status: 404 });
-    assert.deepEqual((await request(visitor, suggestionPath)).items, []);
-    assert.deepEqual((await request(owner, suggestionPath)).items, []);
+    assert.deepEqual((await request(visitor, suggestionPath)).items, [otherSuggestion],
+      "blocking the owner still allows independent, unblocked recommendations");
+    const ownerSuggestions = (await request(owner, suggestionPath)).items;
+    assert.equal(ownerSuggestions.some(person => person.username === visitor.username), false,
+      "blocking prevents recommendations in either direction");
+    assert.equal(ownerSuggestions.some(person => person.username === other.username), true);
     assert.deepEqual((await search(visitor, owner.username)).items, []);
     assert.deepEqual((await search(owner, visitor.username)).items, []);
     await post(visitor, networkAction, { action: "UNBLOCK", expectedVersion: block.version, requestKey: randomUUID() });
