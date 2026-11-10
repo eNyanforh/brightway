@@ -231,3 +231,86 @@ it("shows retry on API failure and never invents activity data", async () => {
   expect(await screen.findByText("No activity yet")).toBeTruthy();
   expect(attempts).toBe(2);
 });
+
+
+it("organizes private Activities into Posts, Comments and Answers with matching discussion links", async () => {
+  const member = { username: "tester", name: "Test User", photoId: null };
+  const comments = [
+    { id: "11111111-1111-4111-8111-111111111111", kind: "comment",
+      body: "Congratulations on completing your project!",
+      createdAt: "2026-11-09T10:00:00Z", context: "Finished the first semester.",
+      post: { source: "member", id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        label: "Finished the first semester." } },
+    { id: "22222222-2222-4222-8222-222222222222", kind: "reply",
+      body: "That explanation makes sense.",
+      createdAt: "2026-11-08T10:00:00Z", context: "Review your schema design.",
+      post: { source: "member", id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        label: "How should I normalize tables?" } },
+  ];
+  const answers = [{ id: "33333333-3333-4333-8333-333333333333", kind: "answer",
+    body: "Start with a simple data model and test it.", score: 4,
+    createdAt: "2026-11-07T10:00:00Z",
+    post: { source: "member", id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      label: "How do I learn SQL?" } }];
+  const fetchMock = vi.fn(async url => json(url.includes("kind=comments")
+    ? { member, items: comments, nextCursor: null }
+    : url.includes("kind=answers")
+      ? { member, items: answers, nextCursor: null }
+      : { items: [], nextCursor: null }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(<MemoryRouter><ProfileActivities accountId="me" /></MemoryRouter>);
+  const tabs = screen.getByRole("tablist", { name: "Activity categories" });
+  expect(within(tabs).getAllByRole("tab").map(tab => tab.textContent))
+    .toEqual(["Posts", "Comments", "Answers"]);
+  expect(within(tabs).getByRole("tab", { name: "Posts" }).getAttribute("aria-selected")).toBe("true");
+
+  const user = userEvent.setup();
+  await user.click(within(tabs).getByRole("tab", { name: "Comments" }));
+  await screen.findByText("Congratulations on completing your project!");
+  const rail = screen.getByRole("region", { name: "Your comments" });
+  expect(within(rail).getByText("That explanation makes sense.")).toBeTruthy();
+  expect(within(rail).getByText("Replied to an answer")).toBeTruthy();
+  expect(within(rail).getByRole("link", { name: "Finished the first semester." }).getAttribute("href"))
+    .toBe("/explore?source=member&post=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+  expect(within(rail).getAllByRole("link", { name: /View discussion/ })).toHaveLength(2);
+  expect(within(rail).queryByRole("button", { name: "Post options" })).toBeNull();
+
+  await user.click(within(tabs).getByRole("tab", { name: "Answers" }));
+  await screen.findByText("Start with a simple data model and test it.");
+  expect(screen.getByText("4 net votes")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "How do I learn SQL?" }).getAttribute("href"))
+    .toBe("/explore?source=member&post=cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+  expect(fetchMock.mock.calls.some(([url]) => url.includes("/posts/me/activity?kind=comments"))).toBe(true);
+  expect(fetchMock.mock.calls.some(([url]) => url.includes("/posts/me/activity?kind=answers"))).toBe(true);
+});
+
+it("loads and paginates visible public comments, using the same Activity category controls", async () => {
+  const member = { username: "maya", name: "Maya Cole", photoId: null };
+  const comment = id => ({
+    id, kind: "comment", body: "Comment " + id,
+    createdAt: "2026-11-09T10:00:00Z",
+    post: { source: "organization", id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      label: "BrightWay University" },
+  });
+  const first = comment("11111111-1111-4111-8111-111111111111");
+  const second = comment("22222222-2222-4222-8222-222222222222");
+  const fetchMock = vi.fn(async url => json(url.includes("kind=comments")
+    ? url.includes("cursor=page-2")
+      ? { member, items: [second], nextCursor: null }
+      : { member, items: [first], nextCursor: "page-2" }
+    : { items: [], nextCursor: null }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(<MemoryRouter><ProfileActivities username="maya" /></MemoryRouter>);
+  const tabs = screen.getByRole("tablist", { name: "Activity categories" });
+  const comments = within(tabs).getByRole("tab", { name: "Comments" });
+  comments.focus();
+  await userEvent.setup().keyboard("{ArrowRight}");
+  expect(within(tabs).getByRole("tab", { name: "Answers" }).getAttribute("aria-selected")).toBe("true");
+  await userEvent.setup().click(comments);
+  const region = screen.getByRole("region", { name: "Member comments" });
+  await within(region).findByText("Comment " + first.id);
+  await userEvent.setup().click(screen.getByRole("button", { name: "Load older comments" }));
+  await within(region).findByText("Comment " + second.id);
+  expect(within(region).getAllByRole("article")).toHaveLength(2);
+  expect(fetchMock.mock.calls.some(([url]) => url.includes("/posts/members/maya/activity?kind=comments&cursor=page-2"))).toBe(true);
+});
