@@ -9,12 +9,6 @@ const notificationIdSchema = z.uuid();
 const viewProfileSelect = {
   id: true,
   certifications: true,
-  profileCertificationsPublicEnabled: true,
-  profileCredentialsPublicEnabled: true,
-  profileAchievementsPublicEnabled: true,
-  profilePublicEnabled: true,
-  profileViewSharingEnabled: true,
-  profileViewNotificationsEnabled: true,
   headline: true,
   bio: true,
   countryCode: true,
@@ -25,6 +19,14 @@ const viewProfileSelect = {
   careerGoals: true,
   skills: true,
   interests: true,
+  educationRecords: { where: { status: { not: "FALSE_CREDENTIAL" } },
+    select: { id: true, institution: true, qualification: true, startMonth: true,
+      endMonth: true, current: true, status: true, description: true },
+    orderBy: [{ startMonth: "desc" }, { id: "desc" }], take: 20 },
+  experienceRecords: { where: { status: { not: "FALSE_CREDENTIAL" } },
+    select: { id: true, organization: true, role: true, type: true, startMonth: true,
+      endMonth: true, current: true, status: true, description: true },
+    orderBy: [{ startMonth: "desc" }, { id: "desc" }], take: 20 },
 };
 
 function utcDay(value) {
@@ -127,47 +129,50 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
         const profileIds = [viewer.personId, target.personId].sort();
         await tx.$queryRaw(Prisma.sql`SELECT "personId" FROM "Profile" WHERE "personId" IN (${Prisma.join(profileIds)}) ORDER BY "personId" FOR UPDATE`);
         const profile = await tx.profile.findUnique({ where: { personId: target.personId }, select: viewProfileSelect });
-        const viewerProfile = await tx.profile.findUnique({ where: { personId: viewer.personId }, select: { profileViewSharingEnabled: true } });
-        if (!profile?.profilePublicEnabled) throw fail(404, "This public profile is unavailable.");
 
         const sections = {};
         const approvedIdentity = await identity.inspectAccount(tx, target.id);
         sections.identityVerified = approvedIdentity.status === "APPROVED";
-        if (profile.profileCertificationsPublicEnabled) {
-          sections.certifications = Array.isArray(profile.certifications)
-            ? profile.certifications.slice(0, 20).map(row => ({
-              title: row.title, issuer: row.issuer, issuedMonth: row.issuedMonth,
-              expiresMonth: row.expiresMonth || null, credentialUrl: row.credentialUrl || null,
-              verified: false,
-            }))
-            : [];
-        }
-        if (profile.profileCredentialsPublicEnabled) {
-          sections.verifiedCredentials = await verifiedCredentials(tx, profile.id);
-        }
-        if (profile.profileAchievementsPublicEnabled && sections.identityVerified) {
+        // Everyone's basic profile and professional sections are visible by
+        // default. Only contact details have configurable visibility settings.
+        sections.certifications = Array.isArray(profile?.certifications)
+          ? profile.certifications.slice(0, 20).map(row => ({
+            title: row.title, issuer: row.issuer, issuedMonth: row.issuedMonth,
+            expiresMonth: row.expiresMonth || null, credentialUrl: row.credentialUrl || null,
+            verified: false,
+          }))
+          : [];
+        sections.education = (profile?.educationRecords ?? []).map(row => ({
+          id: row.id, title: row.qualification, organization: row.institution,
+          startMonth: row.startMonth, endMonth: row.endMonth, current: row.current,
+          description: row.description, verified: row.status === "VERIFIED",
+        }));
+        sections.experience = (profile?.experienceRecords ?? []).map(row => ({
+          id: row.id, title: row.role, organization: row.organization, type: row.type,
+          startMonth: row.startMonth, endMonth: row.endMonth, current: row.current,
+          description: row.description, verified: row.status === "VERIFIED",
+        }));
+        sections.verifiedCredentials = profile?.id
+          ? await verifiedCredentials(tx, profile.id) : [];
+        if (sections.identityVerified) {
           sections.achievements = await tx.memberPost.findMany({
             where: { authorId: target.id, type: "ACHIEVEMENT", withdrawnAt: null },
             select: { id: true, body: true, tags: true, createdAt: true },
-            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            take: 8,
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 8,
           });
         }
         const currentTime = now();
-        // Analytics are aggregates only. Viewer identities are never exposed
-        // by the owner dashboard; the sharing consent gates named notifications.
+        // The owner receives daily-coalesced profile-view notifications automatically.
         await tx.profileVisit.createMany({
           data: [{ ownerId: target.id, viewerId: viewer.id, viewedOn: utcDay(currentTime), createdAt: currentTime }],
           skipDuplicates: true,
         });
-        if (profile.profileViewNotificationsEnabled && viewerProfile?.profileViewSharingEnabled) {
-          await tx.profileViewNotification.createMany({
-            data: [{ recipientId: target.id, viewerId: viewer.id, viewedOn: utcDay(currentTime), createdAt: currentTime }],
-            skipDuplicates: true,
-          });
-        }
+        await tx.profileViewNotification.createMany({
+          data: [{ recipientId: target.id, viewerId: viewer.id, viewedOn: utcDay(currentTime), createdAt: currentTime }],
+          skipDuplicates: true,
+        });
         await assertNetworkSession(tx, actor, now);
-        return publicProfile(target, profile, sections);
+        return publicProfile(target, profile ?? { skills: [], interests: [] }, sections);
       });
     },
 
