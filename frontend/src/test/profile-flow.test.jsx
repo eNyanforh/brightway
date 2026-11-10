@@ -155,7 +155,8 @@ it("organizes the private profile into About Me, Achievements and Activity tabs"
   expect(screen.getByRole("heading", { name: "Interests" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Contact" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "My direction" })).toBeTruthy();
-  expect(screen.getByRole("heading", { name: "Control your profile" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Control your profile" })).toBeNull();
+  expect(screen.queryByRole("checkbox", { name: /Publish my basic profile/ })).toBeNull();
   expect(screen.getByRole("button", { name: "Change profile picture" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Edit my direction" })).toBeTruthy();
 
