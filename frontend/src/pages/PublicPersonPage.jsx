@@ -93,7 +93,7 @@ function PublishedPerson({ username }) {
       <header className="bw-public-person-identity">
         <PersonAvatar username={profile.username} photoId={profile.photoId} />
         <div className="bw-public-person-intro">
-          <h1 className="bw-public-person-name"><span>{profile.fullName}</span>{profile.identityVerified === true && <VerificationBadge />}</h1>
+          <div className="bw-public-person-name"><h1>{profile.fullName}</h1>{profile.identityVerified === true && <VerificationBadge />}</div>
           <p className="bw-public-person-handle">@{profile.username}</p>
           {profile.headline && <p className="bw-public-person-headline">{profile.headline}</p>}
           {location && <p className="bw-public-person-location">{location}</p>}
