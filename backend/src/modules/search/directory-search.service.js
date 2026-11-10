@@ -46,7 +46,7 @@ function peopleCandidates(query, viewer) {
     ) matches
     JOIN "Person" p ON p.id = matches."personId"
     JOIN "Account" a ON a."personId" = p.id
-    JOIN "Profile" profile ON profile."personId" = p.id AND profile."profilePublicEnabled"
+    LEFT JOIN "Profile" profile ON profile."personId" = p.id
     WHERE a.status = 'ACTIVE' AND a.id <> ${viewer}
       AND NOT EXISTS (
         SELECT 1 FROM "NetworkPair" b
