@@ -626,7 +626,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       // Recheck the current photo ID on each request so replaced/pending photos
       // cannot be fetched by guessing an old asset ID.
       const member = await prisma.account.findFirst({
-        where: { username, ...visibleMember(actor.accountId) },
+        where: { username, status: "ACTIVE", ...unblockedAuthor(actor.accountId) },
         select: { id: true, personId: true, person: { select: { profile: { select: { photoId: true } } } } },
       });
       if (!member || member.person.profile?.photoId !== photoId) throw fail(404, "This profile photo is unavailable.");
