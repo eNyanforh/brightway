@@ -37,6 +37,9 @@ async function fixture(page) {
         expect(request.method()).toBe("POST");
         state.views++;
         return reply({ ...visitor, headline: "Published headline", location: {}, skills: [], interests: [] });
+      case "/api/v1/profile/synthetic_visitor/contact":
+        expect(request.method()).toBe("GET");
+        return reply({ contact: {} });
       case "/api/v1/notifications":
         state.inboxReads++;
         return reply({ items: [notice], nextCursor: null });
