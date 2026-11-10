@@ -3,16 +3,18 @@ import { assertNetworkSession } from "../network/network-authority.js";
 const period = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * Private summary only: no viewer identifiers, search queries, or author details
- * leave this service. Each profile/search visitor is counted once per UTC day.
- * Post impressions reflect BrightWay's existing deduplicated post-view events.
+ * Private owner analytics: totals never identify searchers. The bounded profile
+ * viewer preview includes only active public members who currently consent to
+ * sharing their identity and have no blocks with the owner. No raw IDs, search
+ * queries, or non-consenting visitor details leave this service.
  */
 export function createProfileDashboardService({ prisma, now = () => new Date() }) {
   return {
     async read(actor) {
       await assertNetworkSession(prisma, actor, now);
       const measuredSince = new Date(now().getTime() - period);
-      const [profileViews, postImpressions, searchAppearances] = await Promise.all([
+      const blocked = [{ leftBlocked: true }, { rightBlocked: true }];
+      const [profileViews, postImpressions, searchAppearances, consentingViews] = await Promise.all([
         prisma.profileVisit.count({
           where: { ownerId: actor.accountId, createdAt: { gte: measuredSince } },
         }),
@@ -26,6 +28,31 @@ export function createProfileDashboardService({ prisma, now = () => new Date() }
         prisma.profileSearchAppearance.count({
           where: { ownerId: actor.accountId, createdAt: { gte: measuredSince } },
         }),
+        prisma.profileVisit.findMany({
+          where: {
+            ownerId: actor.accountId, createdAt: { gte: measuredSince },
+            viewer: {
+              status: "ACTIVE",
+              person: { profile: { is: {
+                profilePublicEnabled: true, profileViewSharingEnabled: true,
+              } } },
+              networkLeft: { none: { rightAccountId: actor.accountId, OR: blocked } },
+              networkRight: { none: { leftAccountId: actor.accountId, OR: blocked } },
+            },
+          },
+          distinct: ["viewerId"],
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 3,
+          select: {
+            viewer: { select: {
+              username: true,
+              person: { select: {
+                firstName: true, middleName: true, lastName: true,
+                profile: { select: { photoId: true } },
+              } },
+            } },
+          },
+        }),
       ]);
       await assertNetworkSession(prisma, actor, now);
       return {
@@ -34,6 +61,12 @@ export function createProfileDashboardService({ prisma, now = () => new Date() }
         profileViews,
         postImpressions,
         searchAppearances,
+        recentProfileViewers: consentingViews.map(({ viewer }) => ({
+          username: viewer.username,
+          name: [viewer.person.firstName, viewer.person.middleName, viewer.person.lastName]
+            .filter(Boolean).join(" "),
+          photoId: viewer.person.profile?.photoId ?? null,
+        })),
       };
     },
   };

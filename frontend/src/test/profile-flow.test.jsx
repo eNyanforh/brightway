@@ -60,7 +60,13 @@ function mount(
     if (url.endsWith("/manual-identity/status"))
       return ok({ accountId: account.id, profileVersion: original.version, status: "NOT_STARTED", identityVerified: false, canSubmit: false });
     if (url.endsWith("/profile/me/dashboard"))
-      return ok({ periodDays: 7, profileViews: 9, postImpressions: 0, searchAppearances: 6 });
+      return ok({ periodDays: 7, profileViews: 9, postImpressions: 0,
+        searchAppearances: 6,
+        recentProfileViewers: [
+          { username: "share_one", name: "Sharing Viewer", photoId: null },
+          { username: "share_two", name: "Second Viewer", photoId: null },
+        ],
+      });
     if (url.endsWith("/posts/me"))
       return ok({ access: { identityVerified: false, profilePublic: false },
         items: [], nextCursor: null });
@@ -121,6 +127,14 @@ it("organizes the private profile into About Me, Achievements and Activity tabs"
   expect(await within(dashboard).findByRole("button", { name: /9.*Profile views/ })).toBeTruthy();
   expect(within(dashboard).getByRole("button", { name: /0.*Post impressions/ })).toBeTruthy();
   expect(within(dashboard).getByRole("button", { name: /6.*Search appearances/ })).toBeTruthy();
+  const people = within(dashboard).getByRole("group", { name: "Recent profile viewers" });
+  expect(within(people).getAllByRole("link")).toHaveLength(2);
+  expect(within(people).getByRole("link", { name: "Sharing Viewer viewed your profile" })
+    .getAttribute("href")).toBe("/people/share_one");
+  expect(within(people).getAllByRole("img", { name: "Private profile view" })).toHaveLength(1);
+  const searches = within(dashboard).getByRole("group", { name: "Anonymous search appearances" });
+  expect(within(searches).queryAllByRole("link")).toHaveLength(0);
+  expect(within(searches).getAllByRole("img", { name: "Anonymous search appearance" })).toHaveLength(3);
   await userEvent.setup().click(within(dashboard).getByRole("button", { name: /9.*Profile views/ }));
   expect(within(dashboard).getByText(/Counted once per viewer per UTC day/)).toBeTruthy();
   expect(within(dashboard).getByRole("link", { name: "View shared profile notifications" }).getAttribute("href")).toBe("/notifications");
