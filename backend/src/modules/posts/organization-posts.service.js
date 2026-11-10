@@ -113,6 +113,16 @@ const commentSelect = {
 const cursorInput = z.string().min(1).max(700).optional();
 const feedQuery = z.strictObject({ view: z.enum(["for-you", "following", "saved"]).default("for-you"), cursor: cursorInput });
 const workspaceQuery = z.strictObject({ cursor: cursorInput });
+const memberActivityQuery = z.strictObject({
+  kind: z.enum(["comments", "answers"]),
+  cursor: cursorInput,
+});
+const activityCursorSchema = z.strictObject({
+  viewer: identifier, target: identifier, kind: z.enum(["comments", "answers"]),
+  at: z.iso.datetime(), id: identifier,
+  source: z.enum(["post-comment", "answer-comment", "answer"]),
+});
+
 const cursorSchema = z.strictObject({ viewer: identifier, scope: z.string(), at: z.iso.datetime(), id: identifier, source: z.enum(["organization", "member", "repost", "saved"]).default("organization") });
 
 function parse(schema, data, message) {
@@ -190,6 +200,39 @@ function cursorFor(rows, viewer, scope, source) {
   const last = rows[pageSize - 1];
   const kind = source ?? feedSource(last);
   return Buffer.from(JSON.stringify({ viewer, scope, at: last.createdAt.toISOString(), id: last.id, source: kind })).toString("base64url");
+}
+
+// Stable cross-table pagination: order by timestamp, source and ID descending.
+function readActivityCursor(token, viewer, target, kind) {
+  if (!token) return null;
+  try {
+    const parsed = activityCursorSchema.parse(
+      JSON.parse(Buffer.from(token, "base64url").toString("utf8")));
+    if (parsed.viewer !== viewer || parsed.target !== target || parsed.kind !== kind) throw Error();
+    return { ...parsed, createdAt: new Date(parsed.at) };
+  } catch {
+    throw fail(400, "Reload this member's activity to continue.");
+  }
+}
+function activityBoundary(position, source) {
+  if (!position) return {};
+  if (source < position.source) return { createdAt: { lte: position.createdAt } };
+  if (source > position.source) return { createdAt: { lt: position.createdAt } };
+  return { OR: [
+    { createdAt: { lt: position.createdAt } },
+    { createdAt: position.createdAt, id: { lt: position.id } },
+  ] };
+}
+function pageActivity(rows, actorId, targetId, kind) {
+  rows.sort((left, right) => right.createdAt - left.createdAt
+    || right.source.localeCompare(left.source) || right.id.localeCompare(left.id));
+  const page = rows.slice(0, pageSize);
+  const last = page.at(-1);
+  const nextCursor = rows.length > pageSize && last ? Buffer.from(JSON.stringify({
+    viewer: actorId, target: targetId, kind, at: last.createdAt.toISOString(),
+    id: last.id, source: last.source,
+  })).toString("base64url") : null;
+  return { page, nextCursor };
 }
 
 function unblockedAuthor(accountId) {
@@ -1116,6 +1159,127 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         if (!comment.deletedAt) await tx.postComment.update({ where: { id }, data: { deletedAt: now(), body: "" } });
         return { id };
       });
+    },
+
+    async memberActivity(actor, usernameValue, query) {
+      const { kind, cursor } = parse(memberActivityQuery, query,
+        "Choose comments or answers and a valid activity page.");
+      await assertNetworkSession(prisma, actor, now);
+      const where = usernameValue == null ? { id: actor.accountId }
+        : { username: parse(publicPhotoUsername, usernameValue, "Choose a valid member.") };
+      const member = await prisma.account.findFirst({
+        where: { ...where, status: "ACTIVE", ...unblockedAuthor(actor.accountId) },
+        select: memberSelect,
+      });
+      if (!member) throw fail(404, "This member's activity is unavailable.");
+      const position = readActivityCursor(cursor, actor.accountId, member.id, kind);
+      const publicPostAuthor = {
+        ...visibleMember(actor.accountId),
+        ...unblockedAuthor(member.id),
+      };
+      const publicOrganizationAuthor = {
+        status: "ACTIVE",
+        AND: [unblockedAuthor(actor.accountId), unblockedAuthor(member.id)],
+      };
+      const publicQuestion = {
+        withdrawnAt: null, type: "QUESTION", author: publicPostAuthor,
+      };
+      let rows;
+      if (kind === "answers") {
+        const answers = await prisma.questionAnswer.findMany({
+          where: {
+            authorId: member.id, deletedAt: null,
+            question: { is: publicQuestion },
+            ...activityBoundary(position, "answer"),
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: pageSize + 1,
+          select: {
+            id: true, body: true, createdAt: true, score: true,
+            question: { select: { id: true, body: true, questionDetails: true } },
+          },
+        });
+        rows = answers.map(answer => ({ ...answer, source: "answer" }));
+      } else {
+        const [comments, replies] = await Promise.all([
+          prisma.postComment.findMany({
+            where: {
+              authorId: member.id, deletedAt: null,
+              OR: [
+                { memberPost: { is: { withdrawnAt: null, author: publicPostAuthor } } },
+                { organizationPost: { is: {
+                  withdrawnAt: null, organization: readyFilter, author: publicOrganizationAuthor,
+                } } },
+              ],
+              ...activityBoundary(position, "post-comment"),
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: pageSize + 1,
+            select: {
+              id: true, body: true, createdAt: true,
+              memberPost: { select: { id: true, type: true, body: true, questionDetails: true } },
+              organizationPost: { select: {
+                id: true, body: true, organization: { select: { name: true } },
+              } },
+            },
+          }),
+          prisma.answerComment.findMany({
+            where: {
+              authorId: member.id, deletedAt: null,
+              answer: { is: {
+                deletedAt: null, author: publicOrganizationAuthor,
+                question: { is: publicQuestion },
+              } },
+              ...activityBoundary(position, "answer-comment"),
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: pageSize + 1,
+            select: {
+              id: true, body: true, createdAt: true,
+              answer: { select: {
+                id: true, body: true, question: { select: {
+                  id: true, body: true, questionDetails: true,
+                } },
+              } },
+            },
+          }),
+        ]);
+        rows = [
+          ...comments.map(comment => ({ ...comment, source: "post-comment" })),
+          ...replies.map(reply => ({ ...reply, source: "answer-comment" })),
+        ];
+      }
+      const { page, nextCursor } = pageActivity(rows, actor.accountId, member.id, kind);
+      const items = page.map(row => {
+        const base = { id: row.id, body: row.body, createdAt: row.createdAt };
+        if (row.source === "answer") return {
+          ...base, kind: "answer", score: row.score,
+          post: { source: "member", id: row.question.id,
+            label: row.question.questionDetails?.title || row.question.body },
+        };
+        if (row.source === "answer-comment") return {
+          ...base, kind: "reply", context: row.answer.body,
+          post: { source: "member", id: row.answer.question.id,
+            label: row.answer.question.questionDetails?.title || row.answer.question.body },
+        };
+        if (row.memberPost) return {
+          ...base, kind: "comment", context: row.memberPost.body,
+          post: { source: "member", id: row.memberPost.id,
+            label: row.memberPost.questionDetails?.title || row.memberPost.body },
+        };
+        return {
+          ...base, kind: "comment", context: row.organizationPost.body,
+          post: { source: "organization", id: row.organizationPost.id,
+            label: row.organizationPost.organization.name },
+        };
+      });
+      await assertNetworkSession(prisma, actor, now);
+      const active = await prisma.account.findFirst({
+        where: { id: member.id, status: "ACTIVE", ...unblockedAuthor(actor.accountId) },
+        select: { id: true },
+      });
+      if (!active) throw fail(404, "This member's activity is unavailable.");
+      return { member: memberAttribution(member), items, nextCursor };
     },
 
     async publicMemberList(actor, usernameValue, query) {
