@@ -77,7 +77,7 @@ function PublishedPerson({ username }) {
       <header className="bw-public-person-identity">
         <PersonAvatar />
         <div className="bw-public-person-intro">
-          <span className="bw-public-person-status">Published profile</span>
+          <span className="bw-public-person-status">BrightWay member</span>
           <h1 className="bw-public-person-name"><span>{profile.fullName}</span>{profile.identityVerified === true && <VerificationBadge />}</h1>
           <p className="bw-public-person-handle">@{profile.username}</p>
           {profile.headline && <p className="bw-public-person-headline">{profile.headline}</p>}
@@ -186,8 +186,8 @@ function PublishedPerson({ username }) {
     </div>
 
     <p className="bw-public-person-note">
-      This view includes only the member's published profile details and sections
-      they separately enabled. Contact information and verification evidence remain private.
+      Member profiles are visible to signed-in BrightWay members. Email, phone, and WhatsApp
+      visibility follows each member's contact settings. Verification evidence remains restricted.
       Standalone certifications are self-reported; only reviewed records carry a verified label.
     </p>
   </article>;
