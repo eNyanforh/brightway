@@ -13,15 +13,15 @@ export function createPeopleSuggestions({ prisma, now = () => new Date() }) {
       ), matches AS (
         SELECT p."personId"
         FROM "Profile" p CROSS JOIN viewer v
-        WHERE p."profilePublicEnabled" AND p.skills && v.skills
+        WHERE p.skills && v.skills
         UNION
         SELECT p."personId"
         FROM "Profile" p CROSS JOIN viewer v
-        WHERE p."profilePublicEnabled" AND p.interests && v.interests
+        WHERE p.interests && v.interests
         UNION
         SELECT p."personId"
         FROM "Profile" p CROSS JOIN viewer v
-        WHERE p."profilePublicEnabled" AND p."careerField" IS NOT NULL
+        WHERE p."careerField" IS NOT NULL
           AND lower(p."careerField") = v.career
       ), ranked AS (
         SELECT a.username, concat_ws(' ', person."firstName", nullif(person."middleName", ''), person."lastName") AS name,
