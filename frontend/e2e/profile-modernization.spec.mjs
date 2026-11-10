@@ -451,11 +451,11 @@ test("Activities keeps the regular post author layout with long verified names",
   await expect(rail.getByRole("img", { name: "Verified identity" })).toHaveCount(2);
 });
 
-test("published profile shows only shared fields in a responsive modern layout", async ({ page }) => {
+test("member profile respects contact visibility in a responsive modern layout", async ({ page }) => {
   const api = await fixture(page);
   await page.goto("/people/maya");
   await expect(page.getByRole("heading", { level: 1, name: "Maya Cole" })).toBeVisible();
-  await expect(page.getByText("Published profile", { exact: true })).toBeVisible();
+  await expect(page.getByText("BrightWay member", { exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: "Profile avatar" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Published profile sections" })
     .getByRole("link", { name: "Career direction" })).toHaveAttribute("href", "#published-direction");
