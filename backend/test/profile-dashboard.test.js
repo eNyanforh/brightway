@@ -25,7 +25,16 @@ test("dashboard returns only the signed-in owner's seven-day aggregate totals", 
       },
     },
     postView: { count: async ({ where }) => { calls.push(["posts", where]); return 3; } },
-    profileSearchAppearance: { count: async ({ where }) => { calls.push(["search", where]); return 6; } },
+    profileSearchAppearance: {
+      count: async ({ where }) => { calls.push(["search", where]); return 6; },
+      findMany: async options => {
+        calls.push(["searchers", options]);
+        return [{ viewer: {
+          username: "student_searcher",
+          person: { firstName: "Student", middleName: null, lastName: "Searcher", profile: null },
+        } }];
+      },
+    },
   };
   const stats = await createProfileDashboardService({ prisma, now: () => at }).read({
     accountId: owner, sessionId: session,
@@ -40,6 +49,7 @@ test("dashboard returns only the signed-in owner's seven-day aggregate totals", 
       username: "visible_viewer", name: "Visible Viewer",
       photoId: "55555555-5555-4555-8555-555555555555",
     }],
+    recentSearchers: [{ username: "student_searcher", name: "Student Searcher", photoId: null }],
   });
   assert.equal(sessionChecks, 2, "session checked before and after data reads");
   const byKind = Object.fromEntries(calls);
@@ -47,9 +57,9 @@ test("dashboard returns only the signed-in owner's seven-day aggregate totals", 
   assert.equal(byKind.search.ownerId, owner);
   assert.equal(byKind.viewers.where.ownerId, owner);
   assert.equal(byKind.viewers.where.viewer.status, "ACTIVE");
-  assert.equal(byKind.viewers.where.viewer.person.profile.is.profilePublicEnabled, true);
-  assert.equal(byKind.viewers.where.viewer.person.profile.is.profileViewSharingEnabled, true);
   assert.equal(byKind.viewers.where.viewer.networkLeft.none.rightAccountId, owner);
+  assert.deepEqual(byKind.viewers.where.viewer, byKind.searchers.where.viewer);
+  assert.equal(byKind.searchers.where.ownerId, owner);
   assert.equal(byKind.viewers.where.viewer.networkRight.none.leftAccountId, owner);
   assert.deepEqual(byKind.viewers.distinct, ["viewerId"]);
   assert.equal(byKind.viewers.take, 3);
@@ -63,7 +73,7 @@ test("dashboard returns only the signed-in owner's seven-day aggregate totals", 
   assert.equal(byKind.posts.createdAt.gte.toISOString(), stats.measuredSince);
   assert.deepEqual(Object.keys(stats).sort(), [
     "measuredSince", "periodDays", "postImpressions", "profileViews",
-    "recentProfileViewers", "searchAppearances",
+    "recentProfileViewers", "recentSearchers", "searchAppearances",
   ]);
 });
 
@@ -76,7 +86,7 @@ test("dashboard rejects invalid and revoked sessions without exposing metrics", 
       findMany: async () => { countCalled = true; return []; },
     },
     postView: { count: async () => { countCalled = true; return 3; } },
-    profileSearchAppearance: { count: async () => { countCalled = true; return 3; } },
+    profileSearchAppearance: { count: async () => { countCalled = true; return 3; }, findMany: async () => { countCalled = true; return []; } },
   };
   const dashboard = createProfileDashboardService({ prisma, now: () => at });
   await assert.rejects(dashboard.read({ accountId: owner, sessionId: session }), { status: 401 });
@@ -84,18 +94,18 @@ test("dashboard rejects invalid and revoked sessions without exposing metrics", 
   assert.equal(countCalled, false);
 });
 
-test("dashboard never returns private or searcher identities when no viewer consents", async () => {
+test("dashboard returns no identities when there are no eligible active members", async () => {
   const prisma = {
     $queryRaw: async () => [{ id: session }],
     profileVisit: { count: async () => 8, findMany: async () => [] },
     postView: { count: async () => 1 },
-    profileSearchAppearance: { count: async () => 12 },
+    profileSearchAppearance: { count: async () => 12, findMany: async () => [] },
   };
   const stats = await createProfileDashboardService({ prisma, now: () => at })
     .read({ accountId: owner, sessionId: session });
   assert.equal(stats.profileViews, 8);
   assert.equal(stats.searchAppearances, 12);
   assert.deepEqual(stats.recentProfileViewers, []);
-  assert.equal(Object.hasOwn(stats, "searchers"), false);
+  assert.deepEqual(stats.recentSearchers, []);
   assert.equal(JSON.stringify(stats).includes("viewerId"), false);
 });
