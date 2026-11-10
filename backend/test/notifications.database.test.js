@@ -275,13 +275,11 @@ test("the real app exposes member profiles by default and preserves inbox owners
     } });
     await prisma.profile.create({ data: { personId: other.personId, skills: ["JavaScript"], interests: ["Technology"] } });
     const suggestion = { name: "Synthetic owner", username: owner.username, reasons: ["Shared skills", "Shared interests", "Same career field"] };
-    assert.deepEqual((await request(visitor, suggestionPath)).items, [
-      suggestion,
-      { name: "Synthetic other", username: other.username, reasons: ["Shared skills", "Shared interests"] },
-    ]);
+    const otherSuggestion = { name: "Synthetic other", username: other.username, reasons: ["Shared skills", "Shared interests"] };
+    assert.deepEqual((await request(visitor, suggestionPath)).items, [suggestion, otherSuggestion]);
     const follow = await prisma.networkFollow.create({ data: { followerId: visitor.id, targetAccountId: owner.id, active: true } });
     try {
-      assert.deepEqual((await request(visitor, suggestionPath)).items, []);
+      assert.deepEqual((await request(visitor, suggestionPath)).items, [otherSuggestion]);
     } finally {
       await prisma.networkFollow.delete({ where: { id: follow.id } });
     }
@@ -289,7 +287,8 @@ test("the real app exposes member profiles by default and preserves inbox owners
     assert.equal((await inbox(owner)).items.length, 1);
     await request(visitor, "/network/people/" + owner.username);
     await request(visitor, "/network/people/" + owner.username + "/contact");
-    assert.deepEqual((await inbox(owner)).items, []);
+    assert.equal((await inbox(owner)).items.length, 1,
+      "network lookups and contact reads do not generate extra view notifications");
 
     await Promise.all([view(visitor, owner), view(visitor, owner)]);
     const { items } = await inbox(owner);
@@ -314,8 +313,8 @@ test("the real app exposes member profiles by default and preserves inbox owners
     assert.deepEqual((await inbox(visitor)).items, []);
     await view(visitor, owner, { status: 404 });
     await view(owner, visitor, { status: 404 });
-    assert.deepEqual((await request(visitor, suggestionPath)).items, []);
-    assert.deepEqual((await request(owner, suggestionPath)).items, []);
+    assert.deepEqual((await request(visitor, suggestionPath)).items, [otherSuggestion]);
+    assert.deepEqual((await request(owner, suggestionPath)).items, [otherSuggestion]);
     assert.deepEqual((await search(visitor, owner.username)).items, []);
     assert.deepEqual((await search(owner, visitor.username)).items, []);
     await post(visitor, networkAction, { action: "UNBLOCK", expectedVersion: block.version, requestKey: randomUUID() });
