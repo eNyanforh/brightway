@@ -51,28 +51,9 @@ export function profileView(row, person = row?.person) {
   return { ...view, completion: evaluateProfileCompletion(view) };
 }
 
-// Only account-owner responses include the publishing and notification choices.
-export const privateProfileSelect = {
-  ...ownerProfileSelect,
-  profileViewSharingEnabled: true,
-  profileViewNotificationsEnabled: true,
-  profilePublicEnabled: true,
-  profileCertificationsPublicEnabled: true,
-  profileCredentialsPublicEnabled: true,
-  profileAchievementsPublicEnabled: true,
-};
-
-export function privateProfileView(row, person) {
-  return {
-    ...profileView(row, person),
-    profileViewSharingEnabled: row?.profileViewSharingEnabled === true,
-    profileViewNotificationsEnabled: row?.profileViewNotificationsEnabled === true,
-    profilePublicEnabled: row?.profilePublicEnabled === true,
-    profileCertificationsPublicEnabled: row?.profileCertificationsPublicEnabled === true,
-    profileCredentialsPublicEnabled: row?.profileCredentialsPublicEnabled === true,
-    profileAchievementsPublicEnabled: row?.profileAchievementsPublicEnabled === true,
-  };
-}
+// The only configurable visibility rules are contact fields.
+export const privateProfileSelect = ownerProfileSelect;
+export const privateProfileView = profileView;
 
 function conflict() {
   return Object.assign(new Error("Your profile changed. Reload it before saving again."), { status: 409 });
