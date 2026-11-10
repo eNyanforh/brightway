@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { countryCodes } from "../profile/profile.schema.js";
+import { reservedMemberHandles } from "../../../../shared/member-profile-paths.mjs";
 
 const name = z.string().trim().min(1).max(100);
 
@@ -30,7 +31,8 @@ export const registrationSchema = z.strictObject({
     .regex(
       /^[a-z0-9_]+$/,
       "Use only letters, numbers, and underscores"
-    ),
+    )
+    .refine(value => !reservedMemberHandles.has(value), "This username is reserved. Choose another."),
 
   email: z
     .string()
