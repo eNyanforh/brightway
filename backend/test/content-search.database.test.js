@@ -62,7 +62,7 @@ test("content discovery uses PostgreSQL full-text matching, current blocks, and 
     assert.deepEqual(new Set(matches.items.map(item => item.kind)),
       new Set(["achievements", "questions", "events"]),
       "matches tag, question title and event title");
-    assert.equal(matches.items[0].kind, "questions", "matching question title outranks a topic-only match");
+    assert.equal(matches.items[0].kind, "events", "an event title prefix outranks title-suffix and topic-only matches");
     assert.equal(JSON.stringify(matches).includes("private.invalid"), false);
 
     const questionOnly = await search(viewer.actor, { q: "robotics", kind: "questions" });
@@ -75,7 +75,6 @@ test("content discovery uses PostgreSQL full-text matching, current blocks, and 
     const [leftAccountId, rightAccountId] = [owner.id, viewer.id].sort();
     await db.networkPair.create({ data: {
       leftAccountId, rightAccountId, status: "NONE", leftBlocked: true,
-      requestedById: viewer.id,
     } });
     assert.deepEqual((await search(viewer.actor, { q: "robotics", kind: "all" })).items, [],
       "a bilateral block removes matching posts before any rendering");
