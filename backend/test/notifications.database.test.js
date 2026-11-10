@@ -417,6 +417,8 @@ test("the real app exposes member profiles by default and preserves inbox owners
     assert.equal(answers.items[0].kind, "answer");
     assert.equal(answers.items[0].post.id, question.id);
     assert.equal(answers.items[0].body, "Practice by creating a database schema.");
+    assert.equal(answers.items[0].upvoteCount, 0);
+    assert.equal(answers.items[0].downvoteCount, 0);
     assert.equal((await request(visitor, "/posts/me/activity?kind=answers")).items.length, 1);
     await request(owner, "/posts/me/activity?kind=posts", { status: 400 });
 
