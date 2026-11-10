@@ -1250,10 +1250,11 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         ];
       }
       const { page, nextCursor } = pageActivity(rows, actor.accountId, member.id, kind);
+      const votes = kind === "answers" ? await answerVoteTotals(prisma, page.map(row => row.id)) : new Map();
       const items = page.map(row => {
         const base = { id: row.id, body: row.body, createdAt: row.createdAt };
         if (row.source === "answer") return {
-          ...base, kind: "answer", score: row.score,
+          ...base, kind: "answer", ...votes.get(row.id),
           post: { source: "member", id: row.question.id,
             label: row.question.questionDetails?.title || row.question.body },
         };
