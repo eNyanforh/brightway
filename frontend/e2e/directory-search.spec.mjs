@@ -40,7 +40,7 @@ test("the personal header opens directory search and filters results on desktop 
     expect(searches).toEqual([]);
     await page.getByRole("searchbox", { name: "Name or username" }).press("Enter");
   } else {
-    const field = page.getByRole("searchbox", { name: "Search people and organizations" });
+    const field = page.getByRole("searchbox", { name: "Search BrightWay content and people" });
     await field.fill("maya");
     expect(searches).toEqual([]);
     await field.press("Enter");
