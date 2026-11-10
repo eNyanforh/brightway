@@ -217,8 +217,8 @@ it("styles only server-approved public history records as verified, with formatt
     .toBe("/organizations/school-1");
   expect(within(record).getByRole("img", { name: "Starz University profile picture" }).getAttribute("src"))
     .toBe("/org-logo.webp");
-  expect(within(record).getByLabelText("Verified credential").textContent)
-    .toContain("Verified credential · Starz University");
+  expect(within(record).queryByLabelText("Verified credential")).toBeNull();
+  expect(screen.getByRole("heading", { name: "Education and experience" })).toBeTruthy();
   expect(screen.queryByText("Not submitted for verification")).toBeNull();
 });
 
@@ -245,6 +245,8 @@ it("shows only published fields on the redesigned public profile without a secon
   expect(screen.queryByRole("tabpanel", { name: "Achievements" })).toBeNull();
   expect(screen.queryByRole("tabpanel", { name: "Activities" })).toBeNull();
   expect(screen.getByRole("img", { name: "Profile avatar" })).toBeTruthy();
+  expect(document.querySelector(".bw-public-person-note")).toBeNull();
+  expect(screen.queryByText(/Member profiles, current profile photos/)).toBeNull();
   expect(screen.getByText("Building accessible education software.")).toBeTruthy();
   expect(screen.getByText("Mentor new developers.")).toBeTruthy();
   expect(screen.getByText("TypeScript")).toBeTruthy();
@@ -269,7 +271,27 @@ it("renders public activities without leaking contact details or requiring an id
         tags: ["Coding"], createdAt: "2026-10-31T10:00:00Z" },
     ],
   };
-  mount(url => url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/maya");
+  const posted = viewed.activities.map(item => ({
+    ...item,
+    member: { username: "maya", name: "Maya Cole", photoId: viewed.photoId, verified: false },
+    reaction: { count: 3, liked: false }, views: 15, commentCount: 2,
+    repostCount: 1, reposted: false, saved: false,
+    ...(item.type === "EVENT" ? {
+      eventDetails: {
+        title: "Learning session", startAt: "2026-12-01T12:00:00Z",
+        endAt: "2026-12-01T14:00:00Z", timezone: "UTC",
+        format: "IN_PERSON", venue: "Monrovia", ticketPriceCents: 0,
+      }, registration: { count: 2, registered: false }, eventAttendees: [],
+    } : {}),
+    ...(item.type === "QUESTION" ? {
+      questionDetails: { title: "How do I learn backend development?" },
+      answerCount: 4, answerParticipants: [],
+    } : {}),
+  }));
+  const fetchMock = mount(url =>
+    url.endsWith("/profiles/maya/view") ? ok(viewed)
+      : url.includes("/posts/members/maya") ? ok({ items: posted, nextCursor: null })
+        : ok({ profile: original }), "/maya");
   await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
   expect(screen.getByRole("img", { name: "Profile avatar" }).getAttribute("src"))
     .toBe("/api/v1/explore/members/maya/photo/55555555-5555-4555-8555-555555555555");
@@ -281,9 +303,17 @@ it("renders public activities without leaking contact details or requiring an id
   expect(within(screen.getByRole("tabpanel", { name: "Achievements" }))
     .getByText("Completed a course.")).toBeTruthy();
   await user.click(screen.getByRole("tab", { name: "Activities" }));
-  expect(screen.getByText("Hosting a learning session.")).toBeTruthy();
-  expect(screen.getByText("How can I learn backend development?")).toBeTruthy();
-  expect(within(screen.getByRole("tabpanel", { name: "Activities" })).getAllByRole("link", { name: /View post/ })).toHaveLength(3);
+  await screen.findByText("Hosting a learning session.");
+  const rail = screen.getByRole("region", { name: "Member posts" });
+  expect(within(rail).getAllByRole("article")).toHaveLength(3);
+  expect(within(rail).getAllByLabelText("15 views")).toHaveLength(3);
+  expect(within(rail).getAllByLabelText("2 comments")).toHaveLength(3);
+  expect(within(rail).getByText("Learning session")).toBeTruthy();
+  expect(within(rail).getByText("How do I learn backend development?")).toBeTruthy();
+  expect(within(rail).getAllByRole("link", { name: /View full post/ })).toHaveLength(3);
+  expect(within(rail).queryByRole("button", { name: "Post options" })).toBeNull();
+  expect(within(rail).queryByRole("button", { name: "Review registration requests" })).toBeNull();
+  expect(fetchMock.mock.calls.some(([url]) => url.includes("/posts/members/maya"))).toBeTruthy();
   expect(screen.queryByText("synthetic@example.org")).toBeNull();
   expect(screen.queryByRole("heading", { name: "Contact" })).toBeNull();
 });
