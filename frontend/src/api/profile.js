@@ -55,6 +55,7 @@ export const profileApi = {
   readFresh: async () => { invalidateReads("personal"); return (await request("/profile/me")).data.profile; },
   completion: async () => { invalidateReads("personal"); return (await request("/profile/me/completion")).data; },
   dashboard: async (signal) => (await request("/profile/me/dashboard", { signal })).data,
+  visibleContact: async (username, signal) => (await request("/profile/" + encodeURIComponent(username) + "/contact", { signal })).data.contact,
   requestEmail: async (signal) => (await request("/auth/email/request", { method: "POST", body: {}, signal })).data,
   verifyEmail: async (code, signal) => (await request("/auth/email/verify", { method: "POST", body: { code }, signal })).data,
   save: async (expectedVersion, changes) =>
