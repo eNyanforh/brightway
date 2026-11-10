@@ -73,7 +73,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
       request(actor, "/search?" + new URLSearchParams({ q, kind: "people", ...options }), { status });
     await search(null, owner.username, {}, 401);
     await search(visitor, "!!", {}, 400);
-    const hit = { kind: "people", name: "Synthetic owner", username: owner.username, href: "/" + owner.username };
+    const hit = { kind: "people", name: "Synthetic owner", username: owner.username, headline: "Published fixture", photoId: null, verified: false, href: "/" + owner.username };
     assert.deepEqual(await search(visitor, "synt own"), { items: [hit], nextCursor: null });
     assert.deepEqual((await search(visitor, "@" + owner.username)).items, [hit]);
     const searchStats = await dashboard(owner);
@@ -371,7 +371,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
     assert.deepEqual((await inbox(owner)).items, []);
     const stillVisible = await view(visitor, owner);
     assert.equal(stillVisible.username, owner.username, "profiles remain visible with no publication toggle");
-    assert.deepEqual((await search(visitor, owner.username)).items, [hit]);
+    assert.deepEqual((await search(visitor, owner.username)).items, [{ ...hit, photoId: photo.id }]);
 
     // Activity categories are independent from the post-only profile timeline.
     // Existing verified publication status lets other members read discussions
