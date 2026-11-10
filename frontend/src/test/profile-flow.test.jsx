@@ -137,7 +137,7 @@ it("organizes the private profile into About Me, Achievements and Activity tabs"
   expect(within(searches).getAllByRole("img", { name: "Anonymous search appearance" })).toHaveLength(3);
   await userEvent.setup().click(within(dashboard).getByRole("button", { name: /9.*Profile views/ }));
   expect(within(dashboard).getByText(/Counted once per viewer per UTC day/)).toBeTruthy();
-  expect(within(dashboard).getByRole("link", { name: "View shared profile notifications" }).getAttribute("href")).toBe("/notifications");
+  expect(within(dashboard).getByRole("link", { name: "View profile notifications" }).getAttribute("href")).toBe("/notifications");
   expect(screen.getByRole("navigation", { name: "Profile tools" })).toBeTruthy();
   expect(within(screen.getByRole("navigation", { name: "Profile tools" }))
     .getByRole("link", { name: "Account security" }).getAttribute("href")).toBe("/security");
