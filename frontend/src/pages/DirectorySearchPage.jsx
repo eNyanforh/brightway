@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { searchDirectory } from "../api/directory-search";
+import { memberPhotoUrl } from "../api/organization-posts";
 import NavigationIcon from "../components/layout/NavigationIcon";
+import VerificationBadge from "../components/VerificationBadge";
 import "./directory-search.css";
 
 const filters = [
@@ -10,11 +12,51 @@ const filters = [
   ["organizations", "Organizations"],
 ];
 
+function initials(name) {
+  return (name || "?").split(/\s+/u).slice(0, 2).map(part => part[0] || "").join("").toUpperCase();
+}
+
+function SearchAvatar({ item }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const image = item.kind === "people" && item.photoId && !imageFailed;
+  return (
+    <span className={"bw-directory-avatar " + (item.kind === "organizations" ? "bw-directory-avatar-org" : "")}>
+      {image
+        ? <img src={memberPhotoUrl(item.username, item.photoId)} alt="" loading="lazy" onError={() => setImageFailed(true)} />
+        : <span aria-hidden="true">{initials(item.name)}</span>}
+    </span>
+  );
+}
+
+function SearchResultCard({ item }) {
+  const isPerson = item.kind === "people";
+  return (
+    <li>
+      <Link className="bw-directory-result" to={item.href}>
+        <SearchAvatar item={item} />
+        <span className="bw-directory-result-info">
+          <span className="bw-directory-result-name">
+            <strong>{item.name}</strong>
+            {item.verified === true && <VerificationBadge kind={isPerson ? "identity" : "organization"} />}
+          </span>
+          <span className="bw-directory-handle">@{item.username}</span>
+          {isPerson && item.headline && <span className="bw-directory-headline">{item.headline}</span>}
+        </span>
+        <span className="bw-directory-result-trailing">
+          <span className="bw-directory-kind">{isPerson ? "Person" : "Organization"}</span>
+          <NavigationIcon name="chevron-right" size={18} />
+        </span>
+      </Link>
+    </li>
+  );
+}
+
 function SearchResults({ q, kind }) {
   const [page, setPage] = useState(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(true);
   const active = useRef(null);
+
   const load = useCallback(async cursor => {
     if (active.current) return;
     const controller = new AbortController();
@@ -53,32 +95,30 @@ function SearchResults({ q, kind }) {
 
   return (
     <section className="bw-directory-results" aria-label="Search results" aria-busy={pending}>
-      {pending && <p role="status">Searching BrightWay…</p>}
+      {page?.items.length > 0 && (
+        <p className="bw-directory-summary" role="status">Showing {page.items.length} result{page.items.length === 1 ? "" : "s"}{page.nextCursor ? " so far" : ""}</p>
+      )}
+      {pending && <p className="bw-directory-loading" role="status"><span className="bw-directory-spinner" aria-hidden="true" />Searching BrightWay…</p>}
       {error && (
         <div className="bw-directory-feedback" role="alert">
           <p>{error}</p>
           <button type="button" onClick={() => void load(page?.nextCursor)}>Retry search</button>
         </div>
       )}
-      {page?.items.length === 0 && <p className="bw-directory-feedback">No results for “{q}”. Try another name or username.</p>}
+      {!pending && !error && page?.items.length === 0 && (
+        <div className="bw-directory-empty">
+          <span className="bw-directory-empty-icon"><NavigationIcon name="search" size={24} /></span>
+          <h2>No matches found</h2>
+          <p>No results for “{q}”. Try a shorter name, headline, username, or organization name.</p>
+        </div>
+      )}
       {page?.items.length > 0 && (
-        <ul>
-          {page.items.map(item => (
-            <li key={item.href}>
-              <Link className="bw-directory-result" to={item.href}>
-                <span className="bw-directory-icon"><NavigationIcon name={item.kind === "people" ? "network" : "work"} /></span>
-                <span className="bw-directory-result-info">
-                  <strong>{item.name}</strong>
-                  <span>@{item.username}</span>
-                </span>
-                <span className="bw-directory-kind">{item.kind === "people" ? "Person" : "Organization"}</span>
-              </Link>
-            </li>
-          ))}
+        <ul className="bw-directory-list">
+          {page.items.map(item => <SearchResultCard item={item} key={item.href} />)}
         </ul>
       )}
       {page?.nextCursor && !error && (
-        <button type="button" disabled={pending} onClick={() => void load(page.nextCursor)}>More results</button>
+        <button type="button" className="bw-directory-more" disabled={pending} onClick={() => void load(page.nextCursor)}>More results</button>
       )}
     </section>
   );
@@ -92,32 +132,45 @@ export default function DirectorySearchPage() {
 
   function submit(event) {
     event.preventDefault();
-    const value = new FormData(event.currentTarget).get("q").trim();
+    const value = String(new FormData(event.currentTarget).get("q") || "").trim().replace(/\s+/gu, " ");
     if (value.length >= 2 && value.length <= 80) setParams({ q: value, kind });
   }
 
   return (
     <section className="bw-directory-search">
-      <header>
-        <Link to="/explore">Explore</Link>
+      <header className="bw-directory-hero">
+        <span className="bw-directory-eyebrow"><NavigationIcon name="search" size={16} /> Discover BrightWay</span>
         <h1>Search BrightWay</h1>
-        <p>Find people and verified organizations by name or username.</p>
+        <p>Find people by name, username, headline, or career field, and discover verified organizations.</p>
       </header>
-      <form role="search" aria-label="Directory search" onSubmit={submit}>
-        <input key={q} name="q" type="search" aria-label="Name or username" placeholder="Name or username" defaultValue={q} minLength={2} maxLength={80} required />
+
+      <form className="bw-directory-search-form" role="search" aria-label="Directory search" onSubmit={submit}>
+        <span className="bw-directory-form-icon"><NavigationIcon name="search" size={20} /></span>
+        <input key={q} name="q" type="search" aria-label="Name or username"
+          placeholder="Search names, careers, or organizations"
+          defaultValue={q} minLength={2} maxLength={80} required />
         <button type="submit">Search</button>
       </form>
-      {searchable && (
+
+      {searchable ? (
         <>
           <nav className="bw-directory-filters" aria-label="Search filters">
             {filters.map(([value, label]) => (
-              <Link key={value} to={"/search?" + new URLSearchParams({ q, kind: value })} aria-current={kind === value ? "page" : undefined}>{label}</Link>
+              <Link key={value} to={"/search?" + new URLSearchParams({ q, kind: value })}
+                aria-current={kind === value ? "page" : undefined}>
+                {label}
+              </Link>
             ))}
           </nav>
           <SearchResults key={JSON.stringify([q, kind])} q={q} kind={kind} />
         </>
+      ) : (
+        <div className="bw-directory-intro">
+          <span className="bw-directory-intro-icon"><NavigationIcon name="network" size={22} /></span>
+          <h2>Discover your next connection</h2>
+          <p>Enter at least two characters to search public profiles and approved organizations. Contact details are not included in search results.</p>
+        </div>
       )}
-      {!searchable && <p className="bw-directory-feedback">Enter at least two characters to search.</p>}
     </section>
   );
 }
