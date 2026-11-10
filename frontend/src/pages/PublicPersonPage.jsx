@@ -106,6 +106,7 @@ function PublishedPerson({ username }) {
     </div>
 
 
+
     <div className="bw-public-person-tabs" role="tablist" aria-label="Public profile sections">
       {tabs.map((tab, index) => (
         <button type="button" key={tab.key} id={`public-tab-${tab.key}`}
@@ -120,7 +121,6 @@ function PublishedPerson({ username }) {
         </button>
       ))}
     </div>
-
     <div className="bw-public-person-content">
       <div className="bw-public-person-panel" role="tabpanel" id="public-panel-about"
         aria-labelledby="public-tab-about" tabIndex={0} hidden={activeTab !== "about"}>
@@ -129,98 +129,6 @@ function PublishedPerson({ username }) {
         <p>{profile.bio}</p>
       </section>}
 
-      {hasDirection && <section id="published-direction" aria-labelledby="published-direction-title">
-        <h2 id="published-direction-title">Career direction</h2>
-        {field && <strong className="bw-public-person-field">{field}</strong>}
-        {profile.careerGoals && <p>{profile.careerGoals}</p>}
-      </section>}
-
-      {skills.length > 0 && <a href="#published-skills">Skills</a>}
-  
-      {interests.length > 0 && <a href="#published-interests">Interests</a>}
-      </nav>
-    )}
-
-    <div className="bw-public-person-content">
-      {profile.bio && <section id="published-about" aria-labelledby="published-about-title">
-        <h2 id="published-about-title">About</h2>
-        <p>{profile.bio}</p>
-      </section>}
-      {verifiedCredentials.length > 0 && (
-        <section id="published-credentials" aria-labelledby="published-credentials-title">
-          <h2 id="published-credentials-title">Verified credentials</h2>
-          <p className="bw-public-person-section-help">Education and experience records reviewed by an authorized issuer or BrightWay.</p>
-          <div className="bw-public-person-records">
-            {verifiedCredentials.map(record => (
-              <article className="bw-public-person-record bw-public-person-history-record" key={record.kind + record.id}>
-                <OrganizationAvatar key={record.organizationAvatar?.photoUrl || record.id}
-                  organization={record.organizationAvatar} className="bw-public-person-record-icon"
-                  icon={record.kind === "education" ? "book" : "briefcase"} />
-                <div className="bw-public-person-record-body">
-                  <div className="bw-public-person-record-heading">
-                    <span className="bw-public-person-credential-kind">
-                      {record.kind === "education" ? "Education" : "Experience"}
-                    </span>
-                    <h3>{record.title}</h3>
-                    <p className="bw-public-person-record-organization">{record.organizationAvatar ? (
-                      <Link to={`/organizations/${record.organizationAvatar.id}`}>{record.organization}</Link>
-                    ) : record.organization}</p>
-                    <p className="bw-public-person-record-date">
-                      {monthLabel(record.startMonth)} – {record.current ? "Present" : monthLabel(record.endMonth) || "Not specified"}
-                    </p>
-                  </div>
-                  <div className="bw-public-person-record-footer">
-                    <span className="bw-public-person-verified" aria-label="Verified credential">
-                      ✓ Verified credential · {record.verifiedBy}
-                    </span>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-      {certifications.length > 0 && (
-        <section id="published-certifications" aria-labelledby="published-certifications-title">
-          <h2 id="published-certifications-title">Licenses and certifications</h2>
-          <p className="bw-public-person-section-help">Self-reported certifications, not independently verified by BrightWay.</p>
-          <div className="bw-public-person-records">
-            {certifications.map((item, index) => (
-              <article className="bw-public-person-record" key={index}>
-                <span className="bw-public-person-record-icon"><Icon name="book" /></span>
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.issuer}</p>
-                  <small>Issued {item.issuedMonth}{item.expiresMonth ? ` · Expires ${item.expiresMonth}` : ""}</small>
-                  {/^https:\/\//i.test(item.credentialUrl || "") && (
-                    <a href={item.credentialUrl} target="_blank" rel="noopener noreferrer">View certificate</a>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-      {achievements.length > 0 && (
-        <section id="published-achievements" aria-labelledby="published-achievements-title">
-          <h2 id="published-achievements-title">Professional achievements</h2>
-          <div className="bw-public-person-achievements">
-            {achievements.map(item => (
-              <article className="bw-public-person-achievement" key={item.id}>
-                <div className="bw-public-person-achievement-meta">
-                  <strong><Icon name="sprout" /> Achievement</strong>
-                  <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString()}</time>
-                </div>
-                <p>{item.body}</p>
-                {item.tags?.length > 0 && <ul className="bw-public-person-list">
-                  {item.tags.map(tag => <li key={tag}>{tag}</li>)}
-                </ul>}
-                <Link to={`/explore?source=member&post=${encodeURIComponent(item.id)}`}>View achievement</Link>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
       {hasDirection && <section id="published-direction" aria-labelledby="published-direction-title">
         <h2 id="published-direction-title">Career direction</h2>
         {field && <strong className="bw-public-person-field">{field}</strong>}
@@ -242,25 +150,8 @@ function PublishedPerson({ username }) {
           </div>
         )}
       </div>
-
       <div className="bw-public-person-panel" role="tabpanel" id="public-panel-achievements"
         aria-labelledby="public-tab-achievements" tabIndex={0} hidden={activeTab !== "achievements"}>
-      {verifiedCredentials.length > 0 && <a href="#published-credentials">Verified credentials</a>}
-  
-      {certifications.length > 0 && <a href="#published-certifications">Certifications</a>}
-  
-      {achievements.length > 0 && <a href="#published-achievements">Achievements</a>}
-        {hasDirection && <a href="#published-direction">Career direction</a>}
-        {skills.length > 0 && <a href="#published-skills">Skills</a>}
-        {interests.length > 0 && <a href="#published-interests">Interests</a>}
-      </nav>
-    )}
-
-    <div className="bw-public-person-content">
-      {profile.bio && <section id="published-about" aria-labelledby="published-about-title">
-        <h2 id="published-about-title">About</h2>
-        <p>{profile.bio}</p>
-      </section>}
       {verifiedCredentials.length > 0 && (
         <section id="published-credentials" aria-labelledby="published-credentials-title">
           <h2 id="published-credentials-title">Verified credentials</h2>
@@ -344,7 +235,6 @@ function PublishedPerson({ username }) {
           </div>
         )}
       </div>
-
       <div className="bw-public-person-panel" role="tabpanel" id="public-panel-activities"
         aria-labelledby="public-tab-activities" tabIndex={0} hidden={activeTab !== "activities"}>
         {activities.length > 0 ? (
