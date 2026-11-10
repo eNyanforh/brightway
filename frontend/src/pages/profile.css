@@ -1212,11 +1212,6 @@
   }
 }
 .bw-profile-identity h1.bw-profile-verified-name{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-.bw-profile-view-privacy h2 { margin: 0.35rem 0 0.55rem; }
-.bw-profile-view-privacy > p:not(.bw-profile-eyebrow) { color: var(--profile-muted); margin: 0 0 1rem; }
-.bw-profile-view-privacy label { display: flex; align-items: flex-start; gap: 0.65rem; margin: 0.8rem 0; color: var(--profile-ink); }
-.bw-profile-view-privacy input { flex: 0 0 auto; width: 1rem; height: 1rem; margin-top: 0.2rem; accent-color: var(--profile-blue); }
-.bw-profile-view-privacy small { display: block; margin-top: 0.85rem; color: var(--profile-muted); line-height: 1.5; }
 
 
 /* 2026 BrightWay profile workspace: a restrained, content-first visual system. */
@@ -1327,7 +1322,6 @@
 }
 .bw-profile-section[id],
 .bw-profile-anchor-section[id],
-.bw-profile-view-privacy[id] { scroll-margin-top: 85px; }
 .bw-profile-section { padding: 22px 26px 24px; }
 .bw-profile-section-head { padding-bottom: 13px; border-bottom: 1px solid #edf1f7; margin-bottom: 16px; }
 .bw-profile-section-head h2 { font-size: 1rem; font-weight: 790; letter-spacing: -.02em; }
@@ -1349,28 +1343,6 @@
 .bw-profile-side .bw-profile-side-block h2 { font-size: 1.07rem; font-weight: 780; }
 .bw-profile-side-focus { background: linear-gradient(155deg, #ffffff, #f3f8ff); }
 .bw-profile-side-focus .bw-profile-next { border-color: #d4e2f5; background: #fff; }
-.bw-profile-view-privacy { display: grid; gap: 11px; }
-.bw-profile-view-privacy > p:not(.bw-profile-eyebrow) { font-size: .76rem; line-height: 1.55; margin: 0; }
-.bw-profile-view-privacy .bw-profile-eyebrow { margin: 0; }
-.bw-profile-view-privacy h2 { margin: 0 !important; }
-.bw-profile-privacy-options { display: grid; gap: 0; margin: 1px 0; }
-.bw-profile-view-privacy .bw-profile-privacy-options > label {
-  display: flex;
-  align-items: flex-start;
-  gap: .7rem;
-  margin: 0;
-  padding: 12px 0;
-  border-top: 1px solid #ebf0f6;
-  font-size: .77rem;
-  line-height: 1.52;
-  font-weight: 620;
-  color: #283e60;
-}
-.bw-profile-view-privacy .bw-profile-privacy-options > label:first-child { border-top: 0; }
-.bw-profile-view-privacy .bw-profile-privacy-options input {
-  width: 17px; height: 17px; flex: 0 0 17px; margin-top: 2px; accent-color: #1c61c6;
-}
-.bw-profile-view-privacy small { margin-top: 0; font-size: .69rem; line-height: 1.6; }
 .bw-profile-page :is(button, a, input, select, textarea):focus-visible { outline: 2px solid #2769d5; outline-offset: 2px; }
 @media (max-width: 900px) {
   .bw-profile-grid { grid-template-columns: minmax(0, 1fr) 255px; gap: 15px; }
