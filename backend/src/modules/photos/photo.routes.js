@@ -69,7 +69,7 @@ export function createPhotoRoutes({ photos, sessions, clientUrl, nodeEnv, limite
   });
   router.post("/profile/me/cover", origin, limits, auth, (req, res, next) => {
     const value = req.get("X-Profile-Version");
-    if (!/^(0|[1-9]\\d*)$/.test(value ?? "") || Number(value) > 2147483646) {
+    if (!/^(0|[1-9]\d*)$/.test(value ?? "") || Number(value) > 2147483646) {
       return res.status(400).json({ success: false, message: "Send the current X-Profile-Version header." });
     }
     next();
@@ -83,7 +83,7 @@ export function createPhotoRoutes({ photos, sessions, clientUrl, nodeEnv, limite
   });
   router.delete("/profile/me/cover", origin, limits, auth, async (req, res, next) => {
     const value = req.get("X-Profile-Version");
-    if (!/^(0|[1-9]\\d*)$/.test(value ?? "") || Number(value) > 2147483646)
+    if (!/^(0|[1-9]\d*)$/.test(value ?? "") || Number(value) > 2147483646)
       return res.status(400).json({ success: false, message: "Send the current X-Profile-Version header." });
     try {
       res.json({ success: true, data: await photos.removeCover(req.auth.account.person.id, Number(value)) });

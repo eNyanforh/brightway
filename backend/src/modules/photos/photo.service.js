@@ -161,7 +161,7 @@ export function createPhotoService({ prisma, storage, process = processPhoto, pr
         select: { storageKey: true },
       });
       if (!asset) throw error(404, "Cover photo not found.");
-      const bytes = await storage.get(asset.storageKey);
+      const bytes = await storage.get(asset.storageKey, { maxBytes: 3 * 1024 * 1024 });
       await authorizedCover();
       return bytes;
     },
