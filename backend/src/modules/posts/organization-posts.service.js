@@ -1153,6 +1153,27 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         .map(post => ({ id: post.id, authorId: account.id }));
       const attendees = events.length
         ? await eventAttendeePreviews(prisma, events, actor.accountId) : new Map();
+
+      // Answer avatars must not bypass author/respondent blocks simply
+      // because the current viewer has not blocked the respondent.
+      const responderPairs = new Map();
+      for (const post of shown) {
+        if (post.type !== "QUESTION") continue;
+        for (const { author } of post.answers ?? []) {
+          if (author.id === account.id) continue;
+          const pair = blockPair(author.id, account.id);
+          responderPairs.set(pairKey(pair), pair);
+        }
+      }
+      const blockedRows = responderPairs.size
+        ? await prisma.networkPair.findMany({
+          where: {
+            AND: [{ OR: [...responderPairs.values()] },
+              { OR: [{ leftBlocked: true }, { rightBlocked: true }] }],
+          },
+          select: { leftAccountId: true, rightAccountId: true },
+        }) : [];
+      const blockedRespondents = new Set(blockedRows.map(pairKey));
       const items = shown.map(({ likes, saves, reposts, registrations, answers, _count, ...post }) => {
         const blockedMeetingLink = post.type === "EVENT"
           && post.eventDetails?.requiresApproval === true
@@ -1166,8 +1187,10 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
           saved: saves.length > 0,
           reposted: reposts.length > 0,
           answerParticipants: post.type === "QUESTION"
-            ? [...new Map(answers.map(({ author }) =>
-              [author.id, memberAttribution(author)])).values()].slice(0, 3) : [],
+            ? [...new Map(answers
+              .filter(({ author }) => author.id === account.id ||
+                !blockedRespondents.has(pairKey(blockPair(author.id, account.id))))
+              .map(({ author }) => [author.id, memberAttribution(author)])).values()].slice(0, 3) : [],
           reaction: { count: _count.likes, liked: likes.length > 0 },
           views: _count.views,
           commentCount: _count.comments,
