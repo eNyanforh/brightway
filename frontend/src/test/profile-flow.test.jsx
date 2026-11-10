@@ -278,7 +278,8 @@ it("renders public activities without leaking contact details or requiring an id
   expect(screen.queryByRole("img", { name: "Verified identity" })).toBeNull();
   const user = userEvent.setup();
   await user.click(screen.getByRole("tab", { name: "Achievements" }));
-  expect(screen.getByText("Completed a course.")).toBeTruthy();
+  expect(within(screen.getByRole("tabpanel", { name: "Achievements" }))
+    .getByText("Completed a course.")).toBeTruthy();
   await user.click(screen.getByRole("tab", { name: "Activities" }));
   expect(screen.getByText("Hosting a learning session.")).toBeTruthy();
   expect(screen.getByText("How can I learn backend development?")).toBeTruthy();
