@@ -56,7 +56,7 @@ test("opening a member profile leaves the account's workspace request intact", a
   const work = Promise.withResolvers();
   state.waitForWork = work.promise;
   try {
-    await page.goto("/people/synthetic_visitor");
+    await page.goto("/synthetic_visitor");
     await expect(page.getByRole("heading", { name: visitor.fullName })).toBeVisible();
     await expect(page.getByText("Published headline")).toBeVisible();
     expect(state.views).toBe(1);
