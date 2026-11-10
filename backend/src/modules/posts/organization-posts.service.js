@@ -630,8 +630,9 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         select: { id: true, personId: true, person: { select: { profile: { select: { photoId: true } } } } },
       });
       if (!member || member.person.profile?.photoId !== photoId) throw fail(404, "This profile photo is unavailable.");
-      const access = await memberEligibility(prisma, member.id);
-      if (!access.identityVerified) throw fail(404, "This profile photo is unavailable.");
+      // Current profile portraits are visible to signed-in, unblocked members.
+      // Identity verification controls the badge, not photo visibility.
+      // Pending and replaced images remain inaccessible through the current-ID gate.
       await assertNetworkSession(prisma, actor, now);
       return { personId: member.personId, photoId };
     },
