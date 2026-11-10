@@ -199,7 +199,7 @@ it("keeps photo-review policy in the picture editor without displaying a review 
 
 it("styles only server-approved public history records as verified, with formatted dates", async () => {
   const viewed = {
-    fullName: "Maya Cole", username: "maya", headline: "Mentor",
+    fullName: "Maya Cole", username: "maya", headline: "Mentor", identityVerified: true,
     verifiedCredentials: [{
       id: "credential-1", kind: "education", title: "BSc Computer Science",
       organization: "Starz University", startMonth: "2022-09", endMonth: null,
@@ -208,7 +208,10 @@ it("styles only server-approved public history records as verified, with formatt
     }],
   };
   mount((url) => url.endsWith("/profiles/maya/view") ? ok(viewed) : ok({ profile: original }), "/maya");
-  await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
+  const name = await screen.findByRole("heading", { name: "Maya Cole", level: 1 });
+  const headerName = name.closest(".bw-public-person-name");
+  expect(within(headerName).getByRole("img", { name: "Verified identity" })).toBeTruthy();
+  expect(screen.getAllByRole("img", { name: "Verified identity" })).toHaveLength(1);
   await userEvent.setup().click(screen.getByRole("tab", { name: "Achievements" }));
   const record = screen.getByText("BSc Computer Science").closest(".bw-public-person-history-record");
   expect(record).toBeTruthy();
@@ -224,7 +227,7 @@ it("styles only server-approved public history records as verified, with formatt
 
 it("shows only published fields on the redesigned public profile without a second view request", async () => {
   const viewed = {
-    fullName: "Maya Cole", username: "maya", headline: "Software engineer and mentor",
+    fullName: "Maya Cole", username: "maya", headline: "Software engineer and mentor", identityVerified: false,
     bio: "Building accessible education software.", location: {
       countryCode: "LR", region: "Montserrado", locality: "Monrovia",
     }, careerField: { mode: "SPECIFIED", label: "Software development" },
