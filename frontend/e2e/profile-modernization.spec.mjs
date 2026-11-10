@@ -661,7 +661,7 @@ test("public and private Activities both provide Posts, Comments, and Answers", 
   await tabs.getByRole("tab", { name: "Answers" }).click();
   await expect(page.getByText("Build a small application and share what you learned.")).toBeVisible();
   await expect(page.getByText("4 upvotes")).toBeVisible();
-  await expect(page.getByText("1 downvotes")).toBeVisible();
+  await expect(page.getByText("1 downvote")).toBeVisible();
   await expect(page.getByText("Excellent work on your milestone.")).toHaveCount(0);
   await page.goto("/profile");
   await page.getByRole("tablist", { name: "Profile sections" })
