@@ -23,20 +23,17 @@ export default function AppHeader({
   const personalSearch = !workspaceLabel && !actingOrganization;
   const onSearchPage = location.pathname === "/search";
   const currentQuery = onSearchPage ? new URLSearchParams(location.search).get("q") || "" : "";
-  const [searchValue, setSearchValue] = useState(currentQuery);
+  const routeKey = location.pathname + location.search;
+  const [searchDraft, setSearchDraft] = useState({ routeKey, value: currentQuery });
+  const searchValue = searchDraft.routeKey === routeKey ? searchDraft.value : currentQuery;
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionPending, setSuggestionPending] = useState(false);
   const [suggestionOpen, setSuggestionOpen] = useState(false);
   const inputRef = useRef(null);
   const searchWrapRef = useRef(null);
 
-  // The header is the only search input. URL changes from tabs and Back/Forward
-  // restore its value; typing on the results page updates the URL after a pause.
-  useEffect(() => {
-    setSearchValue(onSearchPage ? currentQuery : "");
-    setSuggestionOpen(false);
-  }, [location.pathname, location.search, onSearchPage, currentQuery]);
-
+  // Input drafts belong to their current route. URL changes (tabs, Back/Forward,
+  // live query updates) resolve directly without synchronizing state in an effect.
   useEffect(() => {
     if (!personalSearch || !onSearchPage) return undefined;
     const q = searchValue.normalize("NFC").trim().replace(/\s+/gu, " ");
@@ -135,12 +132,12 @@ export default function AppHeader({
                 aria-label="Search BrightWay content and people"
                 placeholder="Search people, posts, opportunities and learning"
                 value={searchValue} minLength={2} maxLength={80}
-                onChange={event => { setSearchValue(event.target.value); setSuggestions([]); }}
+                onChange={event => { setSearchDraft({ routeKey, value: event.target.value }); setSuggestions([]); }}
                 onFocus={() => { if (!onSearchPage) setSuggestionOpen(true); }}
                 onKeyDown={event => { if (event.key === "Escape") setSuggestionOpen(false); }}
               />
               {searchValue && <button className="bw-design-search-clear" type="button"
-                aria-label="Clear search" onClick={() => { setSearchValue(""); inputRef.current?.focus(); }}>×</button>}
+                aria-label="Clear search" onClick={() => { setSearchDraft({ routeKey, value: "" }); inputRef.current?.focus(); }}>×</button>}
               <button type="submit" disabled={searchValue.trim().length < 2}>Search</button>
             </form>
             {suggestionOpen && !onSearchPage && searchValue.trim().length >= 2 && (
