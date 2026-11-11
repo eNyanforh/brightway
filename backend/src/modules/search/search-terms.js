@@ -15,3 +15,15 @@ export function prefixSearchQuery(q) {
   const selected = meaningful.length ? meaningful : words;
   return selected.map(word => word + ":*").join(" & ");
 }
+
+
+// Fuzzy matching is for public names and handles, never emails or arbitrary
+// pasted identifiers. Two-character queries use the existing prefix index.
+export function directoryFuzzyTerm(q) {
+  if (typeof q !== "string" || /[\p{L}\p{N}][^\s@]*@[^\s]+\.[^\s]+/iu.test(q)) return null;
+  const words = (q.match(/[\p{L}\p{M}\p{N}]+/gu) ?? [])
+    .filter(word => !filler.has(word.toLowerCase()));
+  if (!words.length || words.length > 3) return null;
+  const term = words.join(" ").toLowerCase();
+  return term.length >= 3 && term.length <= 48 ? term : null;
+}
