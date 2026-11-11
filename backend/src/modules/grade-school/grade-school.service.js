@@ -39,6 +39,9 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
   async function audit(db, actor, campusId, action, data) {
     await db.virtualCampusAudit.create({ data: { campusId, actorId: actor.accountId, action: "SCHOOL_" + action, data } });
   }
+  async function notifyClass(db, items) {
+    for (let offset = 0; offset < items.length; offset += 200) await db.platformNotification.createMany({ data: items.slice(offset, offset + 200), skipDuplicates: true });
+  }
   async function get(db, model, campusId, id, include) {
     const row = await db[model].findFirst({ where: { id: s.identifier(id), campusId }, ...(include ? { include } : {}) });
     if (!row) throw s.fail(404, "Academic record is unavailable.");
@@ -333,14 +336,18 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
         const updated = await db[model].update({ where: { id: row.id }, data: { version: { increment: 1 }, ...(data.finalize ? { status: "FINAL", finalizedAt: now() } : {}) } });
         await audit(db, actor, campusId, data.finalize ? "FINAL_SUBMITTED" : "DRAFT_SAVED", { kind, recordId: row.id, version: updated.version, records: data.records });
         if (data.finalize && isAttendance) {
-          for (const absent of data.records.filter(r => r.status === "ABSENT")) {
-            const registration = students.find(r => r.id === absent.registrationId);
-            const guardians = await db.gradeSchoolGuardian.findMany({ where: { campusId, studentId: registration.studentId, status: "CONFIRMED", guardian: { status: "ACTIVE" } } });
-            for (const guardian of guardians) await notify(db, { recipientId: guardian.guardianId, eventKey: `school-absence:${row.id}:${registration.id}:${guardian.id}`, kind: "CAMPUS_ABSENCE",
-              title: "A confirmed student's subject absence was finalized. View the Campus record.", href: "/learning?view=guardians", actorAccountId: actor.accountId });
+          const registrationsById = new Map(students.map(r => [r.id, r]));
+          const absent = new Map(data.records.filter(r => r.status === "ABSENT").map(r => {
+            const registration = registrationsById.get(r.registrationId);
+            return [registration.studentId, registration.id];
+          }));
+          if (absent.size) {
+            const guardians = await db.gradeSchoolGuardian.findMany({ where: { campusId, studentId: { in: [...absent.keys()] }, status: "CONFIRMED", guardian: { status: "ACTIVE" } }, select: { id: true, studentId: true, guardianId: true } });
+            await notifyClass(db, guardians.map(guardian => ({ recipientId: guardian.guardianId, eventKey: `school-absence:${row.id}:${absent.get(guardian.studentId)}:${guardian.id}`, kind: "CAMPUS_ABSENCE",
+              title: "A confirmed student's subject absence was finalized. View the Campus record.", href: "/learning?view=guardians", actorAccountId: actor.accountId })));
           }
         } else if (data.finalize) {
-          for (const registration of students) await notify(db, { recipientId: registration.student.accountId, eventKey: `school-grades:${row.id}:${registration.id}`, kind: "CAMPUS_GRADES", title: "New finalized assessment results are available in My Campus.", href: ownHref, actorAccountId: actor.accountId });
+          await notifyClass(db, students.map(registration => ({ recipientId: registration.student.accountId, eventKey: `school-grades:${row.id}:${registration.id}`, kind: "CAMPUS_GRADES", title: "New finalized assessment results are available in My Campus.", href: ownHref, actorAccountId: actor.accountId })));
         }
         return { id: row.id, status: updated.status, version: updated.version };
       });
