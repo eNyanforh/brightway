@@ -989,6 +989,19 @@ enum MemberPostType {
   QUESTION
 }
 
+enum MemberPostModerationStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
+enum MemberPostScreenStatus {
+  NOT_CONFIGURED
+  CLEAR
+  FLAGGED
+  UNAVAILABLE
+}
+
 model MemberPost {
   views PostView[]
   reports PostReport[]
@@ -1007,10 +1020,16 @@ model MemberPost {
   eventDetails Json?
   questionDetails Json?
   body String @db.VarChar(2000)
+  moderationStatus MemberPostModerationStatus @default(PENDING)
+  moderationVersion Int @default(1)
+  moderationFeedback String? @db.VarChar(1000)
+  moderationScreenStatus MemberPostScreenStatus?
+  moderationFlags String[] @default([])
   createdAt DateTime @default(now())
   withdrawnAt DateTime?
   @@unique([authorId, requestKey])
   @@index([withdrawnAt, createdAt, id])
+  @@index([moderationStatus, withdrawnAt, createdAt, id])
   @@index([authorId, withdrawnAt, createdAt, id])
   @@index([authorId, createdAt])
 }
