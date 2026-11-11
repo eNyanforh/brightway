@@ -541,7 +541,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
       setType("ACHIEVEMENT");
       setTags([]);
       setComposerOpen(false);
-      setNotice(memberComposer ? "Submitted for moderation. Track the decision in My Posts." : "Post published.");
+      setNotice(memberComposer ? post.moderationStatus === "PUBLISHED"
+        ? "Post published. BrightWay Management may review it later."
+        : "Submitted for moderation. Track the decision in My Posts." : "Post published.");
     }, { preserveOnDenied: inlineComposer });
   }
 
@@ -597,7 +599,8 @@ export default function PostsPanel({ organization, personal = false, view = "for
       const data = await operation(controller.signal);
       if (controller.signal.aborted) throw new Error("This post action was cancelled.");
       setPage(previous => previous ? ({ ...previous, items: change(previous.items, data) }) : previous);
-      setNotice(data.post ? data.post.moderationStatus === "PENDING" ? "Changes submitted for review." : "Post updated." : "Post deleted.");
+      setNotice(data.post ? data.post.moderationStatus === "PENDING"
+          ? "Changes submitted for review." : "Post updated and published." : "Post deleted.");
     } catch (failure) {
       if (!controller.signal.aborted) setError(failure);
       throw failure;
@@ -611,7 +614,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     return managePost(post, signal => post.member
       ? api.memberEdit(post.id, payload, signal)
       : api.edit(organizationId, post.id, payload, signal),
-    (items, { post: updated }) => updated.moderationStatus === "PENDING" && !personal
+    (items, { post: updated }) => updated.moderationStatus !== "PUBLISHED" && !personal
       ? items.filter(item => postKey(item) !== postKey(post))
       : items.map(item => postKey(item) === postKey(post) ? { ...item, ...updated } : item));
   }

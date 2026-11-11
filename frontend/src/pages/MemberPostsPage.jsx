@@ -10,7 +10,7 @@ export default function MemberPostsPage() {
       <header className="bw-explore-heading">
         <Link to="/explore">Back to Explore</Link>
         <h1>My posts</h1>
-        <p>Submit an achievement, event, or question and track approval and feedback here.</p>
+        <p>Share an achievement, event, or question. Posts that pass both AI checks can publish immediately; others remain here for review.</p>
       </header>
       <PostsPanel key={account.id} personal composerAccount={account} composerPhotoId={outlet?.profileDraft?.profile.photo?.id} />
     </section>

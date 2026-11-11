@@ -9,34 +9,52 @@ import "./management-tools.css";
 
 const types = { POST: "Post", ACHIEVEMENT: "Achievement", QUESTION: "Question", EVENT: "Event" };
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
-
+const views = [
+  { value: "PENDING", label: "Pending" },
+  { value: "PUBLISHED", label: "Published" },
+  { value: "REJECTED", label: "Removed / declined" },
+];
+const safetyLabels = {
+  CLEAR: "Clear", FLAGGED: "Flagged — manual review required",
+  UNAVAILABLE: "Unavailable", NOT_CONFIGURED: "Not configured",
+};
+const relevanceLabels = {
+  RELEVANT: "Education/career relevant", UNCERTAIN: "Uncertain — manual review required",
+  OFF_TOPIC: "Off-topic — manual review required", UNAVAILABLE: "Unavailable",
+  NOT_CONFIGURED: "Not configured",
+};
 export default function ManagementPostReviewsPage() {
   const { staff } = useManagement();
   return <PostReviewDesk key={staff.id} staffId={staff.id} />;
 }
-
 function PostReviewDesk({ staffId }) {
+  const [filter, setFilter] = useState("PENDING");
   const [pages, setPages] = useState([null]);
   const [selectedId, setSelectedId] = useState(null);
   const [decision, setDecision] = useState(null);
   const [notice, setNotice] = useState("");
   const cursor = pages.at(-1);
   const clearSelection = useCallback(() => { setSelectedId(null); setDecision(null); }, []);
-  const fetcher = useCallback(signal => managementToolsApi.postReviews(cursor, signal), [cursor]);
-  const queue = useManagementResource(staffId + ":" + (cursor || "first"), fetcher, clearSelection);
+  const fetcher = useCallback(signal => managementToolsApi.postReviews(cursor, filter, signal), [cursor, filter]);
+  const queue = useManagementResource(staffId + ":" + filter + ":" + (cursor || "first"), fetcher, clearSelection);
   const items = queue.data?.items ?? [];
   const selected = items.find(item => item.id === selectedId);
   const unavailable = queue.loading || Boolean(queue.error);
+  const title = filter === "PENDING" ? "Pending submissions"
+    : filter === "PUBLISHED" ? "Published posts" : "Removed and declined posts";
 
   function start(status) {
-    if (!selected) return;
+    if (!selected || selected.moderationStatus === status) return;
     setNotice("");
     setDecision({ decision: status, expectedVersion: selected.moderationVersion, requestKey: crypto.randomUUID() });
   }
   async function confirm(reason) {
     if (!selected || !decision) return;
     const result = await managementToolsApi.reviewPost(selected.id, { ...decision, reason });
-    setNotice(result.moderationStatus === "PUBLISHED" ? "Post approved and published." : "Post declined. Feedback is available to the author.");
+    setNotice(result.moderationStatus === "PUBLISHED"
+      ? "Post published or restored." : filter === "PUBLISHED"
+        ? "Published post removed from public discovery and interactions."
+        : "Post declined. Feedback is available to its author.");
     clearSelection();
     await queue.refresh();
   }
@@ -45,18 +63,27 @@ function PostReviewDesk({ staffId }) {
     setNotice("");
     setPages(value);
   }
-
+  function chooseFilter(value) {
+    if (value === filter) return;
+    setFilter(value);
+    changePage([null]);
+  }
+  const removingPublishedPost = selected?.moderationStatus === "PUBLISHED" && decision?.decision === "REJECTED";
   return (
     <section className="bw-mgmt-tools-page">
       <ManagementPageHeader eyebrow="BRIGHTWAY / MODERATION" title="Post review"
-        description="Review verified members’ achievements, questions and events before publication. Automated safety flags are advisory; you make the final decision."
+        description="AI checks safety and education/career relevance before publication. Management can also review, remove and restore already published posts."
         action={<button type="button" disabled={queue.loading || Boolean(decision)} onClick={() => void queue.refresh()}>Refresh queue</button>} />
+      <nav className="bw-mgmt-post-filters" aria-label="Post moderation status">
+        {views.map(view => <button type="button" key={view.value} aria-pressed={filter === view.value}
+          disabled={Boolean(decision)} onClick={() => chooseFilter(view.value)}>{view.label}</button>)}
+      </nav>
       {queue.error && <p role="alert">{queue.error.message} <button type="button" onClick={() => changePage([null])}>Start from beginning</button></p>}
       {notice && <p className="bw-mgmt-notice" role="status">{notice}</p>}
       <div className="bw-mgmt-review-desk">
-        <ManagementQueue title="Pending submissions" count={items.length}>
+        <ManagementQueue title={title} count={items.length}>
           {queue.loading && <p role="status">Loading submissions…</p>}
-          {!unavailable && !items.length && <p>No submissions are waiting on this page.</p>}
+          {!unavailable && !items.length && <p>No posts in this review category on this page.</p>}
           <ul>{items.map(item => (
             <ManagementQueueRow key={item.id} title={"@" + item.author.username}
               reference={"#" + item.id.slice(0, 8)} status={types[item.type] || "Post"}
@@ -73,7 +100,7 @@ function PostReviewDesk({ staffId }) {
         </ManagementQueue>
         <section className="bw-mgmt-case-detail" aria-label="Selected post">
           {selected ? <article className="bw-mgmt-tool-card">
-            <span className="bw-mgmt-card-eyebrow">PENDING REVIEW · REVISION {selected.moderationVersion}</span>
+            <span className="bw-mgmt-card-eyebrow">{selected.moderationStatus} · REVISION {selected.moderationVersion}</span>
             <h2>{types[selected.type] || "Post"} by @{selected.author.username}</h2>
             {selected.type === "QUESTION" && selected.questionDetails && <h3>{selected.questionDetails.title}</h3>}
             {selected.type === "EVENT" && selected.eventDetails && <div className="bw-mgmt-post-meta">
@@ -85,29 +112,38 @@ function PostReviewDesk({ staffId }) {
             {selected.tags.length > 0 && <ul className="bw-mgmt-post-tags" aria-label="Topic tags">
               {selected.tags.map(tag => <li className="bw-mgmt-tag" key={tag}>{tag}</li>)}
             </ul>}
-            <p className="bw-mgmt-post-screen">Automated safety check: <strong>{({
-              CLEAR: "No categories flagged",
-              FLAGGED: "Potential harm flagged — review carefully",
-              UNAVAILABLE: "Provider unavailable — manual review required",
-              NOT_CONFIGURED: "Not configured — manual review required",
-            })[selected.moderationScreenStatus] || "Not screened"}</strong></p>
-            {selected.moderationFlags?.length > 0 && <p className="bw-mgmt-post-screen">
-              Categories: {selected.moderationFlags.join(", ")}</p>}
+            <p className="bw-mgmt-post-screen">AI safety: <strong>{safetyLabels[selected.moderationScreenStatus] || "Not screened"}</strong></p>
+            {selected.moderationFlags?.length > 0 && <p className="bw-mgmt-post-screen">Safety categories: {selected.moderationFlags.join(", ")}</p>}
+            <p className="bw-mgmt-post-screen">AI education relevance: <strong>{relevanceLabels[selected.moderationRelevanceStatus] || "Not screened"}</strong>
+              {selected.moderationRelevanceCategory && <> · {selected.moderationRelevanceCategory.toLowerCase()}</>}
+              {selected.moderationRelevanceReason && <span className="bw-mgmt-relevance-reason">{selected.moderationRelevanceReason}</span>}
+            </p>
             <div className="bw-mgmt-record-actions">
-              <button type="button" className="bw-mgmt-primary" disabled={unavailable} onClick={() => start("PUBLISHED")}>Approve post</button>
-              <button type="button" disabled={unavailable} onClick={() => start("REJECTED")}>Decline post</button>
+              {selected.moderationStatus !== "PUBLISHED" && <button type="button" className="bw-mgmt-primary"
+                disabled={unavailable} onClick={() => start("PUBLISHED")}>
+                {selected.moderationStatus === "REJECTED" ? "Restore post" : "Approve post"}
+              </button>}
+              {selected.moderationStatus !== "REJECTED" && <button type="button" disabled={unavailable}
+                onClick={() => start("REJECTED")}>
+                {selected.moderationStatus === "PUBLISHED" ? "Remove post" : "Decline post"}
+              </button>}
             </div>
           </article> : <div className="bw-mgmt-review-placeholder">
-            <h2>Select a submission</h2>
-            <p>Review the wording, title, topic tags and safety signals before recording a decision.</p>
+            <h2>Select a post</h2>
+            <p>Inspect its content and AI screening signals. Existing publications remain under Management oversight.</p>
           </div>}
         </section>
       </div>
       {decision && selected && <ManagementActionDialog
-        title={decision.decision === "PUBLISHED" ? "Approve this post" : "Decline this post"}
-        description={decision.decision === "PUBLISHED"
-          ? "Confirm the post follows BrightWay’s learning and career policy. Your reason is saved in the audit log."
-          : "Give clear feedback to the author. The declined post remains private until revised and reviewed."}
+        title={removingPublishedPost ? "Remove this published post"
+          : decision.decision === "PUBLISHED"
+            ? selected.moderationStatus === "REJECTED" ? "Restore this post" : "Approve this post"
+            : "Decline this post"}
+        description={removingPublishedPost
+          ? "This immediately hides the post from feeds, search, public profiles and interactions. Give the author a clear reason."
+          : decision.decision === "PUBLISHED"
+            ? "Confirm this content meets BrightWay's academic and career posting policy. Your reason is recorded in the audit log."
+            : "Give the author actionable feedback. Declined content stays private until an authorized staff member restores it or reviews a revision."}
         onClose={() => { setDecision(null); void queue.refresh(); }} onConfirm={confirm} />}
     </section>
   );

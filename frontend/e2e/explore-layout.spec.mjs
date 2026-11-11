@@ -21,7 +21,7 @@ const formats = [
   { type: "QUESTION", choice: "Ask a Question", editor: "Write a question", label: "Question", heading: "Let's learn together", body: "How can I find a mentor for my first programming project?" },
 ];
 
-async function fixture(page, posts = [fixturePost]) {
+async function fixture(page, posts = [fixturePost], submittedStatus = "PENDING") {
   const writes = [];
   await page.route("**/*", async route => {
     const request = route.request();
@@ -42,7 +42,7 @@ async function fixture(page, posts = [fixturePost]) {
         writes.push(draft);
         return reply({ post: {
           id: "new-post", body: draft.body, type: draft.type, tags: draft.tags, eventDetails: draft.eventDetails || null, questionDetails: draft.questionDetails || null,
-          createdAt: fixturePost.createdAt, moderationStatus: "PENDING", moderationVersion: 1, moderationFeedback: null,
+          createdAt: fixturePost.createdAt, moderationStatus: submittedStatus, moderationVersion: 1, moderationFeedback: null,
           member: { name: "Synthetic Member", username: "synthetic" },
         } }, 201);
       }
@@ -189,7 +189,7 @@ for (const format of formats) {
       await editor.getByRole("group", { name: "Event cover style" }).getByRole("button", { name: "Forest" }).click();
       await expect(editor.getByRole("complementary", { name: "Event preview" })).toBeVisible();
     }
-    const publish = editor.getByRole("button", { name: format.type === "ACHIEVEMENT" ? "Submit for review" : "Submit " + format.label.toLowerCase() + " for review" });
+    const publish = editor.getByRole("button", { name: "Publish " + format.label.toLowerCase() });
     await expect(publish).toBeDisabled();
 
     const topics = editor.getByRole("textbox", { name: format.type === "ACHIEVEMENT" ? "Topics" : "Topic tags" });
@@ -223,12 +223,28 @@ for (const format of formats) {
   });
 }
 
+test("safe and relevant achievement publishes immediately after AI clearance", async ({ page }) => {
+  const writes = await fixture(page, [fixturePost], "PUBLISHED");
+  await page.goto("/explore");
+  const explore = page.getByRole("region", { name: "Explore", exact: true });
+  await explore.getByRole("button", { name: "Share an Achievement" }).click();
+  const editor = page.getByRole("dialog", { name: "Share an Achievement" }).getByRole("form", { name: "Create a post" });
+  await editor.getByRole("textbox", { name: "Write an achievement" }).fill("I completed a programming course and created my first app.");
+  await editor.getByRole("button", { name: "Coding" }).click();
+  await editor.getByRole("button", { name: "Publish achievement" }).click();
+  await expect(explore.getByText("Post published. BrightWay Management may review it later.")).toBeVisible();
+  const published = explore.getByRole("article").filter({ hasText: "I completed a programming course and created my first app." });
+  await expect(published).toBeVisible();
+  await expect(published.locator(".bw-post-story")).toHaveAttribute("data-post-type", "ACHIEVEMENT");
+  expect(writes).toHaveLength(1);
+});
+
 test("event admission settings validate ticket price and capacity before publishing", async ({ page }) => {
   await fixture(page);
   await page.goto("/explore");
   await page.getByRole("button", { name: "Create an Event" }).click();
   const editor = page.getByRole("dialog", { name: "Create an Event" });
-  const publish = editor.getByRole("button", { name: "Submit event for review" });
+  const publish = editor.getByRole("button", { name: "Publish event" });
   await expect(editor.getByRole("switch", { name: /Require approval/ })).toHaveAttribute("aria-checked", "false");
   await expect(editor.getByRole("switch", { name: /Set a capacity limit/ })).toHaveAttribute("aria-checked", "false");
   await expect(editor.getByRole("spinbutton", { name: "Ticket price" })).toHaveValue("0");

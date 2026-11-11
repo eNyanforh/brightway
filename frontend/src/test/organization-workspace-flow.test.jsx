@@ -334,7 +334,7 @@ it("the personal Post destination checks verification and lets authors withdraw 
   await f.user.type(screen.getByLabelText("Event title"), "Research Showcase");
   await f.user.type(screen.getByLabelText("Venue or address"), "Campus library");
   await f.user.type(screen.getByRole("textbox", { name: "Write an event" }), body);
-  const publish = screen.getByRole("button", { name: "Submit event for review" });
+  const publish = screen.getByRole("button", { name: "Publish event" });
   expect(publish.disabled).toBe(true);
   await f.user.type(screen.getByRole("textbox", { name: "Topic tags" }), "Research{Enter}");
   await f.user.click(publish);

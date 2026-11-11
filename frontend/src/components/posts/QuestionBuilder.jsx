@@ -150,7 +150,7 @@ export default function QuestionBuilder({ body, tags, disabled, onBodyChange, on
           <footer className="bw-question-builder-footer">
             <p>Questions are shared publicly. Members can respond in the comments.</p>
             <div><button type="button" disabled={disabled} onClick={onCancel}>Cancel</button>
-              <button type="submit" className="bw-question-publish" disabled={!valid}>Submit question for review</button></div>
+              <button type="submit" className="bw-question-publish" disabled={!valid}>Publish question</button></div>
           </footer>
         </form>
       </div>
