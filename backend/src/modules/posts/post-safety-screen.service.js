@@ -10,7 +10,7 @@ export function moderationText(post) {
   if ((post.type === "QUESTION" || post.questionDetails) && post.questionDetails) {
     parts.push(post.questionDetails.title, post.questionDetails.intent);
   }
-  if (post.type === "EVENT" && post.eventDetails) {
+  if ((post.type === "EVENT" || post.eventDetails) && post.eventDetails) {
     parts.push(post.eventDetails.title, post.eventDetails.venue);
   }
   // Do not send event join URLs, private application data, or member contacts.
