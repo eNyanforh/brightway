@@ -181,7 +181,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
     assert.deepEqual((await view(visitor, owner)).verifiedCredentials, []);
 
     const achievement = await prisma.memberPost.create({ data: {
-      authorId: owner.id, requestKey: randomUUID(), type: "ACHIEVEMENT",
+      authorId: owner.id, requestKey: randomUUID(), type: "ACHIEVEMENT", moderationStatus: "PUBLISHED",
       body: "Published a new software project.", tags: ["Coding"],
     } });
     createdPosts.push(achievement.id);
@@ -239,6 +239,8 @@ test("the real app exposes member profiles by default and preserves inbox owners
       "editing a post preserves its comments");
     assert.equal((await request(owner, "/posts/me")).items[0].views, 1,
       "editing a post preserves its view history");
+    assert.equal(edited.post.moderationStatus, "PENDING", "editing withdraws public visibility until review");
+    await prisma.memberPost.update({ where: { id: achievement.id }, data: { moderationStatus: "PUBLISHED" } });
     await request(owner, editPath, { method: "PATCH", body: editDraft, status: 409 });
     await request(owner, editPath, { method: "PATCH", body: {
       expectedBody: editedBody, expectedTags: ["Coding", "Technology"],
@@ -249,7 +251,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
     }, status: 400 });
 
     const question = await prisma.memberPost.create({ data: {
-      authorId: owner.id, requestKey: randomUUID(), type: "QUESTION",
+      authorId: owner.id, requestKey: randomUUID(), type: "QUESTION", moderationStatus: "PUBLISHED",
       body: "How can I learn database design?", tags: ["Coding"],
       questionDetails: { title: "How can I learn database design?", intent: "GUIDANCE" },
     } });
@@ -263,6 +265,8 @@ test("the real app exposes member profiles by default and preserves inbox owners
     });
     assert.equal(questionResult.post.questionDetails.intent, "DISCUSSION");
     assert.equal(questionResult.post.questionDetails.title, "What is the best way to learn Postgres?");
+    assert.equal(questionResult.post.moderationStatus, "PENDING");
+    await prisma.memberPost.update({ where: { id: question.id }, data: { moderationStatus: "PUBLISHED" } });
 
     const eventDetails = {
       title: "Community learning event", startAt: "2030-01-01T12:00:00.000Z",
@@ -271,7 +275,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
       ticketPriceCents: 0, requiresApproval: false, capacity: 100,
     };
     const eventPost = await prisma.memberPost.create({ data: {
-      authorId: owner.id, requestKey: randomUUID(), type: "EVENT",
+      authorId: owner.id, requestKey: randomUUID(), type: "EVENT", moderationStatus: "PUBLISHED",
       body: "Learn with the community.", tags: ["Education"], eventDetails,
     } });
     createdPosts.push(eventPost.id);
@@ -288,6 +292,8 @@ test("the real app exposes member profiles by default and preserves inbox owners
     const safeEvent = await request(owner, "/posts/me/" + eventPost.id,
       { method: "PATCH", body: eventEdit });
     assert.equal(safeEvent.post.body, eventEdit.body);
+    assert.equal(safeEvent.post.moderationStatus, "PENDING");
+    await prisma.memberPost.update({ where: { id: eventPost.id }, data: { moderationStatus: "PUBLISHED" } });
     await request(owner, "/posts/me/" + eventPost.id, { method: "PATCH", status: 409,
       body: { ...eventEdit, expectedBody: eventEdit.body,
         eventDetails: { ...eventDetails, ticketPriceCents: 2500 } },
