@@ -189,7 +189,7 @@ for (const format of formats) {
       await editor.getByRole("group", { name: "Event cover style" }).getByRole("button", { name: "Forest" }).click();
       await expect(editor.getByRole("complementary", { name: "Event preview" })).toBeVisible();
     }
-    const publish = editor.getByRole("button", { name: format.type === "ACHIEVEMENT" ? "Submit for review" : "Submit " + format.label.toLowerCase() + " for review" });
+    const publish = editor.getByRole("button", { name: "Publish " + format.label.toLowerCase() });
     await expect(publish).toBeDisabled();
 
     const topics = editor.getByRole("textbox", { name: format.type === "ACHIEVEMENT" ? "Topics" : "Topic tags" });
