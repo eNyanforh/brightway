@@ -379,8 +379,8 @@ test("the real app exposes member profiles by default and preserves inbox owners
     await view(visitor, owner, { status: 404 });
     await view(owner, visitor, { status: 404 });
     await request(visitor, publicUrl, { status: 404 });
-    assert.deepEqual((await request(visitor, suggestionPath)).items, [otherSuggestion]);
-    assert.deepEqual((await request(owner, suggestionPath)).items, [otherSuggestion]);
+    assert.deepEqual(fixturePeople((await request(visitor, suggestionPath)).items), [otherSuggestion]);
+    assert.deepEqual(fixturePeople((await request(owner, suggestionPath)).items), [otherSuggestion]);
     assert.deepEqual((await search(visitor, owner.username)).items, []);
     assert.deepEqual((await search(owner, visitor.username)).items, []);
     await post(visitor, networkAction, { action: "UNBLOCK", expectedVersion: block.version, requestKey: randomUUID() });
