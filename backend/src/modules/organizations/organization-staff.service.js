@@ -17,8 +17,16 @@ export function createOrganizationStaffService({ prisma, storage, now = () => ne
   }
   async function lock(db, ids) { for (const id of [...new Set(ids)].sort()) if (!id || (await db.account.updateMany({ where: { id, status: "ACTIVE" }, data: { identityRevision: { increment: 0 } } })).count !== 1) throw fail(403, "An active account is required."); }
   async function org(db, id, write = false) {
-    const result = await db.organization.findFirst({ where: { id, status: "ACTIVE", request: { status: "APPROVED" } } });
+    const result = await db.organization.findFirst({ where: { id, status: "ACTIVE", request: { status: "APPROVED" } },
+      include: { campus: true, locations: { select: { countryCode: true, verifiedAt: true } } } });
     if (!result) throw fail(404, "Organization workspace is unavailable.");
+    // A stored permission never grants academic/billing authority without an active,
+    // currently eligible Campus and an explicitly enabled country product.
+    result._campusAvailable = Boolean(result.campus?.status === "ACTIVE" &&
+      result.locations?.some(location => location.countryCode === "LR" && location.verifiedAt) &&
+      (await db.productAvailability?.findUnique?.({ where: {
+        product_countryCode: { product: "VIRTUAL_CAMPUS", countryCode: "LR" },
+      } }))?.enabled === true);
     if (write && (await db.organization.updateMany({ where: { id, status: "ACTIVE" }, data: { staffVersion: { increment: 0 } } })).count !== 1) throw conflict();
     return result;
   }
@@ -39,7 +47,7 @@ export function createOrganizationStaffService({ prisma, storage, now = () => ne
     if (organization.staffVersion !== expected || (await db.organization.updateMany({ where: { id: organization.id, staffVersion: expected }, data: { staffVersion: { increment: 1 } } })).count !== 1) throw conflict();
   }
   function grantable(permissions, actor, organization) { if (!permissions.every(p => catalog(organization).includes(p) && actor.permissions.includes(p))) throw fail(403, "You cannot grant permissions you do not hold or capabilities this organization does not have."); }
-  const summary = o => ({ id: o.id, name: o.name, type: o.type, offersTraining: o.offersTraining });
+  const summary = o => ({ id: o.id, name: o.name, type: o.type, offersTraining: o.offersTraining, campus: { status: o.campus?.status || "NOT_CONFIGURED", engine: o.campus?.engine || null, active: o._campusAvailable === true } });
   async function invitation(db, id) { const r = await db.organizationInvitation.findUnique({ where: { id } }); if (!r) throw fail(404, "Invitation not found."); return r; }
   function projectInvitation(r, username) { return { id: r.id, username, permissions: r.permissions, permissionLabels: r.permissions.map(key => PERMISSIONS[key]), state: r.state === "PENDING" && r.expiresAt <= now() ? "EXPIRED" : r.state, version: r.version, expiresAt: r.expiresAt }; }
   async function invitationView(db, r) { const recipient = await db.account.findUnique({ where: { id: r.recipientId }, select: { username: true } }); return projectInvitation(r, recipient?.username); }

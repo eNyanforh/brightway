@@ -17,8 +17,13 @@ export function organizationWorkspace(organization, permissions = [], role = "ST
     if (has("organization.programs.manage")) available.push({ key: "programs", label: "Programs", icon: "learning", sensitive: true, to: `${base}/programs`, description: "Manage education/training offerings shown in Discover." });
     if (has("organization.admissions.review")) available.push({ key: "admissions", label: "Admissions", icon: "applications", sensitive: true, to: `${base}/admissions`, description: "Manage admission cycles and applicant decisions." });
   }
-  // Informational setup entry only: no activation, eligibility attestation or billing authority.
+  const campusActive = organization.campus?.active === true;
+  if (campusActive && (role === "PRIMARY_ADMIN" || permissions.some(key => key.startsWith("organization.campus.")))) {
+    available.push({ key: "campus", label: "Virtual Campus", shortLabel: "Campus", icon: "learning", to: base + "/campus",
+      sensitive: true, description: "Campus settings, staff access and announcements." });
+  }
   const campusSetup = role === "PRIMARY_ADMIN" && (organization.type === "SCHOOL" || organization.offersTraining)
-    ? { label: "Build Campus", to: `${base}/campus`, status: "COMING_SOON" } : null;
-  return { available, planned, campusActive: false, campusSetup };
+    ? { label: campusActive ? "Manage Campus" : "Build Campus", to: base + "/campus",
+        status: organization.campus?.status || "NOT_CONFIGURED" } : null;
+  return { available, planned, campusActive, campusSetup };
 }
