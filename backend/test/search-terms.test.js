@@ -23,7 +23,7 @@ test("fuzzy name search accepts misspellings, fragments and @handles but never e
   assert.equal(directoryFuzzyTerm("Emmanul"), "emmanul");
   assert.equal(directoryFuzzyTerm("Mya Cole"), "mya cole");
   assert.equal(directoryFuzzyTerm("@nyanfrh"), "nyanfrh");
-  assert.equal(directoryFuzzyTerm("find someone named Emmanuel"), "named emmanuel");
+  assert.equal(directoryFuzzyTerm("find someone named Emmanuel"), "emmanuel");
   assert.equal(directoryFuzzyTerm("owner_person@example.invalid"), null);
   assert.equal(directoryFuzzyTerm("x') OR 1=1 --"), null);
 });
