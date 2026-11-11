@@ -157,6 +157,19 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
   const publisher = post.organization || post.member;
   const source = postSource(post);
   const type = post.member ? post.type ?? "POST" : "ORGANIZATION";
+  const reviewStatus = post.member ? post.moderationStatus : null;
+  const heldForReview = reviewStatus === "PENDING" || reviewStatus === "REJECTED";
+  const reviewBanner = heldForReview ? (
+    <div className="bw-post-review-state" data-status={reviewStatus}>
+      <strong>{reviewStatus === "PENDING" ? "Pending review" : "Declined"}</strong>
+      <span>{reviewStatus === "PENDING"
+        ? "This post is visible only to you until BrightWay Management approves it."
+        : "This post is not public. Edit it to submit a revised version for review."}</span>
+      {reviewStatus === "REJECTED" && post.moderationFeedback && (
+        <p><strong>Review feedback:</strong> {post.moderationFeedback}</p>
+      )}
+    </div>
+  ) : null;
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/" + encodeURIComponent(post.member.username);
   const topicTags = post.member && <PostTopicTags tags={post.tags} />;
   const imageUrl = post.member?.photoId
@@ -358,15 +371,16 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
             <span aria-hidden="true">·</span>
             <PostTimestamp createdAt={post.createdAt} />
           </header>
+          {reviewBanner}
           <PostStory post={displayPost} topicTags={topicTags} timeline
             answerCount={answerCount} answerParticipants={answerParticipants} />
-          <PostComments postId={post.id} source={source}
+          {!heldForReview && <PostComments postId={post.id} source={source}
             commentCount={post.commentCount}
             showComment={type !== "QUESTION"} primaryAction={primaryAction}>
             {controls}
-          </PostComments>
-          {extras}
-          {canManageEvent && post.eventDetails?.requiresApproval === true && (
+          </PostComments>}
+          {!heldForReview && extras}
+          {!heldForReview && canManageEvent && post.eventDetails?.requiresApproval === true && (
             <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
           )}
         </div>
@@ -387,8 +401,9 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
           <p><PostTimestamp createdAt={post.createdAt} /></p>
         </div>
       </header>
+      {reviewBanner}
       <PostStory post={displayPost} topicTags={topicTags} />
-      {canManageEvent && post.eventDetails?.requiresApproval === true && (
+      {!heldForReview && canManageEvent && post.eventDetails?.requiresApproval === true && (
         <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
       )}
 
