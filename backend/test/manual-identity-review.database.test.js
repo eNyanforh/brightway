@@ -241,7 +241,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
       tags: ["Careers", "Coding"],
     });
     assert.equal(revised.moderationStatus, "PENDING");
-    assert.equal(revised.moderationVersion, rejection.moderationVersion + 1);
+    assert.equal(revised.moderationVersion, rejection.moderationVersion + 2);
     assert.equal(revised.moderationFeedback, null);
     await assert.rejects(moderation.decide(moderator, rejection.id, {
       decision: "PUBLISHED", expectedVersion: rejection.moderationVersion,
@@ -249,7 +249,84 @@ test("database manual identity requests serialize retries and decisions, revoke 
     }), { status: 409 }, "stale revisions cannot approve changed content");
     await approvePost(rejection.id);
     assert.equal((await posts.readPost(viewerActor, "member", rejection.id)).post.id, rejection.id);
+    // A published post remains subject to Management removal and restoration.
+    const beforeRemoval = await db.memberPost.findUniqueOrThrow({ where: { id: rejection.id } });
+    const removed = await moderation.decide(moderator, rejection.id, {
+      decision: "REJECTED", expectedVersion: beforeRemoval.moderationVersion,
+      requestKey: randomUUID(), reason: "This public post needs correction following Management review.",
+    });
+    assert.equal(removed.moderationStatus, "REJECTED");
+    assert.equal(removed.moderationVersion, beforeRemoval.moderationVersion + 1);
+    assert.equal((await moderation.list(moderator, { status: "REJECTED" })).items.some(row => row.id === rejection.id), true);
+    await assert.rejects(posts.readPost(viewerActor, "member", rejection.id), { status: 404 });
+    await assert.rejects(moderation.decide(moderator, rejection.id, {
+      decision: "PUBLISHED", expectedVersion: beforeRemoval.moderationVersion,
+      requestKey: randomUUID(), reason: "A stale moderator action should not restore this post.",
+    }), { status: 409 });
+    const restored = await moderation.decide(moderator, rejection.id, {
+      decision: "PUBLISHED", expectedVersion: removed.moderationVersion,
+      requestKey: randomUUID(), reason: "The post is suitable for publication after management review.",
+    });
+    assert.equal(restored.moderationStatus, "PUBLISHED");
+    assert.equal((await moderation.list(moderator, { status: "PUBLISHED" })).items.some(row => row.id === rejection.id), true);
+    assert.equal((await posts.readPost(viewerActor, "member", rejection.id)).post.id, rejection.id);
     await posts.memberWithdraw(actor, rejection.id);
+
+    // Synthetic provider verdicts let database integration exercise automatic
+    // publication without relying on external API credentials or network calls.
+    const automaticPosts = createOrganizationPosts({
+      ...config,
+      screen: async () => ({ moderationScreenStatus: "CLEAR", moderationFlags: [] }),
+      relevance: async () => ({
+        moderationRelevanceStatus: "RELEVANT", moderationRelevanceCategory: "EDUCATION",
+        moderationRelevanceReason: "Shows a concrete student learning project.",
+      }),
+    });
+    const publicationDraft = { body: "I finished a university software engineering project and shared what I learned.",
+      type: "ACHIEVEMENT", tags: ["Coding"], requestKey: randomUUID() };
+    const { post: autoPublished } = await automaticPosts.memberPublish(actor, publicationDraft);
+    assert.equal(autoPublished.moderationStatus, "PUBLISHED", "both AI verdicts immediately publish.");
+    assert.equal((await posts.readPost(viewerActor, "member", autoPublished.id)).post.id, autoPublished.id);
+    assert.equal((await moderation.list(moderator, { status: "PUBLISHED" })).items.some(row => row.id === autoPublished.id), true);
+    // Moderator takedown cannot be bypassed by minor revision, despite both AI checks passing.
+    const down = await moderation.decide(moderator, autoPublished.id, {
+      decision: "REJECTED", expectedVersion: autoPublished.moderationVersion,
+      requestKey: randomUUID(), reason: "A moderator found a misleading claim requiring clarification.",
+    });
+    assert.equal(down.moderationStatus, "REJECTED");
+    const { post: editAfterRemoval } = await automaticPosts.memberEdit(actor, autoPublished.id, {
+      expectedBody: autoPublished.body, expectedTags: autoPublished.tags,
+      body: "I completed a university software engineering project and explained the tests.",
+      tags: ["Coding"],
+    });
+    assert.equal(editAfterRemoval.moderationStatus, "PENDING",
+      "a prior human takedown must require human review of a revised draft.");
+    await assert.rejects(posts.readPost(viewerActor, "member", autoPublished.id), { status: 404 });
+    await approvePost(autoPublished.id);
+    await posts.memberWithdraw(actor, autoPublished.id);
+
+    for (const scenario of [
+      { safety: "FLAGGED", relevance: "RELEVANT" },
+      { safety: "CLEAR", relevance: "OFF_TOPIC" },
+      { safety: "CLEAR", relevance: "UNCERTAIN" },
+      { safety: "UNAVAILABLE", relevance: "RELEVANT" },
+    ]) {
+      const screened = createOrganizationPosts({
+        ...config,
+        screen: async () => ({ moderationScreenStatus: scenario.safety,
+          moderationFlags: scenario.safety === "FLAGGED" ? ["harassment"] : [] }),
+        relevance: async () => ({
+          moderationRelevanceStatus: scenario.relevance,
+          moderationRelevanceCategory: "EDUCATION", moderationRelevanceReason: "Test classifier outcome",
+        }),
+      });
+      const { post: held } = await screened.memberPublish(actor, {
+        ...publicationDraft, requestKey: randomUUID(),
+      });
+      assert.equal(held.moderationStatus, "PENDING");
+      await assert.rejects(posts.readPost(viewerActor, "member", held.id), { status: 404 });
+      await posts.memberWithdraw(actor, held.id);
+    }
 
     const controlledEvent = {
       title: "Host-approved workshop", startAt: "2027-01-15T12:00:00Z",
