@@ -466,3 +466,50 @@
   .bw-directory-content-card h3 { font-size: 15px; }
   .bw-directory-group-heading { font-size: 15px; }
 }
+
+
+/* Search is a result module; query entry belongs exclusively to the app header. */
+.bw-directory-search {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 48px;
+}
+.bw-directory-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.bw-directory-filters {
+  margin: 0 0 16px;
+  gap: clamp(12px, 1.5vw, 22px);
+  scrollbar-width: thin;
+}
+.bw-directory-filters a { min-height: 42px; padding-top: 8px; padding-bottom: 10px; }
+.bw-directory-group-heading { margin-top: 19px; }
+.bw-directory-prompt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 18px;
+  border: 1px solid #e1e9f3;
+  border-radius: 12px;
+  background: #fff;
+  color: #60718a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.bw-directory-prompt svg { flex-shrink: 0; color: #175cd3; }
+@media (max-width: 520px) {
+  .bw-directory-search { padding: 0 0 30px; }
+  .bw-directory-filters { margin: 0 0 12px; }
+  .bw-directory-prompt { padding: 14px; }
+}
