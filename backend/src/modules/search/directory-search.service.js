@@ -61,12 +61,12 @@ function peopleCandidates(query, viewer, fuzzy) {
         ORDER BY lower(a.username) <-> ${fuzzy} LIMIT 80
       ) nearest WHERE similarity(${fuzzy}, nearest.value) >= ${threshold}
       UNION ALL
-      SELECT p.id AS "personId", false AS direct FROM "Person" p
-      WHERE lower(p."firstName" || ' ' || coalesce(p."middleName", '') || ' ' || p."lastName")
-        LIKE ${"%" + fuzzy + "%"} LIMIT 80
+      (SELECT p.id AS "personId", false AS direct FROM "Person" p
+        WHERE lower(p."firstName" || ' ' || coalesce(p."middleName", '') || ' ' || p."lastName")
+          LIKE ${"%" + fuzzy + "%"} LIMIT 80)
       UNION ALL
-      SELECT a."personId", false AS direct FROM "Account" a
-      WHERE a.status = 'ACTIVE' AND lower(a.username) LIKE ${"%" + fuzzy + "%"} LIMIT 80
+      (SELECT a."personId", false AS direct FROM "Account" a
+        WHERE a.status = 'ACTIVE' AND lower(a.username) LIKE ${"%" + fuzzy + "%"} LIMIT 80)
     ` : Prisma.empty;
   return Prisma.sql`
     SELECT 'people'::text AS kind, a.id, a.username,
