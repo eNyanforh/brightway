@@ -40,7 +40,7 @@ export default function AppHeader({
   useEffect(() => {
     if (!personalSearch || !onSearchPage) return undefined;
     const q = searchValue.normalize("NFC").trim().replace(/\s+/gu, " ");
-    if (q === currentQuery || q.length > 80) return undefined;
+    if (q === currentQuery || q.length === 1 || q.length > 80) return undefined;
     const wait = setTimeout(() => {
       const previous = new URLSearchParams(location.search);
       if (q.length >= 2) previous.set("q", q);
