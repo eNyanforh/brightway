@@ -1,3 +1,4 @@
+import MessagingRealtime from "../components/layout/MessagingRealtime";
 import { subscribeFocus } from "../auth/focus-refresh";
 import {
   useCallback,
@@ -143,6 +144,7 @@ function AccountLayout() {
 
   return (
     <div className={`bw-app-shell${organizationMode ? " bw-org-shell" : managementMode ? " bw-management-shell" : ""}`}>
+      <MessagingRealtime />
       <AppHeader
         hasWork={hasWork}
         actingOrganization={acting}

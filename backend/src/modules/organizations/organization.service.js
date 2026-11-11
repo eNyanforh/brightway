@@ -1,3 +1,4 @@
+import { notify } from "../notifications/platform-notification.js";
 import { managementPermission, assertManagementSession, lockReviewActors, assertNoSelfReview, conflictAccounts, relatedReviewActors, staffId, permits } from "../management/management-authority.js";
 import { organizationPhotoUrl } from "./organization-profile.schema.js";
 import { randomUUID } from "node:crypto";
@@ -200,6 +201,7 @@ export function createOrganizationService({ prisma, now = () => new Date() }) {
           memberships: { create: { accountId: r.applicantId, role: "PRIMARY_ADMIN" } },
         } });
         await audit(tx, r, actorId, status, status, r.version + 1); await capability(tx, actorId, sessionId, "approver");
+        await notify(tx, { recipientId: r.applicantId, eventKey: `organization:${r.id}:${r.version + 1}`, kind: "VERIFICATION", title: "Your organization request has a decision", href: "/work" });
         const finalAgentRole = await operator(tx, r.assignedAgentId);
         if (!finalAgentRole?.agentEnabled) throw fail(403, "Agent authorization was revoked.");
         return { id, status, version: r.version + 1, organizationId: organization?.id ?? null };

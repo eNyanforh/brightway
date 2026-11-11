@@ -13,6 +13,7 @@ const destinations = [
 ];
 
 const contexts = [
+  { prefix: "/messages", icon: "messages", title: "Keep the conversation going", description: "Find people with shared interests and build a connection before messaging.", shortcuts: ["people", "opportunities"] },
   { prefix: "/network", icon: "network", title: "Connect with people", description: "Find people by name, profession, skills, or interests.", shortcuts: ["people", "organizations"] },
   { prefix: "/opportunities", icon: "opportunities", title: "Explore your next step", description: "Discover opportunities published by organizations.", shortcuts: ["opportunities", "organizations"] },
   { prefix: "/learning", icon: "learning", title: "Explore learning", description: "Find programs and training options on BrightWay.", shortcuts: ["programs", "organizations"] },

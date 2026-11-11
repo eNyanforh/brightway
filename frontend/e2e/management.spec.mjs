@@ -1,3 +1,4 @@
+import { backgroundMessaging } from "./support/background-messaging.mjs";
 import { test, expect } from "@playwright/test";
 const staff = { id: "mg_11111111-1111-4111-8111-111111111111", username: "synthetic_staff", fullName: "Synthetic Reviewer", realm: "management", isSuperAdmin: false };
 const reviewId = "22222222-2222-4222-8222-222222222222";
@@ -11,6 +12,8 @@ async function fixture(page, { authenticated = false, enroll = false, allowed = 
   const state = { authenticated, accessStatus: 200, calls: [], unexpected: [], pageErrors: [] };
   page.on("pageerror", error => state.pageErrors.push(error.message));
   await page.route("**/*", async route => {
+    // Background channels are independent of this journey; SSE behavior has its own HTTP test.
+    const background = backgroundMessaging(route); if (background) return background;
     const url = new URL(route.request().url());
     if (url.origin !== "http://127.0.0.1:4187") return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();

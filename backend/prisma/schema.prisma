@@ -38,6 +38,16 @@ enum PersonGender {
 }
 
 model Account {
+  directConversationsLeft MessagingConversation[] @relation("MessageLeft")
+  directConversationsRight MessagingConversation[] @relation("MessageRight")
+  officialConversations MessagingConversation[] @relation("MessageRecipient")
+  sentMessages DirectMessage[]
+  messageFiles MessageAttachment[]
+  messageUploadAttempts MessagingUploadAttempt[]
+  messagingPreference MessagingPreference?
+  messagingTyping MessagingTyping[]
+  messagingPresence MessagingPresence?
+  platformNotifications PlatformNotification[]
   learningPrograms Program[]
   admissionCycles AdmissionCycle[]
   admissionApplications AdmissionApplication[]
@@ -927,6 +937,7 @@ model OrganizationRequestAudit {
   @@index([requestId, createdAt, id])
 }
 model Organization {
+  officialConversations MessagingConversation[]
   programs Program[]
   admissionCycles AdmissionCycle[]
   opportunities Opportunity[]
@@ -1316,6 +1327,7 @@ model ReviewPrincipal {
 }
 
 model ManagementStaff {
+  officialMessages DirectMessage[]
   operations ManagementAction[]
   createdCases ManagementCase[] @relation("CaseCreatedBy")
   assignedCases ManagementCase[] @relation("CaseAssignedTo")
@@ -1813,4 +1825,114 @@ model AdmissionUploadBudget {
   day DateTime @db.Date
   attempts Int @default(0)
   @@id([accountId, day])
+}
+
+// Sprint 8. Only direct pairs and BrightWay official recipient mailboxes exist.
+model MessagingConversation {
+  id String @id @default(uuid())
+  key String @unique
+  kind String
+  leftAccountId String?
+  leftAccount Account? @relation("MessageLeft", fields: [leftAccountId], references: [id], onDelete: Restrict)
+  rightAccountId String?
+  rightAccount Account? @relation("MessageRight", fields: [rightAccountId], references: [id], onDelete: Restrict)
+  recipientAccountId String?
+  recipientAccount Account? @relation("MessageRecipient", fields: [recipientAccountId], references: [id], onDelete: Restrict)
+  organizationId String?
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  messages DirectMessage[]
+  attachments MessageAttachment[]
+  typing MessagingTyping[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  @@index([leftAccountId, updatedAt, id])
+  @@index([rightAccountId, updatedAt, id])
+  @@index([recipientAccountId, updatedAt, id])
+  @@index([organizationId, updatedAt, id])
+}
+model DirectMessage {
+  sequence BigInt @default(autoincrement()) @unique
+  id String @id @default(uuid())
+  conversationId String
+  conversation MessagingConversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  senderAccountId String?
+  senderAccount Account? @relation(fields: [senderAccountId], references: [id], onDelete: Restrict)
+  senderStaffId String?
+  senderStaff ManagementStaff? @relation(fields: [senderStaffId], references: [id], onDelete: Restrict)
+  requestKey String @db.VarChar(36)
+  requestHash String @db.VarChar(64)
+  body String @db.VarChar(4000)
+  shareKind String?
+  shareId String?
+  attachments MessageAttachment[]
+  deliveredAt DateTime?
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([conversationId, requestKey])
+  @@index([conversationId, createdAt, id])
+}
+model MessageAttachment {
+  id String @id @default(uuid())
+  conversationId String
+  conversation MessagingConversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  ownerId String
+  owner Account @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  discardedAt DateTime?
+  messageId String?
+  message DirectMessage? @relation(fields: [messageId], references: [id], onDelete: Restrict)
+  storageKey String @unique
+  name String @db.VarChar(120)
+  contentType String @db.VarChar(80)
+  size Int
+  createdAt DateTime @default(now())
+  @@index([ownerId, createdAt])
+  @@index([conversationId, messageId])
+}
+model MessagingPreference {
+  accountId String @id
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  showActive Boolean @default(false)
+  showTyping Boolean @default(true)
+}
+model MessagingPresence {
+  accountId String @id
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  lastActiveAt DateTime
+  @@index([lastActiveAt])
+}
+// Generic notifications supplement the earlier private profile/application feeds.
+model PlatformNotification {
+  id String @id @default(uuid())
+  recipientId String
+  recipient Account @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  eventKey String
+  kind String @db.VarChar(60)
+  title String @db.VarChar(200)
+  href String @db.VarChar(300)
+  actorAccountId String?
+  readAt DateTime?
+  dismissedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([recipientId, eventKey])
+  @@index([recipientId, createdAt, id])
+}
+
+// A replaceable, expiring lease only; no typing history or content is retained.
+model MessagingTyping {
+  conversationId String
+  conversation MessagingConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  @@id([conversationId, accountId])
+  @@index([expiresAt])
+}
+
+model MessagingUploadAttempt {
+  id String @id @default(uuid())
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  inputSize Int
+  createdAt DateTime @default(now())
+  @@index([accountId, createdAt])
 }
