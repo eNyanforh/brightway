@@ -1,7 +1,10 @@
 -- Indexed nearest-neighbor searches for incomplete and misspelled public names.
 -- GiST trigram indexes support distance ordering and substring queries.
 -- No email, phone or private profile fields enter these indexes.
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
+-- Historical migration tests replay into an isolated schema whose search_path
+-- omits public. Keep their table schema first, then expose extension opclasses.
+SELECT set_config('search_path', format('%I, public, extensions', current_schema()), false);
 
 CREATE INDEX "Person_directory_full_name_trgm_idx" ON "Person" USING GIST (
   (lower("firstName" || ' ' || coalesce("middleName", '') || ' ' || "lastName")) gist_trgm_ops
