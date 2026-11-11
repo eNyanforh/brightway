@@ -1,10 +1,10 @@
--- Expand the same privacy-safe public profile search index.
--- Only publicly visible profile fields are included; no email or phone indexes.
+-- Rebuild the GIN index using only immutable operations on public profile text.
+-- Skills/interests remain searchable in the service, but cannot be embedded
+-- into this expression index through PostgreSQL's stable array_to_string().
+-- No personal email, phone, or private contact fields are indexed.
 DROP INDEX IF EXISTS "Profile_directory_public_text_search_idx";
 CREATE INDEX "Profile_directory_public_text_search_idx" ON "Profile" USING GIN (
   to_tsvector('simple', coalesce("headline", '') || ' ' ||
     coalesce("careerField", '') || ' ' || coalesce("bio", '') || ' ' ||
-    coalesce(array_to_string("skills", ' '), '') || ' ' ||
-    coalesce(array_to_string("interests", ' '), '') || ' ' ||
     coalesce("locality", '') || ' ' || coalesce("region", ''))
 );
