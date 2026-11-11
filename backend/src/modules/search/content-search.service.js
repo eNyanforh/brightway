@@ -94,7 +94,7 @@ export function createContentSearch({ prisma, posts, now = () => new Date() }) {
           END AS rank
         FROM "MemberPost" p
         JOIN "Account" a ON a.id = p."authorId"
-        WHERE p."withdrawnAt" IS NULL
+        WHERE p."withdrawnAt" IS NULL AND p."moderationStatus" = 'PUBLISHED'
           AND p.type IN ('ACHIEVEMENT', 'QUESTION', 'EVENT')
           AND a.status = 'ACTIVE'
           ${filteredType}
