@@ -5,7 +5,8 @@ const filler = new Set([
   "that", "which", "can", "is", "are", "me", "my", "please", "show",
   "find", "search", "looking", "someone", "people", "posts", "about",
   "some", "any", "related", "near", "results", "events", "questions",
-  "achievements", "organizations",
+  "achievements", "organizations", "named", "called", "name", "person",
+  "user", "member", "friend", "whose", "i", "am", "want", "need", "you", "see",
 ]);
 
 export function prefixSearchQuery(q) {
