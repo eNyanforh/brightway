@@ -228,7 +228,7 @@ test("event admission settings validate ticket price and capacity before publish
   await page.goto("/explore");
   await page.getByRole("button", { name: "Create an Event" }).click();
   const editor = page.getByRole("dialog", { name: "Create an Event" });
-  const publish = editor.getByRole("button", { name: "Submit event for review" });
+  const publish = editor.getByRole("button", { name: "Publish event" });
   await expect(editor.getByRole("switch", { name: /Require approval/ })).toHaveAttribute("aria-checked", "false");
   await expect(editor.getByRole("switch", { name: /Set a capacity limit/ })).toHaveAttribute("aria-checked", "false");
   await expect(editor.getByRole("spinbutton", { name: "Ticket price" })).toHaveValue("0");
