@@ -47,7 +47,10 @@ function peopleCandidates(query, viewer) {
       UNION
       SELECT profile."personId" FROM "Profile" profile
       WHERE to_tsvector('simple', coalesce(profile.headline, '') || ' ' ||
-            coalesce(profile."careerField", '') || ' ' || coalesce(profile.bio, ''))
+            coalesce(profile."careerField", '') || ' ' || coalesce(profile.bio, '') || ' ' ||
+            coalesce(array_to_string(profile.skills, ' '), '') || ' ' ||
+            coalesce(array_to_string(profile.interests, ' '), '') || ' ' ||
+            coalesce(profile.locality, '') || ' ' || coalesce(profile.region, ''))
             @@ to_tsquery('simple', ${query})
       UNION
       SELECT a."personId" FROM "Account" a
