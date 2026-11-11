@@ -175,15 +175,9 @@ export default function AppHeader({
             </Link>
           )}
 
-          <button
-            className="bw-design-utility bw-design-mobile-action"
-            type="button"
-            disabled
-            aria-label="Messages — coming soon"
-            title="Messages are coming soon"
-          >
+          <Link className="bw-design-utility bw-design-mobile-action" to={workspaceLabel ? "/superadmin/official-messages" : actingOrganization ? `/organization-workspace/${actingOrganization.id}/messages` : "/messages"} aria-label="Messages" title="Messages">
             <NavigationIcon name="messages" />
-          </button>
+          </Link>
 
           {workspaceLabel || actingOrganization ? (
             <button className="bw-design-utility bw-design-mobile-action" type="button" disabled aria-label="Notifications unavailable in this workspace" title="Switch to your personal account to view notifications">

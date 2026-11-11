@@ -1,3 +1,4 @@
+import { notify } from "../notifications/platform-notification.js";
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { assertNetworkSession, lockNetworkAccounts } from "./network-authority.js";
@@ -56,6 +57,7 @@ export function createFollowingService({ prisma, now = () => new Date() }) {
         if (active && await tx.networkFollowEvent.count({ where: { actorId: actor.accountId, createdAt: { gte: new Date(+now() - 3600000) } } }) >= 500) throw fail(429, "Following action limit reached. Try again later.");
         const saved = row ? await tx.networkFollow.update({ where: { id: row.id }, data: { active, version: { increment: 1 }, updatedAt: now() } }) : await tx.networkFollow.create({ data: { followerId: actor.accountId, ...(kind === "PERSON" ? { targetAccountId: target.id } : { targetOrganizationId: target.id }), active, version: 1, updatedAt: now() } });
         await tx.networkFollowEvent.create({ data: { followId: saved.id, actorId: actor.accountId, action: data.action, requestKey: data.requestKey, requestHash, resultVersion: saved.version, createdAt: now() } });
+        if (active && kind === "PERSON") await notify(tx, { recipientId: target.id, actorAccountId: actor.accountId, eventKey: "follow:" + data.requestKey, kind: "FOLLOW", title: "You have a new follower", href: "/network" });
         await authority(tx, actor); return { saved: true, action: data.action, version: saved.version };
       });
     },

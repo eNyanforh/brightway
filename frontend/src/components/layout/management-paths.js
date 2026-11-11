@@ -1,4 +1,5 @@
 export const managementPaths = {
+  "/management/official-messages": "/superadmin/official-messages",
   "/management/users": "/superadmin/users",
   "/management/organizations": "/superadmin/directory",
   "/management/team": "/superadmin/team",

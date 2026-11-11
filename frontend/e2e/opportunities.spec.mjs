@@ -1,3 +1,4 @@
+import { backgroundMessaging } from "./support/background-messaging.mjs";
 import { expect, test } from "@playwright/test";
 import { organizationWorkspace } from "../../shared/organization-workspace.mjs";
 const origin = "http://127.0.0.1:4187";
@@ -10,6 +11,8 @@ async function fixture(page) {
   const state = { opportunity: structuredClone(initialOpportunity), application: null, drafts: [], errors: [], calls: [] };
   page.on("pageerror", e => state.errors.push(e.message));
   await page.route("**/*", async route => {
+    // Background channels are independent of this journey; SSE behavior has its own HTTP test.
+    const background = backgroundMessaging(route); if (background) return background;
     const request = route.request(), url = new URL(request.url()), path = url.pathname;
     if (url.origin !== origin) return route.abort();
     if (!path.startsWith("/api/")) return route.continue();

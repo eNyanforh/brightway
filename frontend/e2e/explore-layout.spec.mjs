@@ -1,3 +1,4 @@
+import { backgroundMessaging } from "./support/background-messaging.mjs";
 import { expect, test } from "@playwright/test";
 
 const origin = "http://127.0.0.1:4187";
@@ -24,6 +25,8 @@ const formats = [
 async function fixture(page, posts = [fixturePost], submittedStatus = "PENDING", submittedNotice = null) {
   const writes = [];
   await page.route("**/*", async route => {
+    // Background channels are independent of this journey; SSE behavior has its own HTTP test.
+    const background = backgroundMessaging(route); if (background) return background;
     const request = route.request();
     const url = new URL(request.url());
     if (url.origin !== origin) return route.abort();

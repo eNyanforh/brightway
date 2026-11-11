@@ -1,3 +1,4 @@
+import { backgroundMessaging } from "./support/background-messaging.mjs";
 import { test, expect } from "@playwright/test";
 import { organizationWorkspace } from "../../shared/organization-workspace.mjs";
 import { dashboardFixture } from "../src/test/fixtures/organization-dashboard.js";
@@ -10,6 +11,8 @@ test("organization tab navigation stays mounted during delayed access reads and 
   const errors = [], unexpected = []; let hold = false, release;
   page.on("pageerror", error => errors.push(error.message));
   await page.route("**/*", async route => {
+    // Background channels are independent of this journey; SSE behavior has its own HTTP test.
+    const background = backgroundMessaging(route); if (background) return background;
     const url = new URL(route.request().url());
     if (url.origin !== "http://127.0.0.1:4187") return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();

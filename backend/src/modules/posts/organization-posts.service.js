@@ -1,3 +1,4 @@
+import { notify } from "../notifications/platform-notification.js";
 import { z } from "zod";
 import { createPostSafetyScreen } from "./post-safety-screen.service.js";
 import { createPostRelevanceScreen, screenPostForPublication } from "./post-relevance-screen.service.js";
@@ -371,6 +372,14 @@ function findPosts(model, select, where, cursor, source) {
     select,
     take: pageSize + 1,
   });
+}
+
+async function notifyPost(db, ref, actorId, eventKey, title) {
+  if (!db.platformNotification) return;
+  const post = await (ref.source === "member" ? db.memberPost : db.organizationPost).findUnique({ where: { id: ref.id }, select: ref.source === "member" ? { authorId: true } : { organizationId: true } });
+  if (!post) return;
+  const recipients = post.authorId ? [{ accountId: post.authorId }] : await db.organizationMembership.findMany({ where: { organizationId: post.organizationId, enabled: true, role: "PRIMARY_ADMIN" }, select: { accountId: true } });
+  for (const r of recipients) if (r.accountId !== actorId) await notify(db, { recipientId: r.accountId, actorAccountId: actorId, eventKey, kind: "POST_INTERACTION", title, href: `/explore?post=${ref.id}&source=${ref.source}` });
 }
 
 export function createOrganizationPosts({
@@ -910,6 +919,7 @@ export function createOrganizationPosts({
           select: { id: true, body: true, createdAt: true, score: true,
             author: { select: memberSelect } },
         });
+        await notifyPost(tx, { source: "member", id }, actor.accountId, `answer:${answer.id}`, "Someone answered your question");
         return { answer: { id: answer.id, body: answer.body, createdAt: answer.createdAt,
           ...discussionAttribution(answer.author, true), canDelete: true, score: 0, myVote: 0,
           upvoteCount: 0, downvoteCount: 0, commentCount: 0 } };
@@ -975,6 +985,7 @@ export function createOrganizationPosts({
         const row = await tx.answerComment.create({
           data: { ...key, answerId: answer.id, body, createdAt: now() }, select: commentSelect,
         });
+        if (answer.authorId !== actor.accountId) await notify(tx, { recipientId: answer.authorId, actorAccountId: actor.accountId, eventKey: `answer-comment:${row.id}`, kind: "POST_INTERACTION", title: "Someone commented on your answer", href: `/explore?post=${answer.questionId}&source=member` });
         const access = await memberEligibility(tx, actor.accountId);
         return { comment: commentView(row, actor.accountId, access.identityVerified) };
       });
@@ -1072,6 +1083,7 @@ export function createOrganizationPosts({
         const data = { accountId: actor.accountId, ...postTarget(ref) };
         if (liked) await tx.postLike.createMany({ data: [data], skipDuplicates: true });
         else await tx.postLike.deleteMany({ where: data });
+        if (liked) await notifyPost(tx, ref, actor.accountId, `celebrate:${ref.source}:${ref.id}:${actor.accountId}`, "Someone celebrated your achievement");
         const post = await postModel(tx, ref.source).findUniqueOrThrow({ where: { id: ref.id }, select: likeSelect(actor.accountId) });
         return { reaction: likeSummary(post) };
       });
@@ -1117,6 +1129,7 @@ export function createOrganizationPosts({
         }
         await tx.postRepost.createMany({ data: [{ ...data, createdAt: now() }], skipDuplicates: true });
         const row = await tx.postRepost.findFirstOrThrow({ where: data, select: repostSelect });
+        await notifyPost(tx, ref, actor.accountId, `repost:${row.id}`, "Someone reposted your post");
         return { reposted: true, repost: repostAttribution(row, actor.accountId) };
       });
     },
@@ -1171,6 +1184,7 @@ export function createOrganizationPosts({
         const recent = await tx.postComment.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the commenting limit. Try again in 15 minutes.");
         const comment = await tx.postComment.create({ data: { ...key, ...target, body, createdAt: now() }, select: commentSelect });
+        await notifyPost(tx, ref, actor.accountId, `comment:${comment.id}`, "Someone commented on your post");
         const access = await memberEligibility(tx, actor.accountId);
         return { comment: commentView(comment, actor.accountId, access.identityVerified) };
       });

@@ -57,12 +57,15 @@ function Inbox({ view }) {
   useEffect(() => {
     let mounted = true;
     queueMicrotask(() => { if (mounted) void load(); });
-    const unsubscribe = subscribeFocus(() => { void load(); });
+    const realtime = () => { void load(); };
+    window.addEventListener("brightway:notifications", realtime);
+    const unsubscribe = subscribeFocus(realtime);
     return () => {
       mounted = false;
       request.current?.abort();
       request.current = null;
       unsubscribe();
+      window.removeEventListener("brightway:notifications", realtime);
     };
   }, [load]);
 
@@ -126,7 +129,7 @@ function Inbox({ view }) {
             <li className={item.readAt ? "is-read" : "is-unread"} key={item.id}>
               <span className="bw-notifications-dot" aria-hidden="true" />
               <div>
-                <p>{["APPLICATION_STATUS", "ADMISSION_STATUS"].includes(item.kind) ? <><Link to={item.kind === "ADMISSION_STATUS" ? `/learning/applications/${item.application.id}` : `/applications/${item.application.id}`}><strong>{item.application.title}</strong></Link> · {(item.kind === "ADMISSION_STATUS" ? ADMISSION_STATUSES : APPLICATION_STATUSES)[item.application.status]}</> : <><Link to={"/" + encodeURIComponent(item.viewer.username)}><strong>{item.viewer.fullName}</strong> (@{item.viewer.username})</Link> viewed your profile.</>}</p>
+                <p>{item.kind === "PLATFORM" ? <Link to={item.href}><strong>{item.title}</strong></Link> : ["APPLICATION_STATUS", "ADMISSION_STATUS"].includes(item.kind) ? <><Link to={item.kind === "ADMISSION_STATUS" ? `/learning/applications/${item.application.id}` : `/applications/${item.application.id}`}><strong>{item.application.title}</strong></Link> · {(item.kind === "ADMISSION_STATUS" ? ADMISSION_STATUSES : APPLICATION_STATUSES)[item.application.status]}</> : <><Link to={"/" + encodeURIComponent(item.viewer.username)}><strong>{item.viewer.fullName}</strong> (@{item.viewer.username})</Link> viewed your profile.</>}</p>
                 <time dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time>
               </div>
               <div className="bw-notifications-actions">
