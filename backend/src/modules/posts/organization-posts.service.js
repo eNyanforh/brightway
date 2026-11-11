@@ -1474,6 +1474,12 @@ export function createOrganizationPosts({ prisma, now = () => new Date(), screen
       const id = parse(identifier, inputId, "Choose a valid post.");
       const data = parse(memberPostEditInput, input, "Review the post, add at least one topic and keep the description within 2,000 characters.");
       await assertNetworkSession(prisma, actor, now);
+      const authorized = await prisma.memberPost.findFirst({
+        where: { id, authorId: actor.accountId, withdrawnAt: null },
+        select: { id: true },
+      });
+      if (!authorized) throw fail(404, "This post is unavailable.");
+      // Never incur optional provider costs for another member's post.
       const screening = await screen(data);
       return memberWrite(actor, async tx => {
         // Serialize edits with the author account and profile publication state.
