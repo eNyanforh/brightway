@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { prefixSearchQuery } from "../src/modules/search/search-terms.js";
+import { directoryFuzzyTerm, prefixSearchQuery } from "../src/modules/search/search-terms.js";
 
 test("natural phrases keep meaningful words for prefix search", () => {
   assert.equal(prefixSearchQuery("find me people with Python in Monrovia"), "Python:* & Monrovia:*");
@@ -14,4 +14,16 @@ test("short input, excessive terms and punctuation do not create unrestricted se
   assert.equal(prefixSearchQuery("a b c d e f g h i"), null);
   assert.equal(prefixSearchQuery("@maya"), "maya:*");
   assert.equal(prefixSearchQuery("the"), "the:*");
+});
+
+
+test("fuzzy name search accepts misspellings, fragments and @handles but never emails", () => {
+  assert.equal(prefixSearchQuery("Ma"), "Ma:*");
+  assert.equal(directoryFuzzyTerm("Ma"), null);
+  assert.equal(directoryFuzzyTerm("Emmanul"), "emmanul");
+  assert.equal(directoryFuzzyTerm("Mya Cole"), "mya cole");
+  assert.equal(directoryFuzzyTerm("@nyanfrh"), "nyanfrh");
+  assert.equal(directoryFuzzyTerm("find someone named Emmanuel"), "emmanuel");
+  assert.equal(directoryFuzzyTerm("owner_person@example.invalid"), null);
+  assert.equal(directoryFuzzyTerm("x') OR 1=1 --"), null);
 });

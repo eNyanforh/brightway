@@ -76,6 +76,16 @@ test("the real app exposes member profiles by default and preserves inbox owners
     const hit = { kind: "people", name: "Synthetic owner", username: owner.username, headline: "Published fixture", photoId: null, verified: false, href: "/" + owner.username };
     assert.deepEqual(await search(visitor, "synt own"), { items: [hit], nextCursor: null });
     assert.deepEqual((await search(visitor, "@" + owner.username)).items, [hit]);
+    assert.ok((await search(visitor, "Sy")).items.some(item => item.username === owner.username),
+      "two initial letters should suggest the member without requiring a full name");
+    assert.ok((await search(visitor, "Synthetc")).items.some(item => item.username === owner.username),
+      "a misspelled first name should return a close suggestion");
+    assert.ok((await search(visitor, "nthet")).items.some(item => item.username === owner.username),
+      "an internal fragment of the first name should be discoverable");
+    assert.ok((await search(visitor, owner.username.replace("_owner_", "_owenr_"))).items
+      .some(item => item.username === owner.username),
+      "a misspelled handle should suggest the matching profile");
+
     const searchStats = await dashboard(owner);
     assert.equal(searchStats.searchAppearances, 1, "repeated searches from one member count once per UTC day");
     assert.deepEqual(searchStats.recentProfileViewers, [], "directory searches never expose searchers");
@@ -85,6 +95,13 @@ test("the real app exposes member profiles by default and preserves inbox owners
     assert.deepEqual((await search(owner, owner.username)).items, []);
     assert.ok((await search(visitor, other.username)).items.some(item => item.username === other.username));
     assert.deepEqual((await search(visitor, owner.email)).items, []);
+    const maya = await account("maya");
+    await prisma.person.update({ where: { id: maya.personId }, data: {
+      firstName: "Maya", lastName: "Cole",
+    } });
+    assert.ok((await search(visitor, "Mya Cole")).items.some(item => item.username === maya.username),
+      "one misspelled word in a two-word name must still return the intended person");
+
     assert.deepEqual((await search(visitor, "x') OR 1=1 --")).items, []);
 
     const batch = randomUUID().replaceAll("-", "").slice(0, 8);

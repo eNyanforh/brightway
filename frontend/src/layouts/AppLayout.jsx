@@ -14,6 +14,7 @@ import OrganizationNavigation from "../components/layout/OrganizationNavigation"
 import ManagementNavigation from "../components/layout/ManagementNavigation";
 import AppSidebar from "../components/layout/AppSidebar";
 import ModuleRightRail from "../components/layout/ModuleRightRail";
+import { shouldShowModuleRightRail } from "./module-rail-visibility";
 import MobileNavigation from "../components/layout/MobileNavigation";
 
 import { organizationsApi } from "../api/organizations";
@@ -56,7 +57,7 @@ function AccountLayout() {
   const organizationBase = `/organization-workspace/${actingOrganization?.organization.id}`;
   const activeOrganization = actingOrganization?.accountId === account?.id && (pathname === organizationBase || pathname.startsWith(organizationBase + "/")) ? actingOrganization : null;
   const acting = activeOrganization?.organization;
-  const showRightRail = !managementMode && !organizationMode && pathname !== "/explore";
+  const showRightRail = shouldShowModuleRightRail(pathname);
   const [profileDraft, setProfileDraft] = useState(null);
   const [profileError, setProfileError] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);

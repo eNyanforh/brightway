@@ -513,3 +513,13 @@
   .bw-directory-filters { margin: 0 0 12px; }
   .bw-directory-prompt { padding: 14px; }
 }
+
+/* Explicitly label spelling-tolerant suggestions without implying verification. */
+.bw-directory-similar-label {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 3px;
+  color: #58718d;
+  font-size: 11px;
+  font-weight: 620;
+}

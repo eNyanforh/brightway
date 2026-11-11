@@ -3,7 +3,7 @@ import { createManualIdentityReviewService } from "../manual-identity/manual-ide
 import { memberProfilePath } from "../../../../shared/member-profile-paths.mjs";
 import { z } from "zod";
 import { assertNetworkSession } from "../network/network-authority.js";
-import { prefixSearchQuery } from "./search-terms.js";
+import { directoryFuzzyTerm, prefixSearchQuery } from "./search-terms.js";
 import { fail } from "../network/network.schema.js";
 
 const pageSize = 20;
@@ -18,7 +18,7 @@ const cursorSchema = z.strictObject({
   viewer: z.uuid(),
   q: z.string().max(80),
   filter: filterSchema,
-  rank: z.int().min(0).max(4),
+  rank: z.int().min(0).max(8),
   kind: kindSchema,
   username: z.string().min(1).max(80),
 });
@@ -34,27 +34,64 @@ function readCursor(cursor, viewer, q, filter) {
   throw fail(400, "Run the search again before opening another page.");
 }
 
-function peopleCandidates(query, viewer) {
+function peopleCandidates(query, viewer, fuzzy) {
+  const threshold = fuzzy?.includes(" ") ? 0.42 : fuzzy && fuzzy.length <= 4 ? 0.24 : 0.31;
+  const fuzzyPeople = fuzzy ? Prisma.sql`
+      UNION ALL
+      SELECT nearest.id AS "personId", false AS direct FROM (
+        SELECT p.id, lower(p."firstName" || ' ' || coalesce(p."middleName", '') || ' ' || p."lastName") AS value
+        FROM "Person" p
+        ORDER BY lower(p."firstName" || ' ' || coalesce(p."middleName", '') || ' ' || p."lastName") <-> ${fuzzy}
+        LIMIT 80
+      ) nearest WHERE word_similarity(${fuzzy}, nearest.value) >= ${threshold}
+      UNION ALL
+      SELECT nearest.id AS "personId", false AS direct FROM (
+        SELECT p.id, lower(p."firstName") AS value
+        FROM "Person" p ORDER BY lower(p."firstName") <-> ${fuzzy} LIMIT 80
+      ) nearest WHERE similarity(${fuzzy}, nearest.value) >= ${threshold}
+      UNION ALL
+      SELECT nearest.id AS "personId", false AS direct FROM (
+        SELECT p.id, lower(p."lastName") AS value
+        FROM "Person" p ORDER BY lower(p."lastName") <-> ${fuzzy} LIMIT 80
+      ) nearest WHERE similarity(${fuzzy}, nearest.value) >= ${threshold}
+      UNION ALL
+      SELECT nearest."personId", false AS direct FROM (
+        SELECT a."personId", lower(a.username) AS value
+        FROM "Account" a WHERE a.status = 'ACTIVE'
+        ORDER BY lower(a.username) <-> ${fuzzy} LIMIT 80
+      ) nearest WHERE similarity(${fuzzy}, nearest.value) >= ${threshold}
+      UNION ALL
+      (SELECT p.id AS "personId", false AS direct FROM "Person" p
+        WHERE lower(p."firstName" || ' ' || coalesce(p."middleName", '') || ' ' || p."lastName")
+          LIKE ${"%" + fuzzy + "%"} LIMIT 80)
+      UNION ALL
+      (SELECT a."personId", false AS direct FROM "Account" a
+        WHERE a.status = 'ACTIVE' AND lower(a.username) LIKE ${"%" + fuzzy + "%"} LIMIT 80)
+    ` : Prisma.empty;
   return Prisma.sql`
     SELECT 'people'::text AS kind, a.id, a.username,
            concat_ws(' ', p."firstName", nullif(p."middleName", ''), p."lastName") AS name,
-           profile.headline, profile."photoId"
+           profile.headline, profile."photoId", matches.direct
     FROM (
-      SELECT p.id AS "personId"
-      FROM "Person" p
-      WHERE to_tsvector('simple', p."firstName" || ' ' || coalesce(p."middleName", '') || ' ' || p."lastName")
-            @@ to_tsquery('simple', ${query})
-      UNION
-      SELECT profile."personId" FROM "Profile" profile
-      WHERE to_tsvector('simple', coalesce(profile.headline, '') || ' ' ||
-            coalesce(profile."careerField", '') || ' ' || coalesce(profile.bio, '') || ' ' ||
-            coalesce(array_to_string(profile.skills, ' '), '') || ' ' ||
-            coalesce(array_to_string(profile.interests, ' '), '') || ' ' ||
-            coalesce(profile.locality, '') || ' ' || coalesce(profile.region, ''))
-            @@ to_tsquery('simple', ${query})
-      UNION
-      SELECT a."personId" FROM "Account" a
-      WHERE a.status = 'ACTIVE' AND to_tsvector('simple', replace(a.username, '_', ' ')) @@ to_tsquery('simple', ${query})
+      SELECT "personId", bool_or(direct) AS direct FROM (
+        SELECT p.id AS "personId", true AS direct FROM "Person" p
+        WHERE to_tsvector('simple', p."firstName" || ' ' || coalesce(p."middleName", '') || ' ' || p."lastName")
+          @@ to_tsquery('simple', ${query})
+        UNION ALL
+        SELECT profile."personId", true AS direct FROM "Profile" profile
+        WHERE to_tsvector('simple', coalesce(profile.headline, '') || ' ' ||
+          coalesce(profile."careerField", '') || ' ' || coalesce(profile.bio, '') || ' ' ||
+          coalesce(array_to_string(profile.skills, ' '), '') || ' ' ||
+          coalesce(array_to_string(profile.interests, ' '), '') || ' ' ||
+          coalesce(profile.locality, '') || ' ' || coalesce(profile.region, ''))
+          @@ to_tsquery('simple', ${query})
+        UNION ALL
+        SELECT a."personId", true AS direct FROM "Account" a
+        WHERE a.status = 'ACTIVE' AND
+          to_tsvector('simple', replace(a.username, '_', ' ')) @@ to_tsquery('simple', ${query})
+        ${fuzzyPeople}
+      ) candidates
+      GROUP BY "personId"
     ) matches
     JOIN "Person" p ON p.id = matches."personId"
     JOIN "Account" a ON a."personId" = p.id
@@ -69,16 +106,33 @@ function peopleCandidates(query, viewer) {
   `;
 }
 
-function organizationCandidates(query) {
+function organizationCandidates(query, fuzzy) {
+  const eligible = Prisma.sql`
+    o.status = 'ACTIVE' AND o."profileReadyAt" IS NOT NULL
+    AND o."profilePhotoId" IS NOT NULL AND o.username IS NOT NULL
+    AND o."profileSetupStep" = 5
+  `;
+  const nameQuery = Prisma.sql`to_tsvector('simple',
+    o.name || ' ' || replace(coalesce(o.username, ''), '_', ' ')) @@ to_tsquery('simple', ${query})`;
+  const threshold = fuzzy?.includes(" ") ? 0.42 : fuzzy && fuzzy.length <= 4 ? 0.24 : 0.31;
+  const fuzzyOrg = fuzzy ? Prisma.sql` OR (
+    o.id IN (
+      SELECT near.id FROM "Organization" near
+      WHERE near.status = 'ACTIVE' AND near."profileReadyAt" IS NOT NULL
+      ORDER BY lower(near.name) <-> ${fuzzy}
+      LIMIT 80
+    ) AND (
+      word_similarity(${fuzzy}, lower(o.name)) >= ${threshold}
+      OR lower(o.name) LIKE ${"%" + fuzzy + "%"}
+    )
+  )` : Prisma.empty;
   return Prisma.sql`
     SELECT 'organizations'::text AS kind, o.id, o.username, o.name,
-           NULL::text AS headline, NULL::text AS "photoId"
+           NULL::text AS headline, NULL::text AS "photoId",
+           (${nameQuery}) AS direct
     FROM "Organization" o
     JOIN "OrganizationRequest" r ON r.id = o."requestId" AND r.status = 'APPROVED'
-    WHERE o.status = 'ACTIVE' AND o."profileReadyAt" IS NOT NULL
-      AND o."profilePhotoId" IS NOT NULL AND o.username IS NOT NULL AND o."profileSetupStep" = 5
-      AND to_tsvector('simple', o.name || ' ' || replace(coalesce(o.username, ''), '_', ' '))
-          @@ to_tsquery('simple', ${query})
+    WHERE ${eligible} AND (${nameQuery} ${fuzzyOrg})
   `;
 }
 
@@ -92,10 +146,28 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
     if (!prefixQuery) throw fail(400, "Enter at least two letters or numbers and up to eight search terms.");
     await assertNetworkSession(prisma, actor, now);
     const after = readCursor(cursor, actor.accountId, q, kind);
-    const people = kind !== "organizations" ? peopleCandidates(prefixQuery, actor.accountId) : null;
-    const organizations = kind !== "people" ? organizationCandidates(prefixQuery) : null;
+    const fuzzy = directoryFuzzyTerm(q);
+    const people = kind !== "organizations" ? peopleCandidates(prefixQuery, actor.accountId, fuzzy) : null;
+    const organizations = kind !== "people" ? organizationCandidates(prefixQuery, fuzzy) : null;
     const candidates = Prisma.join([people, organizations].filter(Boolean), " UNION ALL ");
     const handle = q.replace(/^@/u, "");
+    const fuzzyRank = fuzzy ? Prisma.sql`
+          WHEN lower(name) LIKE ${"%" + fuzzy + "%"} OR lower(username) LIKE ${"%" + fuzzy + "%"} THEN 5
+          WHEN greatest(word_similarity(${fuzzy}, lower(name)),
+            similarity(${fuzzy}, lower(username))) >= 0.65 THEN 5
+          WHEN greatest(word_similarity(${fuzzy}, lower(name)),
+            similarity(${fuzzy}, lower(username))) >= 0.45 THEN 6
+    ` : Prisma.empty;
+    // A fuzzy multiword suggestion must be close to *each* meaningful word.
+    // This prevents a query like "Staff fixt" from matching "Synthetic staff"
+    // solely because one word happens to match well.
+    const tokenMatches = fuzzy?.includes(" ")
+      ? Prisma.join(fuzzy.split(" ").map(word => {
+        const minimum = word.length <= 4 ? 0.24 : 0.31;
+        return Prisma.sql`(word_similarity(${word}, lower(name)) >= ${minimum}
+          OR word_similarity(${word}, lower(username)) >= ${minimum})`;
+      }), " AND ")
+      : Prisma.sql`true`;
     const rows = await prisma.$queryRaw(Prisma.sql`
       WITH matches AS (${candidates}), ranked AS (
         SELECT *, CASE
@@ -103,12 +175,17 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
           WHEN lower(name) = lower(${q}) THEN 1
           WHEN starts_with(lower(username), lower(${handle})) THEN 2
           WHEN starts_with(lower(name), lower(${q})) THEN 3
-          ELSE 4
+          WHEN direct THEN 4
+          ${fuzzyRank}
+          ELSE 8
         END AS rank
         FROM matches
       )
       SELECT kind, id, username, name, headline, "photoId", rank FROM ranked
-      ${after ? Prisma.sql`WHERE (rank, kind, username) > (${after.rank}::int, ${after.kind}, ${after.username})` : Prisma.empty}
+      -- Prefer exact/prefix results. Offer close spellings only when there are
+      -- no authorized direct matches for this filter and query.
+      WHERE (direct OR (NOT EXISTS (SELECT 1 FROM matches WHERE direct) AND ${tokenMatches}))
+      ${after ? Prisma.sql`AND (rank, kind, username) > (${after.rank}::int, ${after.kind}, ${after.username})` : Prisma.empty}
       ORDER BY rank, kind, username
       LIMIT ${pageSize + 1}
     `);
@@ -153,6 +230,7 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
         headline: item.kind === "people" ? item.headline : null,
         photoId: item.kind === "people" ? item.photoId : null,
         verified: item.kind === "organizations" || verified.has(item.id),
+        ...(item.rank >= 5 ? { matchType: "similar" } : {}),
         href: item.kind === "people" ? memberProfilePath(item.username) : "/organizations/" + encodeURIComponent(item.id),
       })),
       nextCursor,
