@@ -1,0 +1,90 @@
+.bw-module-right {
+  --rail-ink: #172b4a;
+  --rail-muted: #60718a;
+  --rail-border: #dfe7f1;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  position: sticky;
+  top: 98px;
+  color: var(--rail-ink);
+}
+.bw-module-right, .bw-module-right * { box-sizing: border-box; }
+.bw-module-right-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--rail-border);
+  border-radius: 12px;
+  background: #fff;
+}
+.bw-module-right-eyebrow {
+  margin: 0 0 9px;
+  color: #5874a1;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .07em;
+}
+.bw-module-right-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bw-module-right-mark {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #edf4ff;
+  color: #175cd3;
+}
+.bw-module-right-card h2 {
+  margin: 0;
+  color: var(--rail-ink);
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 740;
+}
+.bw-module-right-description {
+  margin: 11px 0 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--rail-muted);
+}
+.bw-module-right-links { display: grid; gap: 3px; }
+.bw-module-right-links a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 9px 8px;
+  border-radius: 8px;
+  color: #465a76;
+  font-size: 12px;
+  font-weight: 620;
+  text-decoration: none;
+}
+.bw-module-right-links a:hover { background: #eff5ff; color: #175cd3; }
+.bw-module-right-links a svg:last-child { margin-left: auto; color: #8b99ad; }
+.bw-module-right-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #175cd3;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 720;
+}
+.bw-module-right-action:hover { text-decoration: underline; }
+.bw-module-right a:focus-visible { outline: 3px solid #175cd3; outline-offset: 3px; }
+@media (max-width: 1240px) {
+  .bw-module-right { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .bw-module-right { grid-template-columns: 1fr; margin-top: 16px; }
+  .bw-module-right-next { display: none; }
+  .bw-module-right-card { padding: 14px; }
+  .bw-module-right-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

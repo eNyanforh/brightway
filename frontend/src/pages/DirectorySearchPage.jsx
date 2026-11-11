@@ -133,43 +133,25 @@ function SearchResults({ q, kind }) {
 }
 
 export default function DirectorySearchPage() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const q = (params.get("q") || "").trim();
   const kind = filters.find(([value]) => value === params.get("kind"))?.[0] ?? "all";
   const searchable = q.length >= 2 && q.length <= 80;
 
-  function submit(event) {
-    event.preventDefault();
-    const value = String(new FormData(event.currentTarget).get("q") || "").trim().replace(/\s+/gu, " ");
-    if (value.length >= 2 && value.length <= 80) setParams({ q: value, kind });
-  }
-
   return (
-    <section className="bw-directory-search">
-      <header className="bw-directory-hero">
-        <span className="bw-directory-eyebrow"><NavigationIcon name="search" size={16} /> Discover BrightWay</span>
-        <h1>Search BrightWay</h1>
-        <p>Discover people, organizations, achievements, questions, events, opportunities, and education programs.</p>
-      </header>
-
-      <form className="bw-directory-search-form" role="search" aria-label="Directory search" onSubmit={submit}>
-        <span className="bw-directory-form-icon"><NavigationIcon name="search" size={20} /></span>
-        <input key={q} name="q" type="search" aria-label="Name or username"
-          placeholder="Search BrightWay"
-          defaultValue={q} minLength={2} maxLength={80} required />
-        <button type="submit">Search</button>
-      </form>
+    <section className="bw-directory-search" aria-label="Search results">
+      <h1 className="bw-directory-sr-only">Search results</h1>
+      <nav className="bw-directory-filters" aria-label="Search filters">
+        {filters.map(([value, label]) => (
+          <Link key={value} to={"/search?" + new URLSearchParams({ ...(q ? { q } : {}), kind: value })}
+            aria-current={kind === value ? "page" : undefined}>
+            {label}
+          </Link>
+        ))}
+      </nav>
 
       {searchable ? (
         <>
-          <nav className="bw-directory-filters" aria-label="Search filters">
-            {filters.map(([value, label]) => (
-              <Link key={value} to={"/search?" + new URLSearchParams({ q, kind: value })}
-                aria-current={kind === value ? "page" : undefined}>
-                {label}
-              </Link>
-            ))}
-          </nav>
           {kind === "all" ? (
             <>
               <h2 className="bw-directory-group-heading">People and organizations</h2>
@@ -192,11 +174,9 @@ export default function DirectorySearchPage() {
           )}
         </>
       ) : (
-        <div className="bw-directory-intro">
-          <span className="bw-directory-intro-icon"><NavigationIcon name="network" size={22} /></span>
-          <h2>Discover your next connection</h2>
-          <p>Enter at least two characters to search public profiles, approved organizations, and community content. Personal contact details are never included in search results.</p>
-        </div>
+        <p className="bw-directory-prompt" role="status">
+          <NavigationIcon name="search" size={18} /> Enter at least two characters in the search bar above to see results.
+        </p>
       )}
     </section>
   );

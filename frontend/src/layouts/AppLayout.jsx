@@ -13,6 +13,7 @@ import AppHeader from "../components/layout/AppHeader";
 import OrganizationNavigation from "../components/layout/OrganizationNavigation";
 import ManagementNavigation from "../components/layout/ManagementNavigation";
 import AppSidebar from "../components/layout/AppSidebar";
+import ModuleRightRail from "../components/layout/ModuleRightRail";
 import MobileNavigation from "../components/layout/MobileNavigation";
 
 import { organizationsApi } from "../api/organizations";
@@ -55,6 +56,7 @@ function AccountLayout() {
   const organizationBase = `/organization-workspace/${actingOrganization?.organization.id}`;
   const activeOrganization = actingOrganization?.accountId === account?.id && (pathname === organizationBase || pathname.startsWith(organizationBase + "/")) ? actingOrganization : null;
   const acting = activeOrganization?.organization;
+  const showRightRail = !managementMode && !organizationMode && pathname !== "/explore";
   const [profileDraft, setProfileDraft] = useState(null);
   const [profileError, setProfileError] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -155,7 +157,7 @@ function AccountLayout() {
         }
       />
 
-      <div className="bw-design-layout">
+      <div className={`bw-design-layout${showRightRail ? " bw-design-layout--three" : ""}`}>
         {managementMode ? <ManagementNavigation management={management} id={navigationId} open={navigationOpen} onNavigate={() => setNavigationOpen(false)} /> : organizationMode ? <OrganizationNavigation acting={activeOrganization} id={navigationId} open={navigationOpen} onNavigate={() => setNavigationOpen(false)} /> : <AppSidebar
           hasWork={hasWork}
           id={navigationId}
@@ -177,6 +179,7 @@ function AccountLayout() {
             }}
           />
         </main>
+        {showRightRail && <ModuleRightRail />}
       </div>
 
       {managementMode ? <ManagementNavigation management={management} mobile onNavigate={() => setNavigationOpen(false)} /> : organizationMode ? <OrganizationNavigation acting={activeOrganization} mobile onNavigate={() => setNavigationOpen(false)} /> : <MobileNavigation

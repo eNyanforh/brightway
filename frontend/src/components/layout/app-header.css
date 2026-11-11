@@ -293,3 +293,94 @@
   }
 }
 .bw-design-personal { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* A single search field lives in the app header on every screen. */
+.bw-design-search-wrap {
+  position: relative;
+  flex: 1 1 540px;
+  width: min(100%, 540px);
+  max-width: 540px;
+  min-width: 0;
+}
+.bw-design-search-wrap .bw-design-search { width: 100%; }
+.bw-design-search-wrap .bw-design-search:focus-within {
+  outline: 2px solid #a9c9ff;
+  outline-offset: 1px;
+  background: #fff;
+  border-color: #bed3f4;
+}
+.bw-design-search button:disabled { color: #8997a9; cursor: default; }
+.bw-design-search .bw-design-search-clear {
+  flex: 0 0 25px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: #78869c;
+}
+.bw-header-search-suggestions {
+  position: absolute;
+  z-index: 110;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: min(520px, 65vh);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid #dce6f3;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 36px #1b325a20;
+}
+.bw-header-search-suggestions a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #233b60;
+  text-decoration: none;
+  font-size: 13px;
+}
+.bw-header-search-suggestions a:hover,
+.bw-header-search-suggestions a:focus-visible { background: #eff5ff; }
+.bw-header-search-suggestions .bw-header-search-all {
+  color: #155bc3;
+  border-bottom: 1px solid #eef1f5;
+  border-radius: 8px 8px 0 0;
+}
+.bw-header-search-suggestions .bw-header-search-suggestion {
+  justify-content: space-between;
+  gap: 14px;
+}
+.bw-header-search-suggestion-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #243a5a;
+  font-weight: 650;
+}
+.bw-header-search-suggestion > span:last-child { flex-shrink: 0; color: #647087; font-size: 11px; }
+.bw-header-search-suggestions p {
+  padding: 11px 12px;
+  margin: 0;
+  color: #647087;
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .bw-design-header-inner { flex-wrap: wrap; }
+  .bw-design-search-wrap { display: none; }
+  .bw-design-search-wrap.bw-design-search-wrap--mobile-open {
+    display: block;
+    order: 3;
+    flex: 1 0 100%;
+    max-width: none;
+    width: 100%;
+    margin-top: 8px;
+  }
+  .bw-design-search-wrap--mobile-open .bw-design-search { display: flex; height: 45px; }
+  .bw-design-search-wrap--mobile-open .bw-design-search input { font-size: 13px; }
+  .bw-design-search-wrap--mobile-open .bw-design-search button[type="submit"] { font-size: 12px; }
+}
