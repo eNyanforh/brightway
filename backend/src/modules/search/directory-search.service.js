@@ -35,7 +35,7 @@ function readCursor(cursor, viewer, q, filter) {
 }
 
 function peopleCandidates(query, viewer, fuzzy) {
-  const threshold = fuzzy && fuzzy.length <= 4 ? 0.24 : 0.31;
+  const threshold = fuzzy?.includes(" ") ? 0.52 : fuzzy && fuzzy.length <= 4 ? 0.24 : 0.31;
   const fuzzyPeople = fuzzy ? Prisma.sql`
       UNION ALL
       SELECT nearest.id AS "personId", false AS direct FROM (
@@ -114,7 +114,7 @@ function organizationCandidates(query, fuzzy) {
   `;
   const nameQuery = Prisma.sql`to_tsvector('simple',
     o.name || ' ' || replace(coalesce(o.username, ''), '_', ' ')) @@ to_tsquery('simple', ${query})`;
-  const threshold = fuzzy && fuzzy.length <= 4 ? 0.24 : 0.31;
+  const threshold = fuzzy?.includes(" ") ? 0.52 : fuzzy && fuzzy.length <= 4 ? 0.24 : 0.31;
   const fuzzyOrg = fuzzy ? Prisma.sql` OR (
     o.id IN (
       SELECT near.id FROM "Organization" near
@@ -172,7 +172,10 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
         FROM matches
       )
       SELECT kind, id, username, name, headline, "photoId", rank FROM ranked
-      ${after ? Prisma.sql`WHERE (rank, kind, username) > (${after.rank}::int, ${after.kind}, ${after.username})` : Prisma.empty}
+      -- Prefer exact/prefix results. Offer close spellings only when there are
+      -- no authorized direct matches for this filter and query.
+      WHERE (direct OR NOT EXISTS (SELECT 1 FROM matches WHERE direct))
+      ${after ? Prisma.sql`AND (rank, kind, username) > (${after.rank}::int, ${after.kind}, ${after.username})` : Prisma.empty}
       ORDER BY rank, kind, username
       LIMIT ${pageSize + 1}
     `);
