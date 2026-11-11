@@ -34,6 +34,9 @@ import { createPasswordResetRoutes } from "../modules/auth/password-reset.routes
 import { createCredentialService } from "../modules/credentials/credential.service.js";
 import { createCredentialRoutes } from "../modules/credentials/credential.routes.js";
 import { Router } from "express";
+import { createOpportunityService } from "../modules/opportunities/opportunity.service.js";
+import { createOpportunityRoutes } from "../modules/opportunities/opportunity.routes.js";
+import { createApplicationStorage } from "../modules/opportunities/opportunity.storage.js";
 
 import { getHealth } from "../controllers/health.controller.js";
 import { getDatabaseHealth } from "../controllers/database.controller.js";
@@ -70,6 +73,7 @@ const verification = createSignupEmailService({ prisma });
 router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const mfa = createMfaService({ prisma });
 const sessions = createSessionService({ prisma, mfa });
+router.use(createOpportunityRoutes({ opportunities: createOpportunityService({ prisma, storage: createApplicationStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const network = createNetworkService({ prisma });
 router.use(createNetworkRoutes({ network, following: createFollowingService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createNotificationsRoutes({ notifications: createNotificationsService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));

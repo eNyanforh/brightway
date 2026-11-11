@@ -4,6 +4,7 @@ export const PERMISSIONS = Object.freeze({
   "organization.members.manage": "Manage staff",
   "organization.posts.publish": "Publish posts",
   "organization.opportunities.manage": "Manage opportunities",
+  "organization.applications.review": "Review opportunity applications",
   "organization.programs.manage": "Manage programs",
   "organization.admissions.review": "Review admission applications",
   "organization.credentials.education.review": "Review education credentials",

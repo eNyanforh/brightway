@@ -1,7 +1,7 @@
 // Root-level member profile URLs must never shadow application paths.
 // The registration validator and client routing share these reserved handles.
 export const reservedMemberHandles = new Set([
-  "admin", "api", "app", "assets", "auth", "credentials", "explore",
+  "admin", "api", "app", "applications", "assets", "auth", "credentials", "explore",
   "forgot-password", "help", "home", "learn", "learning", "login",
   "management", "manual-identity", "network", "notifications",
   "opportunities", "organization-workspace", "organizations",

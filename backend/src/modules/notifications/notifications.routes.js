@@ -37,10 +37,10 @@ export function createNotificationsRoutes({ notifications, sessions, clientUrl, 
     const cursor = req.query.cursor;
     const invalidCursor = cursor !== undefined &&
       (typeof cursor !== "string" || cursor.length < 1 || cursor.length > 700);
-    if (invalidCursor || Object.keys(req.query).some(key => key !== "cursor")) {
+    if (invalidCursor || Object.keys(req.query).some(key => !["cursor", "view"].includes(key)) || (req.query.view !== undefined && !["all", "unread"].includes(req.query.view))) {
       throw fail(400, "This notification page link is invalid.");
     }
-    return notifications.list(actor(req), cursor);
+    return notifications.list(actor(req), cursor, req.query.view);
   }));
   router.post("/notifications/read-all", privateRoute, origin, noExtraFields, wrap(req => notifications.markAllRead(actor(req))));
   router.post("/notifications/:id/dismiss", privateRoute, origin, noExtraFields, wrap(req => notifications.dismiss(actor(req), req.params.id)));

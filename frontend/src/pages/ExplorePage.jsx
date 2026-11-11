@@ -8,6 +8,7 @@ import "../components/discovery/people-suggestions.css";
 import "./explore.css";
 
 const PeopleSuggestions = lazy(() => import("../components/discovery/PeopleSuggestions"));
+const OpportunityBrowser = lazy(() => import("../components/opportunities/OpportunityBrowser"));
 const views = [["for-you", "For You"], ["following", "Following"], ["saved", "Saved"]];
 
 export default function ExplorePage() {
@@ -38,6 +39,7 @@ export default function ExplorePage() {
       </div>
 
       <aside className="bw-explore-right" aria-label="Explore sidebar">
+        <section className="bw-explore-aside-card"><p className="bw-explore-section-eyebrow">TAKE YOUR NEXT STEP</p><h2>Open opportunities</h2><Suspense fallback={<p role="status">Loading opportunities…</p>}><OpportunityBrowser key={`${account.id}:${view}`} compact following={view === "following"} /></Suspense><Link className="bw-explore-aside-link" to="/opportunities">Browse opportunities →</Link></section>
         <section className="bw-explore-aside-card">
           <div className="bw-explore-aside-title-row">
             <span className="bw-explore-aside-icon"><NavigationIcon name="network" size={20} /></span>
