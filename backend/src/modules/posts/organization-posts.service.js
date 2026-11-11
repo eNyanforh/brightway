@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createPostSafetyScreen } from "./post-safety-screen.service.js";
 import { createPostRelevanceScreen, screenPostForPublication } from "./post-relevance-screen.service.js";
+import { postModerationNotice } from "./post-moderation-notice.js";
 import { MAX_POST_TOPICS, normalizePostTopic } from "../../../../shared/post-topics.mjs";
 import { createManualIdentityReviewService } from "../manual-identity/manual-identity-review.service.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
@@ -24,7 +25,11 @@ const postSelect = {
 };
 const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true, profile: { select: { photoId: true } } } } };
 const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true, questionDetails: true, body: true, createdAt: true, author: { select: memberSelect } };
-const ownMemberPostSelect = { ...memberPostSelect, moderationStatus: true, moderationVersion: true, moderationFeedback: true };
+const ownMemberPostSelect = {
+  ...memberPostSelect,
+  moderationStatus: true, moderationVersion: true, moderationFeedback: true,
+  moderationScreenStatus: true, moderationFlags: true, moderationRelevanceStatus: true,
+};
 const repostSelect = { id: true, createdAt: true, account: { select: memberSelect } };
 const identifier = z.uuid();
 // Legacy member usernames may predate the stricter signup validator.
@@ -337,6 +342,13 @@ function sameEventDetails(left, right) {
 
 function memberPost({ author, ...post }, verified = false) {
   return { ...post, member: memberAttribution(author, verified) };
+}
+
+// Personal screening metadata is never exposed on public post cards.
+// Only owners receive a stable, safe explanation for a review hold.
+function ownerMemberPost({ moderationScreenStatus, moderationFlags, moderationRelevanceStatus, ...post }, verified = false) {
+  const assessment = { ...post, moderationScreenStatus, moderationFlags, moderationRelevanceStatus };
+  return { ...memberPost(post, verified), moderationNotice: postModerationNotice(assessment) };
 }
 
 function repostAttribution(row, viewer) {
@@ -1427,7 +1439,7 @@ export function createOrganizationPosts({
         ? await eventAttendeePreviews(prisma, events, actor.accountId) : new Map();
       await assertNetworkSession(prisma, actor, now);
       const items = visibleRows.map(({ likes, saves, reposts, answers, _count, ...post }) => ({
-        ...memberPost(post, access.identityVerified),
+        ...ownerMemberPost(post, access.identityVerified),
         saved: saves.length > 0,
         reposted: reposts.length > 0,
         answerParticipants: post.type === "QUESTION" ? [...new Map(answers.map(({ author }) => [author.id, memberAttribution(author)])).values()].slice(0, 3) : [],
@@ -1464,14 +1476,14 @@ export function createOrganizationPosts({
           const sameEvent = sameEventDetails(post.eventDetails, data.eventDetails);
           const sameQuestion = sameQuestionDetails(post.questionDetails, data.questionDetails);
           if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags || !sameEvent || !sameQuestion) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
-          return { post: memberPost(post, true) };
+          return { post: ownerMemberPost(post, true) };
         }
         // An older tagless post may be retried, but new posts require a topic.
         if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
         const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, questionDetails: data.questionDetails ?? undefined, body: data.body, ...screening, createdAt: now() }, select: ownMemberPostSelect });
-        return { post: memberPost(post, true) };
+        return { post: ownerMemberPost(post, true) };
       });
     },
 
@@ -1520,7 +1532,7 @@ export function createOrganizationPosts({
           || previous.tags.some((tag, index) => tag !== data.tags[index])
           || (previous.type === "EVENT" && !sameEventDetails(previous.eventDetails, data.eventDetails))
           || (previous.type === "QUESTION" && !sameQuestionDetails(previous.questionDetails, data.questionDetails));
-        if (!changed) return { post: memberPost(previous, true) };
+        if (!changed) return { post: ownerMemberPost(previous, true) };
         const updated = await tx.memberPost.update({
           where: { id }, data: {
             body: data.body, tags: data.tags,
@@ -1533,7 +1545,7 @@ export function createOrganizationPosts({
             ...(previous.type === "QUESTION" ? { questionDetails: data.questionDetails } : {}),
           }, select: ownMemberPostSelect,
         });
-        return { post: memberPost(updated, true) };
+        return { post: ownerMemberPost(updated, true) };
       });
     },
 

@@ -1800,3 +1800,42 @@
 }
 .bw-post-review-state[data-status="REJECTED"] > strong { color: #aa3d24; }
 .bw-post-review-state p { margin: 2px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+
+
+/* Author-only, persisted moderation explanations. A hold is a review state,
+   not a confirmed policy violation. Keep messages readable on small screens. */
+.bw-post-moderation-notice {
+  display: grid;
+  gap: .45rem;
+  color: inherit;
+  line-height: 1.55;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bw-post-moderation-title { font-size: .88rem; font-weight: 750; }
+.bw-post-moderation-notice p { margin: 0; }
+.bw-post-moderation-notice ul {
+  display: grid;
+  gap: .45rem;
+  padding-left: 1.2rem;
+  margin: 0;
+}
+.bw-post-moderation-next { margin-top: .15rem !important; }
+.bw-post-moderation-next strong { font-weight: 750; }
+.bw-post-submission-feedback {
+  display: grid;
+  gap: .65rem;
+  margin: .8rem 0;
+  padding: .9rem 1rem;
+  border-radius: .85rem;
+  border: 1px solid #cfdded;
+  background: #f5f8fc;
+  color: #1d385e;
+  font-size: .84rem;
+  line-height: 1.55;
+}
+.bw-post-submission-feedback > a { color: #17519b; font-weight: 750; width: fit-content; }
+.bw-post-review-state .bw-post-moderation-notice { font-size: .79rem; }
+@media (max-width: 480px) {
+  .bw-post-submission-feedback { padding: .8rem; }
+}

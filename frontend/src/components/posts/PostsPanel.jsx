@@ -14,6 +14,7 @@ import PostTimestamp from "./PostTimestamp";
 import { AuthContext } from "../../auth/auth-context";
 import PostCaption from "./PostCaption";
 import PostManageMenu from "./PostManageMenu";
+import PostModerationNotice from "./PostModerationNotice";
 import "./posts.css";
 
 const postSource = post => post.organization ? "organization" : "member";
@@ -162,12 +163,14 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
   const reviewBanner = heldForReview ? (
     <div className="bw-post-review-state" data-status={reviewStatus}>
       <strong>{reviewStatus === "PENDING" ? "Pending review" : "Declined"}</strong>
-      <span>{reviewStatus === "PENDING"
-        ? "This post is visible only to you until BrightWay Management approves it."
-        : "This post is not public. Edit it to submit a revised version for review."}</span>
-      {reviewStatus === "REJECTED" && post.moderationFeedback && (
-        <p><strong>Review feedback:</strong> {post.moderationFeedback}</p>
-      )}
+      {post.moderationNotice ? <PostModerationNotice notice={post.moderationNotice} /> : <>
+        <span>{reviewStatus === "PENDING"
+          ? "This post is visible only to you until BrightWay Management approves it."
+          : "This post is not public. Edit it to submit a revised version for review."}</span>
+        {reviewStatus === "REJECTED" && post.moderationFeedback && (
+          <p><strong>Review feedback:</strong> {post.moderationFeedback}</p>
+        )}
+      </>}
     </div>
   ) : null;
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/" + encodeURIComponent(post.member.username);
@@ -424,6 +427,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState("");
+  const [submissionFeedback, setSubmissionFeedback] = useState(null);
   const active = useRef(null);
   const publishKey = useRef(null);
 
@@ -499,6 +503,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
 
   function selectComposer(value) {
     publishKey.current = null;
+    setSubmissionFeedback(null);
     setType(value);
     setBody("");
     setTags([]);
@@ -525,6 +530,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     event.preventDefault();
     if (!canPublish || !body.trim() || (memberComposer && (!composerOpen || !tags.length)) || active.current) return;
     setNotice("");
+    setSubmissionFeedback(null);
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
     void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags, ...(type === "EVENT" && eventDetails ? { eventDetails } : {}), ...(type === "QUESTION" && questionDetails ? { questionDetails } : {}) }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
@@ -541,9 +547,11 @@ export default function PostsPanel({ organization, personal = false, view = "for
       setType("ACHIEVEMENT");
       setTags([]);
       setComposerOpen(false);
+      const held = memberComposer && post.moderationStatus !== "PUBLISHED";
+      setSubmissionFeedback(held ? post.moderationNotice ?? null : null);
       setNotice(memberComposer ? post.moderationStatus === "PUBLISHED"
         ? "Post published. BrightWay Management may review it later."
-        : "Submitted for moderation. Track the decision in My Posts." : "Post published.");
+        : post.moderationNotice ? "" : "Submitted for moderation. Track the decision in My Posts." : "Post published.");
     }, { preserveOnDenied: inlineComposer });
   }
 
@@ -595,12 +603,16 @@ export default function PostsPanel({ organization, personal = false, view = "for
     const controller = new AbortController();
     active.current = controller;
     setPending(true); setError(null);
+    setSubmissionFeedback(null);
     try {
       const data = await operation(controller.signal);
       if (controller.signal.aborted) throw new Error("This post action was cancelled.");
       setPage(previous => previous ? ({ ...previous, items: change(previous.items, data) }) : previous);
+      setSubmissionFeedback(data.post?.moderationStatus === "PENDING"
+        ? data.post.moderationNotice ?? null : null);
       setNotice(data.post ? data.post.moderationStatus === "PENDING"
-          ? "Changes submitted for review." : "Post updated and published." : "Post deleted.");
+          ? data.post.moderationNotice ? "" : "Changes submitted for review."
+          : "Post updated and published." : "Post deleted.");
     } catch (failure) {
       if (!controller.signal.aborted) setError(failure);
       throw failure;
@@ -655,6 +667,10 @@ export default function PostsPanel({ organization, personal = false, view = "for
         </form>
       )}
       {notice && <p role="status">{notice}</p>}
+      {submissionFeedback && <div role="status" className="bw-post-submission-feedback">
+        <PostModerationNotice notice={submissionFeedback} />
+        <Link to="/posts">View status in My Posts</Link>
+      </div>}
       {error && <p className="bw-post-error" role="alert">{error.message}{inlineComposer && error.status === 403 && <> <Link to="/profile">Open your profile</Link></>}</p>}
       {!page && !error && <p role="status">Loading posts…</p>}
       <div className={timeline ? "bw-timeline-refresh" : "bw-post-actions"}>

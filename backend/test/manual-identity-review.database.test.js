@@ -87,12 +87,14 @@ test("database manual identity requests serialize retries and decisions, revoke 
       return moderation.decide(moderator, id, { decision: "PUBLISHED", expectedVersion: row.moderationVersion, requestKey: randomUUID(), reason: "Submission follows BrightWay educational publishing standards." });
     }
     assert.equal(publication.post.moderationStatus, "PENDING");
+    assert.equal(publication.post.moderationNotice.code, "SCREENING_UNAVAILABLE");
+    assert.match(publication.post.moderationNotice.nextStep, /Management review/i);
     const postId = publication.post.id;
     assert.equal(retry.post.id, postId);
     assert.equal(publication.post.type, "POST");
     assert.deepEqual(publication.post.tags, ["Learning Journeys"]);
     assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner", photoId: photo.id, verified: true });
-    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "member", "moderationFeedback", "moderationStatus", "moderationVersion", "questionDetails", "tags", "type"].sort());
+    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "member", "moderationFeedback", "moderationNotice", "moderationStatus", "moderationVersion", "questionDetails", "tags", "type"].sort());
     assert.equal(publication.post.eventDetails, null);
     assert.equal(publication.post.questionDetails, null);
     await assert.rejects(posts.memberPublish(actor, { ...draft, body: "Different content" }), { status: 409 });
@@ -111,6 +113,8 @@ test("database manual identity requests serialize retries and decisions, revoke 
     const viewerActor = { accountId: viewer.id, sessionId: viewerSession.id };
     assert.ok((await moderation.list(moderator)).items.some(item => item.id === postId));
     assert.equal((await posts.memberList(actor, {})).items.find(item => item.id === postId)?.moderationStatus, "PENDING");
+    assert.deepEqual((await posts.memberList(actor, {})).items.find(item => item.id === postId)?.moderationNotice,
+      publication.post.moderationNotice, "the reason persists on the private My Posts endpoint");
     assert.equal((await posts.feed(viewerActor, {})).items.some(item => item.id === postId), false);
     await assert.rejects(posts.readPost(viewerActor, "member", postId), { status: 404 });
     await assert.rejects(posts.setLike(viewerActor, "member", postId, { liked: true }), { status: 404 });
@@ -231,6 +235,9 @@ test("database manual identity requests serialize retries and decisions, revoke 
     const decisionBase = { expectedVersion: rejection.moderationVersion, requestKey: randomUUID(), reason: "Please explain the learning milestone and correct the incomplete description." };
     const rejectionResult = await moderation.decide(moderator, rejection.id, { ...decisionBase, decision: "REJECTED" });
     assert.equal(rejectionResult.moderationStatus, "REJECTED");
+    const rejectedOwnerPost = (await posts.memberList(actor, {})).items.find(item => item.id === rejection.id);
+    assert.equal(rejectedOwnerPost.moderationNotice.code, "MANAGEMENT_DECLINED");
+    assert.equal(rejectedOwnerPost.moderationNotice.reasons[0], decisionBase.reason);
     assert.deepEqual(await moderation.decide(moderator, rejection.id, { ...decisionBase, decision: "REJECTED" }), rejectionResult,
       "same decision key is an idempotent replay");
     assert.equal((await posts.memberList(actor, {})).items.find(item => item.id === rejection.id).moderationFeedback, decisionBase.reason);
@@ -241,6 +248,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
       tags: ["Careers", "Coding"],
     });
     assert.equal(revised.moderationStatus, "PENDING");
+    assert.ok(revised.moderationNotice?.reasons.length > 0);
     assert.equal(revised.moderationVersion, rejection.moderationVersion + 2);
     assert.equal(revised.moderationFeedback, null);
     await assert.rejects(moderation.decide(moderator, rejection.id, {
@@ -286,6 +294,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
       type: "ACHIEVEMENT", tags: ["Coding"], requestKey: randomUUID() };
     const { post: autoPublished } = await automaticPosts.memberPublish(actor, publicationDraft);
     assert.equal(autoPublished.moderationStatus, "PUBLISHED", "both AI verdicts immediately publish.");
+    assert.equal(autoPublished.moderationNotice, null);
     assert.equal((await posts.readPost(viewerActor, "member", autoPublished.id)).post.id, autoPublished.id);
     assert.equal((await moderation.list(moderator, { status: "PUBLISHED" })).items.some(row => row.id === autoPublished.id), true);
     // Moderator takedown cannot be bypassed by minor revision, despite both AI checks passing.
@@ -324,6 +333,12 @@ test("database manual identity requests serialize retries and decisions, revoke 
         ...publicationDraft, requestKey: randomUUID(),
       });
       assert.equal(held.moderationStatus, "PENDING");
+      const expected = scenario.safety === "FLAGGED" ? "SAFETY_REVIEW"
+        : scenario.relevance === "OFF_TOPIC" ? "OFF_TOPIC"
+          : scenario.relevance === "UNCERTAIN" ? "UNCERTAIN" : "SCREENING_UNAVAILABLE";
+      assert.equal(held.moderationNotice.code, expected);
+      assert.ok(held.moderationNotice.reasons.length > 0);
+      assert.equal((await posts.memberList(actor, {})).items.find(row => row.id === held.id)?.moderationNotice.code, expected);
       await assert.rejects(posts.readPost(viewerActor, "member", held.id), { status: 404 });
       await posts.memberWithdraw(actor, held.id);
     }
