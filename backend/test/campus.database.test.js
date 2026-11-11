@@ -32,7 +32,10 @@ test("Sprint 9 real-PostgreSQL activation, permission revocation, isolation, not
   }
   async function org(owner, country, secondary = false, type = "SCHOOL") {
     const name = "Synthetic Campus " + randomUUID().slice(0, 8);
-    const req = await db.organizationRequest.create({ data: { applicantId: owner.id, idempotencyKey: randomUUID(),
+    const assignedAgentId = accounts.find(id => id !== owner.id);
+    const decidedById = accounts.find(id => id !== owner.id && id !== assignedAgentId);
+    const req = await db.organizationRequest.create({ data: { applicantId: owner.id,
+      assignedAgentId, decidedById, decidedAt: now(), version: 4, idempotencyKey: randomUUID(),
       inputHash: "a".repeat(64), fingerprint: randomUUID(), name, type, offersTraining: true,
       representativeRole: "Administrator", countryCode: country, region: "Testing", city: "Test City",
       address: "Synthetic test address", status: "APPROVED", targetAt: now(), decidedAt: now() } });
