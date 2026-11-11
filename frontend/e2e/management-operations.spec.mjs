@@ -1,10 +1,11 @@
 import { test,expect } from "@playwright/test";
 const id="11111111-1111-4111-8111-111111111111",orgId="22222222-2222-4222-8222-222222222222",caseId="33333333-3333-4333-8333-333333333333";
 const staff={id:`mg_${orgId}`,username:"synthetic_root",fullName:"Synthetic Administrator",realm:"management",isSuperAdmin:true};
-const pendingPost={id:"44444444-4444-4444-8444-444444444444",type:"QUESTION",body:"How can we improve student research skills?",tags:["Research"],questionDetails:{title:"How can students plan research projects?"},moderationVersion:1,moderationScreenStatus:"FLAGGED",moderationFlags:["harassment"],createdAt:"2026-11-07T12:00:00Z",author:{username:"synthetic_author"}};
+const pendingPost={id:"44444444-4444-4444-8444-444444444444",type:"QUESTION",body:"How can we improve student research skills?",tags:["Research"],questionDetails:{title:"How can students plan research projects?"},moderationStatus:"PENDING",moderationVersion:1,moderationScreenStatus:"FLAGGED",moderationFlags:["harassment"],moderationRelevanceStatus:"OFF_TOPIC",moderationRelevanceCategory:"OTHER",createdAt:"2026-11-07T12:00:00Z",author:{username:"synthetic_author"}};
+const publishedPost={...pendingPost,id:"55555555-5555-4555-8555-555555555555",body:"I completed my academic software-engineering project.",moderationStatus:"PUBLISHED",moderationVersion:3,moderationScreenStatus:"CLEAR",moderationFlags:[],moderationRelevanceStatus:"RELEVANT",moderationRelevanceCategory:"ACHIEVEMENT",moderationRelevanceReason:"Student project",author:{username:"published_scholar"}};
 const tools=[["users","Users","/management/users"],["directory","Organizations","/management/organizations"],["team","Team access","/management/team"],["support","Support","/management/support"],["moderation","Reports","/management/reports"],["post-reviews","Post review","/management/post-reviews"],["audit","Audit log","/management/audit"],["operations","Operations","/management/operations"]].map(([key,label,to])=>({key,label,to,allowed:true,description:"Synthetic operations tool."}));
 async function fixture(page){
- const state={unexpected:[],errors:[],writes:[],status:"ACTIVE",version:0,readStatus:200,caseVersion:1,assigned:null,messages:[{id:"synthetic-message",body:"A synthetic support request.",createdAt:"2026-11-04T12:00:00Z",internal:false,authorAccountId:id}],kind:"SUPPORT"};page.on("pageerror",e=>state.errors.push(e.message));
+ const state={unexpected:[],errors:[],writes:[],status:"ACTIVE",version:0,readStatus:200,caseVersion:1,assigned:null,messages:[{id:"synthetic-message",body:"A synthetic support request.",createdAt:"2026-11-04T12:00:00Z",internal:false,authorAccountId:id}],kind:"SUPPORT",postRows:[{...pendingPost},{...publishedPost}]};page.on("pageerror",e=>state.errors.push(e.message));
  await page.route("**/*",async route=>{const url=new URL(route.request().url()),path=url.pathname;if(url.origin!=="http://127.0.0.1:4187")return route.abort();if(!path.startsWith("/api/"))return route.continue();const body=route.request().postDataJSON(),reply=(data,status=200)=>route.fulfill({status,json:status<400?{success:true,data}:{success:false,message:data}});
  const user={id,username:"synthetic_user",person:{firstName:"Synthetic",lastName:"Applicant"},status:state.status,accessVersion:state.version,createdAt:"2026-11-01T12:00:00Z",emailVerifiedAt:"2026-11-01T12:00:00Z"};const org={id:orgId,name:"Synthetic Learning Centre",username:"synthetic_school",status:"ACTIVE",accessVersion:0,type:"SCHOOL",createdAt:"2026-11-01T12:00:00Z",verifiedAt:"2026-11-01T12:00:00Z"};
  const item={id:caseId,subject:"Synthetic support case",kind:state.kind,status:state.assigned?"IN_PROGRESS":"OPEN",priority:"NORMAL",version:state.caseVersion,assignedStaffId:state.assigned,createdAt:"2026-11-04T12:00:00Z"};
@@ -14,8 +15,17 @@ async function fixture(page){
  if(path===`/api/v1/management/tools/users/${id}/actions`){state.writes.push({path,body});state.status=body.action==="SUSPEND"?"SUSPENDED":"ACTIVE";state.version++;return reply({id,status:state.status,accessVersion:state.version});}
  if(path==="/api/v1/management/tools/organizations")return reply({items:[org]});if(path===`/api/v1/management/tools/organizations/${orgId}`)return reply({entity:org,history:[]});
  if(path==="/api/v1/management/tools/team")return reply({items:[{...staff,status:"ACTIVE",version:1,capabilities:[],createdAt:"2026-11-01T12:00:00Z"}]});
- if(path==="/api/v1/management/tools/post-reviews")return reply({items:[pendingPost],nextCursor:null});
- if(path===`/api/v1/management/tools/post-reviews/${pendingPost.id}/decision`){state.writes.push({path,body});return reply({id:pendingPost.id,moderationStatus:body.decision,moderationVersion:body.expectedVersion});}
+ if(path==="/api/v1/management/tools/post-reviews"){
+   const status=url.searchParams.get("status")||"PENDING";
+   return reply({items:state.postRows.filter(item=>item.moderationStatus===status),nextCursor:null,status});
+ }
+ if(/^\/api\/v1\/management\/tools\/post-reviews\/[^/]+\/decision$/.test(path)){
+   state.writes.push({path,body});
+   const row=state.postRows.find(item=>path.includes(item.id));
+   if(!row||row.moderationVersion!==body.expectedVersion)return reply("Post changed",409);
+   row.moderationStatus=body.decision;row.moderationVersion++;
+   return reply({id:row.id,moderationStatus:row.moderationStatus,moderationVersion:row.moderationVersion});
+ }
  if(path==="/api/v1/management/tools/audit")return reply({items:[{id:caseId,actorUsername:staff.username,actorId:staff.id,action:"ACCOUNT_SUSPEND",source:"OPERATIONS",targetType:"ACCOUNT",targetId:id,createdAt:"2026-11-04T12:00:00Z"}]});
  if(path==="/api/v1/management/tools/operations")return reply({asOf:"2026-11-04T12:00:00Z",counts:Object.fromEntries(["identityPastTarget","credentialPastTarget","organizationPastTarget","openCases","pendingWebhookJobs","failedWebhookJobs","expiredManagementSessions","expiredManagementProofs","identityRetentionDue","identityDeletionPending"].map(key=>[key,0]))});
  if(path==="/api/v1/management/tools/cases"){if(state.readStatus!==200)return reply("Synthetic case access unavailable",state.readStatus);state.kind=url.searchParams.get("kind");return reply({items:[{...item,kind:state.kind}]});}
@@ -40,7 +50,7 @@ test("post moderation asks for fresh MFA, keeps safety signals advisory and send
   await expect(page.getByRole("heading",{name:"Post review",exact:true})).toBeVisible();
   await page.getByRole("button",{name:/synthetic_author/}).click();
   await expect(page.getByText("How can students plan research projects?")).toBeVisible();
-  await expect(page.getByText(/Potential harm flagged/)).toBeVisible();
+  await expect(page.getByText(/Flagged — manual review required/)).toBeVisible();
   await page.getByRole("button",{name:"Decline post"}).click();
   await confirm(page);
   await expect(page.getByText(/Post declined/)).toBeVisible();
@@ -51,6 +61,34 @@ test("post moderation asks for fresh MFA, keeps safety signals advisory and send
     decision:"REJECTED",expectedVersion:1,reason:"Synthetic documented operational reason.",
   });
   expect(state.writes[1].body.requestKey).toMatch(/^[a-f0-9-]{36}$/);
+  await layout(page);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpected).toEqual([]);
+});
+
+test("Management removes and restores an auto-published post with fresh MFA and version checks",async({page})=>{
+  const state=await fixture(page);
+  await page.goto("/superadmin/post-reviews");
+  await page.getByRole("button",{name:"Published",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"Published posts",exact:true})).toBeVisible();
+  await page.getByRole("button",{name:/published_scholar/}).click();
+  await expect(page.getByText("Education/career relevant")).toBeVisible();
+  await expect(page.getByText("Student project")).toBeVisible();
+  await page.getByRole("button",{name:"Remove post"}).click();
+  await confirm(page);
+  await expect(page.getByText(/Published post removed/)).toBeVisible();
+  expect(state.writes.at(-1).body).toMatchObject({
+    decision:"REJECTED",expectedVersion:3,
+    reason:"Synthetic documented operational reason.",
+  });
+  await page.getByRole("button",{name:"Removed / declined"}).click();
+  await expect(page.getByRole("heading",{name:"Removed and declined posts"})).toBeVisible();
+  await page.getByRole("button",{name:/published_scholar/}).click();
+  await page.getByRole("button",{name:"Restore post"}).click();
+  await confirm(page);
+  await expect(page.getByText("Post published or restored.")).toBeVisible();
+  expect(state.writes.at(-1).body).toMatchObject({decision:"PUBLISHED",expectedVersion:4});
+  expect(state.writes.filter(call=>call.path.includes("/management/security/step-up"))).toHaveLength(2);
   await layout(page);
   expect(state.errors).toEqual([]);
   expect(state.unexpected).toEqual([]);
