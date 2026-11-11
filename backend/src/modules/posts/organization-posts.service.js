@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createPostSafetyScreen } from "./post-safety-screen.service.js";
+import { createPostRelevanceScreen, screenPostForPublication } from "./post-relevance-screen.service.js";
 import { MAX_POST_TOPICS, normalizePostTopic } from "../../../../shared/post-topics.mjs";
 import { createManualIdentityReviewService } from "../manual-identity/manual-identity-review.service.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
@@ -360,7 +361,11 @@ function findPosts(model, select, where, cursor, source) {
   });
 }
 
-export function createOrganizationPosts({ prisma, now = () => new Date(), screen = createPostSafetyScreen() }) {
+export function createOrganizationPosts({
+  prisma, now = () => new Date(),
+  screen = createPostSafetyScreen(),
+  relevance = createPostRelevanceScreen(),
+}) {
   const identity = createManualIdentityReviewService({ prisma, now });
 
   async function memberEligibility(db, accountId) {
@@ -1444,8 +1449,8 @@ export function createOrganizationPosts({ prisma, now = () => new Date(), screen
       await assertNetworkSession(prisma, actor, now);
       if (!(await memberEligibility(prisma, actor.accountId)).identityVerified)
         throw fail(403, "Verify your identity before submitting a personal post.");
-      // External safety screening is never performed while holding DB locks.
-      const screening = await screen(data);
+      // Both safety and purpose screening happen outside database locks.
+      const screening = await screenPostForPublication(data, screen, relevance);
       return memberWrite(actor, async tx => {
         // Profile updates lock this same row.
         await lockMemberProfile(tx, actor.accountId);
@@ -1465,7 +1470,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date(), screen
         if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
-        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, questionDetails: data.questionDetails ?? undefined, body: data.body, moderationStatus: "PENDING", ...screening, createdAt: now() }, select: ownMemberPostSelect });
+        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, questionDetails: data.questionDetails ?? undefined, body: data.body, ...screening, createdAt: now() }, select: ownMemberPostSelect });
         return { post: memberPost(post, true) };
       });
     },
@@ -1476,11 +1481,11 @@ export function createOrganizationPosts({ prisma, now = () => new Date(), screen
       await assertNetworkSession(prisma, actor, now);
       const authorized = await prisma.memberPost.findFirst({
         where: { id, authorId: actor.accountId, withdrawnAt: null },
-        select: { id: true },
+        select: { id: true, type: true },
       });
       if (!authorized) throw fail(404, "This post is unavailable.");
-      // Never incur optional provider costs for another member's post.
-      const screening = await screen(data);
+      // Classify the stored post type; edit payloads intentionally omit type.
+      const screening = await screenPostForPublication({ ...data, type: authorized.type }, screen, relevance);
       return memberWrite(actor, async tx => {
         // Serialize edits with the author account and profile publication state.
         await lockMemberProfile(tx, actor.accountId);
@@ -1519,8 +1524,11 @@ export function createOrganizationPosts({ prisma, now = () => new Date(), screen
         const updated = await tx.memberPost.update({
           where: { id }, data: {
             body: data.body, tags: data.tags,
-            moderationStatus: "PENDING", moderationVersion: { increment: 1 },
-            moderationFeedback: null, ...screening,
+            ...screening,
+            // Staff declines cannot be bypassed by trivial edits and an AI pass.
+            moderationStatus: previous.moderationStatus === "REJECTED" ? "PENDING" : screening.moderationStatus,
+            moderationVersion: { increment: 1 },
+            moderationFeedback: null,
             ...(previous.type === "EVENT" ? { eventDetails: data.eventDetails } : {}),
             ...(previous.type === "QUESTION" ? { questionDetails: data.questionDetails } : {}),
           }, select: ownMemberPostSelect,
