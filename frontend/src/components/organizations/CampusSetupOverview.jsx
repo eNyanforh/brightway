@@ -1,3 +1,4 @@
+import GradeSchoolWorkspace from "../grade-school/GradeSchoolWorkspace";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import WorkspaceIcon from "../workspace/WorkspaceIcon";
@@ -6,7 +7,7 @@ import "./campus.css";
 
 const label = { GRADE_SCHOOL: "Grade School", TVET: "Technical and Vocational Education (TVET)" };
 const statusText = { NOT_CONFIGURED: "Not configured", SETUP: "Setup", ACTIVE: "Active", PAUSED: "Paused", BLOCKED: "Eligibility blocked" };
-const emptyAnnouncement = { title: "", body: "" };
+const emptyAnnouncement = { title: "", body: "", audience: "STAFF" };
 const safeError = error => error?.message || "The Campus request failed. Retry after reloading.";
 
 function Status({ campus, eligible }) {
@@ -18,7 +19,7 @@ function Status({ campus, eligible }) {
 
 export default function CampusSetupOverview({ organization }) {
   const id = organization.id;
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(null), [schoolView, setSchoolView] = useState(true);
   const [form, setForm] = useState({ engine: organization.type === "SCHOOL" ? "GRADE_SCHOOL" : "TVET", displayName: organization.name, contactEmail: "" });
   const [draft, setDraft] = useState(emptyAnnouncement);
   const [announcements, setAnnouncements] = useState([]);
@@ -77,9 +78,9 @@ export default function CampusSetupOverview({ organization }) {
     event.preventDefault();
     if (!draft.title.trim() || !draft.body.trim()) return;
     if (!key.current) key.current = crypto.randomUUID();
-    const submitted = { title: draft.title.trim(), body: draft.body.trim(), requestKey: key.current };
+    const submitted = { title: draft.title.trim(), body: draft.body.trim(), audience: draft.audience, requestKey: key.current };
     void run(async () => { await campusApi.publish(id, submitted); key.current = null; setDraft(emptyAnnouncement); },
-      "Announcement published for your Campus team.");
+      "Announcement published for the selected Campus audience.");
   }
   async function loadMore() {
     if (!nextCursor || moreBusy) return;
@@ -110,7 +111,8 @@ export default function CampusSetupOverview({ organization }) {
     </header>
     {error && <p className="bw-campus-message" role="alert">{error}</p>}
     {notice && <p className="bw-campus-message bw-campus-success" role="status">{notice}</p>}
-    <div className="bw-campus-layout">
+    {campus?.status === "ACTIVE" && campus.engine === "GRADE_SCHOOL" && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p)) && <><nav className="bw-school-mode-tabs" aria-label="Campus tools"><button type="button" aria-pressed={schoolView} onClick={() => setSchoolView(true)}>School management</button><button type="button" aria-pressed={!schoolView} onClick={() => setSchoolView(false)}>Campus settings & announcements</button></nav>{schoolView && <GradeSchoolWorkspace key={id} campusId={id} />}</>}
+    <div className="bw-campus-layout" hidden={schoolView && campus?.status === "ACTIVE" && campus.engine === "GRADE_SCHOOL" && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p))}>
       <div className="bw-campus-main">
         <section className="bw-campus-panel" aria-labelledby="campus-eligibility">
           <div className="bw-campus-panel-heading"><div><span className="bw-campus-overline">01 / AVAILABILITY</span><h3 id="campus-eligibility">Campus eligibility</h3></div><strong className={data.eligible ? "bw-campus-yes" : "bw-campus-no"}>{data.eligible ? "Eligible" : "Restricted"}</strong></div>
@@ -138,7 +140,7 @@ export default function CampusSetupOverview({ organization }) {
             {(canConfigure || canEditSettings) && <button type="submit" disabled={busy || !data.eligible}>{busy ? "Saving…" : canConfigure ? "Save Campus setup" : "Save settings"}</button>}
           </form>
           {!campus && <p className="bw-campus-help">Saving configuration creates a Setup record, not an active Campus. No students are registered and no charges are generated.</p>}
-          {campus?.storedStatus === "SETUP" && data.canSetup && <div className="bw-campus-transition"><div><strong>Ready to activate?</strong><p>Activation enables scoped Campus permissions and announcements. Grade School and TVET academic operations follow in their dedicated sprints.</p></div>
+          {campus?.storedStatus === "SETUP" && data.canSetup && <div className="bw-campus-transition"><div><strong>Ready to activate?</strong><p>Activation enables scoped Campus permissions and announcements. Grade School academic operations become available to authorized staff.</p></div>
             <button type="button" disabled={busy || !data.eligible} onClick={() => run(() => campusApi.activate(id, campus.version), "Virtual Campus activated.")}>Activate Campus</button></div>}
           {campus?.storedStatus === "ACTIVE" && data.canSetup && <div className="bw-campus-transition"><div><strong>Pause Campus</strong><p>Immediately disables academic, billing and announcement privileges until resumed.</p></div>
             <button type="button" className="bw-campus-muted-button" disabled={busy} onClick={() => { if (window.confirm("Pause Virtual Campus access for all organization staff?")) void run(() => campusApi.pause(id, campus.version), "Campus paused. Staff permissions are no longer effective."); }}>Pause</button></div>}
@@ -150,6 +152,7 @@ export default function CampusSetupOverview({ organization }) {
         {canRead && <section className="bw-campus-panel" aria-labelledby="campus-announcements">
           <div className="bw-campus-panel-heading"><div><span className="bw-campus-overline">03 / COMMUNICATION</span><h3 id="campus-announcements">Campus announcements</h3></div><span>{announcements.length} shown</span></div>
           {mayPublish && <form className="bw-campus-announcement-form" onSubmit={publish}>
+            <label>Announcement audience<select aria-label="Announcement audience" value={draft.audience} disabled={busy} onChange={e => { key.current = null; setDraft(s => ({ ...s, audience: e.target.value })); }}><option value="STAFF">Campus staff only</option><option value="CAMPUS">Campus staff and active learners</option></select></label>
             <label>Announcement title<input value={draft.title} maxLength={160} required onChange={e => { key.current = null; setDraft(s => ({ ...s, title: e.target.value })); }} disabled={busy} placeholder="e.g. Academic operations update" /></label>
             <label>Announcement details<textarea value={draft.body} maxLength={3000} required onChange={e => { key.current = null; setDraft(s => ({ ...s, body: e.target.value })); }} disabled={busy} placeholder="Share important information with your Campus team…" rows={4} /></label>
             <button type="submit" disabled={busy || !draft.title.trim() || !draft.body.trim()}>{busy ? "Publishing…" : "Publish announcement"}</button>
@@ -157,7 +160,7 @@ export default function CampusSetupOverview({ organization }) {
           {announcements.length === 0 && <p className="bw-campus-empty">No active announcements have been published yet.</p>}
           <div className="bw-campus-announcements">{announcements.map(item => <article key={item.id} className="bw-campus-announcement">
             <div><h4>{item.title}</h4><time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</time></div>
-            <p>{item.body}</p>{mayPublish && <button type="button" className="bw-campus-link-button" disabled={busy}
+            <small>{item.audience === "CAMPUS" ? "Campus staff and active learners" : "Campus staff only"}</small><p>{item.body}</p>{mayPublish && <button type="button" className="bw-campus-link-button" disabled={busy}
               onClick={() => { if (window.confirm("Withdraw this Campus announcement?")) void run(() => campusApi.withdraw(id, item.id, item.version), "Announcement withdrawn."); }}>Withdraw</button>}
           </article>)}</div>
           {nextCursor && <button type="button" className="bw-campus-muted-button" onClick={loadMore} disabled={moreBusy}>{moreBusy ? "Loading…" : "Load more announcements"}</button>}
@@ -169,7 +172,7 @@ export default function CampusSetupOverview({ organization }) {
           {data.canSetup && <Link className="bw-campus-staff-link" to={"/organization-workspace/" + id + "/staff"}>Manage staff permissions</Link>}
         </section>
         <section className="bw-campus-panel"><span className="bw-campus-overline">ACADEMIC ENGINES</span><h3>{campus?.engine ? label[campus.engine] : "Choose an engine"}</h3>
-          <p>{campus?.engine === "GRADE_SCHOOL" ? "Academic years, classes, sections, teachers, attendance and grading follow in Sprint 10." : campus?.engine === "TVET" ? "Trades, cohorts, instructors, competency assessments and certificates follow in Sprint 11." : "Select Grade School or TVET according to your verified organization capability."}</p>
+          <p>{campus?.engine === "GRADE_SCHOOL" ? "Manage academic years, classes, students, teachers, subject attendance and grades in School management." : campus?.engine === "TVET" ? "Trades, cohorts, instructors, competency assessments and certificates follow in Sprint 11." : "Select Grade School or TVET according to your verified organization capability."}</p>
           <p className="bw-campus-caution">Admission acceptance does not register a learner. Billing cannot be charged from this setup screen.</p>
         </section>
         <Link className="bw-campus-back" to={"/organization-workspace/" + id}>Return to dashboard</Link>

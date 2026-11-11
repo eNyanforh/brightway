@@ -1,3 +1,5 @@
+import MyCampus from "../components/grade-school/MyCampus";
+import CampusLearningTabs from "../components/grade-school/CampusLearningTabs";
 import { countries, countryName } from "../components/learning/countries";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -11,12 +13,13 @@ import "../components/opportunities/opportunities.css";
 import "../components/learning/learning.css";
 export default function LearningPage() {
   const { account } = useAuth(), [params, setParams] = useSearchParams();
-  const applications = params.get("view") === "applications";
+  const view = params.get("view");
+  const applications = view === "applications", campus = view === "campus" || view === "guardians";
   const kind = ["institutions", "admissions"].includes(params.get("kind")) ? params.get("kind") : "programs";
   const filters = { kind, q: (params.get("q") || "").slice(0, 80), countryCode: params.get("countryCode") || "", location: (params.get("location") || "").slice(0, 180), studyMode: params.get("studyMode") || "" };
-  return <section className="bw-op-page bw-learn-page"><header className="bw-learn-hero"><p className="bw-op-eyebrow">LEARNING · DISCOVER</p><h1>Find where your future begins.</h1><p>Explore institutions, education and training programs, and open applications around the world.</p><div className="bw-learn-hero-tags"><span>Global discovery</span><span>Verified providers</span><span>Apply on BrightWay</span></div></header>
-    <nav className="bw-op-tabs" aria-label="Learning views"><button type="button" aria-pressed={!applications} onClick={() => setParams({})}>Discover</button><button type="button" aria-pressed={applications} onClick={() => setParams({ view: "applications" })}>My applications</button></nav>
-    {applications ? <MyApplications key={account.id} /> : <><form key={params.toString()} className="bw-learn-filters" role="search" aria-label="Discover education" onSubmit={e => { e.preventDefault(); const data = Object.fromEntries(new FormData(e.currentTarget)); setParams(Object.fromEntries(Object.entries({ kind, ...data }).filter(([, v]) => v))); }}>
+  return <section className="bw-op-page bw-learn-page">{!campus && <header className="bw-learn-hero"><p className="bw-op-eyebrow">LEARNING · DISCOVER</p><h1>Find where your future begins.</h1><p>Explore institutions, education and training programs, and open applications around the world.</p><div className="bw-learn-hero-tags"><span>Global discovery</span><span>Verified providers</span><span>Apply on BrightWay</span></div></header>}
+    <nav className="bw-op-tabs" aria-label="Learning views"><button type="button" aria-pressed={!applications && !campus} onClick={() => setParams({})}>Discover</button><button type="button" aria-pressed={applications} onClick={() => setParams({ view: "applications" })}>My applications</button><CampusLearningTabs key={account.id} view={view} onSelect={view => setParams({ view })} /></nav>
+    {campus ? <MyCampus key={account.id + view} guardians={view === "guardians"} /> : applications ? <MyApplications key={account.id} /> : <><form key={params.toString()} className="bw-learn-filters" role="search" aria-label="Discover education" onSubmit={e => { e.preventDefault(); const data = Object.fromEntries(new FormData(e.currentTarget)); setParams(Object.fromEntries(Object.entries({ kind, ...data }).filter(([, v]) => v))); }}>
       <label>Search<input type="search" name="q" defaultValue={filters.q} maxLength={80} placeholder="Program, institution, or field" /></label><label>Country<select name="countryCode" defaultValue={filters.countryCode}><option value="">All countries</option>{countries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}</select></label><label>City or location<input name="location" defaultValue={filters.location} maxLength={180} placeholder="Any location" /></label><label>Study mode<select name="studyMode" defaultValue={filters.studyMode}><option value="">All modes</option>{Object.entries(STUDY_MODES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label><button className="bw-op-primary" type="submit">Search</button></form>
       <nav className="bw-op-filters" aria-label="Discover categories">{[["programs", "Programs"], ["institutions", "Institutions"], ["admissions", "Open applications"]].map(([k, v]) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => setParams(Object.fromEntries(Object.entries({ ...filters, kind: k }).filter(([, v]) => v)))}>{v}</button>)}</nav>
       <LearningResults key={account.id + JSON.stringify(filters)} filters={filters} /></>}

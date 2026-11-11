@@ -56,7 +56,7 @@ function fixture(eligible = true) {
     if (path === "/api/v1" + campusPath + "/announcements" && method === "POST") {
       const body = route.request().postDataJSON(); requests.push({ action: "publish", body });
       const item = { id: "66666666-6666-4666-8666-666666666666", title: body.title, body: body.body,
-        version: 1, authorId: accountId, createdAt: new Date().toISOString(), withdrawnAt: null };
+        version: 1, audience: body.audience, authorId: accountId, createdAt: new Date().toISOString(), withdrawnAt: null };
       announcements = [item]; return reply(item, 201);
     }
     errors.push(method + " " + path); return reply("Unexpected Campus test request", 500);
@@ -79,6 +79,7 @@ test("Campus setup requires explicit activation before staff announcements, and 
   await expect(page.getByRole("heading", { name: "Campus announcements" })).toHaveCount(0);
   await page.getByRole("button", { name: "Activate Campus" }).click();
   await expect(page.getByRole("heading", { name: "Campus announcements" })).toBeVisible();
+  await expect(page.getByLabel("Announcement audience", { exact: true })).toHaveValue("STAFF");
   await page.getByLabel("Announcement title").fill("Academic term update");
   await page.getByLabel("Announcement details").fill("Staff planning begins next Monday.");
   await page.getByRole("button", { name: "Publish announcement" }).click();

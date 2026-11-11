@@ -7,13 +7,14 @@ const fields = { displayName: text(160), contactEmail: email };
 export const setupInput = z.strictObject({ engine: z.enum(["GRADE_SCHOOL", "TVET"]), expectedVersion: version, ...fields });
 export const settingsInput = z.strictObject({ expectedVersion: version.min(1), ...fields });
 export const transitionInput = z.strictObject({ expectedVersion: version.min(1) });
-export const announcementInput = z.strictObject({ title: text(160), body: text(3000), requestKey: z.uuid() });
+export const announcementInput = z.strictObject({ title: text(160), body: text(3000), requestKey: z.uuid(), audience: z.enum(["STAFF", "CAMPUS"]).default("STAFF") });
 export const withdrawalInput = z.strictObject({ expectedVersion: version.min(1) });
 export const announcementQuery = z.strictObject({ cursor: z.uuid().optional() });
 export const CAMPUS_PERMISSIONS = Object.freeze({
   "organization.campus.manage": "Manage Virtual Campus settings",
   "organization.campus.announcements.manage": "Publish Campus announcements",
   "organization.campus.academics.manage": "Manage Campus academic operations",
+  "organization.campus.teach": "Teach assigned Campus subjects",
   "organization.campus.billing.manage": "Manage Campus billing",
 });
 export const campusError = (status, message) => Object.assign(Error(message), { status });

@@ -7,6 +7,7 @@ const MANAGE = "organization.campus.manage";
 const ANNOUNCE = "organization.campus.announcements.manage";
 const ACADEMICS = "organization.campus.academics.manage";
 const BILLING = "organization.campus.billing.manage";
+const TEACH = "organization.campus.teach";
 const hash = input => createHash("sha256").update(JSON.stringify(input)).digest("hex");
 const conflict = () => fail(409, "Campus changed. Reload its current version before continuing.");
 
@@ -26,14 +27,20 @@ export function createCampusService({ prisma, now = () => new Date() }) {
       include: { locations: true, request: { select: { status: true } }, campus: true } });
     if (!organization) throw fail(404, "Organization workspace is unavailable.");
     if (lock && (await db.organization.updateMany({ where: { id: organizationId, status: "ACTIVE" }, data: { staffVersion: { increment: 0 } } })).count !== 1) throw conflict();
+    // Read current Campus status after waiting for a concurrent pause/staff change.
+    if (lock) {
+      organization = await db.organization.findFirst({ where: { id: organizationId, status: "ACTIVE", request: { status: "APPROVED" } },
+        include: { locations: true, request: { select: { status: true } }, campus: true } });
+      if (!organization) throw fail(404, "Organization workspace is unavailable.");
+    }
     const membership = await db.organizationMembership.findFirst({ where: { organizationId, accountId: actor.accountId, enabled: true } });
     if (!membership) throw fail(403, "Active organization membership is required.");
     const product = await db.productAvailability.findUnique({ where: { product_countryCode: { product: "VIRTUAL_CAMPUS", countryCode: "LR" } } });
     const eligibility = assessEligibility(organization, product);
     const isPrimary = membership.role === "PRIMARY_ADMIN";
     const active = organization.campus?.status === "ACTIVE" && eligibility.eligible;
-    const grants = isPrimary && active ? [MANAGE, ANNOUNCE, ACADEMICS, BILLING]
-      : active ? (membership.permissions || []).filter(key => [MANAGE, ANNOUNCE, ACADEMICS, BILLING].includes(key)) : [];
+    const grants = isPrimary && active ? [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH]
+      : active ? (membership.permissions || []).filter(key => [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH].includes(key)) : [];
     if (primary && !isPrimary) throw fail(403, "Only the primary organization administrator can change Campus activation.");
     if (write) {
       if (!account.emailVerifiedAt) throw fail(403, "Verify your account email before managing Campus.");
@@ -82,13 +89,15 @@ export function createCampusService({ prisma, now = () => new Date() }) {
   }
   async function announcementAccess(db, actor, organizationId, { write = false, lock = false } = {}) {
     const ctx = await access(db, actor, organizationId, { write, lock, requireActive: true });
-    if (!ctx.isPrimary && !ctx.grants.some(p => [MANAGE, ANNOUNCE, ACADEMICS, BILLING].includes(p))) throw fail(403, "Campus access is not granted to your account.");
+    if (!ctx.isPrimary && !ctx.grants.some(p => [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH].includes(p))) throw fail(403, "Campus access is not granted to your account.");
     if (write && !ctx.isPrimary && !ctx.grants.some(p => [MANAGE, ANNOUNCE].includes(p))) throw fail(403, "Campus announcement permission is required.");
     return ctx;
   }
-  const projectAnnouncement = item => ({ id: item.id, title: item.title, body: item.body, authorId: item.authorId,
+  const projectAnnouncement = item => ({ id: item.id, title: item.title, body: item.body, authorId: item.authorId, audience: item.audience || "STAFF",
     version: item.version, createdAt: item.createdAt, withdrawnAt: item.withdrawnAt });
   return {
+    // Internal service boundary, never exposed as an HTTP response.
+    authorize: access,
     async availability(actor, organizationId) {
       const ctx = await access(prisma, actor, organizationId);
       return summary(ctx);
@@ -145,32 +154,36 @@ export function createCampusService({ prisma, now = () => new Date() }) {
       const data = campusParse(announcementInput, input);
       return transaction(async db => {
         const ctx = await announcementAccess(db, actor, organizationId, { write: true, lock: true });
-        const inputHash = hash({ title: data.title, body: data.body });
+        const inputHash = hash({ title: data.title, body: data.body, audience: data.audience });
         const unique = { campusId_authorId_requestKey: { campusId: organizationId, authorId: actor.accountId, requestKey: data.requestKey } };
         const previous = await db.campusAnnouncement.findUnique({ where: unique });
         if (previous) {
-          if (previous.inputHash !== inputHash) throw conflict();
+          if (previous.inputHash !== inputHash && !(data.audience === "STAFF" && previous.audience === "STAFF" && previous.inputHash === hash({ title: data.title, body: data.body }))) throw conflict();
           return projectAnnouncement(previous);
         }
         const row = await db.campusAnnouncement.create({ data: {
           id: randomUUID(), campusId: organizationId, authorId: actor.accountId,
-          requestKey: data.requestKey, inputHash, title: data.title, body: data.body,
+          requestKey: data.requestKey, inputHash, title: data.title, body: data.body, audience: data.audience,
         } });
-        await audit(db, ctx, "ANNOUNCEMENT_PUBLISHED", { announcementId: row.id });
+        await audit(db, ctx, "ANNOUNCEMENT_PUBLISHED", { announcementId: row.id, audience: data.audience });
         const members = await db.organizationMembership.findMany({
           where: { organizationId, enabled: true }, select: { accountId: true, role: true, permissions: true },
         });
-        const recipients = members.filter(member => member.accountId !== actor.accountId &&
-          (member.role === "PRIMARY_ADMIN" || member.permissions.some(p => [MANAGE, ANNOUNCE, ACADEMICS, BILLING].includes(p))));
-        // Only active Campus members receive staff announcements; no admission
-        // applicant or non-enrolled learner is treated as a Campus member.
+        const staffIds = members.filter(member => member.accountId !== actor.accountId &&
+          (member.role === "PRIMARY_ADMIN" || member.permissions.some(p => [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH].includes(p)))).map(member => member.accountId);
+        const recipients = staffIds.map(recipientId => ({ recipientId, href: "/organization-workspace/" + organizationId + "/campus" }));
+        if (data.audience === "CAMPUS" && ctx.organization.campus.engine === "GRADE_SCHOOL") {
+          const learners = await db.gradeSchoolStudent.findMany({ where: { campusId: organizationId, status: "ACTIVE", account: { status: "ACTIVE" }, registrations: { some: { status: "ACTIVE" } } }, select: { accountId: true } });
+          for (const learner of learners) if (learner.accountId !== actor.accountId && !staffIds.includes(learner.accountId)) recipients.push({ recipientId: learner.accountId, href: "/learning?view=campus" });
+        }
+        // Legacy announcements default to STAFF. Only explicitly campus-wide
+        // announcements can notify officially active, enrolled learners.
         for (let offset = 0; offset < recipients.length; offset += 200) {
           await db.platformNotification.createMany({
-            data: recipients.slice(offset, offset + 200).map(member => ({
-              recipientId: member.accountId, eventKey: "campus:" + organizationId + ":announcement:" + row.id,
+            data: recipients.slice(offset, offset + 200).map(recipient => ({
+              recipientId: recipient.recipientId, eventKey: "campus:" + organizationId + ":announcement:" + row.id,
               kind: "CAMPUS", title: "New Campus announcement: " + row.title.slice(0, 150),
-              href: "/organization-workspace/" + organizationId + "/campus",
-              actorAccountId: actor.accountId,
+              href: recipient.href, actorAccountId: actor.accountId,
             })), skipDuplicates: true,
           });
         }

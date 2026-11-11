@@ -1,3 +1,5 @@
+import { createGradeSchoolService } from "../modules/grade-school/grade-school.service.js";
+import { createGradeSchoolRoutes } from "../modules/grade-school/grade-school.routes.js";
 import { createCampusService } from "../modules/campus/campus.service.js";
 import { createCampusRoutes } from "../modules/campus/campus.routes.js";
 import { createMessagingService } from "../modules/messaging/messaging.service.js";
@@ -84,6 +86,7 @@ const sessions = createSessionService({ prisma, mfa });
 router.use(createOpportunityRoutes({ opportunities: createOpportunityService({ prisma, storage: createApplicationStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createLearningRoutes({ learning: createLearningService({ prisma, storage: createApplicationStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createCampusRoutes({ campus: createCampusService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createGradeSchoolRoutes({ school: createGradeSchoolService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const network = createNetworkService({ prisma });
 router.use(createNetworkRoutes({ network, following: createFollowingService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createNotificationsRoutes({ notifications: createNotificationsService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));

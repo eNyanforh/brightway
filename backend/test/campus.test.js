@@ -28,6 +28,7 @@ test("Campus schema forbids academic enrolment, billing and unknown client field
   assert.equal(settingsInput.safeParse({ displayName: "School", contactEmail: "help@example.org", expectedVersion: 1 }).success, true);
   assert.equal(settingsInput.safeParse({ displayName: "School", contactEmail: "invalid", expectedVersion: 1 }).success, false);
   assert.equal(transitionInput.safeParse({ expectedVersion: 0 }).success, false);
+  assert.equal(announcementInput.parse({ requestKey: randomUUID(), title: "Staff", body: "Private staff notice" }).audience, "STAFF");
   assert.equal(announcementInput.safeParse({ requestKey: randomUUID(), title: "Update", body: "Campus staff notice" }).success, true);
   assert.equal(announcementInput.safeParse({ requestKey: randomUUID(), title: "Update", body: "News", public: true }).success, false);
 });
