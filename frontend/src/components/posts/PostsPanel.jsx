@@ -162,7 +162,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
   const heldForReview = reviewStatus === "PENDING" || reviewStatus === "REJECTED";
   const reviewBanner = heldForReview ? (
     <div className="bw-post-review-state" data-status={reviewStatus}>
-      <strong>{reviewStatus === "PENDING" ? "Pending review" : "Declined"}</strong>
+      <strong>{reviewStatus === "PENDING" ? "Pending review" : "Removed"}</strong>
       {post.moderationNotice ? <PostModerationNotice notice={post.moderationNotice} /> : <>
         <span>{reviewStatus === "PENDING"
           ? "This post is visible only to you until BrightWay Management approves it."

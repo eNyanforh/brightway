@@ -239,8 +239,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
       "editing a post preserves its comments");
     assert.equal((await request(owner, "/posts/me")).items[0].views, 1,
       "editing a post preserves its view history");
-    assert.equal(edited.post.moderationStatus, "PENDING", "editing withdraws public visibility until review");
-    await prisma.memberPost.update({ where: { id: achievement.id }, data: { moderationStatus: "PUBLISHED" } });
+    assert.equal(edited.post.moderationStatus, "PUBLISHED", "edits stay public without AI or prior review");
     await request(owner, editPath, { method: "PATCH", body: editDraft, status: 409 });
     await request(owner, editPath, { method: "PATCH", body: {
       expectedBody: editedBody, expectedTags: ["Coding", "Technology"],
@@ -265,8 +264,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
     });
     assert.equal(questionResult.post.questionDetails.intent, "DISCUSSION");
     assert.equal(questionResult.post.questionDetails.title, "What is the best way to learn Postgres?");
-    assert.equal(questionResult.post.moderationStatus, "PENDING");
-    await prisma.memberPost.update({ where: { id: question.id }, data: { moderationStatus: "PUBLISHED" } });
+    assert.equal(questionResult.post.moderationStatus, "PUBLISHED");
 
     const eventDetails = {
       title: "Community learning event", startAt: "2030-01-01T12:00:00.000Z",
@@ -292,8 +290,7 @@ test("the real app exposes member profiles by default and preserves inbox owners
     const safeEvent = await request(owner, "/posts/me/" + eventPost.id,
       { method: "PATCH", body: eventEdit });
     assert.equal(safeEvent.post.body, eventEdit.body);
-    assert.equal(safeEvent.post.moderationStatus, "PENDING");
-    await prisma.memberPost.update({ where: { id: eventPost.id }, data: { moderationStatus: "PUBLISHED" } });
+    assert.equal(safeEvent.post.moderationStatus, "PUBLISHED");
     await request(owner, "/posts/me/" + eventPost.id, { method: "PATCH", status: 409,
       body: { ...eventEdit, expectedBody: eventEdit.body,
         eventDetails: { ...eventDetails, ticketPriceCents: 2500 } },

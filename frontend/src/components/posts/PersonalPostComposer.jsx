@@ -159,7 +159,7 @@ export default function PersonalPostComposer({
   function submit(event) {
     if (hasTopicDraft) {
       event.preventDefault();
-      setTopicError("Add this topic before submitting for review.");
+      setTopicError("Add this topic before publishing.");
       return;
     }
     onSubmit(event);

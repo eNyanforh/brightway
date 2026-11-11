@@ -1,4 +1,3 @@
-import { backgroundMessaging } from "./support/background-messaging.mjs";
 import { expect, test } from "@playwright/test";
 
 const origin = "http://127.0.0.1:4187";
@@ -22,11 +21,9 @@ const formats = [
   { type: "QUESTION", choice: "Ask a Question", editor: "Write a question", label: "Question", heading: "Let's learn together", body: "How can I find a mentor for my first programming project?" },
 ];
 
-async function fixture(page, posts = [fixturePost], submittedStatus = "PENDING", submittedNotice = null) {
+async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED", submittedNotice = null) {
   const writes = [];
   await page.route("**/*", async route => {
-    // Background channels are independent of this journey; SSE behavior has its own HTTP test.
-    const background = backgroundMessaging(route); if (background) return background;
     const request = route.request();
     const url = new URL(request.url());
     if (url.origin !== origin) return route.abort();
@@ -148,7 +145,7 @@ test("Explore shows the compact three-action launcher instead of an always-open 
 });
 
 for (const format of formats) {
-  test("Explore submits tagged " + format.type.toLowerCase() + "s privately for review", async ({ page }, testInfo) => {
+  test("Explore publishes tagged " + format.type.toLowerCase() + "s immediately", async ({ page }, testInfo) => {
     const writes = await fixture(page);
     await page.goto("/explore");
     const explore = page.getByRole("region", { name: "Explore", exact: true });
@@ -208,8 +205,8 @@ for (const format of formats) {
 
     await testInfo.attach(format.label + " editor", { body: await editor.screenshot(), contentType: "image/png" });
     await publish.click();
-    await expect(explore.getByRole("article").filter({ hasText: format.body })).toHaveCount(0);
-    await expect(explore.getByText("Submitted for moderation. Track the decision in My Posts.")).toBeVisible();
+    await expect(explore.getByRole("article").filter({ hasText: format.body })).toBeVisible();
+    await expect(explore.getByText("Post published. BrightWay Management may review it later.")).toBeVisible();
     await expect(page.getByRole("form", { name: "Create a post" })).toHaveCount(0);
     await expect(launcher).toBeVisible();
     expect(writes).toEqual([expect.objectContaining({
@@ -226,35 +223,7 @@ for (const format of formats) {
   });
 }
 
-const holdCases = [
-  ["safety concern", "SAFETY_REVIEW", "The automated safety check flagged a possible posting-guidelines concern.", "Review the wording against BrightWay's posting guidelines."],
-  ["off-topic content", "OFF_TOPIC", "The relevance check could not identify a clear connection to learning.", "Explain the learning, skills, project, achievement, or career connection."],
-  ["uncertain relevance", "UNCERTAIN", "The relevance check could not confidently determine how this post supports learning.", "Add details about what you learned or achieved."],
-  ["unavailable AI screening", "SCREENING_UNAVAILABLE", "An automated check was unavailable or incomplete.", "No action is required. Your post was saved privately for Management review."],
-];
-for (const [label, code, reason, nextStep] of holdCases) {
-  test("held post shows immediate author feedback for " + label, async ({ page }) => {
-    const feedback = {
-      code, title: "Not published yet — review needed",
-      reasons: [reason], nextStep,
-    };
-    await fixture(page, [fixturePost], "PENDING", feedback);
-    await page.goto("/explore");
-    const explore = page.getByRole("region", { name: "Explore", exact: true });
-    await explore.getByRole("button", { name: "Share an Achievement" }).click();
-    const editor = page.getByRole("dialog", { name: "Share an Achievement" }).getByRole("form", { name: "Create a post" });
-    await editor.getByRole("textbox", { name: "Write an achievement" }).fill("I am sharing my learning project for review.");
-    await editor.getByRole("button", { name: "Coding" }).click();
-    await editor.getByRole("button", { name: "Publish achievement" }).click();
-    await expect(explore.getByText("Not published yet — review needed")).toBeVisible();
-    await expect(explore.getByText(reason)).toBeVisible();
-    await expect(explore.getByText(nextStep)).toBeVisible();
-    await expect(explore.getByRole("link", { name: "View status in My Posts" })).toHaveAttribute("href", "/posts");
-    await expect(explore.getByRole("article").filter({ hasText: "I am sharing my learning project for review." })).toHaveCount(0);
-  });
-}
-
-test("safe and relevant achievement publishes immediately after AI clearance", async ({ page }) => {
+test("achievement publishes immediately without AI screening", async ({ page }) => {
   const writes = await fixture(page, [fixturePost], "PUBLISHED");
   await page.goto("/explore");
   const explore = page.getByRole("region", { name: "Explore", exact: true });

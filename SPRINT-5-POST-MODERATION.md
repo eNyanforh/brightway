@@ -1,85 +1,37 @@
-# Sprint 5 — AI-assisted automatic publishing and continued Management oversight
+# BrightWay personal posts — immediate publishing with human Management moderation
 
-## Publication policy
+## Publication policy (updated November 11, 2026)
 
-Only identity-verified individual members may submit personal achievements, questions and events (plus legacy POST records). Organizations retain their existing separate organization-posting permissions.
+- Identity-verified individual members can publish achievements, questions and events immediately. Existing legacy POST records remain supported. Organization posting permissions are unchanged.
+- There is **no AI safety check, relevance classifier, OpenAI API request, or AI-based publication delay** in the member post creation or editing path.
+- Keep existing server-side identity checks, post type and payload validation, topic requirements, 20 posts per 15-minute limit, idempotent retries, visibility and blocking rules, and private meeting-link protections.
+- New posts are stored as `PUBLISHED` and appear in Explore, search and profiles without a staff approval step.
+- Ordinary edits to published posts remain published. An edit to an older pending submission can publish it. A post removed by Management cannot be republished by an author edit: its revision is `PENDING` until a human approves it.
+- Existing pending submissions remain pending until edited by the author or reviewed by Management. They are not bulk-published automatically.
 
-Every newly submitted or materially edited personal post goes through **two independent AI checks**:
+## Human moderation after publication
 
-1. **Safety**: \`omni-moderation-latest\` checks for unsafe content.
-2. **BrightWay educational relevance**: \`gpt-4o-mini\` (configurable server-side) classifies whether the actual post content has a genuine educational, research, skills, professional achievement, mentoring, or career-development purpose. Tags alone cannot make irrelevant content relevant.
+BrightWay Management → Post review opens on **Published**, showing newest first. Authorized moderators can review any active post and remove it. They can inspect pending posts and removed posts, approve, decline or restore as appropriate. Existing user reports remain an escalation path.
 
-**Auto-publish** only when the safety endpoint returns \`CLEAR\` with no flagged categories **and** the structured relevance result is \`RELEVANT\`, classified into a real BrightWay topic category, with classifier confidence at least 0.90. Numerical confidence is an uncalibrated signal: human audit and periodic tuning remain necessary.
+All Management decisions require the existing `moderation-agent` capability, fresh MFA, a documented reason, current moderation revision and idempotency key. Decisions are atomically audited. Self-review and related-account conflicts remain prohibited. Stale version decisions fail safely. Removal hides a post from public feeds, search, profiles and interactions.
 
-If either service is missing, times out, returns an invalid response, flags harmful content, or cannot establish educational relevance, the post stays private as **PENDING**. A clear safety result alone never publishes a post. We do not automatically reject uncertain or off-topic submissions; authorized Management decides. Legacy published posts remain published until reviewed.
+Authors can always withdraw their own posts. A removed post displays Management's reason privately; revising a removed post retains the private approval requirement. Legacy pending posts get a neutral manual-review notice, not an AI result.
 
-Auto-published content appears immediately in public feeds, search, profiles and relevant interactions, subject to the existing author identity and block controls. Pending/removed posts never appear in public discovery, comments, shares, question answers or event registrations.
+## API and database compatibility
 
-**Edits** are re-screened against the stored post type; passing revisions can be immediately republished. However, posts previously **REJECTED** by Management remain **PENDING** after edits, even when both AI checks pass. This prevents trivial edits from bypassing a human takedown.
+- No `OPENAI_API_KEY` or `OPENAI_RELEVANCE_MODEL` is needed for posts.
+- Historical AI screening columns can remain nullable in the database for compatibility. The member post pipeline does not populate them and the Management screen no longer displays those AI verdicts.
+- Existing additive database migrations remain part of the history; do not roll them back in a production environment.
+- Deploy the updated backend and frontend together. Run regression tests against a separate, migrated test database before deploying.
 
-## AI configuration
+## Acceptance tests
 
-Backend \`.env\`:
+1. Identity-verified member publishes achievement, question and event instantly; other members can read them, and they appear in the Published Management queue.
+2. Unverified member cannot publish. Invalid topics/payloads, repeat keys with changed content and rate limits remain enforced.
+3. Edits to normal published posts remain published without any AI service or API key.
+4. Management can remove a published post with MFA; it disappears from discovery and direct reads, and the author sees a human decision reason.
+5. A removed post edited by its author remains private pending Management review; stale decisions fail, authorized restoration succeeds.
+6. Previously pending posts remain private and have a neutral author notice until human review or author revision.
+7. Validate feeds, public profiles, comments, reports, event registrations and question answers, plus desktop/mobile moderation UI.
 
-\`\`\`dotenv
-OPENAI_API_KEY="your-private-server-side-api-key"
-OPENAI_RELEVANCE_MODEL="gpt-4o-mini"
-\`\`\`
-
-Never put keys in \`VITE_*\` variables or client requests. The safety moderation endpoint is currently free; relevance classification via Chat Completions consumes billable tokens and may be subject to rate limits. Check provider pricing and budget before enabling production traffic. With the key absent or either provider unavailable, posts still reach the human review queue.
-
-Only post type, body, topic tags, question title/intent, and event title/venue are submitted to these classifiers. Private meeting URLs, personal contacts, application materials, identity evidence and other private records are not included. Requests are time-bounded and errors do not log private content or secrets. The relevance classifier uses strict structured JSON and treats post content as untrusted data.
-
-## Immediate and persistent author feedback
-
-**No post is silently held.** Every new or edited post that cannot be automatically published returns an author-only \`moderationNotice\` with a status, explanation(s), and actionable next step. BrightWay shows the explanation immediately beside the composer in Explore and retains it on the private **My posts** card after browser refresh or device change. An author can always view, revise, or withdraw the post. The public feed and other members never receive these notices.
-
-- **Potential safety concern**: Clarifies the safety classifier flagged content for review; it is not a definitive violation. Encourages reviewing wording and permits a human decision.
-- **Off-topic**: Explains that the educational/career connection was not identified; suggests adding the actual learning, project, achievement, skills, or career context.
-- **Uncertain relevance**: Explains the AI could not confidently classify the post and advises clarifying the educational purpose.
-- **Incomplete or unavailable screening**: Explains the automated check was incomplete and explicitly says the author has not been found in violation. No action is required; the saved post awaits manual review.
-- **Overlapping concerns**: Presents each relevant cause, not a misleading single generic status.
-- **Human-declined or removed posts**: Shows Management's decision reason and explains that an edited revision remains private until Management approves it.
-- **Earlier pending posts** without screening metadata: Show a fallback explanation that Management review is required.
-
-Messages are generated from persisted, bounded status values rather than raw classifier prose, prompts or safety thresholds. They are stable for idempotent retries and do not disclose provider credentials. This is on-screen feedback and private post-history feedback, not an email or push notification.
-
-## Management remains in control after publication
-
-Open **BrightWay Management → Post review**, with the independent staff realm, \`moderation-agent\` capability and fresh MFA.
-
-- **Pending**: Approve or decline posts waiting for human review (oldest first).
-- **Published**: Inspect any active auto-published or manually approved post, including its safety and relevance signals. **Remove post** hides it immediately across feeds, search, public profiles and interactions.
-- **Removed / declined**: Inspect rejected posts and **Restore post** when appropriate.
-
-Every decision requires a reason (10–1,000 characters), management password plus fresh MFA via step-up, an idempotency key, and the current moderation revision. Every transition increments the moderation revision, so stale decisions cannot overwrite newer edits, takedowns or restorations. Management decisions write an immutable ManagementAction audit record atomically with the state transition. Moderators cannot review their own or declared related accounts' posts.
-
-The author's **My posts** view displays Published, Pending or Declined/removed, with feedback for declines. A declined author can revise the content, but the revision stays pending until a human moderator approves. The author can withdraw a post at any time.
-
-Existing reactive reports and content-report case handling remain available; proactive Management moderation complements rather than replaces them.
-
-## Deployment
-
-Merge into the repository's main branch only after Node 22/24 unit and integration tests, isolated PostgreSQL migrations, frontend regression/build/lint and desktop/mobile browser acceptance pass. This code change **does not deploy itself**.
-
-Apply migrations **before** starting a backend using the updated schema:
-
-\`\`\`sh
-cd backend
-npx prisma migrate deploy
-npx prisma generate
-\`\`\`
-
-The additive migration \`20261111172000_member_post_relevance\` adds relevance metadata, keeping existing states unchanged. Restart the backend and deploy the updated frontend separately.
-
-## Acceptance checks
-
-1. Verified achievement, question and event with a clean safety response and a high-confidence relevant classification appear immediately; owner receives an accurate publication message.
-2. Flagged, off-topic, uncertain, unconfigured, rejected and API-error submissions remain private and show up as pending.
-3. A moderator sees approved and auto-published posts in the Published queue, removes one with MFA, and verifies it disappears from public feeds, direct reads, profile highlights, analytics and search.
-4. A moderator restores the same post, and its public visibility returns.
-5. A rejected author's edited post remains pending, even when both AI checks pass; stale moderator decisions fail with 409.
-6. Check mobile Management review, tenant separation, self-review restrictions, idempotency replays, event registration and question-answer access.
-7. Periodically review false positives and false negatives before raising automatic-publishing traffic or treating classifier confidence as sufficient evidence.
-
-AI classifications are fallible. BrightWay Management must remain staffed to review flagged posts and respond to reports after publication.
+**Operational consideration:** Removing automated pre-publication screening increases exposure to spam and harmful content. Management must monitor published posts and promptly handle reports and removals.

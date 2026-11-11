@@ -48,9 +48,7 @@ export function createMemberPostModeration({ prisma, now = () => new Date() }) {
         take: 21,
         select: {
           id: true, type: true, tags: true, body: true, createdAt: true,
-          moderationStatus: true, moderationVersion: true, moderationScreenStatus: true,
-          moderationFlags: true, moderationRelevanceStatus: true,
-          moderationRelevanceCategory: true, moderationRelevanceReason: true,
+          moderationStatus: true, moderationVersion: true,
           eventDetails: true, questionDetails: true,
           author: { select: { username: true } },
         },

@@ -10,25 +10,16 @@ import "./management-tools.css";
 const types = { POST: "Post", ACHIEVEMENT: "Achievement", QUESTION: "Question", EVENT: "Event" };
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
 const views = [
-  { value: "PENDING", label: "Pending" },
   { value: "PUBLISHED", label: "Published" },
+  { value: "PENDING", label: "Pending review" },
   { value: "REJECTED", label: "Removed / declined" },
 ];
-const safetyLabels = {
-  CLEAR: "Clear", FLAGGED: "Flagged — manual review required",
-  UNAVAILABLE: "Unavailable", NOT_CONFIGURED: "Not configured",
-};
-const relevanceLabels = {
-  RELEVANT: "Education/career relevant", UNCERTAIN: "Uncertain — manual review required",
-  OFF_TOPIC: "Off-topic — manual review required", UNAVAILABLE: "Unavailable",
-  NOT_CONFIGURED: "Not configured",
-};
 export default function ManagementPostReviewsPage() {
   const { staff } = useManagement();
   return <PostReviewDesk key={staff.id} staffId={staff.id} />;
 }
 function PostReviewDesk({ staffId }) {
-  const [filter, setFilter] = useState("PENDING");
+  const [filter, setFilter] = useState("PUBLISHED");
   const [pages, setPages] = useState([null]);
   const [selectedId, setSelectedId] = useState(null);
   const [decision, setDecision] = useState(null);
@@ -72,7 +63,7 @@ function PostReviewDesk({ staffId }) {
   return (
     <section className="bw-mgmt-tools-page">
       <ManagementPageHeader eyebrow="BRIGHTWAY / MODERATION" title="Post review"
-        description="AI checks safety and education/career relevance before publication. Management can also review, remove and restore already published posts."
+        description="Eligible member posts publish immediately. Review published posts, remove policy violations, and approve revisions or restore posts after Management action."
         action={<button type="button" disabled={queue.loading || Boolean(decision)} onClick={() => void queue.refresh()}>Refresh queue</button>} />
       <nav className="bw-mgmt-post-filters" aria-label="Post moderation status">
         {views.map(view => <button type="button" key={view.value} aria-pressed={filter === view.value}
@@ -112,12 +103,6 @@ function PostReviewDesk({ staffId }) {
             {selected.tags.length > 0 && <ul className="bw-mgmt-post-tags" aria-label="Topic tags">
               {selected.tags.map(tag => <li className="bw-mgmt-tag" key={tag}>{tag}</li>)}
             </ul>}
-            <p className="bw-mgmt-post-screen">AI safety: <strong>{safetyLabels[selected.moderationScreenStatus] || "Not screened"}</strong></p>
-            {selected.moderationFlags?.length > 0 && <p className="bw-mgmt-post-screen">Safety categories: {selected.moderationFlags.join(", ")}</p>}
-            <p className="bw-mgmt-post-screen">AI education relevance: <strong>{relevanceLabels[selected.moderationRelevanceStatus] || "Not screened"}</strong>
-              {selected.moderationRelevanceCategory && <> · {selected.moderationRelevanceCategory.toLowerCase()}</>}
-              {selected.moderationRelevanceReason && <span className="bw-mgmt-relevance-reason">{selected.moderationRelevanceReason}</span>}
-            </p>
             <div className="bw-mgmt-record-actions">
               {selected.moderationStatus !== "PUBLISHED" && <button type="button" className="bw-mgmt-primary"
                 disabled={unavailable} onClick={() => start("PUBLISHED")}>
@@ -130,7 +115,7 @@ function PostReviewDesk({ staffId }) {
             </div>
           </article> : <div className="bw-mgmt-review-placeholder">
             <h2>Select a post</h2>
-            <p>Inspect its content and AI screening signals. Existing publications remain under Management oversight.</p>
+            <p>Inspect published content against BrightWay community guidelines. Management can remove and restore posts.</p>
           </div>}
         </section>
       </div>

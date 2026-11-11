@@ -1,7 +1,4 @@
-import { notify } from "../notifications/platform-notification.js";
 import { z } from "zod";
-import { createPostSafetyScreen } from "./post-safety-screen.service.js";
-import { createPostRelevanceScreen, screenPostForPublication } from "./post-relevance-screen.service.js";
 import { postModerationNotice } from "./post-moderation-notice.js";
 import { MAX_POST_TOPICS, normalizePostTopic } from "../../../../shared/post-topics.mjs";
 import { createManualIdentityReviewService } from "../manual-identity/manual-identity-review.service.js";
@@ -29,7 +26,6 @@ const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true,
 const ownMemberPostSelect = {
   ...memberPostSelect,
   moderationStatus: true, moderationVersion: true, moderationFeedback: true,
-  moderationScreenStatus: true, moderationFlags: true, moderationRelevanceStatus: true,
 };
 const repostSelect = { id: true, createdAt: true, account: { select: memberSelect } };
 const identifier = z.uuid();
@@ -345,11 +341,9 @@ function memberPost({ author, ...post }, verified = false) {
   return { ...post, member: memberAttribution(author, verified) };
 }
 
-// Personal screening metadata is never exposed on public post cards.
-// Only owners receive a stable, safe explanation for a review hold.
-function ownerMemberPost({ moderationScreenStatus, moderationFlags, moderationRelevanceStatus, ...post }, verified = false) {
-  const assessment = { ...post, moderationScreenStatus, moderationFlags, moderationRelevanceStatus };
-  return { ...memberPost(post, verified), moderationNotice: postModerationNotice(assessment) };
+// Only the owner sees human Management review notices; published posts are public.
+function ownerMemberPost(post, verified = false) {
+  return { ...memberPost(post, verified), moderationNotice: postModerationNotice(post) };
 }
 
 function repostAttribution(row, viewer) {
@@ -374,19 +368,7 @@ function findPosts(model, select, where, cursor, source) {
   });
 }
 
-async function notifyPost(db, ref, actorId, eventKey, title) {
-  if (!db.platformNotification) return;
-  const post = await (ref.source === "member" ? db.memberPost : db.organizationPost).findUnique({ where: { id: ref.id }, select: ref.source === "member" ? { authorId: true } : { organizationId: true } });
-  if (!post) return;
-  const recipients = post.authorId ? [{ accountId: post.authorId }] : await db.organizationMembership.findMany({ where: { organizationId: post.organizationId, enabled: true, role: "PRIMARY_ADMIN" }, select: { accountId: true } });
-  for (const r of recipients) if (r.accountId !== actorId) await notify(db, { recipientId: r.accountId, actorAccountId: actorId, eventKey, kind: "POST_INTERACTION", title, href: `/explore?post=${ref.id}&source=${ref.source}` });
-}
-
-export function createOrganizationPosts({
-  prisma, now = () => new Date(),
-  screen = createPostSafetyScreen(),
-  relevance = createPostRelevanceScreen(),
-}) {
+export function createOrganizationPosts({ prisma, now = () => new Date() }) {
   const identity = createManualIdentityReviewService({ prisma, now });
 
   async function memberEligibility(db, accountId) {
@@ -919,7 +901,6 @@ export function createOrganizationPosts({
           select: { id: true, body: true, createdAt: true, score: true,
             author: { select: memberSelect } },
         });
-        await notifyPost(tx, { source: "member", id }, actor.accountId, `answer:${answer.id}`, "Someone answered your question");
         return { answer: { id: answer.id, body: answer.body, createdAt: answer.createdAt,
           ...discussionAttribution(answer.author, true), canDelete: true, score: 0, myVote: 0,
           upvoteCount: 0, downvoteCount: 0, commentCount: 0 } };
@@ -985,7 +966,6 @@ export function createOrganizationPosts({
         const row = await tx.answerComment.create({
           data: { ...key, answerId: answer.id, body, createdAt: now() }, select: commentSelect,
         });
-        if (answer.authorId !== actor.accountId) await notify(tx, { recipientId: answer.authorId, actorAccountId: actor.accountId, eventKey: `answer-comment:${row.id}`, kind: "POST_INTERACTION", title: "Someone commented on your answer", href: `/explore?post=${answer.questionId}&source=member` });
         const access = await memberEligibility(tx, actor.accountId);
         return { comment: commentView(row, actor.accountId, access.identityVerified) };
       });
@@ -1083,7 +1063,6 @@ export function createOrganizationPosts({
         const data = { accountId: actor.accountId, ...postTarget(ref) };
         if (liked) await tx.postLike.createMany({ data: [data], skipDuplicates: true });
         else await tx.postLike.deleteMany({ where: data });
-        if (liked) await notifyPost(tx, ref, actor.accountId, `celebrate:${ref.source}:${ref.id}:${actor.accountId}`, "Someone celebrated your achievement");
         const post = await postModel(tx, ref.source).findUniqueOrThrow({ where: { id: ref.id }, select: likeSelect(actor.accountId) });
         return { reaction: likeSummary(post) };
       });
@@ -1129,7 +1108,6 @@ export function createOrganizationPosts({
         }
         await tx.postRepost.createMany({ data: [{ ...data, createdAt: now() }], skipDuplicates: true });
         const row = await tx.postRepost.findFirstOrThrow({ where: data, select: repostSelect });
-        await notifyPost(tx, ref, actor.accountId, `repost:${row.id}`, "Someone reposted your post");
         return { reposted: true, repost: repostAttribution(row, actor.accountId) };
       });
     },
@@ -1184,7 +1162,6 @@ export function createOrganizationPosts({
         const recent = await tx.postComment.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the commenting limit. Try again in 15 minutes.");
         const comment = await tx.postComment.create({ data: { ...key, ...target, body, createdAt: now() }, select: commentSelect });
-        await notifyPost(tx, ref, actor.accountId, `comment:${comment.id}`, "Someone commented on your post");
         const access = await memberEligibility(tx, actor.accountId);
         return { comment: commentView(comment, actor.accountId, access.identityVerified) };
       });
@@ -1475,8 +1452,6 @@ export function createOrganizationPosts({
       await assertNetworkSession(prisma, actor, now);
       if (!(await memberEligibility(prisma, actor.accountId)).identityVerified)
         throw fail(403, "Verify your identity before submitting a personal post.");
-      // Both safety and purpose screening happen outside database locks.
-      const screening = await screenPostForPublication(data, screen, relevance);
       return memberWrite(actor, async tx => {
         // Profile updates lock this same row.
         await lockMemberProfile(tx, actor.accountId);
@@ -1496,7 +1471,7 @@ export function createOrganizationPosts({
         if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
-        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, questionDetails: data.questionDetails ?? undefined, body: data.body, ...screening, createdAt: now() }, select: ownMemberPostSelect });
+        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, questionDetails: data.questionDetails ?? undefined, body: data.body, moderationStatus: "PUBLISHED", createdAt: now() }, select: ownMemberPostSelect });
         return { post: ownerMemberPost(post, true) };
       });
     },
@@ -1505,13 +1480,6 @@ export function createOrganizationPosts({
       const id = parse(identifier, inputId, "Choose a valid post.");
       const data = parse(memberPostEditInput, input, "Review the post, add at least one topic and keep the description within 2,000 characters.");
       await assertNetworkSession(prisma, actor, now);
-      const authorized = await prisma.memberPost.findFirst({
-        where: { id, authorId: actor.accountId, withdrawnAt: null },
-        select: { id: true, type: true },
-      });
-      if (!authorized) throw fail(404, "This post is unavailable.");
-      // Classify the stored post type; edit payloads intentionally omit type.
-      const screening = await screenPostForPublication({ ...data, type: authorized.type }, screen, relevance);
       return memberWrite(actor, async tx => {
         // Serialize edits with the author account and profile publication state.
         await lockMemberProfile(tx, actor.accountId);
@@ -1550,9 +1518,12 @@ export function createOrganizationPosts({
         const updated = await tx.memberPost.update({
           where: { id }, data: {
             body: data.body, tags: data.tags,
-            ...screening,
-            // Staff declines cannot be bypassed by trivial edits and an AI pass.
-            moderationStatus: previous.moderationStatus === "REJECTED" ? "PENDING" : screening.moderationStatus,
+            // A Management takedown still requires a human to approve revised content.
+            moderationStatus: previous.moderationStatus === "REJECTED" ? "PENDING" : "PUBLISHED",
+            // Discard obsolete AI assessments on any newly edited post.
+            moderationScreenStatus: null, moderationFlags: [],
+            moderationRelevanceStatus: null, moderationRelevanceCategory: null,
+            moderationRelevanceReason: null,
             moderationVersion: { increment: 1 },
             moderationFeedback: null,
             ...(previous.type === "EVENT" ? { eventDetails: data.eventDetails } : {}),

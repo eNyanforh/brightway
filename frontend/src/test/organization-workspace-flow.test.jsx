@@ -306,7 +306,7 @@ it("Explore loads comments on demand and retries a draft without refreshing the 
 it("the personal Post destination checks verification and lets authors withdraw their posts", async () => {
   let verified = false, hasPosts = false;
   const body = "Join our research showcase on November 12 at 10 a.m. in the campus library.";
-  const post = { id: "personal-post", body, type: "EVENT", tags: ["Research"], moderationStatus: "PENDING", moderationVersion: 1, moderationFeedback: null, createdAt: "2026-11-05T10:00:00Z", member: { username: "owner", name: "Test Owner" } };
+  const post = { id: "personal-post", body, type: "EVENT", tags: ["Research"], moderationStatus: "PUBLISHED", moderationVersion: 1, moderationFeedback: null, createdAt: "2026-11-05T10:00:00Z", member: { username: "owner", name: "Test Owner" } };
   const f = mount("/explore", (url, options) => {
     if (url.includes("/explore/posts?")) return reply({ items: [], nextCursor: null });
     if (url.endsWith("/posts/me") && options?.method === "POST") {
@@ -338,9 +338,9 @@ it("the personal Post destination checks verification and lets authors withdraw 
   expect(publish.disabled).toBe(true);
   await f.user.type(screen.getByRole("textbox", { name: "Topic tags" }), "Research{Enter}");
   await f.user.click(publish);
-  await screen.findByText("Submitted for moderation. Track the decision in My Posts.");
+  await screen.findByText("Post published. BrightWay Management may review it later.");
   expect(screen.getByRole("link", { name: "Test Owner" }).getAttribute("href")).toBe("/owner");
-  expect(screen.getByText("Pending review")).toBeTruthy();
+  expect(screen.queryByText("Pending review")).toBeNull();
   expect(within(screen.getByRole("article")).getByText("Event", { exact: true })).toBeTruthy();
   expect(within(screen.getByRole("list", { name: "Topic tags" })).getByText("Research")).toBeTruthy();
   hasPosts = true;
