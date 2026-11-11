@@ -1441,13 +1441,19 @@ export function createOrganizationPosts({ prisma, now = () => new Date(), screen
 
     async memberPublish(actor, input) {
       const data = parse(memberPostInput, input, "Choose a post type, write 1 to 2,000 characters, and add 1 to 5 distinct topic tags.");
+      if (!data.tags.length) throw fail(400, "Add at least one topic tag before submitting for review.");
+      await assertNetworkSession(prisma, actor, now);
+      if (!(await memberEligibility(prisma, actor.accountId)).identityVerified)
+        throw fail(403, "Verify your identity before submitting a personal post.");
+      // External safety screening is never performed while holding DB locks.
+      const screening = await screen(data);
       return memberWrite(actor, async tx => {
         // Profile updates lock this same row.
         await lockMemberProfile(tx, actor.accountId);
         const access = await memberEligibility(tx, actor.accountId);
         if (!access.identityVerified) throw fail(403, "Verify your identity before publishing a personal post.");
         const key = { authorId: actor.accountId, requestKey: data.requestKey };
-        const previous = await tx.memberPost.findUnique({ where: { authorId_requestKey: key }, select: { ...memberPostSelect, withdrawnAt: true } });
+        const previous = await tx.memberPost.findUnique({ where: { authorId_requestKey: key }, select: { ...ownMemberPostSelect, withdrawnAt: true } });
         if (previous) {
           const { withdrawnAt, ...post } = previous;
           const sameTags = post.tags.length === data.tags.length && post.tags.every((tag, index) => tag === data.tags[index]);
@@ -1460,7 +1466,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date(), screen
         if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
-        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, questionDetails: data.questionDetails ?? undefined, body: data.body, createdAt: now() }, select: memberPostSelect });
+        const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, questionDetails: data.questionDetails ?? undefined, body: data.body, moderationStatus: "PENDING", ...screening, createdAt: now() }, select: ownMemberPostSelect });
         return { post: memberPost(post, true) };
       });
     },
@@ -1468,12 +1474,14 @@ export function createOrganizationPosts({ prisma, now = () => new Date(), screen
     async memberEdit(actor, inputId, input) {
       const id = parse(identifier, inputId, "Choose a valid post.");
       const data = parse(memberPostEditInput, input, "Review the post, add at least one topic and keep the description within 2,000 characters.");
+      await assertNetworkSession(prisma, actor, now);
+      const screening = await screen(data);
       return memberWrite(actor, async tx => {
         // Serialize edits with the author account and profile publication state.
         await lockMemberProfile(tx, actor.accountId);
         const previous = await tx.memberPost.findFirst({
           where: { id, authorId: actor.accountId, withdrawnAt: null },
-          select: { ...memberPostSelect, authorId: true },
+          select: { ...ownMemberPostSelect, authorId: true },
         });
         if (!previous) throw fail(404, "This post is unavailable.");
         const unchanged = previous.body === data.expectedBody
@@ -1497,12 +1505,20 @@ export function createOrganizationPosts({ prisma, now = () => new Date(), screen
               throw fail(409, "This event has attendance requests. Its schedule, venue, ticket price, approval and capacity cannot be changed.");
           }
         }
+        const changed = previous.body !== data.body
+          || previous.tags.length !== data.tags.length
+          || previous.tags.some((tag, index) => tag !== data.tags[index])
+          || (previous.type === "EVENT" && !sameEventDetails(previous.eventDetails, data.eventDetails))
+          || (previous.type === "QUESTION" && !sameQuestionDetails(previous.questionDetails, data.questionDetails));
+        if (!changed) return { post: memberPost(previous, true) };
         const updated = await tx.memberPost.update({
           where: { id }, data: {
             body: data.body, tags: data.tags,
+            moderationStatus: "PENDING", moderationVersion: { increment: 1 },
+            moderationFeedback: null, ...screening,
             ...(previous.type === "EVENT" ? { eventDetails: data.eventDetails } : {}),
             ...(previous.type === "QUESTION" ? { questionDetails: data.questionDetails } : {}),
-          }, select: memberPostSelect,
+          }, select: ownMemberPostSelect,
         });
         return { post: memberPost(updated, true) };
       });
