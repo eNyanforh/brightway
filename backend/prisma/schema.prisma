@@ -1002,6 +1002,14 @@ enum MemberPostScreenStatus {
   UNAVAILABLE
 }
 
+enum MemberPostRelevanceStatus {
+  NOT_CONFIGURED
+  RELEVANT
+  UNCERTAIN
+  OFF_TOPIC
+  UNAVAILABLE
+}
+
 model MemberPost {
   views PostView[]
   reports PostReport[]
@@ -1025,6 +1033,9 @@ model MemberPost {
   moderationFeedback String? @db.VarChar(1000)
   moderationScreenStatus MemberPostScreenStatus?
   moderationFlags String[] @default([])
+  moderationRelevanceStatus MemberPostRelevanceStatus?
+  moderationRelevanceCategory String? @db.VarChar(20)
+  moderationRelevanceReason String? @db.VarChar(240)
   createdAt DateTime @default(now())
   withdrawnAt DateTime?
   @@unique([authorId, requestKey])
