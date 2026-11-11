@@ -7,7 +7,7 @@ const endpoint = "https://api.openai.com/v1/moderations";
 
 export function moderationText(post) {
   const parts = [post.type, post.body, ...(post.tags || [])];
-  if (post.type === "QUESTION" && post.questionDetails) {
+  if ((post.type === "QUESTION" || post.questionDetails) && post.questionDetails) {
     parts.push(post.questionDetails.title, post.questionDetails.intent);
   }
   if (post.type === "EVENT" && post.eventDetails) {
