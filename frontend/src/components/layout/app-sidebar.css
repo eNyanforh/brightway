@@ -253,3 +253,34 @@
   }
 }
 .bw-design-create-org { text-decoration: none; }
+
+
+/* Three-region layout: the existing left navigation, module content, discovery rail. */
+.bw-design-layout.bw-design-layout--three {
+  grid-template-columns: 230px minmax(0, 1fr) minmax(236px, 260px);
+  gap: 20px;
+}
+.bw-design-layout--three > .bw-app-content { min-width: 0; }
+.bw-design-layout--three > .bw-module-right { min-width: 0; }
+@media (min-width: 1600px) {
+  .bw-design-layout.bw-design-layout--three {
+    grid-template-columns: 250px minmax(0, 1fr) minmax(250px, 275px);
+    gap: 26px;
+  }
+}
+@media (max-width: 1240px) and (min-width: 701px) {
+  .bw-design-layout.bw-design-layout--three {
+    grid-template-columns: minmax(0, 210px) minmax(0, 1fr);
+    gap: 18px;
+  }
+  .bw-design-layout--three > .bw-module-right { grid-column: 2; }
+}
+@media (max-width: 980px) and (min-width: 701px) {
+  .bw-design-layout.bw-design-layout--three {
+    grid-template-columns: minmax(0, 205px) minmax(0, 1fr);
+    gap: 23px;
+  }
+}
+@media (max-width: 700px) {
+  .bw-design-layout.bw-design-layout--three { display: block; }
+}
