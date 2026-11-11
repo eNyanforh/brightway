@@ -95,6 +95,13 @@ test("the real app exposes member profiles by default and preserves inbox owners
     assert.deepEqual((await search(owner, owner.username)).items, []);
     assert.ok((await search(visitor, other.username)).items.some(item => item.username === other.username));
     assert.deepEqual((await search(visitor, owner.email)).items, []);
+    const maya = await account("maya");
+    await prisma.person.update({ where: { id: maya.personId }, data: {
+      firstName: "Maya", lastName: "Cole",
+    } });
+    assert.ok((await search(visitor, "Mya Cole")).items.some(item => item.username === maya.username),
+      "one misspelled word in a two-word name must still return the intended person");
+
     assert.deepEqual((await search(visitor, "x') OR 1=1 --")).items, []);
 
     const batch = randomUUID().replaceAll("-", "").slice(0, 8);
