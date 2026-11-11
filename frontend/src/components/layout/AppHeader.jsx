@@ -39,7 +39,7 @@ export default function AppHeader({
 
   useEffect(() => {
     if (!personalSearch || !onSearchPage) return undefined;
-    const q = searchValue.normalize("NFC").trim().replace(/\\s+/gu, " ");
+    const q = searchValue.normalize("NFC").trim().replace(/\s+/gu, " ");
     if (q === currentQuery || q.length > 80) return undefined;
     const wait = setTimeout(() => {
       const previous = new URLSearchParams(location.search);
@@ -91,7 +91,7 @@ export default function AppHeader({
 
   function submitSearch(event) {
     event.preventDefault();
-    const q = searchValue.normalize("NFC").trim().replace(/\\s+/gu, " ");
+    const q = searchValue.normalize("NFC").trim().replace(/\s+/gu, " ");
     if (q.length < 2 || q.length > 80) return;
     setSuggestionOpen(false);
     navigate("/search?" + new URLSearchParams({ q }));
