@@ -1,4 +1,7 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { searchDirectory } from "../../api/directory-search";
+import { searchContent } from "../../api/content-search";
 import HeaderProfileMenu from "./HeaderProfileMenu";
 import NavigationIcon from "./NavigationIcon";
 import "./app-header.css";
@@ -16,11 +19,87 @@ export default function AppHeader({
   navigationToggleRef,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const personalSearch = !workspaceLabel && !actingOrganization;
+  const onSearchPage = location.pathname === "/search";
+  const currentQuery = onSearchPage ? new URLSearchParams(location.search).get("q") || "" : "";
+  const [searchValue, setSearchValue] = useState(currentQuery);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionPending, setSuggestionPending] = useState(false);
+  const [suggestionOpen, setSuggestionOpen] = useState(false);
+  const inputRef = useRef(null);
+  const searchWrapRef = useRef(null);
+
+  // The header is the only search input. URL changes from tabs and Back/Forward
+  // restore its value; typing on the results page updates the URL after a pause.
+  useEffect(() => {
+    setSearchValue(onSearchPage ? currentQuery : "");
+    setSuggestionOpen(false);
+  }, [location.pathname, location.search, onSearchPage, currentQuery]);
+
+  useEffect(() => {
+    if (!personalSearch || !onSearchPage) return undefined;
+    const q = searchValue.normalize("NFC").trim().replace(/\\s+/gu, " ");
+    if (q === currentQuery || q.length > 80) return undefined;
+    const wait = setTimeout(() => {
+      const previous = new URLSearchParams(location.search);
+      if (q.length >= 2) previous.set("q", q);
+      else previous.delete("q");
+      const qs = previous.toString();
+      navigate("/search" + (qs ? "?" + qs : ""), { replace: true });
+    }, 350);
+    return () => clearTimeout(wait);
+  }, [personalSearch, onSearchPage, searchValue, currentQuery, location.search, navigate]);
+
+  // Lightweight, debounced live previews away from the results page. Reuse
+  // public, authenticated search APIs rather than introducing a second index.
+  useEffect(() => {
+    if (!personalSearch || onSearchPage || !suggestionOpen || searchValue.trim().length < 2 || searchValue.length > 80) {
+      return undefined;
+    }
+    const controller = new AbortController();
+    const wait = setTimeout(async () => {
+      setSuggestionPending(true);
+      try {
+        const q = searchValue.trim();
+        const results = await Promise.allSettled([
+          searchDirectory(q, "all", null, controller.signal),
+          searchContent(q, "all", null, controller.signal),
+        ]);
+        if (controller.signal.aborted) return;
+        setSuggestions([
+          ...(results[0].status === "fulfilled" ? results[0].value.items.slice(0, 4) : []),
+          ...(results[1].status === "fulfilled" ? results[1].value.items.slice(0, 3) : []),
+        ]);
+      } catch {
+        if (!controller.signal.aborted) setSuggestions([]);
+      } finally {
+        if (!controller.signal.aborted) setSuggestionPending(false);
+      }
+    }, 300);
+    return () => { clearTimeout(wait); controller.abort(); };
+  }, [personalSearch, onSearchPage, suggestionOpen, searchValue]);
+
+  useEffect(() => {
+    if (!suggestionOpen) return undefined;
+    function closeOutside(event) {
+      if (!searchWrapRef.current?.contains(event.target)) setSuggestionOpen(false);
+    }
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [suggestionOpen]);
+
   function submitSearch(event) {
     event.preventDefault();
-    const q = new FormData(event.currentTarget).get("q").trim();
-    if (q.length >= 2 && q.length <= 80) navigate("/search?" + new URLSearchParams({ q }));
+    const q = searchValue.normalize("NFC").trim().replace(/\\s+/gu, " ");
+    if (q.length < 2 || q.length > 80) return;
+    setSuggestionOpen(false);
+    navigate("/search?" + new URLSearchParams({ q }));
+  }
+  function suggestionLabel(item) {
+    if (item.kind === "people") return "Person";
+    if (item.kind === "organizations") return "Organization";
+    return item.kind === "questions" ? "Question" : item.kind === "events" ? "Event" : "Achievement";
   }
 
   return (
@@ -42,11 +121,42 @@ export default function AppHeader({
         </Link>
 
         {personalSearch && (
-          <form className="bw-design-search" role="search" aria-label="Header search" onSubmit={submitSearch}>
-            <NavigationIcon name="search" size={19} />
-            <input name="q" type="search" aria-label="Search BrightWay content and people" placeholder="Search BrightWay…" minLength={2} maxLength={80} required />
-            <button type="submit">Search</button>
-          </form>
+          <div ref={searchWrapRef} className={"bw-design-search-wrap" + (onSearchPage ? " bw-design-search-wrap--mobile-open" : "")}>
+            <form className="bw-design-search" role="search" aria-label="Header search" onSubmit={submitSearch}>
+              <NavigationIcon name="search" size={19} />
+              <input ref={inputRef} name="q" type="search" autoComplete="off"
+                aria-label="Search BrightWay content and people"
+                placeholder="Search people, posts, opportunities and learning"
+                value={searchValue} minLength={2} maxLength={80}
+                onChange={event => { setSearchValue(event.target.value); setSuggestions([]); }}
+                onFocus={() => { if (!onSearchPage) setSuggestionOpen(true); }}
+                onKeyDown={event => { if (event.key === "Escape") setSuggestionOpen(false); }}
+              />
+              {searchValue && <button className="bw-design-search-clear" type="button"
+                aria-label="Clear search" onClick={() => { setSearchValue(""); inputRef.current?.focus(); }}>×</button>}
+              <button type="submit" disabled={searchValue.trim().length < 2}>Search</button>
+            </form>
+            {suggestionOpen && !onSearchPage && searchValue.trim().length >= 2 && (
+              <section className="bw-header-search-suggestions" aria-label="Search suggestions">
+                <Link className="bw-header-search-all"
+                  to={"/search?" + new URLSearchParams({ q: searchValue.trim() })}
+                  onClick={() => setSuggestionOpen(false)}>
+                  <NavigationIcon name="search" size={16} />
+                  <span>Search all for <strong>{searchValue.trim()}</strong></span>
+                </Link>
+                {suggestionPending && <p role="status">Looking for matches…</p>}
+                {!suggestionPending && suggestions.map(item => (
+                  <Link key={item.href} className="bw-header-search-suggestion" to={item.href}
+                    onClick={() => setSuggestionOpen(false)}>
+                    <span className="bw-header-search-suggestion-name">{item.name}</span>
+                    <span>{suggestionLabel(item)}</span>
+                  </Link>
+                ))}
+                {!suggestionPending && suggestions.length === 0 &&
+                  <p>Press Enter to search across BrightWay.</p>}
+              </section>
+            )}
+          </div>
         )}
 
         <div className="bw-design-account">
@@ -55,7 +165,7 @@ export default function AppHeader({
             {actingOrganization?.name || workspaceLabel || "Personal account"}
           </span>
 
-          {personalSearch && (
+          {personalSearch && !onSearchPage && (
             <Link className="bw-design-utility bw-design-mobile-action" to="/search" aria-label="Search BrightWay" title="Search BrightWay">
               <NavigationIcon name="search" />
             </Link>
