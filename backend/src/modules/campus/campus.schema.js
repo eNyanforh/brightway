@@ -14,6 +14,7 @@ export const CAMPUS_PERMISSIONS = Object.freeze({
   "organization.campus.manage": "Manage Virtual Campus settings",
   "organization.campus.announcements.manage": "Publish Campus announcements",
   "organization.campus.academics.manage": "Manage Campus academic operations",
+  "organization.campus.teach": "Teach assigned Campus subjects",
   "organization.campus.billing.manage": "Manage Campus billing",
 });
 export const campusError = (status, message) => Object.assign(Error(message), { status });

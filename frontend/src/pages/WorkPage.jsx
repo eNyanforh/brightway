@@ -1,3 +1,4 @@
+import StudentCampusContexts from "../components/grade-school/StudentCampusContexts";
 import { subscribeFocus } from "../auth/focus-refresh";
 import { organizationPictureUrl } from "../api/organization-profile";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -95,6 +96,7 @@ function Work({ actor }) {
       <button className="bw-work-refresh-button" title="Reload workspaces" aria-label="Reload workspaces" disabled={busy || fetching} onClick={() => { if (!lock.current) { close(); void load(life.current); } }}><WorkspaceIcon name="refresh" size={18} className={fetching ? "bw-work-spinning" : ""} /><span>{fetching ? "Refreshing" : "Refresh"}</span></button></div>
       <nav className="bw-work-tabs" aria-label="Workspace categories">{Object.entries(tabs).map(([value, label]) => <button key={value} type="button" disabled={busy} aria-current={tab === value || value === "pending" && tab === "history" ? "page" : undefined} onClick={() => changeTab(value)}><WorkspaceIcon name={value === "approved" ? "building" : value === "pending" ? "clock" : "mail"} size={18} /><span>{label}</span>{counts[value] !== undefined && <span className="bw-work-count">{counts[value]}</span>}</button>)}</nav>
       <div className="bw-work-section-heading"><div><h2>{categoryTitle}</h2><p>{categoryDescription}</p></div>{(tab === "pending" || tab === "history") && <button type="button" className="bw-work-history" disabled={busy} onClick={() => changeTab(tab === "history" ? "pending" : "history")}><WorkspaceIcon name="archive" size={16} />{tab === "history" ? "Back to pending requests" : `Request history${counts.history !== undefined ? ` (${counts.history})` : ""}`}</button>}</div>
+      {tab === "approved" && <StudentCampusContexts key={actor} />}
       {error && <div className="bw-work-feedback bw-work-feedback-error" role="alert"><WorkspaceIcon name="alert" /><div><strong>We couldn’t complete that request</strong><p>{error.message}</p></div></div>}
       {notice && <div className="bw-work-feedback bw-work-feedback-success" role="status"><WorkspaceIcon name="check" /><p>{notice}</p></div>}
       {stale && <p className="bw-work-stale">Reload workspaces before another action. Nothing will be retried automatically.</p>}

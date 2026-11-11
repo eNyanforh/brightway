@@ -7,6 +7,7 @@ const MANAGE = "organization.campus.manage";
 const ANNOUNCE = "organization.campus.announcements.manage";
 const ACADEMICS = "organization.campus.academics.manage";
 const BILLING = "organization.campus.billing.manage";
+const TEACH = "organization.campus.teach";
 const hash = input => createHash("sha256").update(JSON.stringify(input)).digest("hex");
 const conflict = () => fail(409, "Campus changed. Reload its current version before continuing.");
 
@@ -26,14 +27,20 @@ export function createCampusService({ prisma, now = () => new Date() }) {
       include: { locations: true, request: { select: { status: true } }, campus: true } });
     if (!organization) throw fail(404, "Organization workspace is unavailable.");
     if (lock && (await db.organization.updateMany({ where: { id: organizationId, status: "ACTIVE" }, data: { staffVersion: { increment: 0 } } })).count !== 1) throw conflict();
+    // Read current Campus status after waiting for a concurrent pause/staff change.
+    if (lock) {
+      organization = await db.organization.findFirst({ where: { id: organizationId, status: "ACTIVE", request: { status: "APPROVED" } },
+        include: { locations: true, request: { select: { status: true } }, campus: true } });
+      if (!organization) throw fail(404, "Organization workspace is unavailable.");
+    }
     const membership = await db.organizationMembership.findFirst({ where: { organizationId, accountId: actor.accountId, enabled: true } });
     if (!membership) throw fail(403, "Active organization membership is required.");
     const product = await db.productAvailability.findUnique({ where: { product_countryCode: { product: "VIRTUAL_CAMPUS", countryCode: "LR" } } });
     const eligibility = assessEligibility(organization, product);
     const isPrimary = membership.role === "PRIMARY_ADMIN";
     const active = organization.campus?.status === "ACTIVE" && eligibility.eligible;
-    const grants = isPrimary && active ? [MANAGE, ANNOUNCE, ACADEMICS, BILLING]
-      : active ? (membership.permissions || []).filter(key => [MANAGE, ANNOUNCE, ACADEMICS, BILLING].includes(key)) : [];
+    const grants = isPrimary && active ? [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH]
+      : active ? (membership.permissions || []).filter(key => [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH].includes(key)) : [];
     if (primary && !isPrimary) throw fail(403, "Only the primary organization administrator can change Campus activation.");
     if (write) {
       if (!account.emailVerifiedAt) throw fail(403, "Verify your account email before managing Campus.");
@@ -82,13 +89,15 @@ export function createCampusService({ prisma, now = () => new Date() }) {
   }
   async function announcementAccess(db, actor, organizationId, { write = false, lock = false } = {}) {
     const ctx = await access(db, actor, organizationId, { write, lock, requireActive: true });
-    if (!ctx.isPrimary && !ctx.grants.some(p => [MANAGE, ANNOUNCE, ACADEMICS, BILLING].includes(p))) throw fail(403, "Campus access is not granted to your account.");
+    if (!ctx.isPrimary && !ctx.grants.some(p => [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH].includes(p))) throw fail(403, "Campus access is not granted to your account.");
     if (write && !ctx.isPrimary && !ctx.grants.some(p => [MANAGE, ANNOUNCE].includes(p))) throw fail(403, "Campus announcement permission is required.");
     return ctx;
   }
   const projectAnnouncement = item => ({ id: item.id, title: item.title, body: item.body, authorId: item.authorId,
     version: item.version, createdAt: item.createdAt, withdrawnAt: item.withdrawnAt });
   return {
+    // Internal service boundary, never exposed as an HTTP response.
+    authorize: access,
     async availability(actor, organizationId) {
       const ctx = await access(prisma, actor, organizationId);
       return summary(ctx);

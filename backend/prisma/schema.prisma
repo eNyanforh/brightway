@@ -38,6 +38,9 @@ enum PersonGender {
 }
 
 model Account {
+  schoolStudents GradeSchoolStudent[]
+  schoolTeaching GradeSchoolOffering[]
+  schoolGuardians GradeSchoolGuardian[]
   campusAnnouncements CampusAnnouncement[]
   campusAuditActions VirtualCampusAudit[]
   directConversationsLeft MessagingConversation[] @relation("MessageLeft")
@@ -1776,6 +1779,7 @@ model AdmissionCycle {
   @@index([programId, createdAt, id])
 }
 model AdmissionApplication {
+  schoolRegistration GradeSchoolRegistration?
   id String @id @default(uuid())
   cycleId String
   cycle AdmissionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict)
@@ -1961,6 +1965,10 @@ model ProductAvailability {
 }
 
 model VirtualCampus {
+  schoolSubjects GradeSchoolSubject[]
+  schoolClasses GradeSchoolClass[]
+  schoolYears GradeSchoolYear[]
+  schoolStudents GradeSchoolStudent[]
   organizationId String @id
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   engine CampusEngine
@@ -2002,4 +2010,231 @@ model VirtualCampusAudit {
   data Json
   createdAt DateTime @default(now())
   @@index([campusId, createdAt, id])
+}
+
+// Grade School records are period-scoped and retained when a learner returns.
+enum SchoolStudentStatus {
+  PRE_REGISTERED
+  ACTIVE
+  SUSPENDED
+  FORMER
+}
+enum SchoolSubmissionStatus {
+  DRAFT
+  FINAL
+}
+enum SchoolAttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+enum SchoolGuardianStatus {
+  PENDING
+  CONFIRMED
+  REVOKED
+}
+enum SchoolSubjectMode {
+  COMPULSORY
+  ELECTIVE
+}
+model GradeSchoolSubject {
+  id String @id @default(uuid())
+  campusId String
+  campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
+  name String @db.VarChar(120)
+  passingMark Float
+  version Int @default(1)
+  offerings GradeSchoolOffering[]
+  @@unique([campusId, id])
+  @@unique([campusId, name])
+}
+model GradeSchoolClass {
+  id String @id @default(uuid())
+  campusId String
+  campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
+  name String @db.VarChar(100)
+  sections GradeSchoolSection[]
+  @@unique([campusId, id])
+  @@unique([campusId, name])
+}
+model GradeSchoolSection {
+  id String @id @default(uuid())
+  campusId String
+  classId String
+  schoolClass GradeSchoolClass @relation(fields: [campusId, classId], references: [campusId, id], onDelete: Restrict)
+  name String @db.VarChar(60)
+  capacity Int
+  offerings GradeSchoolOffering[]
+  registrations GradeSchoolRegistration[]
+  @@unique([campusId, id])
+  @@unique([campusId, classId, name])
+}
+model GradeSchoolYear {
+  id String @id @default(uuid())
+  campusId String
+  campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
+  name String @db.VarChar(100)
+  startsOn DateTime @db.Date
+  endsOn DateTime @db.Date
+  periods GradeSchoolPeriod[]
+  @@unique([campusId, id])
+  @@unique([campusId, name])
+}
+model GradeSchoolPeriod {
+  id String @id @default(uuid())
+  campusId String
+  yearId String
+  year GradeSchoolYear @relation(fields: [campusId, yearId], references: [campusId, id], onDelete: Restrict)
+  name String @db.VarChar(100)
+  kind String @db.VarChar(10)
+  startsOn DateTime @db.Date
+  endsOn DateTime @db.Date
+  offerings GradeSchoolOffering[]
+  registrations GradeSchoolRegistration[]
+  @@unique([campusId, id])
+  @@unique([campusId, yearId, name])
+}
+model GradeSchoolOffering {
+  id String @id @default(uuid())
+  campusId String
+  periodId String
+  period GradeSchoolPeriod @relation(fields: [campusId, periodId], references: [campusId, id], onDelete: Restrict)
+  sectionId String
+  section GradeSchoolSection @relation(fields: [campusId, sectionId], references: [campusId, id], onDelete: Restrict)
+  subjectId String
+  subject GradeSchoolSubject @relation(fields: [campusId, subjectId], references: [campusId, id], onDelete: Restrict)
+  mode SchoolSubjectMode @default(COMPULSORY)
+  teacherId String?
+  teacher Account? @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  version Int @default(1)
+  schedules GradeSchoolSchedule[]
+  electives GradeSchoolElective[]
+  attendance GradeSchoolAttendance[]
+  assessments GradeSchoolAssessment[]
+  // One assignment per period/section/subject, independent of teacher identity.
+  @@unique([campusId, periodId, sectionId, subjectId])
+  @@unique([campusId, id])
+  @@index([teacherId, campusId, periodId])
+}
+model GradeSchoolStudent {
+  id String @id @default(uuid())
+  campusId String
+  campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
+  accountId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  status SchoolStudentStatus @default(PRE_REGISTERED)
+  version Int @default(1)
+  registrations GradeSchoolRegistration[]
+  guardians GradeSchoolGuardian[]
+  @@unique([campusId, accountId])
+  @@unique([campusId, id])
+}
+model GradeSchoolRegistration {
+  id String @id @default(uuid())
+  campusId String
+  studentId String
+  student GradeSchoolStudent @relation(fields: [campusId, studentId], references: [campusId, id], onDelete: Restrict)
+  periodId String
+  period GradeSchoolPeriod @relation(fields: [campusId, periodId], references: [campusId, id], onDelete: Restrict)
+  sectionId String
+  section GradeSchoolSection @relation(fields: [campusId, sectionId], references: [campusId, id], onDelete: Restrict)
+  admissionId String? @unique
+  admission AdmissionApplication? @relation(fields: [admissionId], references: [id], onDelete: Restrict)
+  source String @db.VarChar(12)
+  status SchoolStudentStatus @default(PRE_REGISTERED)
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  activatedAt DateTime?
+  electives GradeSchoolElective[]
+  attendance GradeSchoolAttendanceRecord[]
+  scores GradeSchoolScore[]
+  @@unique([campusId, studentId, periodId])
+  @@unique([campusId, id])
+  @@index([campusId, periodId, sectionId, status, id])
+}
+model GradeSchoolElective {
+  campusId String
+  registrationId String
+  registration GradeSchoolRegistration @relation(fields: [campusId, registrationId], references: [campusId, id], onDelete: Restrict)
+  offeringId String
+  offering GradeSchoolOffering @relation(fields: [campusId, offeringId], references: [campusId, id], onDelete: Restrict)
+  @@id([registrationId, offeringId])
+}
+model GradeSchoolGuardian {
+  id String @id @default(uuid())
+  campusId String
+  studentId String
+  student GradeSchoolStudent @relation(fields: [campusId, studentId], references: [campusId, id], onDelete: Restrict)
+  guardianId String
+  guardian Account @relation(fields: [guardianId], references: [id], onDelete: Restrict)
+  relationship String @db.VarChar(60)
+  status SchoolGuardianStatus @default(PENDING)
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  confirmedAt DateTime?
+  @@unique([studentId, guardianId])
+  @@index([guardianId, status])
+}
+model GradeSchoolSchedule {
+  id String @id @default(uuid())
+  campusId String
+  offeringId String
+  offering GradeSchoolOffering @relation(fields: [campusId, offeringId], references: [campusId, id], onDelete: Restrict)
+  weekday Int
+  startsAt Int
+  endsAt Int
+  room String @db.VarChar(100)
+  @@unique([offeringId, weekday, startsAt])
+  @@index([campusId, weekday])
+}
+model GradeSchoolAttendance {
+  id String @id @default(uuid())
+  campusId String
+  offeringId String
+  offering GradeSchoolOffering @relation(fields: [campusId, offeringId], references: [campusId, id], onDelete: Restrict)
+  heldOn DateTime @db.Date
+  startsAt Int @default(0)
+  status SchoolSubmissionStatus @default(DRAFT)
+  version Int @default(1)
+  finalizedAt DateTime?
+  records GradeSchoolAttendanceRecord[]
+  @@unique([campusId, id])
+  @@unique([offeringId, heldOn, startsAt])
+}
+model GradeSchoolAttendanceRecord {
+  campusId String
+  attendanceId String
+  attendance GradeSchoolAttendance @relation(fields: [campusId, attendanceId], references: [campusId, id], onDelete: Restrict)
+  registrationId String
+  registration GradeSchoolRegistration @relation(fields: [campusId, registrationId], references: [campusId, id], onDelete: Restrict)
+  status SchoolAttendanceStatus
+  @@id([attendanceId, registrationId])
+  @@index([registrationId])
+}
+model GradeSchoolAssessment {
+  id String @id @default(uuid())
+  campusId String
+  offeringId String
+  offering GradeSchoolOffering @relation(fields: [campusId, offeringId], references: [campusId, id], onDelete: Restrict)
+  title String @db.VarChar(160)
+  maxScore Float
+  weight Float
+  heldOn DateTime @db.Date
+  status SchoolSubmissionStatus @default(DRAFT)
+  version Int @default(1)
+  finalizedAt DateTime?
+  scores GradeSchoolScore[]
+  @@unique([campusId, id])
+  @@unique([offeringId, title])
+}
+model GradeSchoolScore {
+  campusId String
+  assessmentId String
+  assessment GradeSchoolAssessment @relation(fields: [campusId, assessmentId], references: [campusId, id], onDelete: Restrict)
+  registrationId String
+  registration GradeSchoolRegistration @relation(fields: [campusId, registrationId], references: [campusId, id], onDelete: Restrict)
+  score Float
+  @@id([assessmentId, registrationId])
+  @@index([registrationId])
 }
