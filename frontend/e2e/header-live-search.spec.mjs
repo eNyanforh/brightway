@@ -60,7 +60,7 @@ test("Search updates the URL while typing in its only header input on desktop an
   await expect(page.getByRole("navigation", { name: "Search filters" })).toBeVisible();
   await expect(page.locator(".bw-directory-search-form")).toHaveCount(0);
   await expect(page.getByRole("search", { name: "Header search" })).toHaveCount(1);
-  expect(calls.some(c => c.path === "/api/v1/search" && c.q === "software engineer")).toBe(true);
+  await expect.poll(() => calls.some(c => c.path === "/api/v1/search" && c.q === "software engineer")).toBe(true);
   await page.getByRole("button", { name: "Clear search" }).click();
   await expect(page).toHaveURL(/\/search(?:\?kind=[a-z]+)?$/);
   expect(errors).toEqual([]);
