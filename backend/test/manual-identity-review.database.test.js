@@ -1,6 +1,7 @@
 import { seedOrganizationProfile, clearOrganizationProfiles } from "../test-support/organization-profile-seed.js";
 import { managementStaffFixture, managementSessionFixture, cleanupManagementFixtures } from "../test-support/management-database-fixture.js";
 import { createOrganizationPosts } from "../src/modules/posts/organization-posts.service.js";
+import { createMemberPostModeration } from "../src/modules/posts/member-post-moderation.service.js";
 import { hashPassword } from "../src/modules/auth/password.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -22,13 +23,14 @@ test("database manual identity requests serialize retries and decisions, revoke 
   const config = { prisma: db, storage, now: () => date, policy: reviewPolicy({ MANUAL_IDENTITY_RETENTION_DAYS: "30" }) };
   const reviews = createManualIdentityReviewService(config);
   const posts = createOrganizationPosts(config);
+  const moderation = createMemberPostModeration(config);
   const uploads = createManualIdentityEvidenceService({ ...config, processImage: async () => ({ bytes: Buffer.from("test image"), width: 640, height: 480 }) });
   try {
     for (const label of ["owner"]) accounts.push(await db.account.create({ data: {
       username: `${label}_${marker.replaceAll("-", "")}`, email: `${label}_${marker}@example.invalid`, passwordHash, emailVerifiedAt: date,
       person: { create: { firstName: "Sample", lastName: label, birthDate: label === "owner" ? null : new Date("2000-01-01"), gender: "MALE", phoneNumber: "+231770000000" } },
     } }));
-    accounts.push(await managementStaffFixture(db, { username: `reviewer_${marker.replaceAll("-", "").slice(0, 12)}`, email: `reviewer_${marker}@example.invalid` }, ["identity-reviewer"], date));
+    accounts.push(await managementStaffFixture(db, { username: `reviewer_${marker.replaceAll("-", "").slice(0, 12)}`, email: `reviewer_${marker}@example.invalid` }, ["identity-reviewer", "moderation-agent"], date));
     const [owner, reviewer] = accounts;
     photo = await db.photoAsset.create({ data: { personId: owner.personId, storageKey: `test-photo-${marker}`, state: "CLAIMED", expiresAt: new Date(+date + 86400000) } });
     const profile = await db.profile.create({ data: {
@@ -79,12 +81,18 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(await db.manualIdentityAudit.count({ where: { requestId, action: "DECIDED" } }), 1);
     assert.equal((await reviews.status(owner.id)).identityVerified, true);
     const [publication, retry] = await Promise.all([posts.memberPublish(actor, draft), posts.memberPublish(actor, draft)]);
+    const moderator = { staffId: reviewer.id, sessionId: session.id };
+    async function approvePost(id) {
+      const row = await db.memberPost.findUniqueOrThrow({ where: { id }, select: { moderationVersion: true } });
+      return moderation.decide(moderator, id, { decision: "PUBLISHED", expectedVersion: row.moderationVersion, requestKey: randomUUID(), reason: "Submission follows BrightWay educational publishing standards." });
+    }
+    assert.equal(publication.post.moderationStatus, "PENDING");
     const postId = publication.post.id;
     assert.equal(retry.post.id, postId);
     assert.equal(publication.post.type, "POST");
     assert.deepEqual(publication.post.tags, ["Learning Journeys"]);
     assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner", photoId: photo.id, verified: true });
-    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "member", "questionDetails", "tags", "type"]);
+    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "member", "moderationFeedback", "moderationStatus", "moderationVersion", "questionDetails", "tags", "type"].sort());
     assert.equal(publication.post.eventDetails, null);
     assert.equal(publication.post.questionDetails, null);
     await assert.rejects(posts.memberPublish(actor, { ...draft, body: "Different content" }), { status: 409 });
@@ -101,6 +109,12 @@ test("database manual identity requests serialize retries and decisions, revoke 
     accounts.push(viewer);
     const viewerSession = await db.session.create({ data: { accountId: viewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000) } });
     const viewerActor = { accountId: viewer.id, sessionId: viewerSession.id };
+    assert.ok((await moderation.list(moderator)).items.some(item => item.id === postId));
+    assert.equal((await posts.memberList(actor, {})).items.find(item => item.id === postId)?.moderationStatus, "PENDING");
+    assert.equal((await posts.feed(viewerActor, {})).items.some(item => item.id === postId), false);
+    await assert.rejects(posts.readPost(viewerActor, "member", postId), { status: 404 });
+    await assert.rejects(posts.setLike(viewerActor, "member", postId, { liked: true }), { status: 404 });
+    await approvePost(postId);
     assert.deepEqual(await posts.memberPhoto(viewerActor, owner.username, photo.id), { personId: owner.personId, photoId: photo.id });
     await assert.rejects(posts.memberPhoto(viewerActor, owner.username, randomUUID()), { status: 404 });
     for (const type of ["ACHIEVEMENT", "EVENT", "QUESTION"]) {
@@ -121,6 +135,8 @@ test("database manual identity requests serialize retries and decisions, revoke 
         ticketPriceCents: 0, currency: "USD", requiresApproval: false, capacity: null });
       if (type === "QUESTION") assert.deepEqual(post.questionDetails, typedDraft.questionDetails);
       assert.deepEqual(await posts.memberPublish(actor, typedDraft), { post });
+      assert.equal((await posts.feed(viewerActor, {})).items.some(item => item.id === post.id), false);
+      await approvePost(post.id);
       const owned = (await posts.memberList(actor, {})).items.find(item => item.id === post.id);
       const visible = (await posts.feed(viewerActor, {})).items.find(item => item.id === post.id);
       assert.equal(owned?.type, type);
@@ -220,6 +236,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
       body: "Limited-seat approval workshop.", requestKey: randomUUID(),
       type: "EVENT", tags: ["Education"], eventDetails: controlledEvent,
     });
+    await approvePost(restricted.id);
     const pending = await posts.registerEvent(viewerActor, restricted.id, { registered: true });
     assert.deepEqual(pending, {
       registration: { registered: false, status: "PENDING", count: 0 },
@@ -262,6 +279,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
       body: "Separate approval decisions.", requestKey: randomUUID(), type: "EVENT",
       tags: ["Education"], eventDetails: { ...controlledEvent, title: "Approval decisions", capacity: 3 },
     });
+    await approvePost(declinedEvent.id);
     await posts.registerEvent(viewerActor, declinedEvent.id, { registered: true });
     const reviewToDecline = await posts.eventRequests(actor, declinedEvent.id);
     const rejected = await posts.decideEventRequest(actor, declinedEvent.id, reviewToDecline.items[0].id,
@@ -351,7 +369,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     const extraPosts = Array.from({ length: 21 }, (_, index) => ({
       id: randomUUID(), authorId: owner.id, requestKey: randomUUID(), body: `Synthetic post ${index}`, createdAt: date,
     }));
-    await db.memberPost.createMany({ data: extraPosts });
+    await db.memberPost.createMany({ data: extraPosts.map(row => ({ ...row, moderationStatus: "PUBLISHED" })) });
     const { id: legacyId, body: legacyBody, requestKey: legacyKey } = extraPosts[0];
     const { post: legacyPost } = await posts.memberPublish(actor, { body: legacyBody, requestKey: legacyKey });
     assert.equal(legacyPost.id, legacyId);
