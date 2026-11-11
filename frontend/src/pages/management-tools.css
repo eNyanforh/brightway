@@ -65,3 +65,14 @@
 .bw-mgmt-post-page-actions { display: flex; gap: 10px; padding: 12px 15px; }
 .bw-mgmt-post-page-actions button { flex: 1; min-height: 42px; }
 @media (max-width: 760px) { .bw-mgmt-post-page-actions { flex-direction: column; } }
+
+
+/* Moderator views, including retrospective removal and restoration. */
+.bw-mgmt-post-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-block: 16px; }
+.bw-mgmt-post-filters button { min-height: 40px; padding: 8px 14px; border-radius: 8px;
+  border: 1px solid var(--sa-border, #dce5f0); background: transparent; font-weight: 650;
+  color: inherit; cursor: pointer; }
+.bw-mgmt-post-filters button[aria-pressed="true"] { background: #edf4ff; border-color: #8cb5ee; color: #205b9b; }
+.bw-mgmt-post-filters button:disabled { opacity: .6; cursor: not-allowed; }
+.bw-mgmt-relevance-reason { display: block; margin-top: 6px; color: var(--sa-muted, #53677e);
+  white-space: pre-wrap; overflow-wrap: anywhere; }
