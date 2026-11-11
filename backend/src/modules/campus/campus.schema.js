@@ -32,7 +32,7 @@ export const allowedEngines = organization => [
 ];
 export function assessEligibility(organization, product) {
   const enabled = product?.enabled === true;
-  const verifiedLiberiaOperation = (organization.locations || []).some(location => location.countryCode === "LR" && location.verifiedAt && new Date(location.verifiedAt).getTime() <= Date.now());
+  const verifiedLiberiaOperation = (organization.locations || []).some(location => location.countryCode === "LR" && location.verifiedAt);
   const engines = allowedEngines(organization);
   const verifiedOrganization = organization.status === "ACTIVE" && organization.request?.status === "APPROVED" && Boolean(organization.verifiedAt);
   const eligible = enabled && verifiedLiberiaOperation && verifiedOrganization && engines.length > 0;

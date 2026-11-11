@@ -157,6 +157,23 @@ export function createCampusService({ prisma, now = () => new Date() }) {
           requestKey: data.requestKey, inputHash, title: data.title, body: data.body,
         } });
         await audit(db, ctx, "ANNOUNCEMENT_PUBLISHED", { announcementId: row.id });
+        const members = await db.organizationMembership.findMany({
+          where: { organizationId, enabled: true }, select: { accountId: true, role: true, permissions: true },
+        });
+        const recipients = members.filter(member => member.accountId !== actor.accountId &&
+          (member.role === "PRIMARY_ADMIN" || member.permissions.some(p => [MANAGE, ANNOUNCE, ACADEMICS, BILLING].includes(p))));
+        // Only active Campus members receive staff announcements; no admission
+        // applicant or non-enrolled learner is treated as a Campus member.
+        for (let offset = 0; offset < recipients.length; offset += 200) {
+          await db.platformNotification.createMany({
+            data: recipients.slice(offset, offset + 200).map(member => ({
+              recipientId: member.accountId, eventKey: "campus:" + organizationId + ":announcement:" + row.id,
+              kind: "CAMPUS", title: "New Campus announcement: " + row.title.slice(0, 150),
+              href: "/organization-workspace/" + organizationId + "/campus",
+              actorAccountId: actor.accountId,
+            })), skipDuplicates: true,
+          });
+        }
         return projectAnnouncement(row);
       });
     },
