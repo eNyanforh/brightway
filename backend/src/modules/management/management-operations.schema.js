@@ -22,6 +22,7 @@ export const managementToolCatalog = [
   ["team", "Team access", "Inspect internal staff access; provision through the trusted terminal.", "/management/team", "staff-reader"],
   ["support", "Support", "Assign cases, reply to applicants and record internal notes.", "/management/support", "support-agent"],
   ["moderation", "Reports", "Investigate account and organization reports with an audit trail.", "/management/reports", "moderation-agent"],
+  ["post-reviews", "Post review", "Review personal achievements, questions, and events before publication.", "/management/post-reviews", "moderation-agent"],
   ["audit", "Audit log", "Trace current and historical management decisions.", "/management/audit", "audit-reader"],
   ["operations", "Operations", "Inspect review targets and maintenance workloads.", "/management/operations", "operations-reader"],
 ];

@@ -157,6 +157,19 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
   const publisher = post.organization || post.member;
   const source = postSource(post);
   const type = post.member ? post.type ?? "POST" : "ORGANIZATION";
+  const reviewStatus = post.member ? post.moderationStatus : null;
+  const heldForReview = reviewStatus === "PENDING" || reviewStatus === "REJECTED";
+  const reviewBanner = heldForReview ? (
+    <div className="bw-post-review-state" data-status={reviewStatus}>
+      <strong>{reviewStatus === "PENDING" ? "Pending review" : "Declined"}</strong>
+      <span>{reviewStatus === "PENDING"
+        ? "This post is visible only to you until BrightWay Management approves it."
+        : "This post is not public. Edit it to submit a revised version for review."}</span>
+      {reviewStatus === "REJECTED" && post.moderationFeedback && (
+        <p><strong>Review feedback:</strong> {post.moderationFeedback}</p>
+      )}
+    </div>
+  ) : null;
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/" + encodeURIComponent(post.member.username);
   const topicTags = post.member && <PostTopicTags tags={post.tags} />;
   const imageUrl = post.member?.photoId
@@ -358,15 +371,16 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
             <span aria-hidden="true">·</span>
             <PostTimestamp createdAt={post.createdAt} />
           </header>
+          {reviewBanner}
           <PostStory post={displayPost} topicTags={topicTags} timeline
             answerCount={answerCount} answerParticipants={answerParticipants} />
-          <PostComments postId={post.id} source={source}
+          {!heldForReview && <PostComments postId={post.id} source={source}
             commentCount={post.commentCount}
             showComment={type !== "QUESTION"} primaryAction={primaryAction}>
             {controls}
-          </PostComments>
-          {extras}
-          {canManageEvent && post.eventDetails?.requiresApproval === true && (
+          </PostComments>}
+          {!heldForReview && extras}
+          {!heldForReview && canManageEvent && post.eventDetails?.requiresApproval === true && (
             <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
           )}
         </div>
@@ -387,8 +401,9 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
           <p><PostTimestamp createdAt={post.createdAt} /></p>
         </div>
       </header>
+      {reviewBanner}
       <PostStory post={displayPost} topicTags={topicTags} />
-      {canManageEvent && post.eventDetails?.requiresApproval === true && (
+      {!heldForReview && canManageEvent && post.eventDetails?.requiresApproval === true && (
         <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
       )}
 
@@ -514,16 +529,19 @@ export default function PostsPanel({ organization, personal = false, view = "for
     const draft = { body, requestKey: publishKey.current };
     void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags, ...(type === "EVENT" && eventDetails ? { eventDetails } : {}), ...(type === "QUESTION" && questionDetails ? { questionDetails } : {}) }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
       const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false, views: 0, ...(type === "EVENT" ? { registration: { registered: false, count: 0 }, eventAttendees: [] } : {}), ...(type === "QUESTION" ? { answerCount: 0 } : {}) } : post;
-      setPage(previous => ({
-        ...previous,
-        items: [published, ...(previous?.items || []).filter(item => cardKey(item) !== cardKey(published))],
-      }));
+      // Pending submissions must never appear in Explore before approval.
+      if (!timeline || !memberComposer || post.moderationStatus === "PUBLISHED") {
+        setPage(previous => ({
+          ...previous,
+          items: [published, ...(previous?.items || []).filter(item => cardKey(item) !== cardKey(published))],
+        }));
+      }
       publishKey.current = null;
       setBody("");
       setType("ACHIEVEMENT");
       setTags([]);
       setComposerOpen(false);
-      setNotice(memberComposer ? (type === "QUESTION" ? "Question published." : type === "EVENT" ? "Event published." : "Achievement published.") : "Post published.");
+      setNotice(memberComposer ? "Submitted for moderation. Track the decision in My Posts." : "Post published.");
     }, { preserveOnDenied: inlineComposer });
   }
 
@@ -579,7 +597,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
       const data = await operation(controller.signal);
       if (controller.signal.aborted) throw new Error("This post action was cancelled.");
       setPage(previous => previous ? ({ ...previous, items: change(previous.items, data) }) : previous);
-      setNotice(data.post ? "Post updated." : "Post deleted.");
+      setNotice(data.post ? data.post.moderationStatus === "PENDING" ? "Changes submitted for review." : "Post updated." : "Post deleted.");
     } catch (failure) {
       if (!controller.signal.aborted) setError(failure);
       throw failure;
@@ -593,8 +611,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
     return managePost(post, signal => post.member
       ? api.memberEdit(post.id, payload, signal)
       : api.edit(organizationId, post.id, payload, signal),
-    (items, { post: updated }) => items.map(item => postKey(item) === postKey(post)
-      ? { ...item, ...updated } : item));
+    (items, { post: updated }) => updated.moderationStatus === "PENDING" && !personal
+      ? items.filter(item => postKey(item) !== postKey(post))
+      : items.map(item => postKey(item) === postKey(post) ? { ...item, ...updated } : item));
   }
 
   function withdraw(id) {
@@ -640,7 +659,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
       </div>
       {page?.items.length === 0 && (
         <p className="bw-post-empty">{organization ? "Your organization has no published posts yet." :
-          personal ? "You have no published posts yet." :
+          personal ? "You have no submissions yet." :
             view === "saved" ? "Save a post to find it here later." :
               view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
       )}

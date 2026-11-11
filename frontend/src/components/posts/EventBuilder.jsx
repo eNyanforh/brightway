@@ -283,7 +283,7 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
           </div>
           <footer className="bw-event-builder-footer">
             <span>Registration is available in BrightWay. Ticket prices are informational; payment collection and ticket issuance are not yet supported.</span>
-            <div><button type="button" onClick={onCancel} disabled={disabled}>Cancel</button><button className="bw-event-publish" type="submit" disabled={!valid}>Publish event</button></div>
+            <div><button type="button" onClick={onCancel} disabled={disabled}>Cancel</button><button className="bw-event-publish" type="submit" disabled={!valid}>Submit event for review</button></div>
           </footer>
         </form>
       </div>

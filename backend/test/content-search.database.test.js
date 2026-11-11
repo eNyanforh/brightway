@@ -33,17 +33,17 @@ test("content discovery uses PostgreSQL full-text matching, current blocks, and 
     const viewer = await person("Viewer");
     const achievement = await db.memberPost.create({ data: {
       authorId: owner.id, requestKey: randomUUID(),
-      type: "ACHIEVEMENT", body: "Built a project for rural communities.",
+      type: "ACHIEVEMENT", moderationStatus: "PUBLISHED", body: "Built a project for rural communities.",
       tags: ["robotics"],
     } });
     const question = await db.memberPost.create({ data: {
       authorId: owner.id, requestKey: randomUUID(),
-      type: "QUESTION", body: "What tools can students use?",
+      type: "QUESTION", moderationStatus: "PUBLISHED", body: "What tools can students use?",
       questionDetails: { title: "How do students learn robotics?" }, tags: ["education"],
     } });
     const event = await db.memberPost.create({ data: {
       authorId: owner.id, requestKey: randomUUID(),
-      type: "EVENT", body: "Join us for a public workshop.",
+      type: "EVENT", moderationStatus: "PUBLISHED", body: "Join us for a public workshop.",
       eventDetails: { title: "Robotics learning weekend", meetingUrl: "https://private.invalid/room" },
       tags: ["technology"],
     } });

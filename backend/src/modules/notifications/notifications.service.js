@@ -144,7 +144,7 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
         // The Activities tab loads the paginated post-card feed from
         // /posts/members/:username, keeping this identity response small.
         sections.achievements = await tx.memberPost.findMany({
-          where: { authorId: target.id, type: "ACHIEVEMENT", withdrawnAt: null },
+          where: { authorId: target.id, type: "ACHIEVEMENT", withdrawnAt: null, moderationStatus: "PUBLISHED" },
           select: { id: true, body: true, tags: true, createdAt: true },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 8,

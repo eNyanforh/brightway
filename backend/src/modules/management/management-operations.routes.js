@@ -9,7 +9,7 @@ const wrap = work => async (req, res, next) => {
 };
 const actor = req => ({ staffId: req.management.staff.id, sessionId: req.management.sessionId });
 const noQuery = (req, _res, next) => Object.keys(req.query).length ? next(Object.assign(Error("This action accepts no query parameters."), { status: 400 })) : next();
-export function createManagementOperationsRoutes({ operations, cases, authentication, clientUrl, nodeEnv, limiter }) {
+export function createManagementOperationsRoutes({ operations, cases, postModeration, authentication, clientUrl, nodeEnv, limiter }) {
   const router = Router(), auth = requireManagement(authentication, nodeEnv), origin = requireTrustedOrigin(clientUrl);
   const limits = limiter || rateLimit({ windowMs: 60000, limit: 60, standardHeaders: "draft-8", legacyHeaders: false, keyGenerator: req => req.management.staff.id });
   router.use("/management/tools", privateHeaders, auth, limits);
@@ -20,6 +20,8 @@ export function createManagementOperationsRoutes({ operations, cases, authentica
   }
   router.get("/management/tools/audit", wrap(req => operations.audit(actor(req), req.query)));
   router.get("/management/tools/operations", noQuery, wrap(req => operations.operations(actor(req))));
+  router.get("/management/tools/post-reviews", wrap(req => postModeration.list(actor(req), req.query)));
+  router.post("/management/tools/post-reviews/:id/decision", origin, noQuery, wrap(req => postModeration.decide(actor(req), req.params.id, req.body)));
   router.get("/management/tools/cases", wrap(req => cases.list(actor(req), req.query)));
   router.post("/management/tools/cases", origin, noQuery, wrap(req => cases.create(req.body, actor(req))));
   router.get("/management/tools/cases/:id", wrap(req => { if (Object.keys(req.query).some(k => k !== "messageCursor")) throw Object.assign(Error("Unknown case query."), { status: 400 }); return cases.detail(actor(req), req.params.id, req.query.messageCursor); }));

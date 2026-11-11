@@ -45,3 +45,23 @@
 @media(max-width:760px) { .bw-mgmt-toolbar { padding:17px; gap:13px; }.bw-mgmt-toolbar label { flex:1; }.bw-mgmt-toolbar button { flex:1; }.bw-mgmt-directory-layout { gap:20px; }.bw-mgmt-tool-card { padding:20px; }.bw-mgmt-case-create fieldset { grid-template-columns:1fr; }.bw-mgmt-case-controls { grid-template-columns:1fr; }.bw-mgmt-tools-page input:not([type=checkbox]),.bw-mgmt-tools-page select,.bw-mgmt-tools-page textarea,.bw-mgmt-action-dialog input,.bw-mgmt-action-dialog textarea { font-size:16px; }.bw-mgmt-action-dialog { padding:23px; }.bw-personal-support { padding:15px; }.bw-management-shell .bw-management-sidebar.bw-design-sidebar-open { max-height:none; }.bw-mgmt-thread header small { margin-left:0; width:100%; } }
 .bw-mgmt-tools-page button.bw-mgmt-queue-row { display:flex; align-items:start; width:100%; gap:11px; padding:19px 16px; margin:0; text-align:left; background:transparent; border:0; border-left:3px solid transparent; border-radius:0; color:var(--sa-text); }
 .bw-mgmt-tools-page button.bw-mgmt-queue-row:hover { background:var(--sa-raised); }.bw-mgmt-tools-page button.bw-mgmt-queue-row[aria-pressed=true] { background:#1b3556; border-left-color:#8bbfff; }.bw-personal-support button.bw-mgmt-queue-row[aria-pressed=true] { background:#e9f2ff; border-left-color:#2865bd; }
+
+
+/* Scoped post review workspace */
+.bw-mgmt-post-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+.bw-mgmt-post-meta { border-block: 1px solid var(--sa-border, #dce5f0); padding-block: 12px; margin-block: 10px; }
+.bw-mgmt-post-meta h3 { font-size: 15px; margin: 0 0 7px; }
+.bw-mgmt-post-meta p { margin: 4px 0; color: var(--sa-muted, #61718a); }
+.bw-mgmt-post-screen {
+  margin: 15px 0;
+  padding: 11px 13px;
+  border: 1px solid var(--sa-border, #dce5f0);
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.bw-mgmt-post-tags { display: flex; flex-wrap: wrap; gap: 7px; margin: 15px 0; padding: 0; list-style: none; }
+.bw-mgmt-post-page-actions { display: flex; gap: 10px; padding: 12px 15px; }
+.bw-mgmt-post-page-actions button { flex: 1; min-height: 42px; }
+@media (max-width: 760px) { .bw-mgmt-post-page-actions { flex-direction: column; } }
