@@ -37,24 +37,24 @@ test("the personal header opens directory search and filters results on desktop 
   await page.goto("/explore");
   if (isMobile) {
     await page.getByRole("link", { name: "Search BrightWay" }).click();
-    await expect(page.getByRole("heading", { name: "Search BrightWay" })).toBeVisible();
-    await page.getByRole("searchbox", { name: "Name or username" }).fill("maya");
-    expect(searches).toEqual([]);
-    await page.getByRole("searchbox", { name: "Name or username" }).press("Enter");
-  } else {
-    const field = page.getByRole("searchbox", { name: "Search BrightWay content and people" });
-    await field.fill("maya");
-    expect(searches).toEqual([]);
-    await field.press("Enter");
+    await expect(page.getByRole("searchbox", { name: "Search BrightWay content and people" })).toBeVisible();
   }
+  const field = page.getByRole("searchbox", { name: "Search BrightWay content and people" });
+  await field.fill("maya");
+  expect(searches).toEqual([]);
+  await field.press("Enter");
+  await expect(page.getByRole("search", { name: "Header search" })).toHaveCount(1);
+  await expect(page.locator(".bw-directory-search-form")).toHaveCount(0);
+  await expect(page.locator(".bw-directory-hero")).toHaveCount(0);
+  await expect(page.getByRole("complementary", { name: "Search discovery sidebar" })).toHaveCount(1);
   await expect(page.getByRole("link", { name: /Maya Cole/ })).toHaveAttribute("href", person.href);
   await expect(page.getByText("Student designer")).toBeVisible();
   await expect(page.getByRole("img", { name: "Verified identity" })).toBeVisible();
   await page.getByRole("button", { name: "More results" }).click();
   await expect(page.getByRole("link", { name: /Maya Learning Centre/ })).toHaveAttribute("href", organization.href);
   await expect(page.getByRole("img", { name: "Verified organization" })).toBeVisible();
-  await page.getByRole("link", { name: "Organizations", exact: true }).click();
-  await expect(page.getByRole("link", { name: "Organizations", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.getByRole("navigation", { name: "Search filters" }).getByRole("link", { name: "Organizations", exact: true }).click();
+  await expect(page.getByRole("navigation", { name: "Search filters" }).getByRole("link", { name: "Organizations", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("link", { name: /Maya Cole/ })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Maya Learning Centre/ })).toBeVisible();
   expect(searches).toEqual([
