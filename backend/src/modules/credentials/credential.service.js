@@ -1,3 +1,4 @@
+import { notify } from "../notifications/platform-notification.js";
 import { assertNoSelfReview } from "../management/management-authority.js";
 import { reviewQueueQuerySchema } from "./credential.schema.js";
 import { organizationWorkspace } from "../../../../shared/organization-workspace.mjs";
@@ -227,6 +228,7 @@ export function createCredentialService({ prisma, storage, process = processEvid
         if (!attempt || attempt.revision !== review.revision || attempt.status !== review.status) throw conflict();
         await tx.credentialAttempt.update({ where: { id: attempt.id }, data: { status: next, reviewerId: actorId, note: assign ? null : input.note, decidedAt: assign ? null : now() } });
         await tx.credentialAuditEvent.create({ data: { reviewId: id, actorId, action: reassign ? "REASSIGNED" : assign ? "ASSIGNED" : "DECIDED", revision: review.revision, fromStatus: review.status, toStatus: next, note: reassign ? "Previous reviewer no longer authorized." : assign ? null : input.note } });
+        if (!assign && !reassign) await notify(tx, { recipientId: owner.id, eventKey: `credential:${id}:${review.revision}:${next}`, kind: "VERIFICATION", title: "Your credential verification has an update", href: "/credentials" });
         requireReviewScope(review, await authorizeCredentialReviewer(tx, actorId, sessionId, organizationId, now()));
         return { id, status: next };
       });

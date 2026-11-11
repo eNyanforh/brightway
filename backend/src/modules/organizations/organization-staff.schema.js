@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CAMPUS_PERMISSIONS } from "../campus/campus.schema.js";
 export const PERMISSIONS = Object.freeze({
   "organization.profile.manage": "Edit organization profile",
   "organization.members.manage": "Manage staff",
@@ -9,6 +10,7 @@ export const PERMISSIONS = Object.freeze({
   "organization.admissions.review": "Review admission applications",
   "organization.credentials.education.review": "Review education credentials",
   "organization.credentials.experience.review": "Review experience credentials",
+  ...CAMPUS_PERMISSIONS,
 });
 export const permissionKeys = Object.keys(PERMISSIONS);
 const permissions = z.array(z.enum(permissionKeys)).max(permissionKeys.length).refine(v => new Set(v).size === v.length).transform(v => [...v].sort());
@@ -25,7 +27,13 @@ export const workspaceDirectorySchema = z.strictObject({
 });
 export const listStaffSchema = z.strictObject({ memberCursor: z.uuid().optional(), inviteCursor: z.uuid().optional() });
 
-export const organizationPermissionKeys = organization => permissionKeys.filter(p => organization.offersTraining || organization.type === "SCHOOL" || !["organization.programs.manage", "organization.admissions.review", "organization.credentials.education.review"].includes(p));
+export const organizationPermissionKeys = organization => permissionKeys.filter(p => {
+  if (p.startsWith("organization.campus.")) {
+    return organization.campus?.status === "ACTIVE" && organization._campusAvailable === true;
+  }
+  return organization.offersTraining || organization.type === "SCHOOL" ||
+    !["organization.programs.manage", "organization.admissions.review", "organization.credentials.education.review"].includes(p);
+});
 
 export const staffListQuerySchema = z.strictObject({
   memberCursor: z.uuid().optional(), inviteCursor: z.uuid().optional(),

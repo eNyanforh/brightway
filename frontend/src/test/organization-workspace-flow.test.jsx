@@ -389,15 +389,20 @@ it("direct organization entry shows workspace loading rather than an account pic
   await screen.findByRole("heading", { name: organization.name, level: 1 });
 });
 
-it("Build Campus is a separate sidebar block and opens an informational overview without activation", async () => {
-  const f = mount(); await screen.findByRole("heading", { name: organization.name, level: 1 });
+it("Build Campus stays in the separate sidebar and requires explicit configuration before activation", async () => {
+  const eligibility = { eligible: true, verifiedOrganization: true, verifiedLiberiaOperation: true, productEnabled: true,
+    supportedEngines: ["GRADE_SCHOOL", "TVET"], reasons: [] };
+  const f = mount(base, url => url.endsWith("/campus") ? reply({ organizationId: id, campus: null, eligible: true,
+    eligibility, canSetup: true, canManage: true, canAnnounce: false, permissions: [] }) : reply(context));
+  await screen.findByRole("heading", { name: organization.name, level: 1 });
   const sidebar = screen.getByRole("complementary", { name: "Organization navigation" });
   const entry = within(sidebar).getByRole("link", { name: "Build Campus" });
   expect(within(screen.getByRole("navigation", { name: "Organization tools" })).queryByRole("link", { name: "Build Campus" })).toBeNull();
   expect(entry.getAttribute("href")).toBe(base + "/campus"); await f.user.click(entry);
-  await screen.findByRole("heading", { name: "Build Campus" });
-  expect(screen.getByText("Campus setup is not available yet.")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /activate|pay|submit/i })).toBeNull();
+  await screen.findByRole("heading", { name: "Virtual Campus" });
+  expect(screen.getByText("Not configured")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Save Campus setup" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Activate Campus" })).toBeNull();
   expect(f.fetch.mock.calls.some(([, options]) => options?.method && options.method !== "GET")).toBe(false);
 });
 it("Campus overview rejects ordinary members and non-training company administrators", async () => {

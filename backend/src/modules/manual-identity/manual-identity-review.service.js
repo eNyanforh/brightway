@@ -1,3 +1,4 @@
+import { notify } from "../notifications/platform-notification.js";
 import { managementPermission, assertManagementSession, lockReviewActors, assertNoSelfReview, conflictAccounts, staffId, permits } from "../management/management-authority.js";
 import { createManualIdentityDetailsService, missingIdentityFields } from "./manual-identity-details.service.js";
 import { Prisma } from "@prisma/client";
@@ -279,6 +280,7 @@ export function createManualIdentityReviewService({ prisma, storage, now = () =>
           await tx.account.updateMany({ where: { id: request.accountId, status: "ACTIVE" }, data: { photoReviewRequired: true } });
         }
         await audit(tx, request, actorId, assign ? "ASSIGNED" : "DECIDED", attempt, attempt.state, next);
+        if (!assign) await notify(tx, { recipientId: request.accountId, eventKey: `identity:${attempt.id}:${next}`, kind: "VERIFICATION", title: "Your identity verification has an update", href: "/manual-identity" });
         // Recheck at the end as well as after locking the actor; no revoked/stale MFA commit.
         await reviewer(tx, actorId, sessionId);
         return { id, status: next };

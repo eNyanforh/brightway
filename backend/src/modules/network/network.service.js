@@ -1,3 +1,4 @@
+import { notify } from "../notifications/platform-notification.js";
 import { assertNetworkSession, lockNetworkAccounts } from "./network-authority.js";
 import { createFollowingService } from "./network-follow.service.js";
 import { followRef } from "./network-follow.schema.js";
@@ -103,8 +104,11 @@ export function createNetworkService({ prisma, now = () => new Date() }) {
         if (data.action === "BLOCK") {
           await tx.networkFollow.updateMany({ where: { active: true, OR: [{ followerId: actor.accountId, targetAccountId: account.id }, { followerId: account.id, targetAccountId: actor.accountId }] }, data: { active: false, version: { increment: 1 }, updatedAt: now() } });
           await tx.profileViewNotification.deleteMany({ where: { OR: [{ recipientId: actor.accountId, viewerId: account.id }, { recipientId: account.id, viewerId: actor.accountId }] } });
+          if (tx.platformNotification) await tx.platformNotification.deleteMany({ where: { OR: [{ recipientId: actor.accountId, actorAccountId: account.id }, { recipientId: account.id, actorAccountId: actor.accountId }] } });
+          if (tx.messagingTyping) await tx.messagingTyping.deleteMany({ where: { accountId: { in: [actor.accountId, account.id] }, conversationId: { in: (await tx.messagingConversation.findMany({ where: { leftAccountId: key.leftAccountId, rightAccountId: key.rightAccountId }, select: { id: true } })).map(c => c.id) } } });
         }
         await tx.networkEvent.create({ data: { pairId: saved.id, actorId: actor.accountId, action: data.action, requestKey: data.requestKey, requestHash, resultVersion: saved.version, createdAt: now() } });
+        if (["REQUEST", "ACCEPT"].includes(data.action)) await notify(tx, { recipientId: account.id, actorAccountId: actor.accountId, eventKey: "network:" + data.requestKey, kind: "CONNECTION", title: data.action === "REQUEST" ? "You received a connection request" : "Your connection request was accepted", href: "/network" });
         await authority(tx, actor);
         return { saved: true, action: data.action, version: saved.version };
       });

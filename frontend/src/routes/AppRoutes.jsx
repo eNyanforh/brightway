@@ -1,3 +1,5 @@
+const MessagesPage = lazy(() => import("../pages/MessagesPage"));
+const OfficialMessagesPage = lazy(() => import("../pages/MessagesPage").then(m => ({ default: m.OfficialMessagesPage })));
 const ManagementDirectoryPage = lazy(() => import("../pages/ManagementDirectoryPage"));
 const ManagementCasesPage = lazy(() => import("../pages/ManagementCasesPage"));
 const ManagementPostReviewsPage = lazy(() => import("../pages/ManagementPostReviewsPage"));
@@ -71,6 +73,7 @@ export default function AppRoutes() {
             <Route path="users" element={<ManagementTool><ManagementDirectoryPage kind="users" /></ManagementTool>} />
             <Route path="directory" element={<ManagementTool><ManagementDirectoryPage kind="organizations" /></ManagementTool>} />
             <Route path="team" element={<ManagementTool><ManagementDirectoryPage kind="team" /></ManagementTool>} />
+            <Route path="official-messages" element={<ManagementTool><OfficialMessagesPage /></ManagementTool>} />
             <Route path="support" element={<ManagementTool><ManagementCasesPage /></ManagementTool>} />
             <Route path="reports" element={<ManagementTool><ManagementCasesPage kind="REPORT" /></ManagementTool>} />
             <Route path="post-reviews" element={<ManagementTool><ManagementPostReviewsPage /></ManagementTool>} />
@@ -109,6 +112,7 @@ export default function AppRoutes() {
         <Route element={<AppLayout />}>
           <Route path="/organization-workspace" element={<Navigate to="/work" replace />} />
           <Route path="/organization-workspace/:organizationId/credentials" element={<Suspense fallback={<p role="status">Loading organization workspace…</p>}><OrganizationSetupGate><CredentialReviewsPage /></OrganizationSetupGate></Suspense>} />
+          <Route path="/organization-workspace/:id/messages" element={<WorkspaceRoute section="messages" />} />
           <Route path="/organization-workspace/:id/profile" element={<WorkspaceRoute section="profile" />} />
           <Route path="/organization-workspace/:id/campus" element={<WorkspaceRoute section="campus" />} />
           <Route path="/organization-workspace/:id/staff" element={<WorkspaceRoute section="staff" />} />
@@ -134,6 +138,7 @@ export default function AppRoutes() {
           <Route path="/posts" element={<MemberPostsPage />} />
 
           <Route path="/network" element={<Suspense fallback={<p role="status">Loading your network…</p>}><NetworkPage /></Suspense>} />
+          <Route path="/messages" element={<ManagementTool><MessagesPage /></ManagementTool>} />
           <Route path="/notifications" element={<Suspense fallback={<p role="status">Loading notifications…</p>}><NotificationsPage /></Suspense>} />
           <Route path="/people/:username" element={<LegacyMemberProfileRedirect />} />
 

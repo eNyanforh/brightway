@@ -115,9 +115,10 @@ it("reviewers must assign and load both private images before submitting an expl
 
 it("revocation on focus clears private names, evidence, feedback and decision controls", async () => {
   const f = reviewerFixture(); await assign(f.user); await f.user.type(screen.getByLabelText("Feedback shown to the owner"), "Sensitive draft feedback");
+  await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalledTimes(3));
   f.revoke(); act(() => window.dispatchEvent(new Event("focus"))); await screen.findByRole("alert");
   expect(screen.queryByText("Corrected New Owner")).toBeNull(); expect(screen.queryByAltText("Private Selfie for name correction")).toBeNull(); expect(screen.queryByLabelText("Feedback shown to the owner")).toBeNull();
-  expect(URL.revokeObjectURL).toHaveBeenCalled();
+  await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledTimes(3));
 });
 
 it("an owner switch ignores the previous account's late private response", async () => {

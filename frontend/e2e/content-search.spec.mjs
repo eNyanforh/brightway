@@ -1,3 +1,4 @@
+import { backgroundMessaging } from "./support/background-messaging.mjs";
 import { expect, test } from "@playwright/test";
 
 const origin = "http://127.0.0.1:4187";
@@ -15,6 +16,8 @@ test("search has separate content filters, real post links, and published opport
   const calls = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.route("**/*", async route => {
+    // Background channels are independent of this journey; SSE behavior has its own HTTP test.
+    const background = backgroundMessaging(route); if (background) return background;
     const url = new URL(route.request().url());
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();

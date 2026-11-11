@@ -1,3 +1,8 @@
+import { createCampusService } from "../modules/campus/campus.service.js";
+import { createCampusRoutes } from "../modules/campus/campus.routes.js";
+import { createMessagingService } from "../modules/messaging/messaging.service.js";
+import { createMessagingRoutes } from "../modules/messaging/messaging.routes.js";
+import { createMessageStorage } from "../modules/messaging/messaging.storage.js";
 import { createLearningService } from "../modules/learning/learning.service.js";
 import { createLearningRoutes } from "../modules/learning/learning.routes.js";
 import { createFollowingService } from "../modules/network/network-follow.service.js";
@@ -78,6 +83,7 @@ const mfa = createMfaService({ prisma });
 const sessions = createSessionService({ prisma, mfa });
 router.use(createOpportunityRoutes({ opportunities: createOpportunityService({ prisma, storage: createApplicationStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createLearningRoutes({ learning: createLearningService({ prisma, storage: createApplicationStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createCampusRoutes({ campus: createCampusService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const network = createNetworkService({ prisma });
 router.use(createNetworkRoutes({ network, following: createFollowingService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createNotificationsRoutes({ notifications: createNotificationsService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
@@ -94,6 +100,7 @@ router.use(createOrganizationPostRoutes({ posts: publicPosts, photos, sessions, 
 const managementCases = createManagementCases({ prisma });
 const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
 router.use(createManagementAuthRoutes({ authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createMessagingRoutes({ messaging: createMessagingService({ prisma, storage: createMessageStorage() }), notifications: createNotificationsService({ prisma }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManagementOperationsRoutes({ operations: createManagementOperations({ prisma }), cases: managementCases, postModeration: createMemberPostModeration({ prisma }), authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createSupportRoutes({ cases: managementCases, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManagementRoutes({ management: createManagementService({ prisma }), authentication, nodeEnv: env.NODE_ENV }));

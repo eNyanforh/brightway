@@ -11,12 +11,12 @@ async function fixture(input) {
 }
 test("approved primary administrator receives scoped ready tools and honest planned tools without Campus activation", async () => {
   const f = await fixture(), c = await f.context();
-  assert.deepEqual(c.workspace.available.map(m => m.key), ["profile", "dashboard", "staff", "credentials", "posts", "opportunities", "applications", "programs", "admissions"]);
-  assert.deepEqual(c.workspace.available.map(m => m.label), ["Profile", "Dashboard", "Staff", "Credential Review", "Posts", "Opportunities", "Applications", "Programs", "Admissions"]);
+  assert.deepEqual(c.workspace.available.map(m => m.key), ["profile", "dashboard", "staff", "credentials", "posts", "messages", "opportunities", "applications", "programs", "admissions"]);
+  assert.deepEqual(c.workspace.available.map(m => m.label), ["Profile", "Dashboard", "Staff", "Credential Review", "Posts", "Official inbox", "Opportunities", "Applications", "Programs", "Admissions"]);
   assert(c.workspace.available.filter(m => !m.external).every(m => m.to.startsWith(`/organization-workspace/${f.orgId}`)));
   assert.deepEqual(c.workspace.planned.map(m => m.key), []);
   assert(c.workspace.planned.every(m => !m.to)); assert.equal(c.workspace.campusActive, false);
-  assert.equal(c.workspace.campusSetup.to, `/organization-workspace/${f.orgId}/campus`); assert.equal(c.workspace.campusSetup.status, "COMING_SOON");
+  assert.equal(c.workspace.campusSetup.to, `/organization-workspace/${f.orgId}/campus`); assert.equal(c.workspace.campusSetup.status, "NOT_CONFIGURED");
   // Browsing one's workspace never bypasses MFA for privileged tool actions.
   await assert.rejects(f.staff.staff(f.actors.owner.id, f.actors.owner.sessionId, f.orgId), { status: 403 });
 });

@@ -1,0 +1,52 @@
+.bw-org-page:has(.bw-campus-root){max-width:1200px}
+.bw-campus-root{color:#20334b;--campus-line:#e3e9f3;--campus-muted:#66778f;max-width:1160px}
+.bw-campus-root h2,.bw-campus-root h3,.bw-campus-root h4{margin:0;color:#183355}
+.bw-campus-hero{display:flex;gap:22px;align-items:center;justify-content:space-between;padding:30px;border:1px solid #dce6f4;border-radius:20px;background:linear-gradient(115deg,#f0f6ff 0%,#fff 72%);margin-bottom:22px}
+.bw-campus-kicker,.bw-campus-overline{font-size:11px;font-weight:800;letter-spacing:.1em;color:#426aa3}
+.bw-campus-hero h2{font-size:clamp(25px,3vw,34px);letter-spacing:-.04em;margin:9px 0}
+.bw-campus-hero p:not(.bw-campus-kicker){max-width:590px;margin:0;color:#526881;font-size:14px}
+.bw-campus-hero-mark{width:82px;height:82px;border-radius:22px;background:#e0edff;color:#1b63c9;display:grid;place-items:center;flex-shrink:0}
+.bw-campus-tags{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:18px}
+.bw-campus-status,.bw-campus-engine{border-radius:30px;padding:6px 11px;font-size:11px;font-weight:750;border:1px solid #dbe4ef;background:white}
+.bw-campus-status{display:inline-flex;align-items:center;gap:7px}
+.bw-campus-status span{width:7px;height:7px;border-radius:50%;background:#e6a23c}
+.bw-campus-status-active span{background:#169a60}.bw-campus-status-blocked span,.bw-campus-status-paused span{background:#ce4949}
+.bw-campus-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,290px);gap:20px;align-items:start}
+.bw-campus-main,.bw-campus-side{display:grid;gap:18px;min-width:0}
+.bw-org-page .bw-campus-panel{border:1px solid var(--campus-line);background:#fff;border-radius:17px;padding:22px;margin:0}
+.bw-campus-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.bw-campus-panel-heading h3{margin-top:7px;font-size:19px;letter-spacing:-.02em}
+.bw-campus-panel-heading>span,.bw-campus-announcement time{font-size:12px;color:var(--campus-muted)}
+.bw-campus-yes,.bw-campus-no{font-size:12px;padding:6px 10px;border-radius:9px;background:#e8f7ed;color:#16734b}
+.bw-campus-no{background:#fff0ed;color:#a73d3d}
+.bw-campus-checks,.bw-campus-features{list-style:none;padding:0;margin:0;display:grid;gap:12px;font-size:13px}
+.bw-campus-checks li{display:flex;gap:12px;align-items:center}
+.bw-campus-checks span{font-weight:900;color:#1267c9;font-size:18px}
+.bw-campus-guidance{background:#fff7ee;border-radius:10px;padding:14px;margin-top:18px;font-size:13px}
+.bw-campus-guidance p{margin:6px 0}
+.bw-org-page .bw-campus-form,.bw-org-page .bw-campus-announcement-form{border:0;padding:0;margin:0;background:transparent;display:grid;gap:13px}
+.bw-campus-form label,.bw-campus-announcement-form label{display:grid;gap:7px;font-size:12px;font-weight:700;margin:0}
+.bw-campus-form input,.bw-campus-form select,.bw-campus-announcement-form input,.bw-campus-announcement-form textarea{background:#f9fbfe;border:1px solid #d5e0ed;border-radius:10px;padding:12px;font:inherit;font-size:13px}
+.bw-campus-form button,.bw-campus-announcement-form button{justify-self:start;min-height:39px;font-weight:700}
+.bw-campus-fixed{font-size:13px;margin:0;color:#556a83}
+.bw-campus-help,.bw-campus-caution{font-size:12px;color:#64738a;line-height:1.6}
+.bw-campus-transition{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:17px;border:1px solid #dce7f5;background:#f5f9ff;border-radius:13px;margin-top:20px}
+.bw-campus-transition strong{font-size:13px}.bw-campus-transition p{font-size:12px;color:#536985;margin:6px 0 0}
+.bw-campus-transition button{white-space:nowrap;font-size:12px}
+.bw-org-page .bw-campus-muted-button{background:#fff;color:#305478;border-color:#c8d8e9}
+.bw-campus-side h3{font-size:17px;margin:9px 0 16px}
+.bw-campus-side p{font-size:13px;color:#5d718b}
+.bw-campus-features li{padding-left:19px;position:relative;color:#496079}
+.bw-campus-features li:before{content:"✓";position:absolute;left:0;color:#167d5c}
+.bw-campus-staff-link,.bw-campus-back{display:inline-flex;margin-top:18px;font-size:13px;font-weight:700;text-decoration:none}
+.bw-campus-back{margin:0}
+.bw-campus-announcements{display:grid;gap:14px;margin-top:18px}
+.bw-org-page .bw-campus-announcement{border:1px solid var(--campus-line);background:#fff;padding:16px;border-radius:12px;margin:0}
+.bw-campus-announcement>div{display:flex;justify-content:space-between;gap:12px;align-items:start}
+.bw-campus-announcement h4{font-size:14px;max-width:70%}.bw-campus-announcement p{white-space:pre-wrap;font-size:13px;color:#4f637c}
+.bw-org-page .bw-campus-link-button{background:transparent;border:0;color:#a34343;font-size:12px;padding:0}
+.bw-campus-empty{font-size:13px;color:#62748a}
+.bw-campus-message{border:1px solid #f1cbc4;background:#fff2f0;padding:12px 16px;border-radius:10px;margin-bottom:16px}
+.bw-campus-success{border-color:#b5dbc5;background:#effaf2}
+@media(max-width:820px){.bw-campus-layout{grid-template-columns:1fr}.bw-campus-hero{padding:20px}.bw-campus-hero-mark{width:55px;height:55px}}
+@media(max-width:520px){.bw-campus-hero-mark{display:none}.bw-org-page .bw-campus-panel{padding:16px}.bw-campus-transition{flex-direction:column;align-items:stretch}.bw-campus-transition button{width:100%}}

@@ -1,3 +1,4 @@
+import MessagesPage from "./MessagesPage";
 import OrganizationPrograms from "../components/learning/OrganizationPrograms";
 import OrganizationAdmissions from "../components/learning/OrganizationApplications";
 import { subscribeFocus } from "../auth/focus-refresh";
@@ -107,9 +108,10 @@ function Workspace({ actor, usernameLabel, id, section }) {
     } catch (e) { if (life.current === current) { setError(e); if ([401, 403, 404].includes(e.status)) { setStaff(null); currentView.current = null; setView(null); setActing?.(null); setUsername(""); setPermissions([]); inviteRetry.current = null; setRetrying(false); changeEditorDirty(false); setGeneration(g => g + 1); } } }
     finally { if (life.current === current) { lock.current = false; setBusy(false); } }
   }
-  const campusAllowed = view?.membership?.role === "PRIMARY_ADMIN" && (view.organization.type === "SCHOOL" || view.organization.offersTraining);
+  const campusAllowed = view?.membership?.role === "PRIMARY_ADMIN" && (view.organization.type === "SCHOOL" || view.organization.offersTraining) || view?.permissions?.some(key => key.startsWith("organization.campus."));
   const sectionAllowed = !id || !view || section === "overview" || section === "profile" ||
     (section === "staff" && view.permissions.includes(MANAGE)) ||
+    (section === "messages" && view.membership?.role === "PRIMARY_ADMIN") ||
     (section === "posts" && view.permissions.includes("organization.posts.publish")) ||
     (section === "opportunities" && view.permissions.includes("organization.opportunities.manage")) ||
     (section === "applications" && view.permissions.includes("organization.applications.review")) ||
@@ -127,6 +129,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
     {id && view && sectionAllowed && section === "profile" && <OrganizationProfile key={`${id}:${generation}`} organization={view.organization} role={view.membership?.role} canEdit={view.membership?.role === "PRIMARY_ADMIN" || view.permissions.includes("organization.profile.manage")} />}
     {id && view && sectionAllowed && section === "overview" && <OrganizationOverview organization={view.organization} role={view.membership?.role} refreshVersion={`${generation}:${view.staffVersion}:${view.permissions.join(",")}`} />}
     {id && view && sectionAllowed && section === "campus" && <CampusSetupOverview organization={view.organization} />}
+    {id && view && sectionAllowed && section === "messages" && <MessagesPage />}
     {id && view && sectionAllowed && section === "posts" && <PostsPanel key={actor + ":" + id} organization={view.organization} disabled={stale || Boolean(error)} />}
     {id && view && sectionAllowed && section === "opportunities" && <OrganizationOpportunities key={actor + ":" + id} organization={view.organization} disabled={stale || Boolean(error)} />}
     {id && view && sectionAllowed && section === "applications" && <OrganizationApplications key={actor + ":" + id} organization={view.organization} disabled={stale || Boolean(error)} />}

@@ -3,7 +3,7 @@
 export const reservedMemberHandles = new Set([
   "admin", "api", "app", "applications", "assets", "auth", "credentials", "explore",
   "forgot-password", "help", "home", "learn", "learning", "login",
-  "management", "manual-identity", "network", "notifications",
+  "management", "manual-identity", "messages", "network", "notifications",
   "opportunities", "organization-workspace", "organizations",
   "partners", "people", "posts", "profile", "register", "search",
   "security", "settings", "signup", "superadmin", "work",
