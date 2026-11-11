@@ -45,7 +45,6 @@ export default function CampusSetupOverview({ organization }) {
   }, [id, organization.name, organization.type]);
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true); setError("");
     load(controller.signal).catch(e => { if (!controller.signal.aborted) setError(safeError(e)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
