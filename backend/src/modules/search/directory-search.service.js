@@ -35,7 +35,7 @@ function readCursor(cursor, viewer, q, filter) {
 }
 
 function peopleCandidates(query, viewer, fuzzy) {
-  const threshold = fuzzy?.includes(" ") ? 0.52 : fuzzy && fuzzy.length <= 4 ? 0.24 : 0.31;
+  const threshold = fuzzy?.includes(" ") ? 0.42 : fuzzy && fuzzy.length <= 4 ? 0.24 : 0.31;
   const fuzzyPeople = fuzzy ? Prisma.sql`
       UNION ALL
       SELECT nearest.id AS "personId", false AS direct FROM (
@@ -114,7 +114,7 @@ function organizationCandidates(query, fuzzy) {
   `;
   const nameQuery = Prisma.sql`to_tsvector('simple',
     o.name || ' ' || replace(coalesce(o.username, ''), '_', ' ')) @@ to_tsquery('simple', ${query})`;
-  const threshold = fuzzy?.includes(" ") ? 0.52 : fuzzy && fuzzy.length <= 4 ? 0.24 : 0.31;
+  const threshold = fuzzy?.includes(" ") ? 0.42 : fuzzy && fuzzy.length <= 4 ? 0.24 : 0.31;
   const fuzzyOrg = fuzzy ? Prisma.sql` OR (
     o.id IN (
       SELECT near.id FROM "Organization" near
@@ -158,6 +158,16 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
           WHEN greatest(word_similarity(${fuzzy}, lower(name)),
             similarity(${fuzzy}, lower(username))) >= 0.45 THEN 6
     ` : Prisma.empty;
+    // A fuzzy multiword suggestion must be close to *each* meaningful word.
+    // This prevents a query like "Staff fixt" from matching "Synthetic staff"
+    // solely because one word happens to match well.
+    const tokenMatches = fuzzy?.includes(" ")
+      ? Prisma.join(fuzzy.split(" ").map(word => {
+        const minimum = word.length <= 4 ? 0.24 : 0.31;
+        return Prisma.sql`(word_similarity(${word}, lower(name)) >= ${minimum}
+          OR word_similarity(${word}, lower(username)) >= ${minimum})`;
+      }), " AND ")
+      : Prisma.sql`true`;
     const rows = await prisma.$queryRaw(Prisma.sql`
       WITH matches AS (${candidates}), ranked AS (
         SELECT *, CASE
@@ -174,7 +184,7 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
       SELECT kind, id, username, name, headline, "photoId", rank FROM ranked
       -- Prefer exact/prefix results. Offer close spellings only when there are
       -- no authorized direct matches for this filter and query.
-      WHERE (direct OR NOT EXISTS (SELECT 1 FROM matches WHERE direct))
+      WHERE (direct OR (NOT EXISTS (SELECT 1 FROM matches WHERE direct) AND ${tokenMatches}))
       ${after ? Prisma.sql`AND (rank, kind, username) > (${after.rank}::int, ${after.kind}, ${after.username})` : Prisma.empty}
       ORDER BY rank, kind, username
       LIMIT ${pageSize + 1}
