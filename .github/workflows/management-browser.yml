@@ -19,8 +19,11 @@ jobs:
           node-version: '24.22.1'
           cache: npm
       - run: npm ci
-      - name: Install pinned Chromium and system dependencies
-        run: npx --no-install playwright install --with-deps chromium
+      # GitHub-hosted Ubuntu runners already contain Chromium's common runtime
+      # libraries. Avoid downloading optional font packages from Ubuntu mirrors:
+      # temporary mirror DNS outages can block all application browser tests.
+      - name: Install pinned Chromium browser
+        run: npx --no-install playwright install chromium
       - name: Desktop and mobile synthetic management journeys
         run: npm run test:browser --workspace frontend
       - name: Upload browser report and failure traces
