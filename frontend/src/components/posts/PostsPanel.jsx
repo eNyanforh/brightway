@@ -529,16 +529,19 @@ export default function PostsPanel({ organization, personal = false, view = "for
     const draft = { body, requestKey: publishKey.current };
     void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags, ...(type === "EVENT" && eventDetails ? { eventDetails } : {}), ...(type === "QUESTION" && questionDetails ? { questionDetails } : {}) }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
       const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false, views: 0, ...(type === "EVENT" ? { registration: { registered: false, count: 0 }, eventAttendees: [] } : {}), ...(type === "QUESTION" ? { answerCount: 0 } : {}) } : post;
-      setPage(previous => ({
-        ...previous,
-        items: [published, ...(previous?.items || []).filter(item => cardKey(item) !== cardKey(published))],
-      }));
+      // Pending submissions must never appear in Explore before approval.
+      if (!timeline || !memberComposer || post.moderationStatus === "PUBLISHED") {
+        setPage(previous => ({
+          ...previous,
+          items: [published, ...(previous?.items || []).filter(item => cardKey(item) !== cardKey(published))],
+        }));
+      }
       publishKey.current = null;
       setBody("");
       setType("ACHIEVEMENT");
       setTags([]);
       setComposerOpen(false);
-      setNotice(memberComposer ? (type === "QUESTION" ? "Question published." : type === "EVENT" ? "Event published." : "Achievement published.") : "Post published.");
+      setNotice(memberComposer ? "Submitted for moderation. Track the decision in My Posts." : "Post published.");
     }, { preserveOnDenied: inlineComposer });
   }
 
@@ -594,7 +597,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
       const data = await operation(controller.signal);
       if (controller.signal.aborted) throw new Error("This post action was cancelled.");
       setPage(previous => previous ? ({ ...previous, items: change(previous.items, data) }) : previous);
-      setNotice(data.post ? "Post updated." : "Post deleted.");
+      setNotice(data.post ? data.post.moderationStatus === "PENDING" ? "Changes submitted for review." : "Post updated." : "Post deleted.");
     } catch (failure) {
       if (!controller.signal.aborted) setError(failure);
       throw failure;
@@ -608,8 +611,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
     return managePost(post, signal => post.member
       ? api.memberEdit(post.id, payload, signal)
       : api.edit(organizationId, post.id, payload, signal),
-    (items, { post: updated }) => items.map(item => postKey(item) === postKey(post)
-      ? { ...item, ...updated } : item));
+    (items, { post: updated }) => updated.moderationStatus === "PENDING" && !personal
+      ? items.filter(item => postKey(item) !== postKey(post))
+      : items.map(item => postKey(item) === postKey(post) ? { ...item, ...updated } : item));
   }
 
   function withdraw(id) {
@@ -655,7 +659,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
       </div>
       {page?.items.length === 0 && (
         <p className="bw-post-empty">{organization ? "Your organization has no published posts yet." :
-          personal ? "You have no published posts yet." :
+          personal ? "You have no submissions yet." :
             view === "saved" ? "Save a post to find it here later." :
               view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
       )}
