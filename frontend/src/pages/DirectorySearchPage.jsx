@@ -133,7 +133,7 @@ function SearchResults({ q, kind }) {
 }
 
 export default function DirectorySearchPage() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const q = (params.get("q") || "").trim();
   const kind = filters.find(([value]) => value === params.get("kind"))?.[0] ?? "all";
   const searchable = q.length >= 2 && q.length <= 80;
