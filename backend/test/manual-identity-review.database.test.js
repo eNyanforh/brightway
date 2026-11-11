@@ -86,9 +86,8 @@ test("database manual identity requests serialize retries and decisions, revoke 
       const row = await db.memberPost.findUniqueOrThrow({ where: { id }, select: { moderationVersion: true } });
       return moderation.decide(moderator, id, { decision: "PUBLISHED", expectedVersion: row.moderationVersion, requestKey: randomUUID(), reason: "Submission follows BrightWay educational publishing standards." });
     }
-    assert.equal(publication.post.moderationStatus, "PENDING");
-    assert.equal(publication.post.moderationNotice.code, "SCREENING_UNAVAILABLE");
-    assert.match(publication.post.moderationNotice.nextStep, /Management review/i);
+    assert.equal(publication.post.moderationStatus, "PUBLISHED");
+    assert.equal(publication.post.moderationNotice, null);
     const postId = publication.post.id;
     assert.equal(retry.post.id, postId);
     assert.equal(publication.post.type, "POST");
@@ -111,14 +110,12 @@ test("database manual identity requests serialize retries and decisions, revoke 
     accounts.push(viewer);
     const viewerSession = await db.session.create({ data: { accountId: viewer.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000) } });
     const viewerActor = { accountId: viewer.id, sessionId: viewerSession.id };
-    assert.ok((await moderation.list(moderator)).items.some(item => item.id === postId));
-    assert.equal((await posts.memberList(actor, {})).items.find(item => item.id === postId)?.moderationStatus, "PENDING");
+    assert.ok((await moderation.list(moderator, { status: "PUBLISHED" })).items.some(item => item.id === postId));
+    assert.equal((await posts.memberList(actor, {})).items.find(item => item.id === postId)?.moderationStatus, "PUBLISHED");
     assert.deepEqual((await posts.memberList(actor, {})).items.find(item => item.id === postId)?.moderationNotice,
       publication.post.moderationNotice, "the reason persists on the private My Posts endpoint");
-    assert.equal((await posts.feed(viewerActor, {})).items.some(item => item.id === postId), false);
-    await assert.rejects(posts.readPost(viewerActor, "member", postId), { status: 404 });
-    await assert.rejects(posts.setLike(viewerActor, "member", postId, { liked: true }), { status: 404 });
-    await approvePost(postId);
+    assert.equal((await posts.feed(viewerActor, {})).items.some(item => item.id === postId), true);
+    assert.equal((await posts.readPost(viewerActor, "member", postId)).post.id, postId);
     assert.deepEqual(await posts.memberPhoto(viewerActor, owner.username, photo.id), { personId: owner.personId, photoId: photo.id });
     await assert.rejects(posts.memberPhoto(viewerActor, owner.username, randomUUID()), { status: 404 });
     for (const type of ["ACHIEVEMENT", "EVENT", "QUESTION"]) {
@@ -139,8 +136,8 @@ test("database manual identity requests serialize retries and decisions, revoke 
         ticketPriceCents: 0, currency: "USD", requiresApproval: false, capacity: null });
       if (type === "QUESTION") assert.deepEqual(post.questionDetails, typedDraft.questionDetails);
       assert.deepEqual(await posts.memberPublish(actor, typedDraft), { post });
-      assert.equal((await posts.feed(viewerActor, {})).items.some(item => item.id === post.id), false);
-      await approvePost(post.id);
+      assert.equal(post.moderationStatus, "PUBLISHED");
+      assert.equal((await posts.feed(viewerActor, {})).items.some(item => item.id === post.id), true);
       const owned = (await posts.memberList(actor, {})).items.find(item => item.id === post.id);
       const visible = (await posts.feed(viewerActor, {})).items.find(item => item.id === post.id);
       assert.equal(owned?.type, type);
@@ -280,68 +277,54 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal((await posts.readPost(viewerActor, "member", rejection.id)).post.id, rejection.id);
     await posts.memberWithdraw(actor, rejection.id);
 
-    // Synthetic provider verdicts let database integration exercise automatic
-    // publication without relying on external API credentials or network calls.
-    const automaticPosts = createOrganizationPosts({
-      ...config,
-      screen: async () => ({ moderationScreenStatus: "CLEAR", moderationFlags: [] }),
-      relevance: async () => ({
-        moderationRelevanceStatus: "RELEVANT", moderationRelevanceCategory: "EDUCATION",
-        moderationRelevanceReason: "Shows a concrete student learning project.",
-      }),
-    });
+    // Automatic publishing must not depend on AI configuration or network providers.
     const publicationDraft = { body: "I finished a university software engineering project and shared what I learned.",
       type: "ACHIEVEMENT", tags: ["Coding"], requestKey: randomUUID() };
-    const { post: autoPublished } = await automaticPosts.memberPublish(actor, publicationDraft);
-    assert.equal(autoPublished.moderationStatus, "PUBLISHED", "both AI verdicts immediately publish.");
+    const { post: autoPublished } = await posts.memberPublish(actor, publicationDraft);
+    assert.equal(autoPublished.moderationStatus, "PUBLISHED");
     assert.equal(autoPublished.moderationNotice, null);
     assert.equal((await posts.readPost(viewerActor, "member", autoPublished.id)).post.id, autoPublished.id);
     assert.equal((await moderation.list(moderator, { status: "PUBLISHED" })).items.some(row => row.id === autoPublished.id), true);
-    // Moderator takedown cannot be bypassed by minor revision, despite both AI checks passing.
+    // A published post edit remains visible immediately without AI screening.
+    const { post: regularEdit } = await posts.memberEdit(actor, autoPublished.id, {
+      expectedBody: autoPublished.body, expectedTags: autoPublished.tags,
+      body: "I completed my university software engineering project and shared the lessons.",
+      tags: ["Coding"],
+    });
+    assert.equal(regularEdit.moderationStatus, "PUBLISHED");
+    assert.equal((await posts.readPost(viewerActor, "member", autoPublished.id)).post.body, regularEdit.body);
+    // Human takedowns cannot be bypassed by editing a removed post.
     const down = await moderation.decide(moderator, autoPublished.id, {
-      decision: "REJECTED", expectedVersion: autoPublished.moderationVersion,
+      decision: "REJECTED", expectedVersion: regularEdit.moderationVersion,
       requestKey: randomUUID(), reason: "A moderator found a misleading claim requiring clarification.",
     });
     assert.equal(down.moderationStatus, "REJECTED");
-    const { post: editAfterRemoval } = await automaticPosts.memberEdit(actor, autoPublished.id, {
-      expectedBody: autoPublished.body, expectedTags: autoPublished.tags,
+    const { post: editAfterRemoval } = await posts.memberEdit(actor, autoPublished.id, {
+      expectedBody: regularEdit.body, expectedTags: regularEdit.tags,
       body: "I completed a university software engineering project and explained the tests.",
       tags: ["Coding"],
     });
-    assert.equal(editAfterRemoval.moderationStatus, "PENDING",
-      "a prior human takedown must require human review of a revised draft.");
+    assert.equal(editAfterRemoval.moderationStatus, "PENDING");
+    assert.equal(editAfterRemoval.moderationNotice.code, "MANUAL_REVIEW");
     await assert.rejects(posts.readPost(viewerActor, "member", autoPublished.id), { status: 404 });
     await approvePost(autoPublished.id);
     await posts.memberWithdraw(actor, autoPublished.id);
 
-    for (const scenario of [
-      { safety: "FLAGGED", relevance: "RELEVANT" },
-      { safety: "CLEAR", relevance: "OFF_TOPIC" },
-      { safety: "CLEAR", relevance: "UNCERTAIN" },
-      { safety: "UNAVAILABLE", relevance: "RELEVANT" },
-    ]) {
-      const screened = createOrganizationPosts({
-        ...config,
-        screen: async () => ({ moderationScreenStatus: scenario.safety,
-          moderationFlags: scenario.safety === "FLAGGED" ? ["harassment"] : [] }),
-        relevance: async () => ({
-          moderationRelevanceStatus: scenario.relevance,
-          moderationRelevanceCategory: "EDUCATION", moderationRelevanceReason: "Test classifier outcome",
-        }),
-      });
-      const { post: held } = await screened.memberPublish(actor, {
-        ...publicationDraft, requestKey: randomUUID(),
-      });
-      assert.equal(held.moderationStatus, "PENDING");
-      const expected = scenario.safety === "FLAGGED" ? "SAFETY_REVIEW"
-        : scenario.relevance === "OFF_TOPIC" ? "OFF_TOPIC"
-          : scenario.relevance === "UNCERTAIN" ? "UNCERTAIN" : "SCREENING_UNAVAILABLE";
-      assert.equal(held.moderationNotice.code, expected);
-      assert.ok(held.moderationNotice.reasons.length > 0);
-      assert.equal((await posts.memberList(actor, {})).items.find(row => row.id === held.id)?.moderationNotice.code, expected);
-      await assert.rejects(posts.readPost(viewerActor, "member", held.id), { status: 404 });
-      await posts.memberWithdraw(actor, held.id);
-    }
+    // Existing legacy PENDING posts remain private until the author edits them or staff approves.
+    const historicPending = await db.memberPost.create({ data: {
+      authorId: owner.id, requestKey: randomUUID(), body: "A legacy draft awaiting review.",
+      type: "ACHIEVEMENT", tags: ["Learning"], moderationStatus: "PENDING", createdAt: date,
+    } });
+    const ownerPending = (await posts.memberList(actor, {})).items.find(row => row.id === historicPending.id);
+    assert.equal(ownerPending.moderationNotice.code, "MANUAL_REVIEW");
+    await assert.rejects(posts.readPost(viewerActor, "member", historicPending.id), { status: 404 });
+    const { post: revisedHistoric } = await posts.memberEdit(actor, historicPending.id, {
+      expectedBody: historicPending.body, expectedTags: historicPending.tags,
+      body: "I have updated my learning achievement.", tags: ["Learning"],
+    });
+    assert.equal(revisedHistoric.moderationStatus, "PUBLISHED");
+    assert.equal((await posts.readPost(viewerActor, "member", historicPending.id)).post.id, historicPending.id);
+    await posts.memberWithdraw(actor, historicPending.id);
 
     const controlledEvent = {
       title: "Host-approved workshop", startAt: "2027-01-15T12:00:00Z",
@@ -353,7 +336,6 @@ test("database manual identity requests serialize retries and decisions, revoke 
       body: "Limited-seat approval workshop.", requestKey: randomUUID(),
       type: "EVENT", tags: ["Education"], eventDetails: controlledEvent,
     });
-    await approvePost(restricted.id);
     const pending = await posts.registerEvent(viewerActor, restricted.id, { registered: true });
     assert.deepEqual(pending, {
       registration: { registered: false, status: "PENDING", count: 0 },
@@ -396,7 +378,6 @@ test("database manual identity requests serialize retries and decisions, revoke 
       body: "Separate approval decisions.", requestKey: randomUUID(), type: "EVENT",
       tags: ["Education"], eventDetails: { ...controlledEvent, title: "Approval decisions", capacity: 3 },
     });
-    await approvePost(declinedEvent.id);
     await posts.registerEvent(viewerActor, declinedEvent.id, { registered: true });
     const reviewToDecline = await posts.eventRequests(actor, declinedEvent.id);
     const rejected = await posts.decideEventRequest(actor, declinedEvent.id, reviewToDecline.items[0].id,
