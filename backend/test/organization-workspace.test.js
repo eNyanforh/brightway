@@ -11,10 +11,10 @@ async function fixture(input) {
 }
 test("approved primary administrator receives scoped ready tools and honest planned tools without Campus activation", async () => {
   const f = await fixture(), c = await f.context();
-  assert.deepEqual(c.workspace.available.map(m => m.key), ["profile", "dashboard", "staff", "credentials", "posts"]);
-  assert.deepEqual(c.workspace.available.map(m => m.label), ["Profile", "Dashboard", "Staff", "Credential Review", "Posts"]);
+  assert.deepEqual(c.workspace.available.map(m => m.key), ["profile", "dashboard", "staff", "credentials", "posts", "opportunities", "applications"]);
+  assert.deepEqual(c.workspace.available.map(m => m.label), ["Profile", "Dashboard", "Staff", "Credential Review", "Posts", "Opportunities", "Applications"]);
   assert(c.workspace.available.filter(m => !m.external).every(m => m.to.startsWith(`/organization-workspace/${f.orgId}`)));
-  assert.deepEqual(c.workspace.planned.map(m => m.key), ["opportunities", "applications", "programs", "admissions"]);
+  assert.deepEqual(c.workspace.planned.map(m => m.key), ["programs", "admissions"]);
   assert(c.workspace.planned.every(m => !m.to)); assert.equal(c.workspace.campusActive, false);
   assert.equal(c.workspace.campusSetup.to, `/organization-workspace/${f.orgId}/campus`); assert.equal(c.workspace.campusSetup.status, "COMING_SOON");
   // Browsing one's workspace never bypasses MFA for privileged tool actions.

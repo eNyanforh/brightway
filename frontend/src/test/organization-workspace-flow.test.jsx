@@ -27,7 +27,7 @@ const context = { accountId: "owner", organization, permissions: [MANAGE, REVIEW
 const profile = { version: 1, photo: null, location: {}, skills: [], interests: [] };
 const reply = (data, status = 200) => new Response(JSON.stringify(status < 400 ? { success: true, data } : { success: false, message: data }), { status, headers: { "Content-Type": "application/json" } });
 function mount(path = base, handler = () => reply(context)) {
-  const fetch = vi.fn((url, options) => url.endsWith("/profile/me") ? reply({ profile }) : url.includes("/dashboard?") ? reply(dashboardFixture(id, Number(new URL(url, "http://localhost").searchParams.get("days")), "permission_required")) : handler(url, options)); vi.stubGlobal("fetch", fetch);
+  const fetch = vi.fn((url, options) => url.includes("/opportunities?") ? reply({ items: [], nextCursor: null }) : url.endsWith("/profile/me") ? reply({ profile }) : url.includes("/dashboard?") ? reply(dashboardFixture(id, Number(new URL(url, "http://localhost").searchParams.get("days")), "permission_required")) : handler(url, options)); vi.stubGlobal("fetch", fetch);
   render(<AuthContext.Provider value={{ account: { id: "owner", username: "owner", person: { firstName: "Test", lastName: "Owner" } } }}><MemoryRouter initialEntries={[path]}><Routes><Route element={<AppLayout />}>
     <Route path="/work" element={<WorkPage />} />
     <Route path="/organizations/new" element={<OrganizationRequestsPage />} />

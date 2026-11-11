@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { staffPhotoUrl } from "../../api/organization-staff";
 import WorkspaceIcon from "../workspace/WorkspaceIcon";
 import "./organization-staff.css";
-const liveKeys = new Set(["organization.profile.manage", "organization.members.manage", "organization.credentials.education.review", "organization.credentials.experience.review"]);
+const liveKeys = new Set(["organization.profile.manage", "organization.members.manage", "organization.posts.publish", "organization.opportunities.manage", "organization.applications.review", "organization.credentials.education.review", "organization.credentials.experience.review"]);
 const MANAGE = "organization.members.manage";
 const tabs = [["all", "All staff", "all"], ["enabled", "Enabled", "enabled"], ["revoked", "Revoked", "revoked"], ["invitations", "Invitations", "pending"]];
 const staffName = person => person.fullName?.trim() || "BrightWay member";

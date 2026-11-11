@@ -8,9 +8,9 @@ const author = { name: "Maya Cole", username: "maya", photoId: null, verified: t
 const question = { kind: "questions", name: "How does AI literacy improve schools?",
   summary: "Students can exchange learning ideas", tags: ["education"], member: author,
   createdAt: "2026-11-10T12:00:00Z", href: "/explore?source=member&post=" + postId };
-const event = { ...question, kind: "events", name: "School innovation weekend" };
+const event = { ...question, kind: "events", name: "School innovation weekend", href: "/explore?source=member&post=44444444-4444-4444-8444-444444444444" };
 
-test("search has separate content filters, real post links, and an honest opportunity placeholder", async ({ page }) => {
+test("search has separate content filters, real post links, and published opportunity discovery", async ({ page }) => {
   const errors = [];
   const calls = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -45,7 +45,7 @@ test("search has separate content filters, real post links, and an honest opport
   await expect(page.getByRole("heading", { name: "Community content" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Maya Cole/ }).first()).toBeVisible();
   await filters.getByRole("link", { name: "Opportunities", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Opportunity discovery is coming" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No opportunities found" })).toBeVisible();
   expect(calls).toEqual(["questions", "events", "all"]);
   expect(errors).toEqual([]);
 });

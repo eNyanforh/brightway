@@ -35,6 +35,7 @@ async function fixture(page, posts = [fixturePost]) {
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
       case "/api/v1/work/access": return reply({ hasWork: false });
       case "/api/v1/explore/posts": return reply({ items: posts, nextCursor: null });
+      case "/api/v1/opportunities": return reply({ items: [], nextCursor: null });
       case "/api/v1/posts/me": {
         const draft = request.postDataJSON();
         writes.push(draft);

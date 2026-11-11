@@ -28,7 +28,7 @@ it("opens the server-authorized organization context, protects the primary admin
 it("invites by username with explicit permissions, scope version and one cookie-bound request", async () => {
   let release; const pending = new Promise(resolve => { release = resolve; }); const f = mount((url, options) => options?.method === "POST" ? pending : defaultRead(url));
   await openInvite(f); await f.user.type(screen.getByLabelText("BrightWay username"), "new_staff");
-  const form = screen.getByLabelText("BrightWay username").closest("form"); await f.user.click(within(form).getByText(/Upcoming capabilities/)); await f.user.click(within(form).getByLabelText("Publish posts")); fireEvent.submit(form); fireEvent.submit(form);
+  const form = screen.getByLabelText("BrightWay username").closest("form"); await f.user.click(within(form).getByLabelText("Publish posts")); fireEvent.submit(form); fireEvent.submit(form);
   await waitFor(() => expect(f.fetch.mock.calls.filter(([, o]) => o?.method === "POST")).toHaveLength(1));
   const [, options] = f.fetch.mock.calls.find(([, o]) => o?.method === "POST"); const body = JSON.parse(options.body); expect(body).toMatchObject({ username: "new_staff", permissions: [POSTS], expectedStaffVersion: 1 }); expect(body.idempotencyKey).toBeTruthy(); expect(options.credentials).toBe("include");
   release(reply({ id: inviteId })); await screen.findByText(/Saved. Organization access/);
@@ -115,7 +115,7 @@ it("restores access with the revoked member's saved permissions rather than an e
     return url.endsWith("/staff") ? reply({ ...staff, members: [staff.members[0], { ...staff.members[1], enabled: restored, permissions: restored ? [POSTS] : [], assignedPermissions: [POSTS], canManage: true }] }) : reply(context);
   });
   await f.user.click(await screen.findByRole("button", { name: "Manage Grace Johnson" }));
-  const dialog = screen.getByRole("dialog"); await f.user.click(within(dialog).getByText(/Upcoming capabilities/));
+  const dialog = screen.getByRole("dialog");
   expect(within(dialog).getByLabelText("Publish posts").checked).toBe(true);
   await f.user.click(within(dialog).getByLabelText("Membership enabled")); await f.user.click(within(dialog).getByRole("button", { name: "Save permissions for Grace Johnson" }));
   await screen.findByText(/Saved. Organization access/);

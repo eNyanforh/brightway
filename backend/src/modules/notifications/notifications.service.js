@@ -167,7 +167,7 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
       });
     },
 
-    async list(actor, inputCursor) {
+    async list(actor, inputCursor, view = "all") {
       const viewer = await actorAccount(prisma, actor);
       let cursor = null;
       if (inputCursor) {
@@ -181,23 +181,33 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
         ? Prisma.sql`AND (n."createdAt" < ${boundary} OR (n."createdAt" = ${boundary} AND n."id" < ${cursor.id}))`
         : Prisma.empty;
       const rows = await prisma.$queryRaw(Prisma.sql`
-        SELECT n."id", n."viewedOn", n."createdAt", n."readAt",
-          a."username", p."firstName", p."middleName", p."lastName"
-        FROM "ProfileViewNotification" n
-        JOIN "Account" a ON a."id" = n."viewerId" AND a."status" = 'ACTIVE'
-        JOIN "Person" p ON p."id" = a."personId"
-        WHERE n."recipientId" = ${viewer.id}
+        WITH notices AS (
+          SELECT n."id", n."viewedOn", n."createdAt", n."readAt", 'PROFILE_VIEW' AS kind,
+            a."username", p."firstName", p."middleName", p."lastName",
+            NULL::text AS "applicationId", NULL::text AS title, NULL::text AS status
+          FROM "ProfileViewNotification" n
+          JOIN "Account" a ON a."id" = n."viewerId" AND a."status" = 'ACTIVE'
+          JOIN "Person" p ON p."id" = a."personId"
+          WHERE n."recipientId" = ${viewer.id}
+          UNION ALL
+          SELECT e."id", NULL::date AS "viewedOn", e."createdAt", e."readAt", 'APPLICATION_STATUS' AS kind,
+            NULL::text AS username, NULL::text AS "firstName", NULL::text AS "middleName", NULL::text AS "lastName",
+            app."id" AS "applicationId", app."opportunitySnapshot"->>'title' AS title, e."toStatus"::text AS status
+          FROM "OpportunityApplicationEvent" e JOIN "OpportunityApplication" app ON app."id" = e."applicationId"
+          WHERE app."applicantId" = ${viewer.id} AND e."dismissedAt" IS NULL
+            AND e."toStatus" IN ('UNDER_REVIEW', 'SHORTLISTED', 'SELECTED', 'NOT_SELECTED')
+        ) SELECT n.* FROM notices n WHERE true
+          ${view === "unread" ? Prisma.sql`AND n."readAt" IS NULL` : Prisma.empty}
           ${cursorFilter}
-        ORDER BY n."createdAt" DESC, n."id" DESC
-        LIMIT 31`);
+        ORDER BY n."createdAt" DESC, n."id" DESC LIMIT 31`);
       await assertNetworkSession(prisma, actor, now);
-      const items = rows.slice(0, 30).map(row => ({
-        id: row.id,
-        viewedOn: row.viewedOn,
-        createdAt: row.createdAt,
-        readAt: row.readAt,
+      const items = rows.slice(0, 30).map(row => row.kind === "APPLICATION_STATUS" ? {
+        id: row.id, kind: row.kind, createdAt: row.createdAt, readAt: row.readAt,
+        application: { id: row.applicationId, title: row.title, status: row.status },
+      } : {
+        id: row.id, viewedOn: row.viewedOn, createdAt: row.createdAt, readAt: row.readAt,
         viewer: { username: row.username, fullName: [row.firstName, row.middleName, row.lastName].filter(Boolean).join(" ") },
-      }));
+      });
       const last = rows[29];
       return {
         items,
@@ -213,7 +223,8 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
         await actorAccount(tx, actor);
         const result = await tx.profileViewNotification.updateMany({ where: { id, recipientId: actor.accountId, readAt: null }, data: { readAt: now() } });
         await assertNetworkSession(tx, actor, now);
-        return { updated: result.count === 1 };
+        const applications = await tx.opportunityApplicationEvent.updateMany({ where: { id, application: { applicantId: actor.accountId }, readAt: null }, data: { readAt: now() } });
+        return { updated: result.count + applications.count > 0 };
       });
     },
 
@@ -223,7 +234,8 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
         await actorAccount(tx, actor);
         const result = await tx.profileViewNotification.deleteMany({ where: { id, recipientId: actor.accountId } });
         await assertNetworkSession(tx, actor, now);
-        return { dismissed: result.count === 1 };
+        const applications = await tx.opportunityApplicationEvent.updateMany({ where: { id, application: { applicantId: actor.accountId }, dismissedAt: null }, data: { dismissedAt: now() } });
+        return { dismissed: result.count + applications.count > 0 };
       });
     },
 
@@ -232,7 +244,8 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
         await actorAccount(tx, actor);
         const result = await tx.profileViewNotification.updateMany({ where: { recipientId: actor.accountId, readAt: null }, data: { readAt: now() } });
         await assertNetworkSession(tx, actor, now);
-        return { updated: result.count };
+        const applications = await tx.opportunityApplicationEvent.updateMany({ where: { application: { applicantId: actor.accountId }, readAt: null, dismissedAt: null, toStatus: { in: ["UNDER_REVIEW", "SHORTLISTED", "SELECTED", "NOT_SELECTED"] } }, data: { readAt: now() } });
+        return { updated: result.count + applications.count };
       });
     },
   };

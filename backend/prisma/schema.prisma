@@ -38,6 +38,9 @@ enum PersonGender {
 }
 
 model Account {
+  opportunityListings Opportunity[]
+  opportunityApplications OpportunityApplication[]
+  applicationEvents OpportunityApplicationEvent[]
   profileVisitsReceived ProfileVisit[] @relation("ProfileVisitOwner")
   profileVisitsMade ProfileVisit[] @relation("ProfileVisitViewer")
   searchAppearancesReceived ProfileSearchAppearance[] @relation("ProfileSearchOwner")
@@ -920,6 +923,7 @@ model OrganizationRequestAudit {
   @@index([requestId, createdAt, id])
 }
 model Organization {
+  opportunities Opportunity[]
   posts OrganizationPost[]
   followers NetworkFollow[]
   accessVersion Int @default(0)
@@ -1542,4 +1546,108 @@ model ProfileSearchAppearance {
   @@unique([ownerId, viewerId, searchedOn])
   @@index([ownerId, searchedOn])
   @@index([viewerId])
+}
+
+// Opportunity applications are a separate domain from personal feed events.
+enum OpportunityType {
+  JOB
+  SCHOLARSHIP
+  CHALLENGE
+  EVENT
+}
+enum OpportunityStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  CLOSED
+  CANCELLED
+  REMOVED
+}
+enum OpportunityApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  SHORTLISTED
+  SELECTED
+  NOT_SELECTED
+  WITHDRAWN
+}
+model Opportunity {
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  authorId String
+  author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  requestKey String
+  inputHash String @db.VarChar(64)
+  type OpportunityType
+  title String @db.VarChar(160)
+  description String @db.VarChar(12000)
+  location String @db.VarChar(180)
+  workMode String @db.VarChar(16)
+  deadline DateTime
+  questions Json
+  version Int @default(1)
+  status OpportunityStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  applications OpportunityApplication[]
+  @@unique([organizationId, authorId, requestKey])
+  @@index([status, type, deadline, createdAt, id])
+  @@index([organizationId, createdAt, id])
+}
+model OpportunityApplication {
+  id String @id @default(uuid())
+  opportunityId String
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  applicantId String
+  applicant Account @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  status OpportunityApplicationStatus @default(DRAFT)
+  version Int @default(1)
+  answers Json
+  // Immutable, consented professional information, never private contact fields.
+  profileSnapshot Json?
+  opportunitySnapshot Json?
+  feedback String @default("") @db.VarChar(1000)
+  submittedAt DateTime?
+  withdrawnAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  files OpportunityApplicationFile[]
+  events OpportunityApplicationEvent[]
+  @@unique([opportunityId, applicantId])
+  @@index([applicantId, createdAt, id])
+  @@index([opportunityId, status, createdAt, id])
+}
+model OpportunityApplicationFile {
+  id String @id @default(uuid())
+  applicationId String
+  application OpportunityApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  questionId String
+  storageKey String @unique
+  contentType String @db.VarChar(64)
+  size Int
+  createdAt DateTime @default(now())
+  @@unique([applicationId, questionId])
+}
+model OpportunityApplicationEvent {
+  id String @id @default(uuid())
+  applicationId String
+  application OpportunityApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  actorId String
+  actor Account @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  fromStatus OpportunityApplicationStatus?
+  toStatus OpportunityApplicationStatus
+  feedback String @default("") @db.VarChar(1000)
+  readAt DateTime?
+  dismissedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([applicationId, createdAt, id])
+}
+model OpportunityUploadBudget {
+  accountId String
+  day DateTime @db.Date
+  attempts Int @default(0)
+  @@id([accountId, day])
 }

@@ -29,7 +29,7 @@ async function request(path, { method = "GET", body, signal } = {}) {
 
 export const notificationsApi = {
   viewProfile: (username, signal) => request(`/profiles/${encodeURIComponent(username)}/view`, { method: "POST", body: {}, signal }),
-  list: (cursor, signal) => request(`/notifications${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`, { signal }),
+  list: (cursor, signal, view = "all") => request("/notifications" + (cursor || view === "unread" ? "?" + new URLSearchParams({ ...(cursor ? { cursor } : {}), ...(view === "unread" ? { view } : {}) }) : ""), { signal }),
   markRead: (id, signal) => request(`/notifications/${encodeURIComponent(id)}/read`, { method: "POST", body: {}, signal }),
   dismiss: (id, signal) => request(`/notifications/${encodeURIComponent(id)}/dismiss`, { method: "POST", body: {}, signal }),
   markAllRead: signal => request("/notifications/read-all", { method: "POST", body: {}, signal }),

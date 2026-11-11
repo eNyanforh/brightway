@@ -46,7 +46,8 @@ const NetworkPage = lazy(() => import("../pages/NetworkPage"));
 const NotificationsPage = lazy(() => import("../pages/NotificationsPage"));
 const DirectorySearchPage = lazy(() => import("../pages/DirectorySearchPage"));
 const PublicPersonPage = lazy(() => import("../pages/PublicPersonPage"));
-import OpportunitiesPage from "../pages/OpportunitiesPage";
+const OpportunitiesPage = lazy(() => import("../pages/OpportunitiesPage"));
+const OpportunityDetailPage = lazy(() => import("../pages/OpportunityDetailPage"));
 import ProfilePage from "../pages/ProfilePage";
 import LearningPage from "../pages/LearningPage";
 
@@ -108,6 +109,8 @@ export default function AppRoutes() {
           <Route path="/organization-workspace/:id/campus" element={<WorkspaceRoute section="campus" />} />
           <Route path="/organization-workspace/:id/staff" element={<WorkspaceRoute section="staff" />} />
           <Route path="/organization-workspace/:id/posts" element={<WorkspaceRoute section="posts" />} />
+          <Route path="/organization-workspace/:id/opportunities" element={<WorkspaceRoute section="opportunities" />} />
+          <Route path="/organization-workspace/:id/applications" element={<WorkspaceRoute section="applications" />} />
           <Route path="/organization-workspace/:id" element={<WorkspaceRoute />} />
           <Route path="/work" element={<Suspense fallback={<p role="status">Loading My Workspace…</p>}><WorkPage /></Suspense>} />
           <Route path="/work/requests/:id/edit" element={<OrganizationRequestsPage />} />
@@ -128,7 +131,9 @@ export default function AppRoutes() {
           <Route path="/notifications" element={<Suspense fallback={<p role="status">Loading notifications…</p>}><NotificationsPage /></Suspense>} />
           <Route path="/people/:username" element={<LegacyMemberProfileRedirect />} />
 
-          <Route path="/opportunities" element={<OpportunitiesPage />} />
+          <Route path="/opportunities" element={<Suspense fallback={<p role="status">Loading opportunities…</p>}><OpportunitiesPage /></Suspense>} />
+          <Route path="/opportunities/:id" element={<Suspense fallback={<p role="status">Opening opportunity…</p>}><OpportunityDetailPage /></Suspense>} />
+          <Route path="/applications/:id" element={<Suspense fallback={<p role="status">Opening application…</p>}><OpportunityDetailPage application /></Suspense>} />
 
           <Route path="/learning" element={<LearningPage />} />
           <Route path="/:username" element={<Suspense fallback={<p role="status">Opening profile…</p>}><PublicPersonPage /></Suspense>} />

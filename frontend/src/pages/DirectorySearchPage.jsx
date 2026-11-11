@@ -5,6 +5,7 @@ import { memberPhotoUrl } from "../api/organization-posts";
 import NavigationIcon from "../components/layout/NavigationIcon";
 import VerificationBadge from "../components/VerificationBadge";
 import ContentSearchResults from "./ContentSearchResults";
+import OpportunityBrowser from "../components/opportunities/OpportunityBrowser";
 import "./directory-search.css";
 
 const filters = [
@@ -173,15 +174,13 @@ export default function DirectorySearchPage() {
               <SearchResults key={JSON.stringify([q, "all"])} q={q} kind="all" />
               <h2 className="bw-directory-group-heading">Community content</h2>
               <ContentSearchResults key={JSON.stringify([q, "content"])} q={q} kind="all" />
+              <h2 className="bw-directory-group-heading">Opportunities</h2>
+              <OpportunityBrowser key={JSON.stringify([q, "opportunities"])} q={q} />
             </>
           ) : kind === "people" || kind === "organizations" ? (
             <SearchResults key={JSON.stringify([q, kind])} q={q} kind={kind} />
           ) : kind === "opportunities" ? (
-            <section className="bw-directory-intro" aria-label="Opportunity search status">
-              <span className="bw-directory-intro-icon"><NavigationIcon name="opportunities" size={22} /></span>
-              <h2>Opportunity discovery is coming</h2>
-              <p>Published opportunities will appear here once BrightWay's verified-provider opportunity workflow is available. No opportunity listings are indexed yet.</p>
-            </section>
+            <OpportunityBrowser key={JSON.stringify([q, "opportunities"])} q={q} />
           ) : (
             <ContentSearchResults key={JSON.stringify([q, kind])} q={q} kind={kind} />
           )}
