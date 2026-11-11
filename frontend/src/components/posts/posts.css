@@ -1777,3 +1777,26 @@
   .bw-post-manage-dialog { width: 100%; max-height: 95dvh; border-radius: 18px 18px 0 0; }
   .bw-post-manage-fields .bw-post-manage-two { grid-template-columns: 1fr; }
 }
+
+
+/* Author-only moderation status; unpublished posts never enter public feeds. */
+.bw-post-review-state {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  margin: 10px 0 12px;
+  border: 1px solid #d7e4f5;
+  border-radius: 11px;
+  background: #f4f8ff;
+  color: #415a78;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.bw-post-review-state > strong { color: #21589a; font-size: 13px; }
+.bw-post-review-state[data-status="REJECTED"] {
+  background: #fff6f3;
+  border-color: #f3d3c9;
+  color: #884b3c;
+}
+.bw-post-review-state[data-status="REJECTED"] > strong { color: #aa3d24; }
+.bw-post-review-state p { margin: 2px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
