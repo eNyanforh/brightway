@@ -30,6 +30,20 @@ Never put keys in \`VITE_*\` variables or client requests. The safety moderation
 
 Only post type, body, topic tags, question title/intent, and event title/venue are submitted to these classifiers. Private meeting URLs, personal contacts, application materials, identity evidence and other private records are not included. Requests are time-bounded and errors do not log private content or secrets. The relevance classifier uses strict structured JSON and treats post content as untrusted data.
 
+## Immediate and persistent author feedback
+
+**No post is silently held.** Every new or edited post that cannot be automatically published returns an author-only \`moderationNotice\` with a status, explanation(s), and actionable next step. BrightWay shows the explanation immediately beside the composer in Explore and retains it on the private **My posts** card after browser refresh or device change. An author can always view, revise, or withdraw the post. The public feed and other members never receive these notices.
+
+- **Potential safety concern**: Clarifies the safety classifier flagged content for review; it is not a definitive violation. Encourages reviewing wording and permits a human decision.
+- **Off-topic**: Explains that the educational/career connection was not identified; suggests adding the actual learning, project, achievement, skills, or career context.
+- **Uncertain relevance**: Explains the AI could not confidently classify the post and advises clarifying the educational purpose.
+- **Incomplete or unavailable screening**: Explains the automated check was incomplete and explicitly says the author has not been found in violation. No action is required; the saved post awaits manual review.
+- **Overlapping concerns**: Presents each relevant cause, not a misleading single generic status.
+- **Human-declined or removed posts**: Shows Management's decision reason and explains that an edited revision remains private until Management approves it.
+- **Earlier pending posts** without screening metadata: Show a fallback explanation that Management review is required.
+
+Messages are generated from persisted, bounded status values rather than raw classifier prose, prompts or safety thresholds. They are stable for idempotent retries and do not disclose provider credentials. This is on-screen feedback and private post-history feedback, not an email or push notification.
+
 ## Management remains in control after publication
 
 Open **BrightWay Management → Post review**, with the independent staff realm, \`moderation-agent\` capability and fresh MFA.
