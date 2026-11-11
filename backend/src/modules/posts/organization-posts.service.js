@@ -1441,7 +1441,6 @@ export function createOrganizationPosts({ prisma, now = () => new Date(), screen
 
     async memberPublish(actor, input) {
       const data = parse(memberPostInput, input, "Choose a post type, write 1 to 2,000 characters, and add 1 to 5 distinct topic tags.");
-      if (!data.tags.length) throw fail(400, "Add at least one topic tag before submitting for review.");
       await assertNetworkSession(prisma, actor, now);
       if (!(await memberEligibility(prisma, actor.accountId)).identityVerified)
         throw fail(403, "Verify your identity before submitting a personal post.");
