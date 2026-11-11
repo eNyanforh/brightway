@@ -51,6 +51,13 @@ export default function AppHeader({
     return () => clearTimeout(wait);
   }, [personalSearch, onSearchPage, searchValue, currentQuery, location.search, navigate]);
 
+  // The mobile search icon opens the results route; focus the only input there.
+  useEffect(() => {
+    if (personalSearch && onSearchPage && window.matchMedia?.("(max-width: 700px)").matches) {
+      inputRef.current?.focus();
+    }
+  }, [personalSearch, onSearchPage]);
+
   // Lightweight, debounced live previews away from the results page. Reuse
   // public, authenticated search APIs rather than introducing a second index.
   useEffect(() => {
