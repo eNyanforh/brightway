@@ -7,7 +7,7 @@ async function fixture(page) {
   const state = { failed: true, sends: [], messages: [incoming], errors: [] };
   page.on("pageerror", error => state.errors.push(error.message));
   await page.addInitScript(() => { window.EventSource = class { addEventListener() {} close() {} }; });
-  await page.route("**/api/**", route => {
+  await page.route("**/api/v1/**", route => {
     const url = new URL(route.request().url()), body = route.request().postDataJSON();
     const reply = (data, status = 200) => route.fulfill({ status, json: status < 400 ? { success: true, data } : { success: false, message: data } });
     if (url.pathname.endsWith("/auth/me")) return reply({ account });
