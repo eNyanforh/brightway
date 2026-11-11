@@ -1,12 +1,12 @@
 import { opportunitiesApi as api } from "../../api/opportunities";
-export default function ApplicationQuestions({ questions, answers, onChange, files = [], onFile, disabled, applicationId, organizationId, readOnly = false }) {
+export default function ApplicationQuestions({ questions, answers, onChange, files = [], onFile, disabled, applicationId, organizationId, readOnly = false, filesApi = api }) {
   return <div className="bw-op-questions">{questions.map((q, index) => {
     const value = answers[q.id];
     const file = files.find(f => f.questionId === q.id);
     return <fieldset key={q.id} className="bw-op-question" disabled={disabled}>
       <legend>{index + 1}. {q.label}{q.required && <span aria-label="required"> *</span>}</legend>
       {q.type === "FILE_UPLOAD" ? <>
-        {file && <a href={api.filesUrl(applicationId, file.id, organizationId)} download>Download attachment ({Math.ceil(file.size / 1024)} KB)</a>}
+        {file && <a href={filesApi.filesUrl(applicationId, file.id, organizationId)} download>Download attachment ({Math.ceil(file.size / 1024)} KB)</a>}
         {!readOnly && <label className="bw-op-file">{file ? "Replace attachment" : "Choose a file"}<input type="file" aria-label={q.label} accept="application/pdf,image/jpeg,image/png,image/webp" onChange={e => { const selected = e.target.files?.[0]; if (selected) onFile(q.id, selected); e.target.value = ""; }} /><span>PDF, JPG, PNG, or WebP · up to 5 MiB</span></label>}
         {readOnly && !file && <p>No file provided</p>}
       </> : readOnly ? <p className="bw-op-answer">{value === undefined || value === "" ? "No answer provided" : typeof value === "boolean" ? value ? "Yes" : "No" : Array.isArray(value) ? value.join(", ") : value}</p>

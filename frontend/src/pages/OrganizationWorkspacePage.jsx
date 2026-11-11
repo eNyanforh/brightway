@@ -1,3 +1,5 @@
+import OrganizationPrograms from "../components/learning/OrganizationPrograms";
+import OrganizationAdmissions from "../components/learning/OrganizationApplications";
 import { subscribeFocus } from "../auth/focus-refresh";
 import { useOrganizationBootstrap } from "../components/organizations/organization-bootstrap-context";
 import OrganizationStaff from "../components/organizations/OrganizationStaff";
@@ -111,6 +113,8 @@ function Workspace({ actor, usernameLabel, id, section }) {
     (section === "posts" && view.permissions.includes("organization.posts.publish")) ||
     (section === "opportunities" && view.permissions.includes("organization.opportunities.manage")) ||
     (section === "applications" && view.permissions.includes("organization.applications.review")) ||
+    ((view.organization.offersTraining || view.organization.type === "SCHOOL") && section === "programs" && view.permissions.includes("organization.programs.manage")) ||
+    ((view.organization.offersTraining || view.organization.type === "SCHOOL") && section === "admissions" && view.permissions.includes("organization.admissions.review")) ||
     (section === "campus" && campusAllowed);
   return <section className={`bw-org-page${section === "profile" ? " bw-org-profile-page" : section === "overview" ? " bw-org-dashboard-page" : section === "staff" ? " bw-org-staff-page" : ""}`} aria-label={section === "profile" ? "Organization profile" : undefined}>
     {(section === "overview" || section === "staff") && <header className="bw-dashboard-page-heading"><nav className="bw-dashboard-breadcrumb" aria-label="Workspace breadcrumb"><Link to="/work">My Workspace</Link><span aria-hidden="true">/</span><span>{section === "staff" ? "Staff" : "Organization workspace"}</span></nav><div className="bw-dashboard-heading-row"><div className="bw-dashboard-heading-identity"><span className="bw-dashboard-heading-icon"><WorkspaceIcon name="building" size={24} /></span><div><h1>{view?.organization.name || "Organization workspace"}</h1><p>Your organization workspace</p></div></div><div className="bw-dashboard-heading-actions"><Link className="bw-dashboard-personal-link" to="/explore">Personal account</Link><button className="bw-dashboard-refresh" type="button" disabled={busy} onClick={reload} aria-label="Reload account workspace" aria-busy={busy}><WorkspaceIcon name="refresh" size={16} /><span>{busy ? "Refreshing…" : "Refresh"}</span></button></div></div></header>}
@@ -126,6 +130,8 @@ function Workspace({ actor, usernameLabel, id, section }) {
     {id && view && sectionAllowed && section === "posts" && <PostsPanel key={actor + ":" + id} organization={view.organization} disabled={stale || Boolean(error)} />}
     {id && view && sectionAllowed && section === "opportunities" && <OrganizationOpportunities key={actor + ":" + id} organization={view.organization} disabled={stale || Boolean(error)} />}
     {id && view && sectionAllowed && section === "applications" && <OrganizationApplications key={actor + ":" + id} organization={view.organization} disabled={stale || Boolean(error)} />}
+    {id && view && sectionAllowed && section === "programs" && <OrganizationPrograms key={actor + ":" + id} organization={view.organization} disabled={stale || Boolean(error)} />}
+    {id && view && sectionAllowed && section === "admissions" && <OrganizationAdmissions key={actor + ":" + id} organization={view.organization} disabled={stale || Boolean(error)} />}
     {id && view && sectionAllowed && section === "staff" && <OrganizationStaff organization={view.organization} actorUsername={usernameLabel} staff={staff} filters={filters} onFilter={filterStaff}
       username={username} permissions={permissions} onUsername={setUsername} onPermissions={setPermissions} catalog={view.permissionCatalog} grantableCatalog={view.permissionCatalog.filter(p => view.permissions.includes(p.key))}
       busy={busy} stale={stale} retrying={retrying} error={error} generation={generation} isBusy={() => lock.current} onDirty={changeEditorDirty}

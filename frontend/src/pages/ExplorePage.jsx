@@ -9,6 +9,7 @@ import "./explore.css";
 
 const PeopleSuggestions = lazy(() => import("../components/discovery/PeopleSuggestions"));
 const OpportunityBrowser = lazy(() => import("../components/opportunities/OpportunityBrowser"));
+const LearningResults = lazy(() => import("./LearningPage").then(m => ({ default: m.LearningResults })));
 const views = [["for-you", "For You"], ["following", "Following"], ["saved", "Saved"]];
 
 export default function ExplorePage() {
@@ -63,6 +64,7 @@ export default function ExplorePage() {
           </Link>
         </section>
 
+        <section className="bw-explore-aside-card"><p className="bw-explore-section-eyebrow">KEEP LEARNING</p><h2>Discover programs</h2><Suspense fallback={<p role="status">Loading programs…</p>}><LearningResults key={`${account.id}:${view}`} compact filters={{ kind: "programs", ...(view === "following" ? { following: "true" } : {}) }} /></Suspense><Link className="bw-explore-aside-link" to="/learning">Explore education & training →</Link></section>
         <section className="bw-explore-aside-card bw-explore-journey">
           <p className="bw-explore-section-eyebrow">YOUR JOURNEY</p>
           <span className="bw-explore-journey-icon"><NavigationIcon name="awards" size={23} /></span>

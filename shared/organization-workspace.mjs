@@ -13,8 +13,8 @@ export function organizationWorkspace(organization, permissions = [], role = "ST
   if (has("organization.opportunities.manage")) available.push({ key: "opportunities", label: "Opportunities", icon: "opportunities", to: `${base}/opportunities`, sensitive: true, description: "Publish jobs, scholarships, challenges and events." });
   if (has("organization.applications.review")) available.push({ key: "applications", label: "Applications", icon: "applications", to: `${base}/applications`, sensitive: true, description: "Review applications, participation and registrations." });
   if (organization.offersTraining || organization.type === "SCHOOL") {
-    if (has("organization.programs.manage")) planned.push({ key: "programs", label: "Programs", sprint: 7, description: "Manage education/training offerings shown in Discover." });
-    if (has("organization.admissions.review")) planned.push({ key: "admissions", label: "Admissions", sprint: 7, description: "Manage admission cycles and applicant decisions." });
+    if (has("organization.programs.manage")) available.push({ key: "programs", label: "Programs", icon: "learning", sensitive: true, to: `${base}/programs`, description: "Manage education/training offerings shown in Discover." });
+    if (has("organization.admissions.review")) available.push({ key: "admissions", label: "Admissions", icon: "applications", sensitive: true, to: `${base}/admissions`, description: "Manage admission cycles and applicant decisions." });
   }
   // Informational setup entry only: no activation, eligibility attestation or billing authority.
   const campusSetup = role === "PRIMARY_ADMIN" && (organization.type === "SCHOOL" || organization.offersTraining)
