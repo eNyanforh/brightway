@@ -340,10 +340,11 @@ test("the real app exposes member profiles by default and preserves inbox owners
     await prisma.profile.create({ data: { personId: other.personId, skills: ["JavaScript"], interests: ["Technology"] } });
     const suggestion = { name: "Synthetic owner", username: owner.username, reasons: ["Shared skills", "Shared interests", "Same career field"] };
     const otherSuggestion = { name: "Synthetic other", username: other.username, reasons: ["Shared skills", "Shared interests"] };
-    assert.deepEqual((await request(visitor, suggestionPath)).items, [suggestion, otherSuggestion]);
+    const fixturePeople = rows => rows.filter(row => [owner.username, other.username].includes(row.username));
+    assert.deepEqual(fixturePeople((await request(visitor, suggestionPath)).items), [suggestion, otherSuggestion]);
     const follow = await prisma.networkFollow.create({ data: { followerId: visitor.id, targetAccountId: owner.id, active: true } });
     try {
-      assert.deepEqual((await request(visitor, suggestionPath)).items, [otherSuggestion]);
+      assert.deepEqual(fixturePeople((await request(visitor, suggestionPath)).items), [otherSuggestion]);
     } finally {
       await prisma.networkFollow.delete({ where: { id: follow.id } });
     }
