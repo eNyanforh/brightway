@@ -528,6 +528,9 @@ test("database manual identity requests serialize retries and decisions, revoke 
       await db.manualIdentityAttempt.deleteMany({ where: { requestId: { in: requestIds } } });
       await db.manualIdentityRequest.deleteMany({ where: { id: { in: requestIds } } });
       await db.manualIdentityUploadBudget.deleteMany({ where: { accountId: { in: ids } } });
+      // Synthetic post-review decisions create durable ManagementAction rows.
+      // Remove only this fixture reviewer’s test audit entries before deleting staff.
+      await db.managementAction.deleteMany({ where: { actorId: reviewer.id, targetType: "MEMBER_POST" } });
       await cleanupManagementFixtures(db, ids);
       await db.manualIdentityReviewer.deleteMany({ where: { accountId: { in: ids } } });
       await db.session.deleteMany({ where: { accountId: { in: ids } } });
