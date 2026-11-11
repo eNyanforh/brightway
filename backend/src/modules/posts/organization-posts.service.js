@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createPostSafetyScreen } from "./post-safety-screen.service.js";
 import { MAX_POST_TOPICS, normalizePostTopic } from "../../../../shared/post-topics.mjs";
 import { createManualIdentityReviewService } from "../manual-identity/manual-identity-review.service.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
@@ -22,6 +23,7 @@ const postSelect = {
 };
 const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true, profile: { select: { photoId: true } } } } };
 const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true, questionDetails: true, body: true, createdAt: true, author: { select: memberSelect } };
+const ownMemberPostSelect = { ...memberPostSelect, moderationStatus: true, moderationVersion: true, moderationFeedback: true };
 const repostSelect = { id: true, createdAt: true, account: { select: memberSelect } };
 const identifier = z.uuid();
 // Legacy member usernames may predate the stricter signup validator.
@@ -251,6 +253,10 @@ function visibleMember(accountId) {
   };
 }
 
+function visibleMemberPost(accountId) {
+  return { moderationStatus: "PUBLISHED", withdrawnAt: null, author: visibleMember(accountId) };
+}
+
 function likeSelect(accountId) {
   return { _count: { select: { likes: true, views: true } }, likes: { where: { accountId }, select: { id: true } } };
 }
@@ -354,7 +360,7 @@ function findPosts(model, select, where, cursor, source) {
   });
 }
 
-export function createOrganizationPosts({ prisma, now = () => new Date() }) {
+export function createOrganizationPosts({ prisma, now = () => new Date(), screen = createPostSafetyScreen() }) {
   const identity = createManualIdentityReviewService({ prisma, now });
 
   async function memberEligibility(db, accountId) {
@@ -503,7 +509,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         AND: [
           boundary(position, "saved"),
           { OR: [
-            { memberPost: { withdrawnAt: null, author: visibleMember(accountId) } },
+            { memberPost: visibleMemberPost(accountId) },
             { organizationPost: { withdrawnAt: null, organization: readyFilter, author: unblockedAuthor(accountId) } },
           ] },
         ],
@@ -540,7 +546,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
   async function visiblePost(db, viewer, { source, id }) {
     const member = source === "member";
     const author = member ? visibleMember(viewer) : unblockedAuthor(viewer);
-    const where = { id, withdrawnAt: null, author, ...(!member && { organization: readyFilter }) };
+    const where = { id, withdrawnAt: null, author, ...(member ? { moderationStatus: "PUBLISHED" } : { organization: readyFilter }) };
     const target = await postModel(db, source).findFirst({ where, select: { authorId: true } });
     if (!target) throw unavailable();
     if (member) {
@@ -738,7 +744,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const id = parse(identifier, idValue, "Choose a valid event.");
       await assertNetworkSession(prisma, actor, now);
       const post = await prisma.memberPost.findFirst({
-        where: { id, authorId: actor.accountId, type: "EVENT", withdrawnAt: null },
+        where: { id, authorId: actor.accountId, type: "EVENT", withdrawnAt: null, moderationStatus: "PUBLISHED" },
         select: { id: true, eventDetails: true },
       });
       if (!post) throw fail(403, "Only the event host can review attendance requests.");
@@ -1005,14 +1011,14 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       }
       const [organizations, members, reposts] = await Promise.all([
         findPosts(prisma.organizationPost, { ...postSelect, ...select }, { organization, author: unblockedAuthor(actor.accountId) }, position, "organization"),
-        findPosts(prisma.memberPost, { ...memberPostSelect, ...memberEngagementSelect }, { author: member }, position, "member"),
+        findPosts(prisma.memberPost, { ...memberPostSelect, ...memberEngagementSelect }, { author: member, moderationStatus: "PUBLISHED" }, position, "member"),
         prisma.postRepost.findMany({
           where: {
             account: reposter,
             AND: [
               boundary(position, "repost"),
               { OR: [
-                { memberPost: { withdrawnAt: null, author: visibleMember(actor.accountId) } },
+                { memberPost: visibleMemberPost(actor.accountId) },
                 { organizationPost: { withdrawnAt: null, organization: readyFilter, author: unblockedAuthor(actor.accountId) } },
               ] },
             ],
@@ -1190,7 +1196,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         AND: [unblockedAuthor(actor.accountId), unblockedAuthor(member.id)],
       };
       const publicQuestion = {
-        withdrawnAt: null, type: "QUESTION", author: publicPostAuthor,
+        withdrawnAt: null, moderationStatus: "PUBLISHED", type: "QUESTION", author: publicPostAuthor,
       };
       let rows;
       if (kind === "answers") {
@@ -1214,7 +1220,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
             where: {
               authorId: member.id, deletedAt: null,
               OR: [
-                { memberPost: { is: { withdrawnAt: null, author: publicPostAuthor } } },
+                { memberPost: { is: { withdrawnAt: null, moderationStatus: "PUBLISHED", author: publicPostAuthor } } },
                 { organizationPost: { is: {
                   withdrawnAt: null, organization: readyFilter, author: publicOrganizationAuthor,
                 } } },
@@ -1319,7 +1325,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
         } },
       };
       const rows = await findPosts(prisma.memberPost, select,
-        { authorId: account.id }, position, "member");
+        { authorId: account.id, moderationStatus: "PUBLISHED" }, position, "member");
       const shown = rows.slice(0, pageSize);
       const access = await memberEligibility(prisma, account.id);
       const events = shown.filter(post => post.type === "EVENT")
@@ -1393,7 +1399,7 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       await assertNetworkSession(prisma, actor, now);
       const position = readCursor(cursor, actor.accountId, "my-posts");
       const select = {
-        ...memberPostSelect,
+        ...ownMemberPostSelect,
         likes: { where: { accountId: actor.accountId }, select: { id: true } },
         saves: { where: { accountId: actor.accountId }, select: { id: true } },
         reposts: { where: { accountId: actor.accountId }, select: { id: true } },
