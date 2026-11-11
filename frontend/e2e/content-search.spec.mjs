@@ -20,6 +20,7 @@ test("search has separate content filters, real post links, and published opport
     if (!url.pathname.startsWith("/api/")) return route.continue();
     const reply = data => route.fulfill({ json: { success: true, data } });
     switch (url.pathname) {
+      case "/api/v1/learning/discover": return reply({ items: [], nextCursor: null });
       case "/api/v1/auth/me": return reply({ account: member });
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
       case "/api/v1/work/access": return reply({ hasWork: false });

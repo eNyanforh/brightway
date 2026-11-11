@@ -1,3 +1,5 @@
+import { createLearningService } from "../modules/learning/learning.service.js";
+import { createLearningRoutes } from "../modules/learning/learning.routes.js";
 import { createFollowingService } from "../modules/network/network-follow.service.js";
 import { createNetworkService } from "../modules/network/network.service.js";
 import { createNetworkRoutes } from "../modules/network/network.routes.js";
@@ -74,6 +76,7 @@ router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIEN
 const mfa = createMfaService({ prisma });
 const sessions = createSessionService({ prisma, mfa });
 router.use(createOpportunityRoutes({ opportunities: createOpportunityService({ prisma, storage: createApplicationStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createLearningRoutes({ learning: createLearningService({ prisma, storage: createApplicationStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const network = createNetworkService({ prisma });
 router.use(createNetworkRoutes({ network, following: createFollowingService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createNotificationsRoutes({ notifications: createNotificationsService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));

@@ -1,3 +1,4 @@
+import { LearningResults } from "./LearningPage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { searchDirectory } from "../api/directory-search";
@@ -16,6 +17,7 @@ const filters = [
   ["questions", "Questions"],
   ["events", "Events"],
   ["opportunities", "Opportunities"],
+  ["programs", "Programs"],
 ];
 
 function initials(name) {
@@ -147,7 +149,7 @@ export default function DirectorySearchPage() {
       <header className="bw-directory-hero">
         <span className="bw-directory-eyebrow"><NavigationIcon name="search" size={16} /> Discover BrightWay</span>
         <h1>Search BrightWay</h1>
-        <p>Discover people, organizations, achievements, questions, events, and new opportunities as they become available.</p>
+        <p>Discover people, organizations, achievements, questions, events, opportunities, and education programs.</p>
       </header>
 
       <form className="bw-directory-search-form" role="search" aria-label="Directory search" onSubmit={submit}>
@@ -174,11 +176,15 @@ export default function DirectorySearchPage() {
               <SearchResults key={JSON.stringify([q, "all"])} q={q} kind="all" />
               <h2 className="bw-directory-group-heading">Community content</h2>
               <ContentSearchResults key={JSON.stringify([q, "content"])} q={q} kind="all" />
+              <h2 className="bw-directory-group-heading">Programs</h2>
+              <LearningResults key={JSON.stringify([q, "programs"])} filters={{ q, kind: "programs" }} />
               <h2 className="bw-directory-group-heading">Opportunities</h2>
               <OpportunityBrowser key={JSON.stringify([q, "opportunities"])} q={q} />
             </>
           ) : kind === "people" || kind === "organizations" ? (
             <SearchResults key={JSON.stringify([q, kind])} q={q} kind={kind} />
+          ) : kind === "programs" ? (
+            <LearningResults key={JSON.stringify([q, "programs"])} filters={{ q, kind: "programs" }} />
           ) : kind === "opportunities" ? (
             <OpportunityBrowser key={JSON.stringify([q, "opportunities"])} q={q} />
           ) : (

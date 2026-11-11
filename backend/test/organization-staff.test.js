@@ -78,7 +78,7 @@ test("concurrent invitation acceptance and staffing edits have one winner", asyn
 test("strict permissions reject injected roles, trust, ownership, duplicates and Campus scope", async () => {
   const f = await fixture(); for (const extra of [{ role: "PRIMARY_ADMIN" }, { actorId: f.recipient.id }, { identityVerified: true }, { organizationId: f.id }]) await assert.rejects(f.invite([POSTS], f.recipient.username, extra), { status: 400 });
   for (const permissions of [["campus.billing.view"], [POSTS, POSTS], ["organization.credentials.identity.review"]]) await assert.rejects(f.invite(permissions), { status: 400 });
-  f.state.organization[0].offersTraining = false; await assert.rejects(f.invite(["organization.programs.manage"]), { status: 403 });
+  f.state.organization[0].type = "COMPANY"; f.state.organization[0].offersTraining = false; await assert.rejects(f.invite(["organization.programs.manage"]), { status: 403 });
 });
 test("tenant-bound paging never accepts another account or organization's cursor", async () => {
   const f = await fixture(), r = await f.invite();

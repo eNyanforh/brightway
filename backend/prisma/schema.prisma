@@ -38,6 +38,10 @@ enum PersonGender {
 }
 
 model Account {
+  learningPrograms Program[]
+  admissionCycles AdmissionCycle[]
+  admissionApplications AdmissionApplication[]
+  admissionEvents AdmissionApplicationEvent[]
   opportunityListings Opportunity[]
   opportunityApplications OpportunityApplication[]
   applicationEvents OpportunityApplicationEvent[]
@@ -923,6 +927,8 @@ model OrganizationRequestAudit {
   @@index([requestId, createdAt, id])
 }
 model Organization {
+  programs Program[]
+  admissionCycles AdmissionCycle[]
   opportunities Opportunity[]
   posts OrganizationPost[]
   followers NetworkFollow[]
@@ -1646,6 +1652,133 @@ model OpportunityApplicationEvent {
   @@index([applicationId, createdAt, id])
 }
 model OpportunityUploadBudget {
+  accountId String
+  day DateTime @db.Date
+  attempts Int @default(0)
+  @@id([accountId, day])
+}
+
+enum ProgramStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+enum AdmissionCycleStatus {
+  DRAFT
+  UPCOMING
+  OPEN
+  CLOSED
+  CANCELLED
+}
+enum AdmissionApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  NOT_ACCEPTED
+  WAITLISTED
+  WITHDRAWN
+}
+model Program {
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  authorId String
+  author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  requestKey String
+  inputHash String @db.VarChar(64)
+  title String @db.VarChar(160)
+  description String @db.VarChar(12000)
+  type String @db.VarChar(24)
+  duration String @db.VarChar(120)
+  field String @db.VarChar(120)
+  studyMode String @db.VarChar(16)
+  countryCode String @db.Char(2)
+  location String @db.VarChar(180)
+  requirements String @db.VarChar(6000)
+  version Int @default(1)
+  status ProgramStatus @default(DRAFT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cycles AdmissionCycle[]
+  @@unique([organizationId, authorId, requestKey])
+  @@index([status, countryCode, studyMode, createdAt, id])
+  @@index([organizationId, createdAt, id])
+}
+model AdmissionCycle {
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  programId String
+  program Program @relation(fields: [programId], references: [id], onDelete: Restrict)
+  authorId String
+  author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  requestKey String
+  inputHash String @db.VarChar(64)
+  title String @db.VarChar(160)
+  opensAt DateTime
+  deadline DateTime
+  questions Json
+  version Int @default(1)
+  status AdmissionCycleStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  applications AdmissionApplication[]
+  @@unique([organizationId, authorId, requestKey])
+  @@index([status, opensAt, deadline, createdAt, id])
+  @@index([organizationId, createdAt, id])
+  @@index([programId, createdAt, id])
+}
+model AdmissionApplication {
+  id String @id @default(uuid())
+  cycleId String
+  cycle AdmissionCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict)
+  applicantId String
+  applicant Account @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  status AdmissionApplicationStatus @default(DRAFT)
+  version Int @default(1)
+  answers Json
+  // Immutable, consented professional information, never private contact fields.
+  profileSnapshot Json?
+  cycleSnapshot Json?
+  feedback String @default("") @db.VarChar(1000)
+  submittedAt DateTime?
+  withdrawnAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  files AdmissionApplicationFile[]
+  events AdmissionApplicationEvent[]
+  @@unique([cycleId, applicantId])
+  @@index([applicantId, createdAt, id])
+  @@index([cycleId, status, createdAt, id])
+}
+model AdmissionApplicationFile {
+  id String @id @default(uuid())
+  applicationId String
+  application AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  questionId String
+  storageKey String @unique
+  contentType String @db.VarChar(64)
+  size Int
+  createdAt DateTime @default(now())
+  @@unique([applicationId, questionId])
+}
+model AdmissionApplicationEvent {
+  id String @id @default(uuid())
+  applicationId String
+  application AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  actorId String
+  actor Account @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  fromStatus AdmissionApplicationStatus?
+  toStatus AdmissionApplicationStatus
+  feedback String @default("") @db.VarChar(1000)
+  readAt DateTime?
+  dismissedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([applicationId, createdAt, id])
+}
+model AdmissionUploadBudget {
   accountId String
   day DateTime @db.Date
   attempts Int @default(0)

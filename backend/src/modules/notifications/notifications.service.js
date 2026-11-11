@@ -196,12 +196,19 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
           FROM "OpportunityApplicationEvent" e JOIN "OpportunityApplication" app ON app."id" = e."applicationId"
           WHERE app."applicantId" = ${viewer.id} AND e."dismissedAt" IS NULL
             AND e."toStatus" IN ('UNDER_REVIEW', 'SHORTLISTED', 'SELECTED', 'NOT_SELECTED')
+          UNION ALL
+          SELECT e."id", NULL::date AS "viewedOn", e."createdAt", e."readAt", 'ADMISSION_STATUS' AS kind,
+            NULL::text AS username, NULL::text AS "firstName", NULL::text AS "middleName", NULL::text AS "lastName",
+            app."id" AS "applicationId", app."cycleSnapshot"->>'title' AS title, e."toStatus"::text AS status
+          FROM "AdmissionApplicationEvent" e JOIN "AdmissionApplication" app ON app."id" = e."applicationId"
+          WHERE app."applicantId" = ${viewer.id} AND e."dismissedAt" IS NULL
+            AND e."toStatus" IN ('UNDER_REVIEW', 'WAITLISTED', 'ACCEPTED', 'NOT_ACCEPTED')
         ) SELECT n.* FROM notices n WHERE true
           ${view === "unread" ? Prisma.sql`AND n."readAt" IS NULL` : Prisma.empty}
           ${cursorFilter}
         ORDER BY n."createdAt" DESC, n."id" DESC LIMIT 31`);
       await assertNetworkSession(prisma, actor, now);
-      const items = rows.slice(0, 30).map(row => row.kind === "APPLICATION_STATUS" ? {
+      const items = rows.slice(0, 30).map(row => ["APPLICATION_STATUS", "ADMISSION_STATUS"].includes(row.kind) ? {
         id: row.id, kind: row.kind, createdAt: row.createdAt, readAt: row.readAt,
         application: { id: row.applicationId, title: row.title, status: row.status },
       } : {
@@ -224,7 +231,8 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
         const result = await tx.profileViewNotification.updateMany({ where: { id, recipientId: actor.accountId, readAt: null }, data: { readAt: now() } });
         await assertNetworkSession(tx, actor, now);
         const applications = await tx.opportunityApplicationEvent.updateMany({ where: { id, application: { applicantId: actor.accountId }, readAt: null }, data: { readAt: now() } });
-        return { updated: result.count + applications.count > 0 };
+        const admissions = await tx.admissionApplicationEvent.updateMany({ where: { id, application: { applicantId: actor.accountId }, readAt: null }, data: { readAt: now() } });
+        return { updated: result.count + applications.count + admissions.count > 0 };
       });
     },
 
@@ -235,7 +243,8 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
         const result = await tx.profileViewNotification.deleteMany({ where: { id, recipientId: actor.accountId } });
         await assertNetworkSession(tx, actor, now);
         const applications = await tx.opportunityApplicationEvent.updateMany({ where: { id, application: { applicantId: actor.accountId }, dismissedAt: null }, data: { dismissedAt: now() } });
-        return { dismissed: result.count + applications.count > 0 };
+        const admissions = await tx.admissionApplicationEvent.updateMany({ where: { id, application: { applicantId: actor.accountId }, dismissedAt: null }, data: { dismissedAt: now() } });
+        return { dismissed: result.count + applications.count + admissions.count > 0 };
       });
     },
 
@@ -245,7 +254,8 @@ export function createNotificationsService({ prisma, now = () => new Date() }) {
         const result = await tx.profileViewNotification.updateMany({ where: { recipientId: actor.accountId, readAt: null }, data: { readAt: now() } });
         await assertNetworkSession(tx, actor, now);
         const applications = await tx.opportunityApplicationEvent.updateMany({ where: { application: { applicantId: actor.accountId }, readAt: null, dismissedAt: null, toStatus: { in: ["UNDER_REVIEW", "SHORTLISTED", "SELECTED", "NOT_SELECTED"] } }, data: { readAt: now() } });
-        return { updated: result.count + applications.count };
+        const admissions = await tx.admissionApplicationEvent.updateMany({ where: { application: { applicantId: actor.accountId }, readAt: null, dismissedAt: null, toStatus: { in: ["UNDER_REVIEW", "WAITLISTED", "ACCEPTED", "NOT_ACCEPTED"] } }, data: { readAt: now() } });
+        return { updated: result.count + applications.count + admissions.count };
       });
     },
   };

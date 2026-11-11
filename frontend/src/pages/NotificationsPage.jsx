@@ -1,3 +1,4 @@
+import { ADMISSION_STATUSES } from "../../../shared/learning.mjs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { APPLICATION_STATUSES } from "../../../shared/opportunities.mjs";
@@ -125,7 +126,7 @@ function Inbox({ view }) {
             <li className={item.readAt ? "is-read" : "is-unread"} key={item.id}>
               <span className="bw-notifications-dot" aria-hidden="true" />
               <div>
-                <p>{item.kind === "APPLICATION_STATUS" ? <><Link to={`/applications/${item.application.id}`}><strong>{item.application.title}</strong></Link> · {APPLICATION_STATUSES[item.application.status]}</> : <><Link to={"/" + encodeURIComponent(item.viewer.username)}><strong>{item.viewer.fullName}</strong> (@{item.viewer.username})</Link> viewed your profile.</>}</p>
+                <p>{["APPLICATION_STATUS", "ADMISSION_STATUS"].includes(item.kind) ? <><Link to={item.kind === "ADMISSION_STATUS" ? `/learning/applications/${item.application.id}` : `/applications/${item.application.id}`}><strong>{item.application.title}</strong></Link> · {(item.kind === "ADMISSION_STATUS" ? ADMISSION_STATUSES : APPLICATION_STATUSES)[item.application.status]}</> : <><Link to={"/" + encodeURIComponent(item.viewer.username)}><strong>{item.viewer.fullName}</strong> (@{item.viewer.username})</Link> viewed your profile.</>}</p>
                 <time dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time>
               </div>
               <div className="bw-notifications-actions">
