@@ -367,7 +367,7 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
         if (!registration) throw s.fail(403, "Active registration and authorized student or confirmed guardian access are required.");
         await eligible(db, registration.campusId);
         const result = await report(db, registration);
-        const announcements = await db.campusAnnouncement.findMany({ where: { campusId: registration.campusId, withdrawnAt: null }, select: { id: true, title: true, body: true, createdAt: true }, take: 50, orderBy: { createdAt: "desc" } });
+        const announcements = await db.campusAnnouncement.findMany({ where: { campusId: registration.campusId, withdrawnAt: null, audience: "CAMPUS" }, select: { id: true, title: true, body: true, createdAt: true }, take: 50, orderBy: { createdAt: "desc" } });
         // Keep student and contact data out of unrelated accounts and all drafts out of reports.
         await live(db, actor); await eligible(db, registration.campusId);
         if (!await db.gradeSchoolRegistration.findFirst({ where, select: { id: true } })) throw s.fail(403, "Student or guardian access has changed. Reload your Campus access.");

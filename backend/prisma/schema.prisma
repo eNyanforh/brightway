@@ -1993,6 +1993,7 @@ model CampusAnnouncement {
   inputHash String @db.VarChar(64)
   title String @db.VarChar(160)
   body String @db.VarChar(3000)
+  audience String @default("STAFF") @db.VarChar(16)
   version Int @default(1)
   withdrawnAt DateTime?
   createdAt DateTime @default(now())

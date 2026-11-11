@@ -378,3 +378,7 @@ ALTER TABLE "GradeSchoolAssessment" ADD CONSTRAINT "school_assessment_final" CHE
 ALTER TABLE "GradeSchoolGuardian" ADD CONSTRAINT "school_guardian_confirmation" CHECK (("status" = 'CONFIRMED') = ("confirmedAt" IS NOT NULL));
 
 ALTER TABLE "GradeSchoolAttendance" ADD CONSTRAINT "school_attendance_time" CHECK ("startsAt" BETWEEN 0 AND 1439);
+
+-- Preserve the privacy of all previously published staff announcements.
+ALTER TABLE "CampusAnnouncement" ADD COLUMN "audience" VARCHAR(16) NOT NULL DEFAULT 'STAFF';
+ALTER TABLE "CampusAnnouncement" ADD CONSTRAINT "campus_announcement_audience" CHECK ("audience" IN ('STAFF','CAMPUS'));

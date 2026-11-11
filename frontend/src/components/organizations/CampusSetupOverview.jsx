@@ -7,7 +7,7 @@ import "./campus.css";
 
 const label = { GRADE_SCHOOL: "Grade School", TVET: "Technical and Vocational Education (TVET)" };
 const statusText = { NOT_CONFIGURED: "Not configured", SETUP: "Setup", ACTIVE: "Active", PAUSED: "Paused", BLOCKED: "Eligibility blocked" };
-const emptyAnnouncement = { title: "", body: "" };
+const emptyAnnouncement = { title: "", body: "", audience: "STAFF" };
 const safeError = error => error?.message || "The Campus request failed. Retry after reloading.";
 
 function Status({ campus, eligible }) {
@@ -78,9 +78,9 @@ export default function CampusSetupOverview({ organization }) {
     event.preventDefault();
     if (!draft.title.trim() || !draft.body.trim()) return;
     if (!key.current) key.current = crypto.randomUUID();
-    const submitted = { title: draft.title.trim(), body: draft.body.trim(), requestKey: key.current };
+    const submitted = { title: draft.title.trim(), body: draft.body.trim(), audience: draft.audience, requestKey: key.current };
     void run(async () => { await campusApi.publish(id, submitted); key.current = null; setDraft(emptyAnnouncement); },
-      "Announcement published for your Campus team.");
+      "Announcement published for the selected Campus audience.");
   }
   async function loadMore() {
     if (!nextCursor || moreBusy) return;
@@ -152,6 +152,7 @@ export default function CampusSetupOverview({ organization }) {
         {canRead && <section className="bw-campus-panel" aria-labelledby="campus-announcements">
           <div className="bw-campus-panel-heading"><div><span className="bw-campus-overline">03 / COMMUNICATION</span><h3 id="campus-announcements">Campus announcements</h3></div><span>{announcements.length} shown</span></div>
           {mayPublish && <form className="bw-campus-announcement-form" onSubmit={publish}>
+            <label>Announcement audience<select value={draft.audience} disabled={busy} onChange={e => { key.current = null; setDraft(s => ({ ...s, audience: e.target.value })); }}><option value="STAFF">Campus staff only</option><option value="CAMPUS">Campus staff and active learners</option></select></label>
             <label>Announcement title<input value={draft.title} maxLength={160} required onChange={e => { key.current = null; setDraft(s => ({ ...s, title: e.target.value })); }} disabled={busy} placeholder="e.g. Academic operations update" /></label>
             <label>Announcement details<textarea value={draft.body} maxLength={3000} required onChange={e => { key.current = null; setDraft(s => ({ ...s, body: e.target.value })); }} disabled={busy} placeholder="Share important information with your Campus team…" rows={4} /></label>
             <button type="submit" disabled={busy || !draft.title.trim() || !draft.body.trim()}>{busy ? "Publishing…" : "Publish announcement"}</button>
@@ -159,7 +160,7 @@ export default function CampusSetupOverview({ organization }) {
           {announcements.length === 0 && <p className="bw-campus-empty">No active announcements have been published yet.</p>}
           <div className="bw-campus-announcements">{announcements.map(item => <article key={item.id} className="bw-campus-announcement">
             <div><h4>{item.title}</h4><time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</time></div>
-            <p>{item.body}</p>{mayPublish && <button type="button" className="bw-campus-link-button" disabled={busy}
+            <small>{item.audience === "CAMPUS" ? "Campus staff and active learners" : "Campus staff only"}</small><p>{item.body}</p>{mayPublish && <button type="button" className="bw-campus-link-button" disabled={busy}
               onClick={() => { if (window.confirm("Withdraw this Campus announcement?")) void run(() => campusApi.withdraw(id, item.id, item.version), "Announcement withdrawn."); }}>Withdraw</button>}
           </article>)}</div>
           {nextCursor && <button type="button" className="bw-campus-muted-button" onClick={loadMore} disabled={moreBusy}>{moreBusy ? "Loading…" : "Load more announcements"}</button>}

@@ -93,7 +93,7 @@ export function createCampusService({ prisma, now = () => new Date() }) {
     if (write && !ctx.isPrimary && !ctx.grants.some(p => [MANAGE, ANNOUNCE].includes(p))) throw fail(403, "Campus announcement permission is required.");
     return ctx;
   }
-  const projectAnnouncement = item => ({ id: item.id, title: item.title, body: item.body, authorId: item.authorId,
+  const projectAnnouncement = item => ({ id: item.id, title: item.title, body: item.body, authorId: item.authorId, audience: item.audience || "STAFF",
     version: item.version, createdAt: item.createdAt, withdrawnAt: item.withdrawnAt });
   return {
     // Internal service boundary, never exposed as an HTTP response.
@@ -154,32 +154,36 @@ export function createCampusService({ prisma, now = () => new Date() }) {
       const data = campusParse(announcementInput, input);
       return transaction(async db => {
         const ctx = await announcementAccess(db, actor, organizationId, { write: true, lock: true });
-        const inputHash = hash({ title: data.title, body: data.body });
+        const inputHash = hash({ title: data.title, body: data.body, audience: data.audience });
         const unique = { campusId_authorId_requestKey: { campusId: organizationId, authorId: actor.accountId, requestKey: data.requestKey } };
         const previous = await db.campusAnnouncement.findUnique({ where: unique });
         if (previous) {
-          if (previous.inputHash !== inputHash) throw conflict();
+          if (previous.inputHash !== inputHash && !(data.audience === "STAFF" && previous.audience === "STAFF" && previous.inputHash === hash({ title: data.title, body: data.body }))) throw conflict();
           return projectAnnouncement(previous);
         }
         const row = await db.campusAnnouncement.create({ data: {
           id: randomUUID(), campusId: organizationId, authorId: actor.accountId,
-          requestKey: data.requestKey, inputHash, title: data.title, body: data.body,
+          requestKey: data.requestKey, inputHash, title: data.title, body: data.body, audience: data.audience,
         } });
-        await audit(db, ctx, "ANNOUNCEMENT_PUBLISHED", { announcementId: row.id });
+        await audit(db, ctx, "ANNOUNCEMENT_PUBLISHED", { announcementId: row.id, audience: data.audience });
         const members = await db.organizationMembership.findMany({
           where: { organizationId, enabled: true }, select: { accountId: true, role: true, permissions: true },
         });
-        const recipients = members.filter(member => member.accountId !== actor.accountId &&
-          (member.role === "PRIMARY_ADMIN" || member.permissions.some(p => [MANAGE, ANNOUNCE, ACADEMICS, BILLING].includes(p))));
-        // Only active Campus members receive staff announcements; no admission
-        // applicant or non-enrolled learner is treated as a Campus member.
+        const staffIds = members.filter(member => member.accountId !== actor.accountId &&
+          (member.role === "PRIMARY_ADMIN" || member.permissions.some(p => [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH].includes(p)))).map(member => member.accountId);
+        const recipients = staffIds.map(recipientId => ({ recipientId, href: "/organization-workspace/" + organizationId + "/campus" }));
+        if (data.audience === "CAMPUS" && ctx.organization.campus.engine === "GRADE_SCHOOL") {
+          const learners = await db.gradeSchoolStudent.findMany({ where: { campusId: organizationId, status: "ACTIVE", account: { status: "ACTIVE" }, registrations: { some: { status: "ACTIVE" } } }, select: { accountId: true } });
+          for (const learner of learners) if (learner.accountId !== actor.accountId && !staffIds.includes(learner.accountId)) recipients.push({ recipientId: learner.accountId, href: "/learning?view=campus" });
+        }
+        // Legacy announcements default to STAFF. Only explicitly campus-wide
+        // announcements can notify officially active, enrolled learners.
         for (let offset = 0; offset < recipients.length; offset += 200) {
           await db.platformNotification.createMany({
-            data: recipients.slice(offset, offset + 200).map(member => ({
-              recipientId: member.accountId, eventKey: "campus:" + organizationId + ":announcement:" + row.id,
+            data: recipients.slice(offset, offset + 200).map(recipient => ({
+              recipientId: recipient.recipientId, eventKey: "campus:" + organizationId + ":announcement:" + row.id,
               kind: "CAMPUS", title: "New Campus announcement: " + row.title.slice(0, 150),
-              href: "/organization-workspace/" + organizationId + "/campus",
-              actorAccountId: actor.accountId,
+              href: recipient.href, actorAccountId: actor.accountId,
             })), skipDuplicates: true,
           });
         }

@@ -101,7 +101,13 @@ test("Sprint 10 SQL: academic isolation, registrations, assigned teachers, guard
       assert.equal(returning.status, "PRE_REGISTERED");
       assert.equal((await school.myCampus(student.actor)).items.length, 2);
       await assert.rejects(school.learnerReport(student.actor, returning.id), { status: 403 });
-      assert.equal((await school.learnerReport(student.actor, r1.id)).registration.periodId, period.id);
+      const staffNotice = await campus.publish(owner.actor, org.id, { title: "Synthetic private staff matter", body: "Staff-only content must never appear in a learner report.", requestKey: randomUUID() });
+      const campusNotice = await campus.publish(owner.actor, org.id, { title: "Synthetic semester welcome", body: "Welcome to the semester.", audience: "CAMPUS", requestKey: randomUUID() });
+      const personal = await school.learnerReport(student.actor, r1.id);
+      assert.equal(personal.registration.periodId, period.id);
+      assert.deepEqual(personal.announcements.map(a => a.id), [campusNotice.id]);
+      assert.equal(await db.platformNotification.count({ where: { recipientId: student.id, eventKey: "campus:" + org.id + ":announcement:" + staffNotice.id } }), 0);
+      assert.equal(await db.platformNotification.count({ where: { recipientId: student.id, eventKey: "campus:" + org.id + ":announcement:" + campusNotice.id } }), 1);
     });
     await t.test("guardian confirmation gates private records; drafts never alert; concurrent final attendance alerts once", async () => {
       link = await school.linkGuardian(owner.actor, org.id, { studentId: r1.studentId, username: guardian.username, relationship: "Parent" });
