@@ -21,7 +21,7 @@ export function createProfileDashboardService({ prisma, now = () => new Date() }
           where: {
             createdAt: { gte: measuredSince },
             accountId: { not: actor.accountId },
-            memberPost: { authorId: actor.accountId, withdrawnAt: null },
+            memberPost: { authorId: actor.accountId, withdrawnAt: null, moderationStatus: "PUBLISHED" },
           },
         }),
         prisma.profileSearchAppearance.count({
