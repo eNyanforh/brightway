@@ -3,6 +3,7 @@ import { createManualIdentityReviewService } from "../manual-identity/manual-ide
 import { memberProfilePath } from "../../../../shared/member-profile-paths.mjs";
 import { z } from "zod";
 import { assertNetworkSession } from "../network/network-authority.js";
+import { prefixSearchQuery } from "./search-terms.js";
 import { fail } from "../network/network.schema.js";
 
 const pageSize = 20;
@@ -84,9 +85,8 @@ export function createDirectorySearch({ prisma, now = () => new Date() }) {
     const parsed = querySchema.safeParse(input);
     if (!parsed.success) throw fail(400, "Enter a search of 2 to 80 characters and choose a valid filter.");
     const { q, kind, cursor } = parsed.data;
-    const words = q.match(/[\p{L}\p{M}\p{N}]+/gu) ?? [];
-    if (words.join("").length < 2 || words.length > 8) throw fail(400, "Enter at least two letters or numbers and up to eight search terms.");
-    const prefixQuery = words.map(word => word + ":*").join(" & ");
+    const prefixQuery = prefixSearchQuery(q);
+    if (!prefixQuery) throw fail(400, "Enter at least two letters or numbers and up to eight search terms.");
     await assertNetworkSession(prisma, actor, now);
     const after = readCursor(cursor, actor.accountId, q, kind);
     const people = kind !== "organizations" ? peopleCandidates(prefixQuery, actor.accountId) : null;
