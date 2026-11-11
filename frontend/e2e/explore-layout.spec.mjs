@@ -21,7 +21,7 @@ const formats = [
   { type: "QUESTION", choice: "Ask a Question", editor: "Write a question", label: "Question", heading: "Let's learn together", body: "How can I find a mentor for my first programming project?" },
 ];
 
-async function fixture(page, posts = [fixturePost], submittedStatus = "PENDING") {
+async function fixture(page, posts = [fixturePost], submittedStatus = "PENDING", submittedNotice = null) {
   const writes = [];
   await page.route("**/*", async route => {
     const request = route.request();
@@ -42,7 +42,7 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PENDING")
         writes.push(draft);
         return reply({ post: {
           id: "new-post", body: draft.body, type: draft.type, tags: draft.tags, eventDetails: draft.eventDetails || null, questionDetails: draft.questionDetails || null,
-          createdAt: fixturePost.createdAt, moderationStatus: submittedStatus, moderationVersion: 1, moderationFeedback: null,
+          createdAt: fixturePost.createdAt, moderationStatus: submittedStatus, moderationVersion: 1, moderationFeedback: null, moderationNotice: submittedNotice,
           member: { name: "Synthetic Member", username: "synthetic" },
         } }, 201);
       }
@@ -220,6 +220,34 @@ for (const format of formats) {
         startAt: expect.any(String), endAt: expect.any(String),
       }) } : {}),
     })]);
+  });
+}
+
+const holdCases = [
+  ["safety concern", "SAFETY_REVIEW", "The automated safety check flagged a possible posting-guidelines concern.", "Review the wording against BrightWay's posting guidelines."],
+  ["off-topic content", "OFF_TOPIC", "The relevance check could not identify a clear connection to learning.", "Explain the learning, skills, project, achievement, or career connection."],
+  ["uncertain relevance", "UNCERTAIN", "The relevance check could not confidently determine how this post supports learning.", "Add details about what you learned or achieved."],
+  ["unavailable AI screening", "SCREENING_UNAVAILABLE", "An automated check was unavailable or incomplete.", "No action is required. Your post was saved privately for Management review."],
+];
+for (const [label, code, reason, nextStep] of holdCases) {
+  test("held post shows immediate author feedback for " + label, async ({ page }) => {
+    const feedback = {
+      code, title: "Not published yet — review needed",
+      reasons: [reason], nextStep,
+    };
+    await fixture(page, [fixturePost], "PENDING", feedback);
+    await page.goto("/explore");
+    const explore = page.getByRole("region", { name: "Explore", exact: true });
+    await explore.getByRole("button", { name: "Share an Achievement" }).click();
+    const editor = page.getByRole("dialog", { name: "Share an Achievement" }).getByRole("form", { name: "Create a post" });
+    await editor.getByRole("textbox", { name: "Write an achievement" }).fill("I am sharing my learning project for review.");
+    await editor.getByRole("button", { name: "Coding" }).click();
+    await editor.getByRole("button", { name: "Publish achievement" }).click();
+    await expect(explore.getByText("Not published yet — review needed")).toBeVisible();
+    await expect(explore.getByText(reason)).toBeVisible();
+    await expect(explore.getByText(nextStep)).toBeVisible();
+    await expect(explore.getByRole("link", { name: "View status in My Posts" })).toHaveAttribute("href", "/posts");
+    await expect(explore.getByRole("article").filter({ hasText: "I am sharing my learning project for review." })).toHaveCount(0);
   });
 }
 
