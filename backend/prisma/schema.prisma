@@ -38,6 +38,8 @@ enum PersonGender {
 }
 
 model Account {
+  campusAnnouncements CampusAnnouncement[]
+  campusAuditActions VirtualCampusAudit[]
   directConversationsLeft MessagingConversation[] @relation("MessageLeft")
   directConversationsRight MessagingConversation[] @relation("MessageRight")
   officialConversations MessagingConversation[] @relation("MessageRecipient")
@@ -937,6 +939,7 @@ model OrganizationRequestAudit {
   @@index([requestId, createdAt, id])
 }
 model Organization {
+  campus VirtualCampus?
   officialConversations MessagingConversation[]
   programs Program[]
   admissionCycles AdmissionCycle[]
@@ -1935,4 +1938,68 @@ model MessagingUploadAttempt {
   inputSize Int
   createdAt DateTime @default(now())
   @@index([accountId, createdAt])
+}
+
+enum CampusEngine {
+  GRADE_SCHOOL
+  TVET
+}
+
+enum CampusStatus {
+  SETUP
+  ACTIVE
+  PAUSED
+}
+
+// Product rollout is explicit and defaults to disabled for all unlisted countries.
+model ProductAvailability {
+  product String @db.VarChar(40)
+  countryCode String @db.VarChar(2)
+  enabled Boolean @default(false)
+  updatedAt DateTime @default(now()) @updatedAt
+  @@id([product, countryCode])
+}
+
+model VirtualCampus {
+  organizationId String @id
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  engine CampusEngine
+  status CampusStatus @default(SETUP)
+  displayName String @db.VarChar(160)
+  contactEmail String? @db.VarChar(254)
+  version Int @default(1)
+  activatedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  announcements CampusAnnouncement[]
+  audits VirtualCampusAudit[]
+}
+
+model CampusAnnouncement {
+  id String @id @default(uuid())
+  campusId String
+  campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
+  authorId String
+  author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  requestKey String
+  inputHash String @db.VarChar(64)
+  title String @db.VarChar(160)
+  body String @db.VarChar(3000)
+  version Int @default(1)
+  withdrawnAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([campusId, authorId, requestKey])
+  @@index([campusId, withdrawnAt, createdAt, id])
+}
+
+model VirtualCampusAudit {
+  id String @id @default(uuid())
+  campusId String
+  campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
+  actorId String
+  actor Account @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action String @db.VarChar(40)
+  data Json
+  createdAt DateTime @default(now())
+  @@index([campusId, createdAt, id])
 }
