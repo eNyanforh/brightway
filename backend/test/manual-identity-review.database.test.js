@@ -226,6 +226,31 @@ test("database manual identity requests serialize retries and decisions, revoke 
       }
       await posts.memberWithdraw(actor, post.id);
     }
+    const rejectedDraft = { body: "An unfinished career achievement description.", type: "ACHIEVEMENT", tags: ["Careers"], requestKey: randomUUID() };
+    const { post: rejection } = await posts.memberPublish(actor, rejectedDraft);
+    const decisionBase = { expectedVersion: rejection.moderationVersion, requestKey: randomUUID(), reason: "Please explain the learning milestone and correct the incomplete description." };
+    const rejectionResult = await moderation.decide(moderator, rejection.id, { ...decisionBase, decision: "REJECTED" });
+    assert.equal(rejectionResult.moderationStatus, "REJECTED");
+    assert.deepEqual(await moderation.decide(moderator, rejection.id, { ...decisionBase, decision: "REJECTED" }), rejectionResult,
+      "same decision key is an idempotent replay");
+    assert.equal((await posts.memberList(actor, {})).items.find(item => item.id === rejection.id).moderationFeedback, decisionBase.reason);
+    await assert.rejects(posts.readPost(viewerActor, "member", rejection.id), { status: 404 });
+    const { post: revised } = await posts.memberEdit(actor, rejection.id, {
+      expectedBody: rejection.body, expectedTags: rejection.tags,
+      body: "I built a student learning portfolio and published its source code.",
+      tags: ["Careers", "Coding"],
+    });
+    assert.equal(revised.moderationStatus, "PENDING");
+    assert.equal(revised.moderationVersion, rejection.moderationVersion + 1);
+    assert.equal(revised.moderationFeedback, null);
+    await assert.rejects(moderation.decide(moderator, rejection.id, {
+      decision: "PUBLISHED", expectedVersion: rejection.moderationVersion,
+      requestKey: randomUUID(), reason: "The revision is appropriate for publication.",
+    }), { status: 409 }, "stale revisions cannot approve changed content");
+    await approvePost(rejection.id);
+    assert.equal((await posts.readPost(viewerActor, "member", rejection.id)).post.id, rejection.id);
+    await posts.memberWithdraw(actor, rejection.id);
+
     const controlledEvent = {
       title: "Host-approved workshop", startAt: "2027-01-15T12:00:00Z",
       endAt: "2027-01-15T14:00:00Z", timezone: "UTC", format: "ONLINE",
