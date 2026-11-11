@@ -44,13 +44,14 @@ test("all eight operations pages render responsive real-data layouts",async({pag
 test("suspension asks for fresh MFA and submits one versioned reasoned action",async({page},info)=>{const state=await fixture(page);await page.goto("/superadmin/users");await page.getByRole("button",{name:/Synthetic Applicant/}).click();await page.getByRole("button",{name:"Suspend access",exact:true}).click();await confirm(page,info);await expect(page.getByRole("button",{name:"Restore access",exact:true})).toBeVisible();expect(state.writes).toHaveLength(2);expect(state.writes[0].path).toContain("step-up");expect(state.writes[1].body).toMatchObject({action:"SUSPEND",expectedVersion:0,reason:"Synthetic documented operational reason."});expect(state.writes[1].body.requestKey).toMatch(/^[a-f0-9-]{36}$/);await layout(page);expect(state.errors).toEqual([]);expect(state.unexpected).toEqual([]);});
 test("case assignment gates replies and requester navigation never exposes internal notes",async({page})=>{const state=await fixture(page);await page.goto("/superadmin/support");await page.getByRole("button",{name:/Synthetic support case/}).click();await expect(page.getByRole("button",{name:"Send message",exact:true})).toHaveCount(0);await page.getByRole("button",{name:"Assign case to me",exact:true}).click();await confirm(page);await page.getByLabel("Internal note · visible only to authorized management staff").check();await page.getByRole("textbox",{name:"Private internal note",exact:true}).fill("Synthetic private internal marker");await page.getByRole("button",{name:"Send message",exact:true}).click();await expect(page.getByText("Synthetic private internal marker",{exact:true})).toBeVisible();await layout(page);await page.getByRole("textbox",{name:"Private internal note",exact:true}).fill("Keep this unsent sensitive draft");state.readStatus=503;await page.evaluate(()=>window.dispatchEvent(new Event("focus")));await expect(page.getByRole("alert").filter({hasText:"Synthetic case access unavailable"})).toBeVisible();await expect(page.getByRole("textbox",{name:"Private internal note",exact:true})).toHaveValue("Keep this unsent sensitive draft");await expect(page.getByRole("button",{name:"Send message",exact:true})).toBeDisabled();state.readStatus=403;await page.evaluate(()=>window.dispatchEvent(new Event("focus")));await expect(page.getByRole("textbox",{name:"Private internal note",exact:true})).toHaveCount(0);await expect(page.getByText("Synthetic private internal marker",{exact:true})).toHaveCount(0);await page.goto("/help");await page.getByRole("button",{name:/Synthetic support case/}).click();await expect(page.getByRole("heading",{name:"Conversation",exact:true})).toBeVisible();await expect(page.getByText("Synthetic private internal marker")).toHaveCount(0);await expect(page.getByLabel("Your reply",{exact:true})).toBeVisible();await layout(page);expect(state.errors).toEqual([]);expect(state.unexpected).toEqual([]);});
 
-test("post moderation asks for fresh MFA, keeps safety signals advisory and sends a versioned decline",async({page})=>{
+test("pending legacy post receives human moderation with fresh MFA and versioned decline",async({page})=>{
   const state=await fixture(page);
   await page.goto("/superadmin/post-reviews");
   await expect(page.getByRole("heading",{name:"Post review",exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Pending review"}).click();
   await page.getByRole("button",{name:/synthetic_author/}).click();
   await expect(page.getByText("How can students plan research projects?")).toBeVisible();
-  await expect(page.getByText(/Flagged — manual review required/)).toBeVisible();
+  await expect(page.getByText(/How can we improve student research skills/)).toBeVisible();
   await page.getByRole("button",{name:"Decline post"}).click();
   await confirm(page);
   await expect(page.getByText(/Post declined/)).toBeVisible();
@@ -69,11 +70,10 @@ test("post moderation asks for fresh MFA, keeps safety signals advisory and send
 test("Management removes and restores an auto-published post with fresh MFA and version checks",async({page})=>{
   const state=await fixture(page);
   await page.goto("/superadmin/post-reviews");
-  await page.getByRole("button",{name:"Published",exact:true}).click();
+  // Published is the default moderation queue for human review.
   await expect(page.getByRole("heading",{name:"Published posts",exact:true})).toBeVisible();
   await page.getByRole("button",{name:/published_scholar/}).click();
-  await expect(page.getByText("Education/career relevant")).toBeVisible();
-  await expect(page.getByText("Student project")).toBeVisible();
+  await expect(page.getByText("I completed my academic software-engineering project.")).toBeVisible();
   await page.getByRole("button",{name:"Remove post"}).click();
   await confirm(page);
   await expect(page.getByText(/Published post removed/)).toBeVisible();
