@@ -48,6 +48,7 @@ function SearchResultCard({ item }) {
             {item.verified === true && <VerificationBadge kind={isPerson ? "identity" : "organization"} />}
           </span>
           <span className="bw-directory-handle">@{item.username}</span>
+          {item.matchType === "similar" && <span className="bw-directory-similar-label">Similar name or username</span>}
           {isPerson && item.headline && <span className="bw-directory-headline">{item.headline}</span>}
         </span>
         <span className="bw-directory-result-trailing">
