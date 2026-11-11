@@ -1,5 +1,6 @@
 const ManagementDirectoryPage = lazy(() => import("../pages/ManagementDirectoryPage"));
 const ManagementCasesPage = lazy(() => import("../pages/ManagementCasesPage"));
+const ManagementPostReviewsPage = lazy(() => import("../pages/ManagementPostReviewsPage"));
 const ManagementOperationsPage = lazy(() => import("../pages/ManagementOperationsPage"));
 function ManagementTool({ children }) { return <Suspense fallback={<p role="status">Loading management tool…</p>}>{children}</Suspense>; }
 import ManagementProvider from "../auth/ManagementProvider";
@@ -72,6 +73,7 @@ export default function AppRoutes() {
             <Route path="team" element={<ManagementTool><ManagementDirectoryPage kind="team" /></ManagementTool>} />
             <Route path="support" element={<ManagementTool><ManagementCasesPage /></ManagementTool>} />
             <Route path="reports" element={<ManagementTool><ManagementCasesPage kind="REPORT" /></ManagementTool>} />
+            <Route path="post-reviews" element={<ManagementTool><ManagementPostReviewsPage /></ManagementTool>} />
             <Route path="audit" element={<ManagementTool><ManagementOperationsPage audit /></ManagementTool>} />
             <Route path="operations" element={<ManagementTool><ManagementOperationsPage /></ManagementTool>} />
             <Route path="credentials" element={<Suspense fallback={<p role="status">Loading credential reviews…</p>}><CredentialReviewsPage /></Suspense>} />
