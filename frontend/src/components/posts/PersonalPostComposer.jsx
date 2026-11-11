@@ -12,19 +12,19 @@ const types = [
     type: "ACHIEVEMENT", label: "Achievement", choice: "Share an Achievement", icon: "awards",
     editor: "Write an achievement", heading: "Celebrate your achievement",
     prompt: "What did you accomplish? Share what you learned along the way.",
-    publish: "Publish achievement",
+    publish: "Submit for review",
   },
   {
     type: "EVENT", label: "Event", choice: "Create an Event", icon: "calendar",
     editor: "Write an event", heading: "Create a community event",
     prompt: "Tell people what is happening. Include the date, time, location, or a joining link.",
-    publish: "Publish event",
+    publish: "Submit for review",
   },
   {
     type: "QUESTION", label: "Question", choice: "Ask a Question", icon: "question",
     editor: "Write a question", heading: "Ask the community",
     prompt: "What would you like to learn or understand? Give enough context for people to help.",
-    publish: "Publish question",
+    publish: "Submit for review",
   },
 ];
 const legacyType = { type: "POST", label: "Post", icon: "post" };
@@ -159,7 +159,7 @@ export default function PersonalPostComposer({
   function submit(event) {
     if (hasTopicDraft) {
       event.preventDefault();
-      setTopicError("Add this topic before publishing.");
+      setTopicError("Add this topic before submitting for review.");
       return;
     }
     onSubmit(event);
