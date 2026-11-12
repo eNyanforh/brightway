@@ -274,7 +274,7 @@ for (const format of formats) {
     await expect(explore.getByText("Post published. BrightWay Management may review it later.")).toBeVisible();
     await expect(page.getByRole("form", { name: "Create a post" })).toHaveCount(0);
     if (isMobile) await expect(explore.locator(".bw-post-quick-actions")).toBeHidden();
-    else await expect(launcher).toBeVisible();
+    else await expect(explore.getByRole("group", { name: "Choose how to contribute" })).toBeVisible();
     expect(writes).toEqual([expect.objectContaining({
       body: format.body, type: format.type, tags: ["Community work"],
       ...(format.type === "QUESTION" ? { questionDetails: {
