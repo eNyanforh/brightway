@@ -108,7 +108,7 @@ export default function AppHeader({
   }
 
   return (
-    <header className="bw-design-header">
+    <header className={"bw-design-header" + (personalSearch ? " bw-design-header--personal" : "")}>
       <div className="bw-design-header-inner">
         <Link
           className="bw-design-brand"
@@ -125,7 +125,8 @@ export default function AppHeader({
               <NavigationIcon name="search" size={19} />
               <input ref={inputRef} name="q" type="search" autoComplete="off"
                 aria-label="Search BrightWay content and people"
-                placeholder="Search people, posts, opportunities and learning"
+                placeholder="Search BrightWay"
+                enterKeyHint="search"
                 value={searchValue} minLength={2} maxLength={80}
                 onChange={event => { setSearchDraft({ routeKey, value: event.target.value }); setSuggestions([]); }}
                 onFocus={() => { if (!onSearchPage) setSuggestionOpen(true); }}
@@ -165,7 +166,7 @@ export default function AppHeader({
             </Link>
           )}
 
-          <Link className="bw-design-utility bw-design-mobile-action" to={workspaceLabel ? "/superadmin/official-messages" : actingOrganization ? `/organization-workspace/${actingOrganization.id}/messages` : "/messages"} aria-label="Messages" title="Messages">
+          <Link className="bw-design-utility bw-design-mobile-action bw-design-messages" to={workspaceLabel ? "/superadmin/official-messages" : actingOrganization ? `/organization-workspace/${actingOrganization.id}/messages` : "/messages"} aria-label="Messages" title="Messages">
             <NavigationIcon name="messages" />
           </Link>
 

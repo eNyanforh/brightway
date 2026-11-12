@@ -584,3 +584,38 @@
   .bw-explore .bw-question-answer-avatar,
   .bw-explore .bw-timeline-panel .bw-answer-primary-action { transition: none; }
 }
+
+/* Mobile reading layout: a full-width story below a familiar two-line byline. */
+@media (max-width:700px) {
+  .bw-design-layout:has(.bw-explore) { padding-top:0; }
+  .bw-app-shell:has(.bw-explore) { background:#f3f2ef; }
+  .bw-explore { --explore-ink:#191919; --explore-muted:#666; --explore-border:#e0dfdc; --explore-soft:#f3f2ef; }
+  .bw-explore .bw-explore-filters { border:0; border-bottom:1px solid #deddda; border-radius:0; margin:0; }
+  .bw-explore .bw-explore-filters button { min-height:48px; font-size:14px; }
+  .bw-explore .bw-explore-filters button[aria-pressed="true"] { color:#191919; }
+  .bw-explore .bw-explore-filters button[aria-pressed="true"] span::after { height:2px; background:#191919; }
+  .bw-explore .bw-timeline-post,.bw-explore .bw-timeline-post:hover {
+    grid-template-columns:48px minmax(0,1fr); column-gap:10px; row-gap:8px;
+    padding:16px 12px 8px; border-bottom:8px solid #f3f2ef;
+  }
+  .bw-explore .bw-timeline-avatar { width:48px; height:48px; grid-column:1; background:#f3f2ef; color:#444; }
+  .bw-explore .bw-timeline-post-main { display:contents; }
+  .bw-explore .bw-timeline-post-main > * { grid-column:1 / -1; min-width:0; }
+  .bw-explore .bw-timeline-post-main > .bw-timeline-byline { grid-column:2; align-content:center; gap:0 5px; min-height:48px; font-size:12px; line-height:1.5; }
+  .bw-explore .bw-timeline-byline .bw-post-publisher-name { flex:0 0 100%; font-size:15px; line-height:1.4; }
+  .bw-explore .bw-timeline-byline a { font-weight:650; }
+  .bw-explore .bw-timeline-repost { grid-column:1 / -1; margin:0; padding-bottom:8px; border-bottom:1px solid #eee; font-size:12px; }
+  .bw-explore .bw-timeline-post .bw-post-text { color:#191919; font-size:15px; line-height:1.55; margin:6px 0; }
+  .bw-explore .bw-post-story--compact { margin:0; }
+  .bw-explore .bw-post-type-label { font-size:11px; letter-spacing:0; }
+  .bw-explore .bw-post-topic-tags { gap:5px; }
+  .bw-explore .bw-post-topic-tags li { background:transparent; color:#555; padding:2px 0; font-size:12px; }
+  .bw-explore .bw-post-caption-toggle { min-height:32px; color:#666; font-size:13px; font-weight:500; }
+  .bw-explore .bw-timeline-actions { margin-top:4px; padding-top:6px; border-top:1px solid #e8e7e4; }
+  .bw-explore .bw-timeline-panel .bw-timeline-action { min-width:44px; min-height:44px; padding:6px; border-radius:4px; color:#666; font-size:13px; }
+  .bw-explore .bw-post-panel .bw-post-manage .bw-post-options-trigger { width:44px; height:44px; color:#666; }
+  .bw-explore .bw-post-manage { top:10px; right:6px; }
+  .bw-explore .bw-timeline-panel { padding-bottom:24px; }
+  .bw-explore-right { gap:8px; }
+  .bw-explore-aside-card { border-inline:0; border-radius:0; padding:20px 16px; }
+}

@@ -11,6 +11,7 @@ const items = [
   },
   { label: "Network", to: "/network", icon: "network" },
   { label: "Learning", to: "/learning", icon: "learning" },
+  { label: "Notifications", to: "/notifications", icon: "notifications" },
 ];
 
 function Content({ item, active = false }) {
