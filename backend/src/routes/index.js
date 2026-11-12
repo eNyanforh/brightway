@@ -1,3 +1,5 @@
+import { createBillingService } from "../modules/billing/billing.service.js";
+import { createBillingRoutes } from "../modules/billing/billing.routes.js";
 import { createTvetService } from "../modules/tvet/tvet.service.js";
 import { createTvetRoutes } from "../modules/tvet/tvet.routes.js";
 import { createGradeSchoolService } from "../modules/grade-school/grade-school.service.js";
@@ -106,6 +108,7 @@ const photos = createPhotoService({ prisma, storage: photoStorage });
 router.use(createOrganizationPostRoutes({ posts: publicPosts, photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const managementCases = createManagementCases({ prisma });
 const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
+router.use(createBillingRoutes({ billing: createBillingService({ prisma }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManagementAuthRoutes({ authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createMessagingRoutes({ messaging: createMessagingService({ prisma, storage: createMessageStorage() }), notifications: createNotificationsService({ prisma }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManagementOperationsRoutes({ operations: createManagementOperations({ prisma }), cases: managementCases, postModeration: createMemberPostModeration({ prisma }), authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));

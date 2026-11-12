@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { managementAuthApi } from "../../api/management-auth";
 import WorkspaceIcon from "../workspace/WorkspaceIcon";
-export default function ManagementActionDialog({ title, description, onConfirm, onClose }) {
+export default function ManagementActionDialog({ title, description, onConfirm, onClose, initialReason = "" }) {
   const dialog = useRef(null), lock = useRef(false);
-  const [reason, setReason] = useState(""), [password, setPassword] = useState(""), [code, setCode] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState(null), [uncertain, setUncertain] = useState(false);
+  const [reason, setReason] = useState(initialReason), [password, setPassword] = useState(""), [code, setCode] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState(null), [uncertain, setUncertain] = useState(false);
   useEffect(() => { const node = dialog.current; node.showModal(); return () => node.close(); }, []);
   return <dialog className="bw-mgmt-action-dialog" ref={dialog} aria-labelledby="management-action-title" onCancel={event => { if (lock.current) event.preventDefault(); else onClose(); }}>
     <header><span><WorkspaceIcon name="shield" size={23} /></span><button type="button" aria-label="Close action confirmation" disabled={busy} onClick={onClose}><WorkspaceIcon name="close" /></button></header>
