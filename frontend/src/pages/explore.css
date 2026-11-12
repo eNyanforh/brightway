@@ -601,6 +601,7 @@
   .bw-explore .bw-timeline-avatar { width:48px; height:48px; grid-column:1; background:#f3f2ef; color:#444; }
   .bw-explore .bw-timeline-post-main { display:contents; }
   .bw-explore .bw-timeline-post-main > * { grid-column:1 / -1; min-width:0; }
+  .bw-explore .bw-timeline-post-main > .bw-post-type-label { justify-self:start; }
   .bw-explore .bw-timeline-post-main > .bw-timeline-byline { grid-column:2; align-content:center; gap:0 5px; min-height:48px; font-size:12px; line-height:1.5; }
   .bw-explore .bw-timeline-byline .bw-post-publisher-name { flex:0 0 100%; font-size:15px; line-height:1.4; }
   .bw-explore .bw-timeline-byline a { font-weight:650; }

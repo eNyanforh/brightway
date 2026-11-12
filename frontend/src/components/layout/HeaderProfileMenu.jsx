@@ -141,6 +141,9 @@ export default function HeaderProfileMenu({
       className="bw-header-profile"
       ref={wrapper}
       onBlur={(event) => {
+        // Native modal focus changes also bubble through the portal. Only the
+        // desktop popover should dismiss when focus leaves its wrapper.
+        if (mobile) return;
         if (!event.currentTarget.contains(event.relatedTarget) && !panelRef.current?.contains(event.relatedTarget)) {
           setOpen(false);
         }
@@ -169,6 +172,13 @@ export default function HeaderProfileMenu({
       {open && renderPanel(
         <Panel ref={panelRef} as={mobile ? "dialog" : "div"} id={panelId} aria-label="Account menu"
           onCancel={event => { event.preventDefault(); dismiss(); }}
+          onKeyDown={event => {
+            if (!mobile || event.key !== "Tab") return;
+            const targets = [...event.currentTarget.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), [tabindex="0"]')]
+              .filter(element => element.getClientRects().length > 0);
+            if (!event.shiftKey && document.activeElement === targets.at(-1)) { event.preventDefault(); targets[0]?.focus(); }
+            if (event.shiftKey && document.activeElement === targets[0]) { event.preventDefault(); targets.at(-1)?.focus(); }
+          }}
           onClick={event => {
             if (!mobile || event.target !== event.currentTarget) return;
             const rect = event.currentTarget.getBoundingClientRect();

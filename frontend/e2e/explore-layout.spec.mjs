@@ -1508,11 +1508,11 @@ test("mobile shell keeps search in one row and opens a contained account drawer"
   await expect(drawer).toBeVisible();
   expect(await drawer.evaluate(element => element.matches(":modal"))).toBe(true);
   expect(await page.locator("body").evaluate(element => element.style.overflow)).toBe("hidden");
+  await testInfo.attach("Mobile account drawer", { body: await page.screenshot(), contentType: "image/png" });
   for (let index = 0; index < 12; index++) {
     await page.keyboard.press("Tab");
     expect(await drawer.evaluate(element => element.contains(document.activeElement))).toBe(true);
   }
-  await testInfo.attach("Mobile account drawer", { body: await page.screenshot(), contentType: "image/png" });
   await page.keyboard.press("Escape");
   await expect(drawer).toHaveCount(0);
   await expect(accountButton).toBeFocused();
