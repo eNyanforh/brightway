@@ -112,3 +112,6 @@
   .bw-reference-brand > span, .bw-footer-brand-wordmark { display: none; }
   .bw-footer-brand-logo { width: 37px; height: 37px; object-fit: contain; }
 }
+
+.bw-footer-brand > a { display: inline-flex; align-items: center; gap: 11px; }
+.bw-footer-brand-logo { display: block; width: 37px; height: 37px; object-fit: contain; flex-shrink: 0; }
