@@ -89,10 +89,18 @@ export default function PersonalPostComposer({
     // Opening from the floating navigation link remounts Explore; wait for
     // navigation focus handling to settle before focusing the modal editor.
     bodyInput.current?.focus();
-    const frame = window.requestAnimationFrame?.(() => {
-      if (bodyInput.current && !disabledRef.current) bodyInput.current.focus();
-    });
-    return () => { if (frame != null) window.cancelAnimationFrame?.(frame); };
+    const focusIfOutside = () => {
+      if (disabledRef.current || !bodyInput.current || !modalRef.current) return;
+      // Routing can briefly return focus to the navigation link after the
+      // portal mounts. Do not override deliberate focus within the dialog.
+      if (!modalRef.current.contains(document.activeElement)) bodyInput.current.focus();
+    };
+    const frame = window.requestAnimationFrame?.(focusIfOutside);
+    const delayed = window.setTimeout(focusIfOutside, 120);
+    return () => {
+      if (frame != null) window.cancelAnimationFrame?.(frame);
+      window.clearTimeout(delayed);
+    };
   }, [open, type]);
 
   useEffect(() => {
