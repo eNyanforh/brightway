@@ -317,7 +317,7 @@ it("renders public activities without leaking contact details or requiring an id
   expect(within(rail).getByText("Learning session")).toBeTruthy();
   expect(within(rail).getByText("How do I learn backend development?")).toBeTruthy();
   expect(within(rail).getAllByRole("link", { name: /View full post/ })).toHaveLength(3);
-  expect(within(rail).queryByRole("button", { name: "Post options" })).toBeNull();
+  expect(within(rail).getAllByRole("button", { name: "Post options" })).toHaveLength(3);
   expect(within(rail).queryByRole("button", { name: "Review registration requests" })).toBeNull();
   expect(fetchMock.mock.calls.some(([url]) => url.includes("/posts/members/maya"))).toBeTruthy();
   expect(screen.queryByText("synthetic@example.org")).toBeNull();
