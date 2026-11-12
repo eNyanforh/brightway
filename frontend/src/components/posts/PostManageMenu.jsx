@@ -49,6 +49,9 @@ export default function PostManageMenu({
   const canSave = typeof post.saved === "boolean" && typeof onSave === "function";
 
   useEffect(() => { savingRef.current = locked; }, [locked]);
+  useEffect(() => {
+    if (menuOpen) menu.current?.querySelector('[role="menuitem"]')?.focus();
+  }, [menuOpen]);
   const member = Boolean(post.member);
   const isEvent = post.type === "EVENT";
   const isQuestion = post.type === "QUESTION";
