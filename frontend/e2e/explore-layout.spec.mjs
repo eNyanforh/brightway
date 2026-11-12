@@ -1256,3 +1256,84 @@ test("event and organization post menus expose Report and keep it out of action 
   expect(reports.map(report => report.source)).toEqual(["member", "organization"]);
   expect(reports.every(report => report.payload.reason === "SPAM")).toBe(true);
 });
+
+test("rich post cards render native image galleries, playable video and LinkedIn-style PDF pages", async ({ page, isMobile }) => {
+  const id = kind => ({
+    IMAGE: "aa111111-1111-4111-8111-111111111111",
+    VIDEO: "bb222222-2222-4222-8222-222222222222",
+    DOCUMENT: "cc333333-3333-4333-8333-333333333333",
+  })[kind];
+  const items = ["IMAGE", "VIDEO", "DOCUMENT"].map((kind, index) => ({
+    ...fixturePost, id: ["dd111111-1111-4111-8111-111111111111",
+      "dd222222-2222-4222-8222-222222222222",
+      "dd333333-3333-4333-8333-333333333333"][index],
+    body: "Rich media example " + kind, type: "POST", tags: ["Education"],
+    media: [{ id: id(kind), kind, name: kind === "IMAGE" ? "project.webp" :
+      kind === "VIDEO" ? "workshop.mp4" : "research-guide.pdf",
+      contentType: kind === "IMAGE" ? "image/webp" : kind === "VIDEO" ? "video/mp4" : "application/pdf",
+      size: 100, pageCount: kind === "DOCUMENT" ? 3 : null }],
+  }));
+  await fixture(page, items);
+  await page.route("**/api/v1/posts/media/*", route => route.fulfill({
+    status: 200, headers: { "Content-Type": "application/octet-stream" }, body: "synthetic media",
+  }));
+  await page.goto("/explore");
+  const imageCard = page.getByRole("article").filter({ hasText: "Rich media example IMAGE" });
+  const videoCard = page.getByRole("article").filter({ hasText: "Rich media example VIDEO" });
+  const pdfCard = page.getByRole("article").filter({ hasText: "Rich media example DOCUMENT" });
+  await expect(imageCard.getByRole("img", { name: "project.webp" })).toBeVisible();
+  await expect(videoCard.locator("video[controls][playsinline]")).toHaveAttribute("src", /posts\/media\/bb222222/);
+  const deck = pdfCard.getByRole("region", { name: "PDF document research-guide.pdf" });
+  await expect(deck.getByText("research-guide.pdf")).toBeVisible();
+  await expect(deck.getByText("Page 1 of 3")).toBeVisible();
+  await expect(deck.getByRole("link", { name: "Open PDF research-guide.pdf in a new tab" }))
+    .toHaveAttribute("href", /posts\/media\/cc333333/);
+  await deck.getByRole("button", { name: "Next document page" }).click();
+  await expect(deck.getByText("Page 2 of 3")).toBeVisible();
+  await expect(deck.locator("iframe")).toHaveAttribute("src", /#page=2/);
+  await deck.getByRole("button", { name: "Next document page" }).click();
+  await expect(deck.getByRole("button", { name: "Next document page" })).toBeDisabled();
+  await deck.getByRole("button", { name: "Previous document page" }).click();
+  await expect(deck.getByText("Page 2 of 3")).toBeVisible();
+  if (isMobile) {
+    const rect = await imageCard.boundingBox();
+    expect(rect.x).toBeGreaterThanOrEqual(-1);
+    expect(rect.width).toBeGreaterThanOrEqual(page.viewportSize().width - 2);
+    expect(await imageCard.evaluate(card => getComputedStyle(card).borderRadius)).toBe("0px");
+    expect(await imageCard.evaluate(card => getComputedStyle(card).boxShadow)).toBe("none");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  }
+});
+
+test("member composer uploads a PDF and binds its ID to the published post", async ({ page, isMobile }) => {
+  const writes = await fixture(page);
+  const uploads = [];
+  const mediaId = "ff444444-4444-4444-8444-444444444444";
+  await page.route("**/api/v1/posts/me/media?*", async route => {
+    uploads.push({ type: route.request().headers()["content-type"], bytes: route.request().postDataBuffer() });
+    return route.fulfill({ status: 201, json: { success: true, data: {
+      id: mediaId, kind: "DOCUMENT", name: "learning-notes.pdf", size: uploads.at(-1).bytes.length,
+      contentType: "application/pdf", pageCount: 2,
+    } } });
+  });
+  await page.goto("/explore");
+  if (isMobile) await page.getByRole("link", { name: "Create Post" }).click();
+  else await page.getByRole("group", { name: "Choose how to contribute" }).getByRole("button", { name: "Create Post" }).click();
+  const dialog = page.getByRole("dialog", { name: "Create Post" });
+  await dialog.locator('input[type="file"][accept="application/pdf"]').setInputFiles({
+    name: "learning-notes.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7\nsynthetic-content"),
+  });
+  await expect(dialog.getByRole("list", { name: "Uploaded attachments" })).toContainText("learning-notes.pdf");
+  await expect(dialog.getByRole("button", { name: "Remove attachment learning-notes.pdf" })).toBeVisible();
+  await dialog.getByRole("textbox", { name: "Write a post" }).fill("This PDF summarizes our community research.");
+  const topics = dialog.getByRole("textbox", { name: "Topics" });
+  await topics.fill("Research"); await topics.press("Enter");
+  await dialog.getByRole("button", { name: "Publish post" }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(uploads).toHaveLength(1);
+  expect(uploads[0].type).toBe("application/pdf");
+  expect(writes).toEqual([expect.objectContaining({
+    body: "This PDF summarizes our community research.", type: "POST",
+    mediaIds: [mediaId],
+  })]);
+});
