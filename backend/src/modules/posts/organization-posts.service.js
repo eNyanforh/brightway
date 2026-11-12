@@ -311,6 +311,8 @@ function feedPost({ likes, _count, saves, reposts, registrations, answers = [], 
     ...(post.author ? memberPost(post, true) : post),
     reaction: likeSummary({ likes, _count }),
     views: _count.views ?? 0,
+    commentCount: _count.comments ?? 0,
+    repostCount: _count.reposts ?? 0,
     ...(registrations && { registration: {
       registered: registrations[0]?.status === "APPROVED",
       status: registrations[0]?.status ?? null,
@@ -705,7 +707,9 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const select = { ...likeSelect(actor.accountId), saves: ownActivity, reposts: ownActivity };
       const memberSelectEngagement = {
         ...memberPostSelect, ...select,
-        _count: { select: { likes: true, views: true, registrations: { where: { status: "APPROVED" } }, answers: { where: { deletedAt: null } } } },
+        _count: { select: { likes: true, views: true, reposts: true,
+          comments: { where: { deletedAt: null } },
+          registrations: { where: { status: "APPROVED" } }, answers: { where: { deletedAt: null } } } },
         registrations: { where: { accountId: actor.accountId }, select: { status: true } },
         answers: answerPreviewSelect(actor.accountId),
       };
@@ -1054,7 +1058,9 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const select = { ...likeSelect(actor.accountId), saves: ownActivity, reposts: ownActivity };
       const memberEngagementSelect = {
         ...select,
-        _count: { select: { likes: true, views: true, registrations: { where: { status: "APPROVED" } }, answers: { where: { deletedAt: null } } } },
+        _count: { select: { likes: true, views: true, reposts: true,
+          comments: { where: { deletedAt: null } },
+          registrations: { where: { status: "APPROVED" } }, answers: { where: { deletedAt: null } } } },
         registrations: { where: { accountId: actor.accountId }, select: { status: true } },
         answers: answerPreviewSelect(actor.accountId),
       };
