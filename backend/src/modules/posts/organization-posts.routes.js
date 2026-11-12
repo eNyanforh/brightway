@@ -60,12 +60,22 @@ export function createOrganizationPostRoutes({ posts, photos, media, sessions, c
           "Content-Length": String(item.bytes.length),
           "Accept-Ranges": "bytes",
           "X-Content-Type-Options": "nosniff",
-          "Cross-Origin-Resource-Policy": "same-origin",
+          // These objects remain private but can be displayed by BrightWay's
+          // separately-hosted web app when CLIENT_URL is a different origin.
+          "Cross-Origin-Resource-Policy": "cross-origin",
           "Referrer-Policy": "no-referrer",
           "Cache-Control": "private, no-store",
           "Content-Disposition": `inline; filename="${item.name.replace(/["\\]/g, "_")}"`,
           ...(item.partial ? { "Content-Range": `bytes ${item.start}-${item.end}/${item.size}` } : {}),
         });
+        if (item.contentType === "application/pdf") {
+          // Helmet's global SAMEORIGIN frame policy would block the native
+          // PDF document viewer when the frontend and API use different hosts.
+          const clientOrigin = new URL(clientUrl).origin;
+          res.removeHeader("X-Frame-Options");
+          res.setHeader("Content-Security-Policy",
+            "default-src 'none'; frame-ancestors 'self' " + clientOrigin);
+        }
         res.status(item.partial ? 206 : 200).send(item.bytes);
       } catch (error) { next(error.status ? error : fail(503, "This media file is temporarily unavailable.")); }
     });
