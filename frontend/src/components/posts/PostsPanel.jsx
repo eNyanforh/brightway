@@ -162,7 +162,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
   const type = post.member ? post.type ?? "POST" : "ORGANIZATION";
   const engagementCard = post.member && ["POST", "ACHIEVEMENT"].includes(type);
   const ownPost = session?.account?.username === post.member?.username;
-  const canReport = (engagementCard || type === "QUESTION") && !ownPost;
+  const canReport = !ownPost && !canManage && (!post.member || post.moderationStatus === "PUBLISHED");
   const reviewStatus = post.member ? post.moderationStatus : null;
   const heldForReview = reviewStatus === "PENDING" || reviewStatus === "REJECTED";
   const reviewBanner = heldForReview ? (
@@ -217,17 +217,32 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
     return () => { observer.disconnect(); controller.abort(); };
   }, [timeline, trackViews, post.id, post.views, source]);
 
-  async function sharePost() {
-    setShareNotice("");
+  function postLink() {
     const url = new URL("/explore", window.location.origin);
     url.searchParams.set("post", post.id);
     url.searchParams.set("source", source);
+    return url.toString();
+  }
+
+  async function copyPostLink() {
+    setShareNotice("");
+    const url = postLink();
     try {
-      if (navigator.share) await navigator.share({ title: "BrightWay " + type.toLowerCase(), url: url.toString() });
-      else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url.toString());
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
         setShareNotice("Post link copied.");
-      } else setShareNotice("Share this link: " + url.toString());
+      } else setShareNotice("Share this link: " + url);
+    } catch {
+      setShareNotice("Could not copy this post link.");
+    }
+  }
+
+  async function sharePost() {
+    setShareNotice("");
+    const url = postLink();
+    try {
+      if (navigator.share) await navigator.share({ title: "BrightWay " + type.toLowerCase(), url });
+      else await copyPostLink();
     } catch (error) {
       if (error.name !== "AbortError") setShareNotice("Could not share this post.");
     }
@@ -238,7 +253,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
     if (reportBusy) return;
     setReportBusy(true); setCardError("");
     try {
-      await api.reportQuestion(post.id, { reason, ...(details.trim() ? { details: details.trim() } : {}) });
+      await api.reportPost(source, post.id, { reason, ...(details.trim() ? { details: details.trim() } : {}) });
       setReported(true); setReportOpen(false);
     } catch (error) { setCardError(error.message); }
     finally { setReportBusy(false); }
@@ -298,25 +313,12 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
       )}
       <button type="button" className="bw-timeline-action" aria-label="Share" title="Share"
         onClick={() => void sharePost()}><NavigationIcon name="share" size={19} /></button>
-      {canReport && (
-        <button type="button" className="bw-timeline-action" aria-label={type === "QUESTION" ? "Report question" : "Report post"} title="Report"
-          aria-expanded={reportOpen} disabled={reported} onClick={() => setReportOpen(open => !open)}>
-          <NavigationIcon name="flag" size={19} />
-        </button>
-      )}
-      {typeof viewCount === "number" && (
+       {typeof viewCount === "number" && (
         <span className="bw-post-view-metric" aria-label={viewCount + " views"} title={viewCount + " views"}>
           <NavigationIcon name="analytics" size={19} /> <span>{viewCount.toLocaleString()}</span>
         </span>
       )}
-      {typeof post.saved === "boolean" && ["POST", "ORGANIZATION"].includes(type) && (
-        <button type="button" className="bw-timeline-action bw-timeline-save-action" disabled={busy}
-          aria-label="Save post" title={post.saved ? "Remove bookmark" : "Bookmark"}
-          aria-pressed={post.saved} onClick={() => onSave(post)}>
-          <NavigationIcon name="bookmark" size={19} active={post.saved} />
-        </button>
-      )}
-    </>
+     </>
   );
 
   const extras = (
@@ -353,8 +355,12 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
 
   if (timeline) {
     return (
-      <article className={"bw-timeline-post" + (canManage ? " bw-post-manage-card" : "")} data-post-type={type} ref={cardRef} id={"post-" + source + "-" + post.id}>
-        {canManage && <PostManageMenu post={post} busy={busy} onEdit={onEdit} onDelete={() => onWithdraw(post.id)} />}
+      <article className="bw-timeline-post bw-post-manage-card" data-post-type={type} ref={cardRef} id={"post-" + source + "-" + post.id}>
+        <PostManageMenu post={post} busy={busy} canManage={canManage}
+          canReport={canReport && !reported} onReport={() => setReportOpen(true)}
+          onCopyLink={() => void copyPostLink()}
+          onSave={typeof onSave === "function" ? () => onSave(post) : undefined}
+          onEdit={onEdit} onDelete={() => onWithdraw(post.id)} />
         {post.repost && (
           <p className="bw-timeline-repost">
             <NavigationIcon name="repost" size={15} />
@@ -401,8 +407,12 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
     );
   }
   return (
-    <article className={"bw-post-card" + (canManage ? " bw-post-manage-card" : "")} data-post-type={type}>
-      {canManage && <PostManageMenu post={post} busy={busy} onEdit={onEdit} onDelete={() => onWithdraw(post.id)} />}
+    <article className="bw-post-card bw-post-manage-card" data-post-type={type}>
+      <PostManageMenu post={post} busy={busy} canManage={canManage}
+        canReport={canReport && !reported} onReport={() => setReportOpen(true)}
+        onCopyLink={() => void copyPostLink()}
+        onSave={typeof onSave === "function" ? () => onSave(post) : undefined}
+        onEdit={onEdit} onDelete={() => onWithdraw(post.id)} />
       <header>
         <span className="bw-post-badge" aria-hidden="true">{publisherAvatar}</span>
         <div>
@@ -416,6 +426,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
       </header>
       {reviewBanner}
       <PostStory post={displayPost} topicTags={topicTags} />
+      {!heldForReview && extras}
       {!heldForReview && canManageEvent && post.eventDetails?.requiresApproval === true && (
         <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
       )}
