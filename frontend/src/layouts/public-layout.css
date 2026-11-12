@@ -115,3 +115,6 @@
 
 .bw-footer-brand > a { display: inline-flex; align-items: center; gap: 11px; }
 .bw-footer-brand-logo { display: block; width: 37px; height: 37px; object-fit: contain; flex-shrink: 0; }
+
+.bw-footer-brand .bw-footer-brand-wordmark { color: #fff; }
+.bw-footer-brand .bw-footer-brand-wordmark > span { color: #86b3ff; }
