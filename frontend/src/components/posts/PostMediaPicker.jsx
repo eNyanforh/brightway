@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
-import { organizationPostsApi, postMediaUrl, uploadPostMedia } from "../../api/organization-posts";
+import { organizationPostsApi, uploadPostMedia } from "../../api/organization-posts";
 import NavigationIcon from "../layout/NavigationIcon";
+import PostPhotoGallery from "./PostPhotoGallery";
 
 const formats = [
   { key: "IMAGE", label: "Add photos", icon: "image", accept: "image/jpeg,image/png,image/webp" },
@@ -99,12 +100,15 @@ export default function PostMediaPicker({
         })}
       </div>
       <p className="bw-post-media-picker-hint">Up to 4 photos (5 MB each), or 1 video (25 MB), or 1 PDF (5 MB).</p>
-      {media.length > 0 && <ul className="bw-post-media-picker-list" aria-label="Uploaded attachments">
+      {media[0]?.kind === "IMAGE" && <div className="bw-photo-selection">
+        <div className="bw-photo-selection-heading"><strong>Your photos</strong><span>{media.length} of 4 added</span></div>
+        <PostPhotoGallery images={media} disabled={locked} onRemove={file => void remove(file)} />
+        <p>Preview a photo to see it in full. Photos appear in the order you add them.</p>
+      </div>}
+      {media.length > 0 && media[0]?.kind !== "IMAGE" && <ul className="bw-post-media-picker-list" aria-label="Uploaded attachments">
         {media.map(file => (
           <li key={file.id}>
-            {file.kind === "IMAGE"
-              ? <img src={postMediaUrl(file.id)} alt="" loading="lazy" />
-              : <span aria-hidden="true" className="bw-post-media-picker-file-icon">{file.kind === "DOCUMENT" ? "PDF" : "VIDEO"}</span>}
+            <span aria-hidden="true" className="bw-post-media-picker-file-icon">{file.kind === "DOCUMENT" ? "PDF" : "VIDEO"}</span>
             <span className="bw-post-media-picker-file-name" title={file.name}>{file.name}</span>
             {file.kind === "DOCUMENT" && <small>{file.pageCount} pages</small>}
             <button type="button" aria-label={"Remove attachment " + file.name} disabled={locked}

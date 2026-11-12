@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { postMediaUrl } from "../../api/organization-posts";
 import NavigationIcon from "../layout/NavigationIcon";
+import PostPhotoGallery from "./PostPhotoGallery";
 
 const humanBytes = size => size >= 1024 * 1024
   ? (size / (1024 * 1024)).toFixed(1) + " MB"
@@ -76,16 +77,7 @@ export default function PostMedia({ media }) {
   const document = media.find(file => file.kind === "DOCUMENT");
   return (
     <div className="bw-post-media" aria-label="Post attachments">
-      {images.length > 0 && (
-        <div className={"bw-post-image-grid bw-post-image-grid--" + Math.min(4, images.length)}>
-          {images.map(file => (
-            <a href={postMediaUrl(file.id)} key={file.id} target="_blank" rel="noopener noreferrer"
-              aria-label={"Open image " + file.name}>
-              <img src={postMediaUrl(file.id)} alt={file.name} loading="lazy" />
-            </a>
-          ))}
-        </div>
-      )}
+      {images.length > 0 && <PostPhotoGallery images={images} />}
       {video && (
         <figure className="bw-post-video">
           <video controls playsInline preload="metadata" src={postMediaUrl(video.id)}
