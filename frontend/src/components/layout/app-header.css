@@ -185,10 +185,9 @@
   .bw-design-brand-logo { width: 34px; height: 34px; }
   .bw-design-brand-wordmark { display: none; }
 
-  .bw-design-search,
-  .bw-design-account {
-    gap: 4px;
-  }
+  .bw-design-search { display: none; }
+
+  .bw-design-account { gap: 4px; }
 
   .bw-design-mobile-action {
     display: inline-flex;
