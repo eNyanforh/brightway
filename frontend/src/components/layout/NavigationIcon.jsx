@@ -154,6 +154,12 @@ export default function NavigationIcon({
     case "link":
       shape = <><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></>;
       break;
+    case "image":
+      shape = <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m4 18 6-6 4 4 3-3 4 5" /></>;
+      break;
+    case "file-text":
+      shape = <><path d="M6 2h9l5 5v15H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><path d="M15 2v6h5M8 12h8M8 16h8" /></>;
+      break;
     case "flag":
       shape = <><path d="M5 22V3m0 1c6-4 8 4 16 0v12c-8 4-10-4-16 0" /></>;
       break;
