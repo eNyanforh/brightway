@@ -25,7 +25,7 @@ export function createPostMediaService({ prisma, storage, posts, now = () => new
   const identity = createManualIdentityReviewService({ prisma, now });
   const authorize = async actor => {
     await assertNetworkSession(prisma, actor, now);
-    if (!(await identity.inspectAccount(prisma, actor.accountId)).status?.includes("APPROVED")) {
+    if ((await identity.inspectAccount(prisma, actor.accountId)).status !== "APPROVED") {
       throw fail(403, "Verify your identity before uploading post media.");
     }
   };
