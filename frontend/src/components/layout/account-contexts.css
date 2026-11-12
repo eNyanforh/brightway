@@ -1,11 +1,16 @@
 .bw-context-facepile-wrap {
-  position: absolute;
-  right: -6px;
-  bottom: -8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  position: static;
+  flex: none;
   pointer-events: none;
-  z-index: 2;
 }
-.bw-context-facepile { display: flex; align-items: center; padding-left: 7px; }
+.bw-context-facepile {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+}
 .bw-context-avatar {
   position: relative;
   display: inline-grid;
@@ -96,6 +101,5 @@
 .bw-context-current { color: #175cd3; font-size: 9px; font-weight: 700; flex-shrink: 0; }
 .bw-context-feedback { margin: 4px 9px; padding: 5px; font-size: 10px; color: #647087; line-height: 1.5; }
 @media (max-width: 700px) {
-  .bw-context-facepile-wrap { bottom: -6px; right: -5px; }
   .bw-context-facepile .bw-context-avatar { width: 16px; height: 16px; }
 }
