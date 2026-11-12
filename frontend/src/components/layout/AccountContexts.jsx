@@ -1,6 +1,5 @@
 import { useLocation } from "react-router-dom";
 import { organizationPictureUrl } from "../../api/organization-profile";
-import AvatarGroup from "../posts/AvatarGroup";
 import "./account-contexts.css";
 
 function ContextAvatar({ context, className = "" }) {
@@ -16,9 +15,9 @@ function ContextAvatar({ context, className = "" }) {
 export function AccountContextFacepile({ contexts }) {
   if (!contexts.length) return null;
   return <span className="bw-context-facepile-wrap" aria-hidden="true">
-    <AvatarGroup className="bw-context-facepile" label="Available account contexts" max={3}>
-      {contexts.map(context => <ContextAvatar key={context.key} context={context} />)}
-    </AvatarGroup>
+    <span className="bw-context-facepile">
+      {contexts.slice(0, 3).map(context => <ContextAvatar key={context.key} context={context} />)}
+    </span>
   </span>;
 }
 
