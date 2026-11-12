@@ -1098,3 +1098,67 @@ test("the billboard rotates and stops when the member pauses it", async ({ page 
   await page.clock.fastForward(13000);
   await expect(billboard.getByRole("heading", { name: "Celebrate the winners" })).toBeVisible();
 });
+
+
+test("post and achievement footers show real engaged avatars left and actions, report and views right", async ({ page, isMobile }) => {
+  const regular = {
+    ...fixturePost, id: "a9111111-1111-4111-8111-111111111111",
+    type: "POST", tags: ["Education"], body: "An education resource shared with the community.",
+    reaction: { liked: false, count: 2 }, repostCount: 1, commentCount: 3, views: 21,
+  };
+  const achievement = {
+    ...fixturePost, id: "b9222222-2222-4222-8222-222222222222",
+    type: "ACHIEVEMENT", tags: ["Coding"], body: "Completed a new coding project with my study group.",
+    reaction: { liked: false, count: 4 }, repostCount: 1, commentCount: 2, views: 12,
+  };
+  await fixture(page, [regular, achievement]);
+  const reports = [];
+  await page.route("**/api/v1/explore/posts/member/*/engagers", route => route.fulfill({
+    json: { success: true, data: { participants: [
+      { username: "learner", name: "Learning Member", photoId: null, verified: true },
+      { username: "teacher", name: "Teaching Member", photoId: null, verified: true },
+    ] } },
+  }));
+  await page.route("**/api/v1/explore/posts/member/*/report", route => {
+    reports.push({ path: new URL(route.request().url()).pathname, payload: route.request().postDataJSON() });
+    return route.fulfill({ status: 201, json: { success: true, data: { reported: true } } });
+  });
+  await page.goto("/explore");
+  const explore = page.getByRole("region", { name: "Explore", exact: true });
+  for (const post of [regular, achievement]) {
+    const card = explore.getByRole("article").filter({ hasText: post.body });
+    await card.scrollIntoViewIfNeeded();
+    const left = card.locator(".bw-post-engagement-left");
+    const right = card.locator(".bw-post-secondary-actions");
+    const faces = card.getByRole("group", { name: "Members who engaged with this post" });
+    await expect(faces).toBeVisible();
+    await expect(faces.getByRole("link")).toHaveCount(2);
+    await expect(faces.getByRole("link", { name: "Learning Member engaged with this post" }))
+      .toHaveAttribute("href", "/learner");
+    await expect(card.getByRole("button", { name: "Comments" })).toBeVisible();
+    await expect(card.getByRole("button", { name: post.type === "POST" ? "Like" : "Celebrate" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Repost" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Share" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Report post" })).toBeVisible();
+    await expect(right.getByLabel(/views$/)).toBeVisible();
+    const [leftBox, rightBox] = await Promise.all([left.boundingBox(), right.boundingBox()]);
+    expect(leftBox).toBeTruthy();
+    expect(rightBox).toBeTruthy();
+    expect(leftBox.x + leftBox.width).toBeLessThanOrEqual(rightBox.x + 1);
+    expect(Math.abs(leftBox.y + leftBox.height / 2 - (rightBox.y + rightBox.height / 2)))
+      .toBeLessThanOrEqual(10);
+    await card.getByRole("button", { name: "Report post" }).click();
+    const report = card.getByRole("form", { name: "Report post" });
+    await expect(report).toBeVisible();
+    await report.getByRole("button", { name: "Submit report" }).click();
+    await expect(card.getByText("Report submitted for moderation.")).toBeVisible();
+  }
+  expect(reports).toHaveLength(2);
+  expect(reports.map(item => item.payload.reason)).toEqual(["SPAM", "SPAM"]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  if (isMobile) {
+    const regularCard = explore.getByRole("article").filter({ hasText: regular.body });
+    const tray = regularCard.locator(".bw-post-secondary-actions");
+    expect(await tray.evaluate(element => element.scrollWidth >= element.clientWidth)).toBe(true);
+  }
+});

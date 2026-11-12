@@ -311,6 +311,10 @@ function feedPost({ likes, _count, saves, reposts, registrations, answers = [], 
     ...(post.author ? memberPost(post, true) : post),
     reaction: likeSummary({ likes, _count }),
     views: _count.views ?? 0,
+    ...(post.author ? {
+      commentCount: _count.comments ?? 0,
+      repostCount: _count.reposts ?? 0,
+    } : {}),
     ...(registrations && { registration: {
       registered: registrations[0]?.status === "APPROVED",
       status: registrations[0]?.status ?? null,
@@ -705,7 +709,9 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const select = { ...likeSelect(actor.accountId), saves: ownActivity, reposts: ownActivity };
       const memberSelectEngagement = {
         ...memberPostSelect, ...select,
-        _count: { select: { likes: true, views: true, registrations: { where: { status: "APPROVED" } }, answers: { where: { deletedAt: null } } } },
+        _count: { select: { likes: true, views: true, reposts: true,
+          comments: { where: { deletedAt: null } },
+          registrations: { where: { status: "APPROVED" } }, answers: { where: { deletedAt: null } } } },
         registrations: { where: { accountId: actor.accountId }, select: { status: true } },
         answers: answerPreviewSelect(actor.accountId),
       };
@@ -717,6 +723,59 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const [post] = await projectVisiblePosts([row], actor.accountId);
       if (!post) throw unavailable();
       return { post };
+    },
+
+    // Recent *real* participants for member POST and ACHIEVEMENT cards. The
+    // preview is bounded, deduplicated and checked against both viewer and
+    // publisher blocks, account status and effective identity approval.
+    async engagementPreview(actor, idValue) {
+      const id = parse(identifier, idValue, "Choose a valid post.");
+      await assertNetworkSession(prisma, actor, now);
+      const target = await visiblePost(prisma, actor.accountId, { source: "member", id });
+      const kind = await prisma.memberPost.findUniqueOrThrow({
+        where: { id }, select: { type: true },
+      });
+      if (!["POST", "ACHIEVEMENT"].includes(kind.type)) {
+        throw fail(400, "Engagement avatars are available for posts and achievements.");
+      }
+      const audience = { AND: [visibleMember(actor.accountId), unblockedAuthor(target.authorId)] };
+      const [likes, comments, reposts] = await Promise.all([
+        prisma.postLike.findMany({
+          where: { memberPostId: id, account: audience },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 12,
+          select: { createdAt: true, account: { select: memberSelect } },
+        }),
+        prisma.postComment.findMany({
+          where: { memberPostId: id, deletedAt: null, author: audience },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 12,
+          select: { createdAt: true, author: { select: memberSelect } },
+        }),
+        prisma.postRepost.findMany({
+          where: { memberPostId: id, account: audience },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 12,
+          select: { createdAt: true, account: { select: memberSelect } },
+        }),
+      ]);
+      const candidates = [
+        ...likes.map(row => ({ author: row.account, createdAt: row.createdAt })),
+        ...comments,
+        ...reposts.map(row => ({ author: row.account, createdAt: row.createdAt })),
+      ].sort((a, b) => b.createdAt - a.createdAt);
+      const verified = await approvedDiscussionAuthors(prisma, candidates);
+      const seen = new Set();
+      const participants = [];
+      for (const { author } of candidates) {
+        if (!verified.has(author.id) || seen.has(author.id)) continue;
+        seen.add(author.id);
+        participants.push(memberAttribution(author, true));
+        if (participants.length === 3) break;
+      }
+      await visiblePost(prisma, actor.accountId, { source: "member", id });
+      await assertNetworkSession(prisma, actor, now);
+      return { participants };
     },
 
     async registerEvent(actor, idValue, input) {
@@ -828,8 +887,10 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const { reason, details } = parse(reportInput, input, "Choose a report reason.");
       return writeVisiblePost(actor, { source: "member", id }, async tx => {
         const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true, authorId: true } });
-        if (post.type !== "QUESTION") throw fail(400, "Only questions can be reported here.");
-        if (post.authorId === actor.accountId) throw fail(400, "You cannot report your own question.");
+        if (!["QUESTION", "POST", "ACHIEVEMENT"].includes(post.type)) {
+          throw fail(400, "Only questions, posts and achievements can be reported here.");
+        }
+        if (post.authorId === actor.accountId) throw fail(400, "You cannot report your own post.");
         await tx.postReport.createMany({
           data: [{ memberPostId: id, reporterId: actor.accountId, reason, details: details || null }],
           skipDuplicates: true,
@@ -999,7 +1060,9 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       const select = { ...likeSelect(actor.accountId), saves: ownActivity, reposts: ownActivity };
       const memberEngagementSelect = {
         ...select,
-        _count: { select: { likes: true, views: true, registrations: { where: { status: "APPROVED" } }, answers: { where: { deletedAt: null } } } },
+        _count: { select: { likes: true, views: true, reposts: true,
+          comments: { where: { deletedAt: null } },
+          registrations: { where: { status: "APPROVED" } }, answers: { where: { deletedAt: null } } } },
         registrations: { where: { accountId: actor.accountId }, select: { status: true } },
         answers: answerPreviewSelect(actor.accountId),
       };
