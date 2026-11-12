@@ -22,7 +22,10 @@ const postSelect = {
   organization: { select: { id: true, name: true, username: true, profilePhotoId: true } },
 };
 const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true, profile: { select: { photoId: true } } } } };
-const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true, questionDetails: true, body: true, createdAt: true, author: { select: memberSelect } };
+const postMediaSelect = { id: true, name: true, kind: true, contentType: true, size: true };
+const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true, questionDetails: true, body: true, createdAt: true,
+  media: { orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: postMediaSelect },
+  author: { select: memberSelect } };
 const ownMemberPostSelect = {
   ...memberPostSelect,
   moderationStatus: true, moderationVersion: true, moderationFeedback: true,
@@ -83,11 +86,16 @@ const questionDetailsInput = z.strictObject({
 });
 
 const memberPostInput = postInput.extend({
+  body: z.string().trim().max(2000),
+  mediaIds: z.array(identifier).max(4).default([])
+    .refine(ids => new Set(ids).size === ids.length),
   type: z.enum(["POST", "ACHIEVEMENT", "EVENT", "QUESTION"]).default("POST"),
   tags: topicTags.default([]),
   eventDetails: eventDetailsInput.optional(),
   questionDetails: questionDetailsInput.optional(),
 }).superRefine((value, ctx) => {
+  if (!value.body && !value.mediaIds.length)
+    ctx.addIssue({ code: "custom", path: ["body"], message: "Write a caption or attach media." });
   if (value.type !== "QUESTION" && value.questionDetails)
     ctx.addIssue({ code: "custom", path: ["questionDetails"], message: "Question details are only allowed on questions." });
   if (value.type === "QUESTION" && !value.questionDetails)
@@ -1532,15 +1540,37 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
           const sameTags = post.tags.length === data.tags.length && post.tags.every((tag, index) => tag === data.tags[index]);
           const sameEvent = sameEventDetails(post.eventDetails, data.eventDetails);
           const sameQuestion = sameQuestionDetails(post.questionDetails, data.questionDetails);
-          if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags || !sameEvent || !sameQuestion) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
+          const sameMedia = post.media.map(item => item.id).sort().join(":") === [...data.mediaIds].sort().join(":");
+          if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags || !sameEvent || !sameQuestion || !sameMedia)
+            throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
           return { post: ownerMemberPost(post, true) };
         }
         // An older tagless post may be retried, but new posts require a topic.
         if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
+        if (data.mediaIds.length) {
+          const files = await tx.postMedia.findMany({ where: {
+            id: { in: data.mediaIds }, ownerId: actor.accountId, memberPostId: null,
+            createdAt: { gte: new Date(+now() - 86400000) },
+          }, select: { id: true, kind: true, size: true } });
+          const kinds = files.map(item => item.kind);
+          if (files.length !== data.mediaIds.length || kinds.filter(kind => kind === "VIDEO").length > 1
+              || kinds.filter(kind => kind === "PDF").length > 1) {
+            throw fail(400, "Choose up to four of your own recent uploads, with no more than one video or PDF.");
+          }
+        }
         const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, questionDetails: data.questionDetails ?? undefined, body: data.body, moderationStatus: "PUBLISHED", createdAt: now() }, select: ownMemberPostSelect });
-        return { post: ownerMemberPost(post, true) };
+        if (data.mediaIds.length) {
+          const attached = await tx.postMedia.updateMany({ where: {
+            id: { in: data.mediaIds }, ownerId: actor.accountId, memberPostId: null,
+          }, data: { memberPostId: post.id } });
+          if (attached.count !== data.mediaIds.length) throw fail(409, "Media changed before publishing. Reload your draft.");
+        }
+        const published = data.mediaIds.length
+          ? await tx.memberPost.findUniqueOrThrow({ where: { id: post.id }, select: ownMemberPostSelect })
+          : post;
+        return { post: ownerMemberPost(published, true) };
       });
     },
 
