@@ -286,7 +286,7 @@ export default function PersonalPostComposer({
           onTagsChange={onTagsChange} onCancel={closeEditor} onSubmit={onSubmit} triggerRef={questionTrigger} />
       )}
       {open && type !== "EVENT" && type !== "QUESTION" && (isDialog ? createPortal(
-        <div className="bw-achievement-modal-backdrop bw-post-panel" onMouseDown={event => {
+        <div className={"bw-achievement-modal-backdrop bw-post-panel" + (isPost ? " bw-standard-post-modal-backdrop" : "")} onMouseDown={event => {
           if (event.target === event.currentTarget && !disabled) closeEditor();
         }}>
           <div className="bw-achievement-modal-dialog" ref={modalRef} role="dialog" aria-modal="true" aria-label={format.choice}>
