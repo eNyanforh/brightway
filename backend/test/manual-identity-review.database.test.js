@@ -105,7 +105,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(publication.post.type, "POST");
     assert.deepEqual(publication.post.tags, ["Learning Journeys"]);
     assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner", photoId: photo.id, verified: true });
-    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "member", "moderationFeedback", "moderationNotice", "moderationStatus", "moderationVersion", "questionDetails", "tags", "type"].sort());
+    assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "media", "member", "moderationFeedback", "moderationNotice", "moderationStatus", "moderationVersion", "questionDetails", "tags", "type"].sort());
     assert.equal(publication.post.eventDetails, null);
     assert.equal(publication.post.questionDetails, null);
     await assert.rejects(posts.memberPublish(actor, { ...draft, body: "Different content" }), { status: 409 });
