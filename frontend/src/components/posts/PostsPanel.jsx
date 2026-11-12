@@ -680,7 +680,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
           </div>
         </form>
       )}
-      {notice && <p role="status">{notice}</p>}
+      {notice && !composePostOnOpen && <p role="status">{notice}</p>}
       {submissionFeedback && <div role="status" className="bw-post-submission-feedback">
         <PostModerationNotice notice={submissionFeedback} />
         <Link to="/posts">View status in My Posts</Link>
