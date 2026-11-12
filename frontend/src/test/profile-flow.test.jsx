@@ -47,6 +47,8 @@ function mount(
   let signedIn = !guest;
   const fetchMock = vi.fn(async (url, options) => {
     if (url.endsWith("/work/access")) return ok({ hasWork: false });
+    if (url.includes("/my-workspace")) return ok({ items: [], counts: { approved: 0, pending: 0, invitations: 0, history: 0 } });
+    if (url.endsWith("/my-campus")) return ok({ items: [] });
     if (url.endsWith("/auth/me"))
       return signedIn ? ok({ account }) : reply(401, { success: false });
     if (url.endsWith("/auth/login")) {

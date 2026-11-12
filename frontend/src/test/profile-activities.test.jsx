@@ -78,11 +78,12 @@ it("shows complete posts in a title-free vertical feed, with engagement and pagi
   expect(within(rail).getByText("Finding a mentor")).toBeTruthy();
   expect(within(rail).getAllByRole("article")).toHaveLength(3);
   expect(screen.queryByRole("button", { name: "Load older activity" })).toBeNull();
-  expect(fetchMock).toHaveBeenCalledTimes(2);
+  const activityCalls = () => fetchMock.mock.calls.filter(([url]) => url.startsWith("/api/v1/posts/me"));
+  expect(activityCalls()).toHaveLength(2);
 
   await userEvent.setup().click(screen.getByRole("button", { name: "Refresh activity" }));
   await waitFor(() => expect(within(rail).getAllByRole("article")).toHaveLength(2));
-  expect(fetchMock).toHaveBeenCalledTimes(3);
+  expect(activityCalls()).toHaveLength(3);
 });
 
 it("renders another member's activity with the same cards and no owner controls", async () => {
@@ -112,7 +113,7 @@ it("renders another member's activity with the same cards and no owner controls"
   await userEvent.setup().click(screen.getByRole("button", { name: "Load older activity" }));
   await screen.findByText("Planning a capstone");
   expect(within(rail).getAllByRole("article")).toHaveLength(2);
-  expect(fetchMock.mock.calls[1][0]).toContain("/posts/members/maya?cursor=next-page");
+  expect(fetchMock.mock.calls.some(([url]) => url.includes("/posts/members/maya?cursor=next-page"))).toBe(true);
 });
 
 it("keeps real reactions interactive while showing server totals", async () => {

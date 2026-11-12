@@ -39,6 +39,8 @@ export function createOrganizationPostRoutes({ posts, photos, sessions, clientUr
   router.get("/explore/posts", access, respond((req, actor) => posts.feed(actor, req.query)));
   router.get("/explore/posts/:source/:id", access,
     respond((req, actor) => posts.readPost(actor, req.params.source, req.params.id)));
+  router.get("/explore/posts/member/:id/engagers", access,
+    respond((req, actor) => posts.engagementPreview(actor, req.params.id)));
   router.put("/explore/posts/:source/:id/like", access, trustedOrigin, writes, respond((req, actor) => posts.setLike(actor, req.params.source, req.params.id, req.body)));
   router.put("/explore/posts/:source/:id/save", access, trustedOrigin, writes, respond((req, actor) => posts.setSaved(actor, req.params.source, req.params.id, req.body)));
   router.put("/explore/posts/:source/:id/repost", access, trustedOrigin, writes, respond((req, actor) => posts.setReposted(actor, req.params.source, req.params.id, req.body)));

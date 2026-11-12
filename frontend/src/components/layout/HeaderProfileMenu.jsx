@@ -1,18 +1,23 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 
 import { useAuth } from "../../auth/useAuth";
 import ProfilePicture from "../profile/ProfilePicture";
+import { AccountContextFacepile, AccountContextPrimary, AccountContextChoices } from "./AccountContexts";
+import { useAccountContexts } from "./useAccountContexts";
 
 export default function HeaderProfileMenu({
   photoId,
   hasWork,
   unsaved,
   profileBusy,
+  actingOrganization,
 }) {
   const { account, logout } = useAuth();
+  const { contexts, loading: contextsLoading, error: contextsError, refresh: refreshContexts } = useAccountContexts(account?.id);
   const navigate = useNavigate();
+  const { pathname, search } = useLocation();
 
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -31,6 +36,22 @@ export default function HeaderProfileMenu({
   ]
     .filter(Boolean)
     .join(" ");
+
+  // The header's primary identity follows the authorized workspace/Campus route.
+  // A route parameter alone cannot establish organization or student access.
+  const orgId = pathname.startsWith("/organization-workspace/") ? pathname.split("/")[2] : null;
+  const params = new URLSearchParams(search);
+  const campusView = pathname === "/learning" && params.get("view") === "campus";
+  const campusId = campusView ? params.get("campus") : null;
+  const orgContext = orgId && contexts.find(context => context.type === "organization" && context.id === orgId);
+  const verifiedOrganization = orgId && actingOrganization?.id === orgId
+    ? { key: `org:${orgId}`, id: orgId, type: "organization", name: actingOrganization.name,
+        photoId: actingOrganization.photoId || actingOrganization.profilePhotoId || null }
+    : null;
+  const campusContext = campusView && (campusId
+    ? contexts.find(context => context.type === "school" && context.id === campusId)
+    : contexts.find(context => context.type === "school"));
+  const activeContext = orgId ? orgContext || verifiedOrganization : campusContext || null;
 
   useEffect(() => {
     if (!open) return;
@@ -105,18 +126,17 @@ export default function HeaderProfileMenu({
         aria-label="Open account menu"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => { if (!open) refreshContexts(); setOpen((value) => !value); }}
       >
-        {photoId ? (
-          <ProfilePicture
-            key={photoId}
-            id={photoId}
-            name={name}
-            decorative
-          />
-        ) : (
-          <ProfilePicture name={name} decorative />
-        )}
+        <AccountContextFacepile
+          contexts={contexts}
+          activeContext={activeContext}
+          personalPhotoId={photoId}
+          personalName={name}
+        />
+        {activeContext
+          ? <AccountContextPrimary context={activeContext} />
+          : <ProfilePicture key={photoId || "personal"} id={photoId} name={name} decorative />}
       </Trigger>
 
       {open && (
@@ -125,6 +145,14 @@ export default function HeaderProfileMenu({
             <strong>{name}</strong>
             <span>@{account.username}</span>
           </Identity>
+
+          <AccountContextChoices
+            contexts={contexts}
+            activeContext={activeContext}
+            loading={contextsLoading}
+            error={contextsError}
+            onSelect={destination => { setOpen(false); navigate(destination); }}
+          />
 
           <Action
             ref={firstAction}
@@ -204,32 +232,36 @@ const Wrapper = styled.div`
 `;
 
 const Trigger = styled.button`
-  width: 43px;
-  height: 43px;
-  border-radius: 50%;
-  border: none;
-  background: #e2ebfa;
-  display: flex;
+  /* Every visible identity is the same size; primary is the rightmost avatar. */
+  --bw-header-avatar-size: 43px;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  gap: 8px;
+  min-height: var(--bw-header-avatar-size);
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
   cursor: pointer;
-  transition: 0.2s;
 
-  &:hover {
-    box-shadow: 0 0 0 3px #dce8fa;
-  }
-
-  img {
-    width: 25px;
-    height: 25px;
-    object-fit: contain;
+  &:hover .bw-picture,
+  &:hover .bw-context-main-avatar {
+    box-shadow: 0 0 0 3px #175cd3;
   }
 
   .bw-picture {
-    width: 43px;
-    height: 43px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: var(--bw-header-avatar-size);
+    height: var(--bw-header-avatar-size);
     border-radius: 50%;
     overflow: hidden;
+    background: #fff;
+    color: #000;
+    transition: box-shadow 0.2s;
   }
 
   .bw-picture img {
@@ -239,14 +271,9 @@ const Trigger = styled.button`
   }
 
   @media (max-width: 700px) {
-    width: 33px;
-    height: 33px;
-
-    .bw-picture {
-      width: 33px;
-      height: 33px;
-      font-size: 11px;
-    }
+    --bw-header-avatar-size: 33px;
+    gap: 6px;
+    .bw-picture { font-size: 11px; }
   }
 `;
 
@@ -256,7 +283,7 @@ const Panel = styled.div`
   top: calc(100% + 20px);
   z-index: 110;
 
-  width: min(240px, calc(100vw - 24px));
+  width: min(310px, calc(100vw - 24px));
   max-height: calc(100dvh - 110px);
   padding: 8px;
   overflow-y: auto;
@@ -265,8 +292,8 @@ const Panel = styled.div`
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(21, 43, 73, 0.15);
-  color: #182339;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  color: #000;
 
   @media (max-width: 700px) {
     width: min(280px, calc(100vw - 24px));
@@ -294,7 +321,7 @@ const Identity = styled.div`
   span {
     margin-top: 3px;
     font-size: 11px;
-    color: #61718a;
+    color: #000;
   }
 `;
 
@@ -308,7 +335,7 @@ const Action = styled.button`
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #182339;
+  color: #000;
   font-size: 13px;
   cursor: pointer;
 
@@ -334,7 +361,7 @@ const MobileOrganization = styled.section`
     border-top: 1px solid #e5eaf1;
 
     .organization-eyebrow {
-      color: #6a7b95;
+      color: #000;
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 1.15px;
@@ -342,14 +369,14 @@ const MobileOrganization = styled.section`
 
     h3 {
       margin: 9px 0;
-      color: #182339;
+      color: #000;
       font-size: 15px;
       line-height: 1.45;
     }
 
     p {
       margin: 0 0 14px;
-      color: #647087;
+      color: #000;
       font-size: 12px;
       line-height: 1.6;
     }

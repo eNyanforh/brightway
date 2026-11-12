@@ -17,10 +17,14 @@ const fixturePost = {
   saved: false,
 };
 const formats = [
+  { type: "POST", choice: "Create Post", editor: "Write a post", label: "Post", body: "Here is a useful online study guide for new programmers." },
   { type: "ACHIEVEMENT", choice: "Share an Achievement", editor: "Write an achievement", label: "Achievement", heading: "A milestone worth celebrating", body: "I finished my first research project!" },
   { type: "EVENT", choice: "Create an Event", editor: "Write an event", label: "Event", heading: "What's happening", body: "Join our student research workshop on Friday at 2 PM." },
   { type: "QUESTION", choice: "Ask a Question", editor: "Write a question", label: "Question", heading: "Let's learn together", body: "How can I find a mentor for my first programming project?" },
 ];
+// Regular posts use the generic timeline card; only these three have
+// specialized presentation cards and type-specific actions.
+const specializedFormats = formats.filter(format => format.type !== "POST");
 
 async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED", submittedNotice = null) {
   const writes = [];
@@ -71,7 +75,7 @@ test("Explore remains readable at tablet width without horizontal scrolling", as
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
 
-test("Explore shows the compact three-action launcher instead of an always-open post box", async ({ page, isMobile }, testInfo) => {
+test("Explore shows the compact four-action launcher instead of an always-open post box", async ({ page, isMobile }, testInfo) => {
   const writes = await fixture(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/explore");
@@ -79,6 +83,7 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   const explore = page.getByRole("region", { name: "Explore", exact: true });
   const billboard = explore.getByRole("region", { name: "BrightWay billboard" });
   const launcher = explore.getByRole("group", { name: "Choose how to contribute" });
+  const post = launcher.getByRole("button", { name: "Create Post" });
   const achievement = launcher.getByRole("button", { name: "Share an Achievement" });
   const event = launcher.getByRole("button", { name: "Create an Event" });
   const question = launcher.getByRole("button", { name: "Ask a Question" });
@@ -89,7 +94,7 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   await expect(billboard.getByRole("link", { name: "Browse opportunities" })).toHaveAttribute("href", "/opportunities");
   await expect(billboard.getByRole("button", { name: "Play slideshow" })).toBeVisible();
   await expect(launcher.getByRole("img", { name: "Your profile photo" })).toBeVisible();
-  for (const action of [achievement, event, question]) await expect(action).toBeVisible();
+  for (const action of [post, achievement, event, question]) await expect(action).toBeVisible();
   await expect(explore.getByRole("button", { name: "Share a Post" })).toHaveCount(0);
   await expect(explore.getByRole("form", { name: "Create a post" })).toHaveCount(0);
 
@@ -114,6 +119,14 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   await expect(billboard.getByRole("heading", { name: "Celebrate the winners" })).toBeVisible();
   await billboard.getByRole("button", { name: "Virtual Campus spotlight" }).click();
   await expect(billboard.getByRole("link", { name: "Explore learning" })).toHaveAttribute("href", "/learning");
+
+  await post.click();
+  const postDialog = page.getByRole("dialog", { name: "Create Post" });
+  await expect(postDialog).toBeVisible();
+  await expect(postDialog.getByRole("textbox", { name: "Write a post" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(postDialog).toHaveCount(0);
+  await expect(post).toBeFocused();
 
   await achievement.click();
   const dialog = page.getByRole("dialog", { name: "Share an Achievement" });
@@ -153,9 +166,11 @@ for (const format of formats) {
     const explore = page.getByRole("region", { name: "Explore", exact: true });
     const launcher = explore.getByRole("group", { name: "Choose how to contribute" });
     await launcher.getByRole("button", { name: format.choice }).click();
-    const editor = format.type === "ACHIEVEMENT"
-      ? page.getByRole("dialog", { name: "Share an Achievement" }).getByRole("form", { name: "Create a post" })
-      : format.type === "EVENT"
+    const editor = format.type === "POST"
+      ? page.getByRole("dialog", { name: "Create Post" }).getByRole("form", { name: "Create a post" })
+      : format.type === "ACHIEVEMENT"
+        ? page.getByRole("dialog", { name: "Share an Achievement" }).getByRole("form", { name: "Create a post" })
+        : format.type === "EVENT"
         ? page.getByRole("dialog", { name: "Create an Event" }).getByRole("form", { name: "Create a post" })
         : page.getByRole("dialog", { name: "Ask a Question" }).getByRole("form", { name: "Create a post" });
     const content = format.type === "QUESTION" ? editor.getByLabel("Question title") : editor.getByRole("textbox", { name: format.editor });
@@ -194,7 +209,7 @@ for (const format of formats) {
     const publish = editor.getByRole("button", { name: "Publish " + format.label.toLowerCase() });
     await expect(publish).toBeDisabled();
 
-    const topics = editor.getByRole("textbox", { name: format.type === "ACHIEVEMENT" ? "Topics" : "Topic tags" });
+    const topics = editor.getByRole("textbox", { name: ["ACHIEVEMENT", "POST"].includes(format.type) ? "Topics" : "Topic tags" });
     await topics.fill("#Research");
     await topics.press("Enter");
     await topics.fill("research");
@@ -442,7 +457,7 @@ test("question modal supports topic suggestions, focus restoration and mobile la
 });
 
 test("The feed renders different presentation cards for stored achievements, events and questions", async ({ page }) => {
-  const typed = formats.map((format, index) => ({
+  const typed = specializedFormats.map((format, index) => ({
     ...fixturePost,
     id: "33333333-3333-4333-8333-33333333333" + index,
     type: format.type, body: format.body, tags: ["Learning"],
@@ -466,7 +481,7 @@ test("The feed renders different presentation cards for stored achievements, eve
   await fixture(page, [...typed, fixturePost, explanationQuestion]);
   await page.goto("/explore");
   const explore = page.getByRole("region", { name: "Explore", exact: true });
-  for (const format of formats) {
+  for (const format of specializedFormats) {
     const card = explore.getByRole("article").filter({ hasText: format.body });
     await expect(card.locator(".bw-post-story")).toHaveAttribute("data-post-type", format.type);
     await expect(card.locator(".bw-post-story--compact")).toBeVisible();
@@ -608,7 +623,7 @@ test("publisher avatars display real member and organization photos with safe in
 });
 
 test("purpose-driven post cards expose distinct actions and functional registration and answer voting", async ({ page }) => {
-  const [achievement, event, question] = formats.map((format, index) => ({
+  const [achievement, event, question] = specializedFormats.map((format, index) => ({
     ...fixturePost,
     id: "44444444-4444-4444-8444-44444444444" + index,
     type: format.type,
@@ -1082,4 +1097,68 @@ test("the billboard rotates and stops when the member pauses it", async ({ page 
   await billboard.getByRole("button", { name: "Play slideshow" }).blur();
   await page.clock.fastForward(13000);
   await expect(billboard.getByRole("heading", { name: "Celebrate the winners" })).toBeVisible();
+});
+
+
+test("post and achievement footers show real engaged avatars left and actions, report and views right", async ({ page, isMobile }) => {
+  const regular = {
+    ...fixturePost, id: "a9111111-1111-4111-8111-111111111111",
+    type: "POST", tags: ["Education"], body: "An education resource shared with the community.",
+    reaction: { liked: false, count: 2 }, repostCount: 1, commentCount: 3, views: 21,
+  };
+  const achievement = {
+    ...fixturePost, id: "b9222222-2222-4222-8222-222222222222",
+    type: "ACHIEVEMENT", tags: ["Coding"], body: "Completed a new coding project with my study group.",
+    reaction: { liked: false, count: 4 }, repostCount: 1, commentCount: 2, views: 12,
+  };
+  await fixture(page, [regular, achievement]);
+  const reports = [];
+  await page.route("**/api/v1/explore/posts/member/*/engagers", route => route.fulfill({
+    json: { success: true, data: { participants: [
+      { username: "learner", name: "Learning Member", photoId: null, verified: true },
+      { username: "teacher", name: "Teaching Member", photoId: null, verified: true },
+    ] } },
+  }));
+  await page.route("**/api/v1/explore/posts/member/*/report", route => {
+    reports.push({ path: new URL(route.request().url()).pathname, payload: route.request().postDataJSON() });
+    return route.fulfill({ status: 201, json: { success: true, data: { reported: true } } });
+  });
+  await page.goto("/explore");
+  const explore = page.getByRole("region", { name: "Explore", exact: true });
+  for (const post of [regular, achievement]) {
+    const card = explore.getByRole("article").filter({ hasText: post.body });
+    await card.scrollIntoViewIfNeeded();
+    const left = card.locator(".bw-post-engagement-left");
+    const right = card.locator(".bw-post-secondary-actions");
+    const faces = card.getByRole("group", { name: "Members who engaged with this post" });
+    await expect(faces).toBeVisible();
+    await expect(faces.getByRole("link")).toHaveCount(2);
+    await expect(faces.getByRole("link", { name: "Learning Member engaged with this post" }))
+      .toHaveAttribute("href", "/learner");
+    await expect(card.getByRole("button", { name: "Comments" })).toBeVisible();
+    await expect(card.getByRole("button", { name: post.type === "POST" ? "Like" : "Celebrate" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Repost" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Share" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Report post" })).toBeVisible();
+    await expect(right.getByLabel(/views$/)).toBeVisible();
+    const [leftBox, rightBox] = await Promise.all([left.boundingBox(), right.boundingBox()]);
+    expect(leftBox).toBeTruthy();
+    expect(rightBox).toBeTruthy();
+    expect(leftBox.x + leftBox.width).toBeLessThanOrEqual(rightBox.x + 1);
+    expect(Math.abs(leftBox.y + leftBox.height / 2 - (rightBox.y + rightBox.height / 2)))
+      .toBeLessThanOrEqual(10);
+    await card.getByRole("button", { name: "Report post" }).click();
+    const report = card.getByRole("form", { name: "Report post" });
+    await expect(report).toBeVisible();
+    await report.getByRole("button", { name: "Submit report" }).click();
+    await expect(card.getByText("Report submitted for moderation.")).toBeVisible();
+  }
+  expect(reports).toHaveLength(2);
+  expect(reports.map(item => item.payload.reason)).toEqual(["SPAM", "SPAM"]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  if (isMobile) {
+    const regularCard = explore.getByRole("article").filter({ hasText: regular.body });
+    const tray = regularCard.locator(".bw-post-secondary-actions");
+    expect(await tray.evaluate(element => element.scrollWidth >= element.clientWidth)).toBe(true);
+  }
 });
