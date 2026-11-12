@@ -227,3 +227,8 @@
   .bw-superadmin-top .bw-superadmin-name,
   .bw-superadmin-top .bw-superadmin-wordmark { display: none; }
 }
+
+@media (max-width: 760px) {
+  .bw-management-independent-header .bw-mgmt-wordmark { width: auto; }
+  .bw-management-independent-header .bw-mgmt-brand-text { display: none; }
+}
