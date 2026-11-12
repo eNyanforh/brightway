@@ -30,7 +30,7 @@
   gap: 10px;
   width: 230px;
   padding: 0;
-  color: #175cd3;
+  color: #000;
   text-decoration: none;
   letter-spacing: -1.1px;
   font-size: 25px;
@@ -44,7 +44,7 @@
   flex-shrink: 0;
   object-fit: contain;
 }
-.bw-design-brand-wordmark { display: inline-block; }
+.bw-design-brand-wordmark { display: inline-block; color: #000; }
 
 .bw-design-search {
   display: flex;

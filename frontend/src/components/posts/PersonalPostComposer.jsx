@@ -10,12 +10,6 @@ import NavigationIcon from "../layout/NavigationIcon";
 
 const types = [
   {
-    type: "POST", label: "Post", choice: "Create Post", icon: "post",
-    editor: "Write a post", heading: "Share an update",
-    prompt: "Share an educational insight, resource, career update, or something useful with the community.",
-    publish: "Publish post",
-  },
-  {
     type: "ACHIEVEMENT", label: "Achievement", choice: "Share an Achievement", icon: "awards",
     editor: "Write an achievement", heading: "Celebrate your achievement",
     prompt: "What did you accomplish? Share what you learned along the way.",
@@ -72,7 +66,6 @@ export default function PersonalPostComposer({
   const disabledRef = useRef(disabled);
   disabledRef.current = disabled;
   const achievementTrigger = useRef(null);
-  const postTrigger = useRef(null);
   const eventTrigger = useRef(null);
   const questionTrigger = useRef(null);
   const [topicDraft, setTopicDraft] = useState("");
@@ -81,9 +74,8 @@ export default function PersonalPostComposer({
   const topicLimit = tags.length >= MAX_POST_TOPICS;
   const format = types.find(option => option.type === type) ?? types[0];
   const isAchievement = type === "ACHIEVEMENT";
-  const isPost = type === "POST";
-  const isDialog = isAchievement || isPost;
-  const richTopics = isAchievement || isPost;
+  const isDialog = isAchievement;
+  const richTopics = isAchievement;
   const initial = (account?.person?.firstName || account?.username || "B").slice(0, 1).toUpperCase();
 
   useEffect(() => {
@@ -139,7 +131,7 @@ export default function PersonalPostComposer({
       const mobileFab = window.matchMedia?.("(max-width: 700px)")?.matches
         ? document.querySelector(".bw-mobile-compose-fab") : null;
       if (mobileFab) mobileFab.focus();
-      else (isAchievement ? achievementTrigger : postTrigger).current?.focus();
+      else achievementTrigger.current?.focus();
     };
     // Focus restoration and scroll locking belong to the modal's open lifecycle.
   }, [open, isAchievement, isDialog]);
@@ -201,7 +193,7 @@ export default function PersonalPostComposer({
   const mediaControls = <PostMediaPicker media={media} disabled={disabled}
     onUploaded={onMediaUploaded} onRemoved={onMediaRemoved} onBusyChange={onMediaBusyChange} />;
   const editor = open && type !== "EVENT" && type !== "QUESTION" ? (
-        <form id={editorId} className={"bw-personal-composer-form" + (isAchievement ? " bw-achievement-composer" : isPost ? " bw-standard-post-composer" : "")} aria-label="Create a post" onSubmit={submit}>
+        <form id={editorId} className={"bw-personal-composer-form" + (isAchievement ? " bw-achievement-composer" : "")} aria-label="Create a post" onSubmit={submit}>
           <div className="bw-post-editor-heading" data-post-type={format.type}>
             <span className="bw-post-editor-icon"><NavigationIcon name={format.icon} size={22} /></span>
             <div>
@@ -292,7 +284,7 @@ export default function PersonalPostComposer({
           {photoId ? <img src={photoUrl(photoId)} alt="" /> : initial}
         </div>
         {types.map(option => (
-          <button type="button" key={option.type} ref={option.type === "POST" ? postTrigger : option.type === "ACHIEVEMENT" ? achievementTrigger : option.type === "EVENT" ? eventTrigger : option.type === "QUESTION" ? questionTrigger : undefined} className="bw-post-quick-action"
+          <button type="button" key={option.type} ref={option.type === "ACHIEVEMENT" ? achievementTrigger : option.type === "EVENT" ? eventTrigger : option.type === "QUESTION" ? questionTrigger : undefined} className="bw-post-quick-action"
             data-post-type={option.type} aria-expanded={open && type === option.type}
             aria-controls={open ? editorId : undefined} disabled={disabled}
             onClick={() => selectType(option.type)}>
@@ -313,7 +305,7 @@ export default function PersonalPostComposer({
           mediaControls={mediaControls} triggerRef={questionTrigger} />
       )}
       {open && type !== "EVENT" && type !== "QUESTION" && (isDialog ? createPortal(
-        <div className={"bw-achievement-modal-backdrop bw-post-panel" + (isPost ? " bw-standard-post-modal-backdrop" : "")} onMouseDown={event => {
+        <div className={"bw-achievement-modal-backdrop bw-post-panel"} onMouseDown={event => {
           if (event.target === event.currentTarget && !disabled) closeEditor();
         }}>
           <div className="bw-achievement-modal-dialog" ref={modalRef} role="dialog" aria-modal="true" aria-label={format.choice}>

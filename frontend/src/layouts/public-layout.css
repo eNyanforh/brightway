@@ -118,3 +118,5 @@
 
 .bw-footer-brand .bw-footer-brand-wordmark { color: #fff; }
 .bw-footer-brand .bw-footer-brand-wordmark > span { color: #86b3ff; }
+
+.bw-reference-brand > span, .bw-footer-brand-wordmark, .bw-footer-brand-wordmark > span { color:#000; }

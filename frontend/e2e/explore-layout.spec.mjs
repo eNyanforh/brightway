@@ -1,5 +1,6 @@
 import { backgroundMessaging } from "./support/background-messaging.mjs";
 import { expect, test } from "@playwright/test";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 const origin = "http://127.0.0.1:4187";
 const account = {
@@ -17,14 +18,13 @@ const fixturePost = {
   saved: false,
 };
 const formats = [
-  { type: "POST", choice: "Create Post", editor: "Write a post", label: "Post", body: "Here is a useful online study guide for new programmers." },
   { type: "ACHIEVEMENT", choice: "Share an Achievement", editor: "Write an achievement", label: "Achievement", heading: "A milestone worth celebrating", body: "I finished my first research project!" },
   { type: "EVENT", choice: "Create an Event", editor: "Write an event", label: "Event", heading: "What's happening", body: "Join our student research workshop on Friday at 2 PM." },
   { type: "QUESTION", choice: "Ask a Question", editor: "Write a question", label: "Question", heading: "Let's learn together", body: "How can I find a mentor for my first programming project?" },
 ];
 // Regular posts use the generic timeline card; only these three have
 // specialized presentation cards and type-specific actions.
-const specializedFormats = formats.filter(format => format.type !== "POST");
+const specializedFormats = formats;
 
 async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED", submittedNotice = null) {
   const writes = [];
@@ -64,6 +64,23 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
   return writes;
 }
 
+async function openComposer(page, isMobile, choice = "Share an Achievement") {
+  if (isMobile) {
+    await page.getByRole("link", { name: "Create Post" }).click();
+    await page.getByRole("dialog", { name: "Create a post", exact: true }).getByRole("button", { name: new RegExp(choice) }).click();
+  } else await page.getByRole("group", { name: "Choose how to contribute" }).getByRole("button", { name: choice, exact: true }).click();
+}
+async function documentFixture() {
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  for (const [index, color] of [rgb(.85,.1,.1), rgb(.1,.7,.1), rgb(.1,.1,.85)].entries()) {
+    const page = pdf.addPage([600, 750]);
+    page.drawRectangle({ x:0, y:0, width:600, height:750, color });
+    page.drawText("Document slide " + (index + 1), { x:50, y:630, size:30, font, color:rgb(1,1,1) });
+  }
+  return Buffer.from(await pdf.save());
+}
+
 
 test("Explore remains readable at tablet width without horizontal scrolling", async ({ page }) => {
   await fixture(page);
@@ -81,7 +98,7 @@ test("Explore remains readable at tablet width without horizontal scrolling", as
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
 
-test("Explore shows the compact four-action launcher instead of an always-open post box", async ({ page, isMobile }, testInfo) => {
+test("Explore shows the compact three-action launcher instead of an always-open post box", async ({ page, isMobile }, testInfo) => {
   const writes = await fixture(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/explore");
@@ -89,6 +106,7 @@ test("Explore shows the compact four-action launcher instead of an always-open p
   const explore = page.getByRole("region", { name: "Explore", exact: true });
   const billboard = explore.getByRole("region", { name: "BrightWay billboard" });
   const launcher = explore.getByRole("group", { name: "Choose how to contribute" });
+  expect(await page.locator(".bw-design-brand").evaluate(element => getComputedStyle(element).color)).toBe("rgb(0, 0, 0)");
   const post = launcher.getByRole("button", { name: "Create Post" });
   const achievement = launcher.getByRole("button", { name: "Share an Achievement" });
   const event = launcher.getByRole("button", { name: "Create an Event" });
@@ -106,10 +124,13 @@ test("Explore shows the compact four-action launcher instead of an always-open p
     const [fabBox, navBox] = await Promise.all([floatingPost.boundingBox(), navigation.boundingBox()]);
     expect(fabBox.y + fabBox.height).toBeLessThan(navBox.y + 1);
     await floatingPost.click();
-    const dialog = page.getByRole("dialog", { name: "Create Post" });
+    const dialog = page.getByRole("dialog", { name: "Create a post", exact: true });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("textbox", { name: "Write a post" })).toBeFocused();
-    await dialog.getByRole("button", { name: "Close editor" }).click();
+    await expect(dialog.getByRole("button", { name: /Share an Achievement/ })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /Create an Event/ })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /Ask a Question/ })).toBeVisible();
+    await expect(dialog.getByRole("textbox")).toHaveCount(0);
+    await dialog.getByRole("button", { name: "Close post choices" }).click();
     await expect(dialog).toHaveCount(0);
     await expect(floatingPost).toBeFocused();
     expect(writes).toEqual([]);
@@ -124,7 +145,8 @@ test("Explore shows the compact four-action launcher instead of an always-open p
   await expect(billboard.getByRole("link", { name: "Browse opportunities" })).toHaveAttribute("href", "/opportunities");
   await expect(billboard.getByRole("button", { name: "Play slideshow" })).toBeVisible();
   await expect(launcher.getByRole("img", { name: "Your profile photo" })).toBeVisible();
-  for (const action of [post, achievement, event, question]) await expect(action).toBeVisible();
+  await expect(post).toHaveCount(0);
+  for (const action of [achievement, event, question]) await expect(action).toBeVisible();
   await expect(explore.getByRole("button", { name: "Share a Post" })).toHaveCount(0);
   await expect(explore.getByRole("form", { name: "Create a post" })).toHaveCount(0);
 
@@ -156,14 +178,6 @@ test("Explore shows the compact four-action launcher instead of an always-open p
   await expect(billboard.getByRole("heading", { name: "Celebrate the winners" })).toBeVisible();
   await billboard.getByRole("button", { name: "Virtual Campus spotlight" }).click();
   await expect(billboard.getByRole("link", { name: "Explore learning" })).toHaveAttribute("href", "/learning");
-
-  await post.click();
-  const postDialog = page.getByRole("dialog", { name: "Create Post" });
-  await expect(postDialog).toBeVisible();
-  await expect(postDialog.getByRole("textbox", { name: "Write a post" })).toBeFocused();
-  await page.keyboard.press("Escape");
-  await expect(postDialog).toHaveCount(0);
-  await expect(post).toBeFocused();
 
   await achievement.click();
   const dialog = page.getByRole("dialog", { name: "Share an Achievement" });
@@ -198,16 +212,11 @@ test("Explore shows the compact four-action launcher instead of an always-open p
 
 for (const format of formats) {
   test("Explore publishes tagged " + format.type.toLowerCase() + "s immediately", async ({ page, isMobile }, testInfo) => {
-    test.skip(isMobile && format.type !== "POST", "Mobile Explore has one floating Post action; the inline type launcher is desktop-only.");
     const writes = await fixture(page);
     await page.goto("/explore");
     const explore = page.getByRole("region", { name: "Explore", exact: true });
-    const launcher = explore.getByRole("group", { name: "Choose how to contribute" });
-    if (isMobile) await page.getByRole("link", { name: "Create Post" }).click();
-    else await launcher.getByRole("button", { name: format.choice }).click();
-    const editor = format.type === "POST"
-      ? page.getByRole("dialog", { name: "Create Post" }).getByRole("form", { name: "Create a post" })
-      : format.type === "ACHIEVEMENT"
+    await openComposer(page, isMobile, format.choice);
+    const editor = format.type === "ACHIEVEMENT"
         ? page.getByRole("dialog", { name: "Share an Achievement" }).getByRole("form", { name: "Create a post" })
         : format.type === "EVENT"
         ? page.getByRole("dialog", { name: "Create an Event" }).getByRole("form", { name: "Create a post" })
@@ -265,7 +274,7 @@ for (const format of formats) {
     await expect(explore.getByText("Post published. BrightWay Management may review it later.")).toBeVisible();
     await expect(page.getByRole("form", { name: "Create a post" })).toHaveCount(0);
     if (isMobile) await expect(explore.locator(".bw-post-quick-actions")).toBeHidden();
-    else await expect(launcher).toBeVisible();
+    else await expect(explore.getByRole("group", { name: "Choose how to contribute" })).toBeVisible();
     expect(writes).toEqual([expect.objectContaining({
       body: format.body, type: format.type, tags: ["Community work"],
       ...(format.type === "QUESTION" ? { questionDetails: {
@@ -1274,10 +1283,10 @@ test("rich post cards render native image galleries, playable video and LinkedIn
       size: 100, pageCount: kind === "DOCUMENT" ? 3 : null }],
   }));
   await fixture(page, items);
-  await page.route("**/api/v1/posts/media/*", route => route.fulfill({
-    status: 200, headers: { "Content-Type": "image/svg+xml" },
-    body: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#0866ff"/></svg>',
-  }));
+  const pdfBytes = await documentFixture();
+  await page.route("**/api/v1/posts/media/*", route => route.fulfill(route.request().url().includes(id("DOCUMENT"))
+    ? { contentType: "application/pdf", body: pdfBytes }
+    : { contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#0866ff"/></svg>' }));
   await page.goto("/explore");
   const imageCard = page.getByRole("article").filter({ hasText: "Rich media example IMAGE" });
   const videoCard = page.getByRole("article").filter({ hasText: "Rich media example VIDEO" });
@@ -1285,17 +1294,35 @@ test("rich post cards render native image galleries, playable video and LinkedIn
   await expect(imageCard.getByRole("img", { name: "project.webp" })).toBeVisible();
   await expect(videoCard.locator("video[controls][playsinline]")).toHaveAttribute("src", /posts\/media\/bb222222/);
   const deck = pdfCard.getByRole("region", { name: "PDF document research-guide.pdf" });
-  await expect(deck.getByText("research-guide.pdf")).toBeVisible();
-  await expect(deck.getByText("Page 1 of 3")).toBeVisible();
-  await expect(deck.getByRole("link", { name: "Open PDF research-guide.pdf in a new tab" }))
-    .toHaveAttribute("href", /posts\/media\/cc333333/);
+  await expect(deck.getByText("research-guide", { exact: true })).toBeVisible();
+  await deck.scrollIntoViewIfNeeded();
+  await expect(deck.getByLabel("Page 1 of 3", { exact: true })).toBeVisible();
+  await expect(deck.getByRole("group", { name: "Page 1", exact: true }).getByText("Document slide 1")).toBeAttached();
+  await expect(deck.getByRole("link", { name: "Download document" })).toHaveAttribute("href", /^blob:/);
   await deck.getByRole("button", { name: "Next document page" }).click();
-  await expect(deck.getByText("Page 2 of 3")).toBeVisible();
-  await expect(deck.locator("iframe")).toHaveAttribute("src", /#page=2/);
+  await expect(deck.getByLabel("Page 2 of 3", { exact: true })).toBeVisible();
+  await expect(deck.getByRole("group", { name: "Page 2", exact: true }).getByText("Document slide 2")).toBeAttached();
+  await expect.poll(() => deck.locator(".bw-document-track").evaluate(element => Math.round(new DOMMatrix(getComputedStyle(element).transform).m41))).toBeLessThan(0);
+  await expect(deck.locator("iframe")).toHaveCount(0);
+  const secondCanvas = deck.getByRole("group", { name: "Page 2", exact: true }).locator("canvas");
+  expect(await secondCanvas.evaluate(canvas => {
+    const [r,g,b] = canvas.getContext("2d").getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
+    return g > r * 2 && g > b * 2;
+  })).toBe(true);
+  await deck.getByRole("button", { name: "Expand document" }).click();
+  const expanded = page.getByRole("dialog", { name: "Document viewer research-guide.pdf" });
+  await expect(expanded.getByLabel("Page 2 of 3", { exact:true })).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(expanded.getByLabel("Page 3 of 3", { exact:true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(expanded).toHaveCount(0);
+  await expect(deck.getByRole("button", { name: "Expand document" })).toBeFocused();
+  await deck.getByRole("button", { name: "Previous document page" }).click();
+
   await deck.getByRole("button", { name: "Next document page" }).click();
   await expect(deck.getByRole("button", { name: "Next document page" })).toBeDisabled();
   await deck.getByRole("button", { name: "Previous document page" }).click();
-  await expect(deck.getByText("Page 2 of 3")).toBeVisible();
+  await expect(deck.getByLabel("Page 2 of 3", { exact: true })).toBeVisible();
   if (isMobile) {
     const rect = await imageCard.boundingBox();
     expect(rect.x).toBeGreaterThanOrEqual(-1);
@@ -1317,24 +1344,25 @@ test("member composer uploads a PDF and binds its ID to the published post", asy
       contentType: "application/pdf", pageCount: 2,
     } } });
   });
+  const previewPdf = await documentFixture();
+  await page.route("**/api/v1/posts/media/" + mediaId, route => route.fulfill({ contentType:"application/pdf", body:previewPdf }));
   await page.goto("/explore");
-  if (isMobile) await page.getByRole("link", { name: "Create Post" }).click();
-  else await page.getByRole("group", { name: "Choose how to contribute" }).getByRole("button", { name: "Create Post" }).click();
-  const dialog = page.getByRole("dialog", { name: "Create Post" });
+  await openComposer(page, isMobile);
+  const dialog = page.getByRole("dialog", { name: "Share an Achievement" });
   await dialog.locator('input[type="file"][accept="application/pdf"]').setInputFiles({
     name: "learning-notes.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7\nsynthetic-content"),
   });
   await expect(dialog.getByRole("list", { name: "Uploaded attachments" })).toContainText("learning-notes.pdf");
   await expect(dialog.getByRole("button", { name: "Remove attachment learning-notes.pdf" })).toBeVisible();
-  await dialog.getByRole("textbox", { name: "Write a post" }).fill("This PDF summarizes our community research.");
+  await dialog.getByRole("textbox", { name: "Write an achievement" }).fill("This PDF summarizes our community research.");
   const topics = dialog.getByRole("textbox", { name: "Topics" });
   await topics.fill("Research"); await topics.press("Enter");
-  await dialog.getByRole("button", { name: "Publish post" }).click();
+  await dialog.getByRole("button", { name: "Publish achievement" }).click();
   await expect(dialog).toHaveCount(0);
   expect(uploads).toHaveLength(1);
   expect(uploads[0].type).toBe("application/pdf");
   expect(writes).toEqual([expect.objectContaining({
-    body: "This PDF summarizes our community research.", type: "POST",
+    body: "This PDF summarizes our community research.", type: "ACHIEVEMENT",
     mediaIds: [mediaId],
   })]);
 });
@@ -1385,10 +1413,9 @@ test("photo preview closes without discarding the post editor or its uploaded im
     contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700"><rect width="1000" height="700" fill="#0866ff"/></svg>',
   }));
   await page.goto("/explore");
-  if (isMobile) await page.getByRole("link", { name: "Create Post" }).click();
-  else await page.getByRole("group", { name: "Choose how to contribute" }).getByRole("button", { name: "Create Post" }).click();
-  const editor = page.getByRole("dialog", { name: "Create Post", exact: true });
-  await editor.getByRole("textbox", { name: "Write a post" }).fill("Our study group’s latest achievement.");
+  await openComposer(page, isMobile);
+  const editor = page.getByRole("dialog", { name: "Share an Achievement", exact: true });
+  await editor.getByRole("textbox", { name: "Write an achievement" }).fill("Our study group’s latest achievement.");
   await editor.locator('input[type="file"][accept="image/jpeg,image/png,image/webp"]').setInputFiles({
     name: "study-group.webp", mimeType: "image/webp", buffer: Buffer.from("synthetic image upload"),
   });
@@ -1403,7 +1430,7 @@ test("photo preview closes without discarding the post editor or its uploaded im
   await expect(viewer).toHaveCount(0);
   await expect(editor).toBeVisible();
   await expect(open).toBeFocused();
-  await expect(editor.getByRole("textbox", { name: "Write a post" })).toHaveValue("Our study group’s latest achievement.");
+  await expect(editor.getByRole("textbox", { name: "Write an achievement" })).toHaveValue("Our study group’s latest achievement.");
   await expect(editor.getByText("1 of 4 added")).toBeVisible();
 });
 

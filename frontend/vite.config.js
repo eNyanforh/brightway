@@ -1,8 +1,9 @@
+import { pdfjsAssets } from "./scripts/pdfjs-assets.mjs";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [pdfjsAssets(), react()],
 
   server: {
     port: 5173,

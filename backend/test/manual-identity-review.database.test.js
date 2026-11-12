@@ -57,7 +57,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.deepEqual(legacy.missingIdentityFields, ["birthDate"]); assert.equal(legacy.canSubmit, false);
     const ownerSession = await db.session.create({ data: { accountId: owner.id, tokenHash: randomUUID(), expiresAt: new Date(+date + 7 * 86400000) } });
     const actor = { accountId: owner.id, sessionId: ownerSession.id };
-    const draft = { body: "Sharing my verified learning journey.", requestKey: randomUUID(), tags: [" #Learning   Journeys "] };
+    const draft = { type: "ACHIEVEMENT", body: "Sharing my verified learning journey.", requestKey: randomUUID(), tags: [" #Learning   Journeys "] };
     await assert.rejects(posts.memberPublish(actor, draft), { status: 403 });
     await reviews.completeDetails(owner.id, ownerSession.id, { expectedIdentityRevision: 0, password: ownerPassword, changes: { birthDate: "2000-01-01" } });
     assert.equal((await reviews.owner(owner.id)).canSubmit, true);
@@ -102,7 +102,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(publication.post.moderationNotice, null);
     const postId = publication.post.id;
     assert.equal(retry.post.id, postId);
-    assert.equal(publication.post.type, "POST");
+    assert.equal(publication.post.type, "ACHIEVEMENT");
     assert.deepEqual(publication.post.tags, ["Learning Journeys"]);
     assert.deepEqual(publication.post.member, { username: owner.username, name: "Sample owner", photoId: photo.id, verified: true });
     assert.deepEqual(Object.keys(publication.post).sort(), ["body", "createdAt", "eventDetails", "id", "media", "member", "moderationFeedback", "moderationNotice", "moderationStatus", "moderationVersion", "questionDetails", "tags", "type"].sort());
@@ -111,10 +111,16 @@ test("database manual identity requests serialize retries and decisions, revoke 
     await assert.rejects(posts.memberPublish(actor, { ...draft, body: "Different content" }), { status: 409 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, type: "EVENT", eventDetails: { title: "Learning meetup", startAt: "2027-01-15T12:00:00Z", endAt: "2027-01-15T14:00:00Z", timezone: "UTC", format: "IN_PERSON", venue: "Campus hall", coverTheme: "NAVY" } }), { status: 409 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, tags: ["Skills"] }), { status: 409 });
-    await assert.rejects(posts.memberPublish(actor, { body: draft.body, requestKey: randomUUID() }), { status: 400, message: "Add at least one topic tag before publishing." });
+    await assert.rejects(posts.memberPublish(actor, { body: draft.body, type: "ACHIEVEMENT", requestKey: randomUUID() }), { status: 400, message: "Add at least one topic tag before publishing." });
     await assert.rejects(posts.memberPublish(actor, { ...draft, tags: ["Research", "#research"], requestKey: randomUUID() }), { status: 400 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, tags: ["One", "Two", "Three", "Four", "Five", "Six"], requestKey: randomUUID() }), { status: 400 });
     await assert.rejects(posts.memberPublish(actor, { ...draft, type: "OPPORTUNITY", requestKey: randomUUID() }), { status: 400 });
+    const beforeOrdinaryPost = await db.memberPost.count({ where: { authorId: owner.id } });
+    for (const regular of [{ type: "POST" }, {}]) {
+      await assert.rejects(posts.memberPublish(actor, { ...draft, type: undefined, ...regular, requestKey: randomUUID() }),
+        { status: 400, message: "Choose Achievement, Event, or Question. Regular posting is no longer available for individual accounts." });
+    }
+    assert.equal(await db.memberPost.count({ where: { authorId: owner.id } }), beforeOrdinaryPost);
     const viewer = await db.account.create({ data: {
       username: `viewer_${marker}`, email: `viewer_${marker}@example.invalid`, passwordHash,
       person: { create: { firstName: "Synthetic", lastName: "Viewer" } },
@@ -136,7 +142,7 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal(uploadedImage.name, "research-photo.webp");
     await assert.rejects(postMedia.file(viewerActor, uploadedImage.id, posts), { status: 404 });
     const mediaDraft = { body: "Project results with a supporting photo.", tags: ["Research"],
-      type: "POST", mediaIds: [uploadedImage.id], requestKey: randomUUID() };
+      type: "ACHIEVEMENT", mediaIds: [uploadedImage.id], requestKey: randomUUID() };
     const publishedMedia = (await posts.memberPublish(actor, mediaDraft)).post;
     assert.deepEqual(publishedMedia.media.map(file => file.id), [uploadedImage.id]);
     assert.deepEqual((await posts.memberPublish(actor, mediaDraft)).post.media, publishedMedia.media,
@@ -155,10 +161,10 @@ test("database manual identity requests serialize retries and decisions, revoke 
     videoBytes.write("ftyp", 4, "ascii");
     const uploadedVideo = await postMedia.upload(actor, { name: "tutorial.mp4" }, videoBytes, "video/mp4");
     assert.equal(uploadedVideo.kind, "VIDEO");
-    await assert.rejects(posts.memberPublish(actor, { body: "Invalid mixed upload", type: "POST",
+    await assert.rejects(posts.memberPublish(actor, { body: "Invalid mixed upload", type: "ACHIEVEMENT",
       tags: ["Education"], mediaIds: [uploadedPdf.id, uploadedVideo.id], requestKey: randomUUID() }), { status: 400 });
     assert.deepEqual(await postMedia.discard(actor, uploadedVideo.id), { discarded: true });
-    const documentPost = (await posts.memberPublish(actor, { body: "Read this study guide.", type: "POST",
+    const documentPost = (await posts.memberPublish(actor, { body: "Read this study guide.", type: "ACHIEVEMENT",
       tags: ["Education"], mediaIds: [uploadedPdf.id], requestKey: randomUUID() })).post;
     assert.equal(documentPost.media[0].pageCount, 2);
     assert.deepEqual((await postMedia.read(viewerActor, uploadedPdf.id, posts, "bytes=0-49")).bytes,

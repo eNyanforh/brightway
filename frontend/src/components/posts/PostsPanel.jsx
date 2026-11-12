@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { organizationPostsApi as api, memberPhotoUrl } from "../../api/organization-posts";
 import { organizationPictureUrl } from "../../api/organization-profile";
 import NavigationIcon from "../layout/NavigationIcon";
+import PurposefulPostChooser from "./PurposefulPostChooser";
 import PersonalPostComposer, { PersonalPostTypeLabel, PostTopicTags } from "./PersonalPostComposer";
 import PostComments from "./PostComments";
 import QuestionAnswers from "./QuestionAnswers";
@@ -445,8 +446,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const [page, setPage] = useState(null);
   const canPublish = !disabled && Boolean(personal ? page?.access?.identityVerified : inlineComposer || page);
   const [body, setBody] = useState("");
-  const [type, setType] = useState(composePostOnOpen ? "POST" : "ACHIEVEMENT");
-  const [composerOpen, setComposerOpen] = useState(Boolean(composePostOnOpen));
+  const [type, setType] = useState("ACHIEVEMENT");
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [choosingPost, setChoosingPost] = useState(Boolean(composePostOnOpen));
   const [tags, setTags] = useState([]);
   const [media, setMedia] = useState([]);
   const [mediaUploading, setMediaUploading] = useState(false);
@@ -537,6 +539,8 @@ export default function PostsPanel({ organization, personal = false, view = "for
   }
 
   function selectComposer(value) {
+    if (!["ACHIEVEMENT", "EVENT", "QUESTION"].includes(value)) return;
+    setChoosingPost(false);
     clearUnusedMedia();
     publishKey.current = null;
     setSubmissionFeedback(null);
@@ -686,6 +690,8 @@ export default function PostsPanel({ organization, personal = false, view = "for
 
   return (
     <section className={timeline ? "bw-post-panel bw-timeline-panel" : "bw-post-panel"} aria-label={organization ? "Organization posts" : personal ? "Your posts" : "Explore posts"}>
+      {memberComposer && choosingPost && <PurposefulPostChooser disabled={!canPublish || pending}
+        onSelect={selectComposer} onCancel={() => { setChoosingPost(false); onComposeRequestFinished?.(); }} />}
       {memberComposer && (!personal || canPublish) && (
         <PersonalPostComposer account={composerAccount} photoId={composerPhotoId} body={body} type={type} tags={tags}
           media={media} mediaUploading={mediaUploading}
