@@ -1977,3 +1977,15 @@
     justify-content: flex-start;
   }
 }
+
+/* Shared flat post treatment on mobile, including private/public Activities. */
+@media (max-width: 700px) {
+  .bw-post-panel .bw-timeline-post,
+  .bw-post-panel .bw-post-card,
+  .bw-profile-activity-item .bw-timeline-post {
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .bw-post-panel .bw-timeline-post:hover,
+  .bw-profile-activity-item .bw-timeline-post:hover { box-shadow: none; }
+}
