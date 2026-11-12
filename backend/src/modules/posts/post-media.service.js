@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { PDFDocument } from "pdf-lib";
 import { z } from "zod";
 import { assertNetworkSession } from "../network/network-authority.js";
 import { fail } from "../network/network.schema.js";
@@ -19,7 +20,7 @@ const videoMatches = (bytes, type) => type === "video/mp4"
   : bytes.length >= 12 && bytes.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
     && bytes.subarray(4, 4096).includes(Buffer.from("webm"));
 
-export const publicMedia = ({ id, kind, name, contentType, size }) => ({ id, kind, name, contentType, size });
+export const publicMedia = ({ id, kind, name, contentType, size, pages }) => ({ id, kind, name, contentType, size, pages });
 
 export function createPostMediaService({ prisma, storage, posts, now = () => new Date(), processFile = processEvidence }) {
   const identity = createManualIdentityReviewService({ prisma, now });
@@ -52,13 +53,14 @@ export function createPostMediaService({ prisma, storage, posts, now = () => new
         if (!videoMatches(bytes, mime)) throw fail(415, "The selected file is not a supported MP4 or WebM video.");
         processed = { bytes, contentType: mime };
       } else processed = await processFile(bytes, mime);
+      const pages = kind === "PDF" ? (await PDFDocument.load(processed.bytes)).getPageCount() : null;
       const ext = kind === "IMAGE" ? photoExt : kind === "PDF" ? "pdf" : mime === "video/mp4" ? "mp4" : "webm";
       const key = "post-media/" + randomUUID();
       await storage.put(key, processed.bytes, processed.contentType);
       try {
         const saved = await prisma.postMedia.create({
           data: { ownerId: actor.accountId, kind, name: cleanName(parsed.data, ext),
-            contentType: processed.contentType, storageKey: key, size: processed.bytes.length, createdAt: now() },
+            contentType: processed.contentType, storageKey: key, size: processed.bytes.length, pages, createdAt: now() },
         });
         return { media: publicMedia(saved) };
       } catch (error) {
