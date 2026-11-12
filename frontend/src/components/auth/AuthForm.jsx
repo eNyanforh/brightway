@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from "react";
 import Icon from "../layout/Icon";
+import BrightWayLogo from "../layout/BrightWayLogo";
 import "./auth.css";
 
 const stories = {
@@ -20,7 +21,7 @@ export default function AuthForm({ title, description, onSubmit, busy, error, ch
         <p className="bw-public-eyebrow">{story.eyebrow}</p>
         <h2>{story.title}</h2>
         <p className="bw-auth-story-text">{story.text}</p>
-        <div className="bw-auth-story-art" aria-hidden="true"><span className="bw-auth-orbit" /><span className="bw-auth-symbol">b<span>↗</span></span><span className="bw-auth-star">✦</span><span className="bw-auth-art-label">YOUR OWN WAY FORWARD</span></div>
+        <div className="bw-auth-story-art" aria-hidden="true"><span className="bw-auth-orbit" /><span className="bw-auth-symbol"><BrightWayLogo width={116} height={116} /></span><span className="bw-auth-star">✦</span><span className="bw-auth-art-label">YOUR OWN WAY FORWARD</span></div>
         <p className="bw-auth-story-foot"><Icon name="sprout" /> Not just social. Purposeful.</p>
       </aside>
       <section className="auth-card" aria-labelledby={headingId}>
