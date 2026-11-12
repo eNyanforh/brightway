@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 
 import { useAuth } from "../../auth/useAuth";
 import ProfilePicture from "../profile/ProfilePicture";
-import { AccountContextFacepile, AccountContextChoices } from "./AccountContexts";
+import { AccountContextFacepile, AccountContextPrimary, AccountContextChoices } from "./AccountContexts";
 import { useAccountContexts } from "./useAccountContexts";
 
 export default function HeaderProfileMenu({
@@ -12,10 +12,12 @@ export default function HeaderProfileMenu({
   hasWork,
   unsaved,
   profileBusy,
+  actingOrganization,
 }) {
   const { account, logout } = useAuth();
   const { contexts, loading: contextsLoading, error: contextsError, refresh: refreshContexts } = useAccountContexts(account?.id);
   const navigate = useNavigate();
+  const { pathname, search } = useLocation();
 
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -34,6 +36,22 @@ export default function HeaderProfileMenu({
   ]
     .filter(Boolean)
     .join(" ");
+
+  // The header's primary identity follows the authorized workspace/Campus route.
+  // A route parameter alone cannot establish organization or student access.
+  const orgId = /^\\/organization-workspace\\/([^/]+)(?:\\/|$)/.exec(pathname)?.[1];
+  const params = new URLSearchParams(search);
+  const campusView = pathname === "/learning" && params.get("view") === "campus";
+  const campusId = campusView ? params.get("campus") : null;
+  const orgContext = orgId && contexts.find(context => context.type === "organization" && context.id === orgId);
+  const verifiedOrganization = orgId && actingOrganization?.id === orgId
+    ? { key: `org:${orgId}`, id: orgId, type: "organization", name: actingOrganization.name,
+        photoId: actingOrganization.photoId || actingOrganization.profilePhotoId || null }
+    : null;
+  const campusContext = campusView && (campusId
+    ? contexts.find(context => context.type === "school" && context.id === campusId)
+    : contexts.find(context => context.type === "school"));
+  const activeContext = orgId ? orgContext || verifiedOrganization : campusContext || null;
 
   useEffect(() => {
     if (!open) return;
@@ -110,17 +128,15 @@ export default function HeaderProfileMenu({
         aria-controls={panelId}
         onClick={() => { if (!open) refreshContexts(); setOpen((value) => !value); }}
       >
-        <AccountContextFacepile contexts={contexts} />
-        {photoId ? (
-          <ProfilePicture
-            key={photoId}
-            id={photoId}
-            name={name}
-            decorative
-          />
-        ) : (
-          <ProfilePicture name={name} decorative />
-        )}
+        <AccountContextFacepile
+          contexts={contexts}
+          activeContext={activeContext}
+          personalPhotoId={photoId}
+          personalName={name}
+        />
+        {activeContext
+          ? <AccountContextPrimary context={activeContext} />
+          : <ProfilePicture key={photoId || "personal"} id={photoId} name={name} decorative />}
       </Trigger>
 
       {open && (
@@ -132,6 +148,7 @@ export default function HeaderProfileMenu({
 
           <AccountContextChoices
             contexts={contexts}
+            activeContext={activeContext}
             loading={contextsLoading}
             error={contextsError}
             onSelect={destination => { setOpen(false); navigate(destination); }}
