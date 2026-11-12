@@ -1,6 +1,8 @@
 import { seedOrganizationProfile, clearOrganizationProfiles } from "../test-support/organization-profile-seed.js";
 import { managementStaffFixture, managementSessionFixture, cleanupManagementFixtures } from "../test-support/management-database-fixture.js";
 import { createOrganizationPosts } from "../src/modules/posts/organization-posts.service.js";
+import { createPostMediaService } from "../src/modules/posts/post-media.service.js";
+import { PDFDocument } from "pdf-lib";
 import { createMemberPostModeration } from "../src/modules/posts/member-post-moderation.service.js";
 import { hashPassword } from "../src/modules/auth/password.js";
 import test from "node:test";
@@ -22,7 +24,17 @@ test("database manual identity requests serialize retries and decisions, revoke 
   const storage = { check() {}, async put(key, bytes) { objects.set(key, bytes); }, async get(key) { return objects.get(key); }, async delete(key) { objects.delete(key); } };
   const config = { prisma: db, storage, now: () => date, policy: reviewPolicy({ MANUAL_IDENTITY_RETENTION_DAYS: "30" }) };
   const reviews = createManualIdentityReviewService(config);
-  const posts = createOrganizationPosts(config);
+  const mediaObjects = new Map();
+  const mediaStorage = {
+    check() {},
+    async put(key, bytes) { mediaObjects.set(key, bytes); },
+    async get(key) { return mediaObjects.get(key); },
+    async getRange(key, { start, end }) { return mediaObjects.get(key).subarray(start, end + 1); },
+    async delete(key) { mediaObjects.delete(key); },
+  };
+  const postMedia = createPostMediaService({ prisma: db, storage: mediaStorage, now: () => date,
+    processImage: async bytes => ({ bytes }), processPdf: async bytes => ({ bytes }) });
+  const posts = createOrganizationPosts({ ...config, media: postMedia });
   const moderation = createMemberPostModeration(config);
   const uploads = createManualIdentityEvidenceService({ ...config, processImage: async () => ({ bytes: Buffer.from("test image"), width: 640, height: 480 }) });
   try {
@@ -116,6 +128,42 @@ test("database manual identity requests serialize retries and decisions, revoke 
       publication.post.moderationNotice, "the reason persists on the private My Posts endpoint");
     assert.equal((await posts.feed(viewerActor, {})).items.some(item => item.id === postId), true);
     assert.equal((await posts.readPost(viewerActor, "member", postId)).post.id, postId);
+    // Attachments belong to their uploader until claimed in a post transaction.
+    const imageBytes = Buffer.from("synthetic-photo-content");
+    const uploadedImage = await postMedia.upload(actor, { name: "research-photo.png" }, imageBytes, "image/png");
+    assert.equal(uploadedImage.kind, "IMAGE");
+    assert.equal(uploadedImage.contentType, "image/webp");
+    assert.equal(uploadedImage.name, "research-photo.webp");
+    await assert.rejects(postMedia.file(viewerActor, uploadedImage.id, posts), { status: 404 });
+    const mediaDraft = { body: "Project results with a supporting photo.", tags: ["Research"],
+      type: "POST", mediaIds: [uploadedImage.id], requestKey: randomUUID() };
+    const publishedMedia = (await posts.memberPublish(actor, mediaDraft)).post;
+    assert.deepEqual(publishedMedia.media.map(file => file.id), [uploadedImage.id]);
+    assert.deepEqual((await posts.memberPublish(actor, mediaDraft)).post.media, publishedMedia.media,
+      "Retries cannot duplicate file bindings.");
+    assert.deepEqual((await posts.feed(viewerActor, {})).items.find(row => row.id === publishedMedia.id).media,
+      publishedMedia.media, "Explore includes file metadata.");
+    assert.deepEqual((await postMedia.read(viewerActor, uploadedImage.id, posts)).bytes, imageBytes);
+    await assert.rejects(postMedia.discard(actor, uploadedImage.id), { status: 404 });
+    const pdfDocument = await PDFDocument.create();
+    pdfDocument.addPage(); pdfDocument.addPage();
+    const pdfBytes = Buffer.from(await pdfDocument.save());
+    const uploadedPdf = await postMedia.upload(actor, { name: "student-guide.pdf" }, pdfBytes, "application/pdf");
+    assert.equal(uploadedPdf.kind, "DOCUMENT");
+    assert.equal(uploadedPdf.pageCount, 2);
+    const videoBytes = Buffer.alloc(80);
+    videoBytes.write("ftyp", 4, "ascii");
+    const uploadedVideo = await postMedia.upload(actor, { name: "tutorial.mp4" }, videoBytes, "video/mp4");
+    assert.equal(uploadedVideo.kind, "VIDEO");
+    await assert.rejects(posts.memberPublish(actor, { body: "Invalid mixed upload", type: "POST",
+      tags: ["Education"], mediaIds: [uploadedPdf.id, uploadedVideo.id], requestKey: randomUUID() }), { status: 400 });
+    assert.deepEqual(await postMedia.discard(actor, uploadedVideo.id), { discarded: true });
+    const documentPost = (await posts.memberPublish(actor, { body: "Read this study guide.", type: "POST",
+      tags: ["Education"], mediaIds: [uploadedPdf.id], requestKey: randomUUID() })).post;
+    assert.equal(documentPost.media[0].pageCount, 2);
+    assert.deepEqual((await postMedia.read(viewerActor, uploadedPdf.id, posts, "bytes=0-49")).bytes,
+      pdfBytes.subarray(0, 50), "Embedded PDF viewer receives ranged bytes.");
+    await assert.rejects(postMedia.upload(actor, { name: "unsafe.mp4" }, Buffer.alloc(50), "video/mp4"), { status: 415 });
     assert.deepEqual(await posts.memberPhoto(viewerActor, owner.username, photo.id), { personId: owner.personId, photoId: photo.id });
     await assert.rejects(posts.memberPhoto(viewerActor, owner.username, randomUUID()), { status: 404 });
 
