@@ -60,7 +60,7 @@ export function PostTopicTags({ tags, onRemove, disabled }) {
 
 export default function PersonalPostComposer({
   account, photoId, body, type, tags, open, disabled,
-  onSelect, onCancel, onBodyChange, onTagsChange, onSubmit,
+  onSelect, onCancel, onBodyChange, onTagsChange, onSubmit, hideInlineOptions = false,
 }) {
   const topicId = useId();
   const editorId = useId();
@@ -85,7 +85,22 @@ export default function PersonalPostComposer({
   const initial = (account?.person?.firstName || account?.username || "B").slice(0, 1).toUpperCase();
 
   useEffect(() => {
-    if (open) bodyInput.current?.focus();
+    if (!open) return undefined;
+    // Opening from the floating navigation link remounts Explore; wait for
+    // navigation focus handling to settle before focusing the modal editor.
+    bodyInput.current?.focus();
+    const focusIfOutside = () => {
+      if (disabledRef.current || !bodyInput.current || !modalRef.current) return;
+      // Routing can briefly return focus to the navigation link after the
+      // portal mounts. Do not override deliberate focus within the dialog.
+      if (!modalRef.current.contains(document.activeElement)) bodyInput.current.focus();
+    };
+    const frame = window.requestAnimationFrame?.(focusIfOutside);
+    const delayed = window.setTimeout(focusIfOutside, 120);
+    return () => {
+      if (frame != null) window.cancelAnimationFrame?.(frame);
+      window.clearTimeout(delayed);
+    };
   }, [open, type]);
 
   useEffect(() => {
@@ -117,7 +132,12 @@ export default function PersonalPostComposer({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      (isAchievement ? achievementTrigger : postTrigger).current?.focus();
+      // On narrow screens the inline choices are hidden and the persistent
+      // floating Post shortcut is the accessible return-focus target.
+      const mobileFab = window.matchMedia?.("(max-width: 700px)")?.matches
+        ? document.querySelector(".bw-mobile-compose-fab") : null;
+      if (mobileFab) mobileFab.focus();
+      else (isAchievement ? achievementTrigger : postTrigger).current?.focus();
     };
     // Focus restoration and scroll locking belong to the modal's open lifecycle.
   }, [open, isAchievement, isDialog]);
@@ -205,7 +225,7 @@ export default function PersonalPostComposer({
                 <span>Make it meaningful</span>
               </div>
             )}
-            <textarea ref={bodyInput} id={editorId + "-body"} aria-label={format.editor} placeholder={isAchievement ? "I’m proud to share that…\n\nHere’s what I accomplished, what it took, and what I learned along the way." : format.prompt} rows={isAchievement ? 6 : 4} maxLength={2000}
+            <textarea ref={bodyInput} autoFocus={isDialog} id={editorId + "-body"} aria-label={format.editor} placeholder={isAchievement ? "I’m proud to share that…\n\nHere’s what I accomplished, what it took, and what I learned along the way." : format.prompt} rows={isAchievement ? 6 : 4} maxLength={2000}
               value={body} disabled={disabled} onChange={event => onBodyChange(event.target.value)} />
             {isAchievement && (
               <div className="bw-achievement-writing-foot">
@@ -261,7 +281,7 @@ export default function PersonalPostComposer({
   ) : null;
 
   return (
-    <div className="bw-personal-composer" aria-label="Community contribution composer">
+    <div className={"bw-personal-composer" + (hideInlineOptions ? " bw-personal-composer--without-options" : "")} aria-label="Community contribution composer">
       <div className="bw-post-quick-actions" role="group" aria-label="Choose how to contribute">
         <div className="bw-timeline-avatar bw-post-quick-avatar" role="img" aria-label="Your profile photo">
           {photoId ? <img src={photoUrl(photoId)} alt="" /> : initial}

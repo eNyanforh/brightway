@@ -424,15 +424,15 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
   );
 }
 
-export default function PostsPanel({ organization, personal = false, view = "for-you", disabled = false, timeline = false, composerAccount, composerPhotoId }) {
+export default function PostsPanel({ organization, personal = false, view = "for-you", disabled = false, timeline = false, composerAccount, composerPhotoId, showInlineComposer = true, composePostOnOpen = false, onComposeRequestFinished }) {
   const organizationId = organization?.id;
   const inlineComposer = timeline && Boolean(composerAccount);
   const memberComposer = personal || inlineComposer;
   const [page, setPage] = useState(null);
   const canPublish = !disabled && Boolean(personal ? page?.access?.identityVerified : inlineComposer || page);
   const [body, setBody] = useState("");
-  const [type, setType] = useState("ACHIEVEMENT");
-  const [composerOpen, setComposerOpen] = useState(false);
+  const [type, setType] = useState(composePostOnOpen ? "POST" : "ACHIEVEMENT");
+  const [composerOpen, setComposerOpen] = useState(Boolean(composePostOnOpen));
   const [tags, setTags] = useState([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
@@ -529,6 +529,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     setType("ACHIEVEMENT");
     setComposerOpen(false);
     setError(null);
+    if (composePostOnOpen) onComposeRequestFinished?.();
   }
 
   function changeTags(value) {
@@ -557,6 +558,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
       setType("ACHIEVEMENT");
       setTags([]);
       setComposerOpen(false);
+      if (composePostOnOpen) onComposeRequestFinished?.(post.moderationStatus === "PUBLISHED"
+        ? "Post published. BrightWay Management may review it later."
+        : "Submitted for moderation. Track the decision in My Posts.");
       const held = memberComposer && post.moderationStatus !== "PUBLISHED";
       setSubmissionFeedback(held ? post.moderationNotice ?? null : null);
       setNotice(memberComposer ? post.moderationStatus === "PUBLISHED"
@@ -654,7 +658,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     <section className={timeline ? "bw-post-panel bw-timeline-panel" : "bw-post-panel"} aria-label={organization ? "Organization posts" : personal ? "Your posts" : "Explore posts"}>
       {memberComposer && (!personal || canPublish) && (
         <PersonalPostComposer account={composerAccount} photoId={composerPhotoId} body={body} type={type} tags={tags}
-          open={composerOpen} disabled={!canPublish || pending}
+          open={composerOpen} disabled={!canPublish || pending} hideInlineOptions={!showInlineComposer}
           onSelect={selectComposer} onCancel={cancelComposer} onBodyChange={changeBody}
           onTagsChange={changeTags} onSubmit={publish} />
       )}
@@ -676,7 +680,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
           </div>
         </form>
       )}
-      {notice && <p role="status">{notice}</p>}
+      {notice && !composePostOnOpen && <p role="status">{notice}</p>}
       {submissionFeedback && <div role="status" className="bw-post-submission-feedback">
         <PostModerationNotice notice={submissionFeedback} />
         <Link to="/posts">View status in My Posts</Link>

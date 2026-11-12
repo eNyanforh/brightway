@@ -830,14 +830,16 @@ it("closes expanded navigation after a destination is chosen", async () => {
   expect(network.getAttribute("aria-current")).toBe("page");
 });
 
-it("provides the five mobile destinations and header utilities without another profile read", async () => {
+it("provides four mobile destinations and a floating Post shortcut without another profile read", async () => {
   const fetchMock = mount();
   await ready();
   const navigation = screen.getByRole("navigation", { name: "Mobile navigation" });
   expect([...navigation.children].map((item) => item.textContent)).toEqual([
-    "Explore", "Opportunities", "Post", "Network", "Learning",
+    "Explore", "Opportunities", "Network", "Learning", "Post",
   ]);
-  expect(within(navigation).getByRole("link", { name: "Post", exact: true }).getAttribute("href")).toBe("/posts");
+  const floatingPost = within(navigation).getByRole("link", { name: "Create Post" });
+  expect(floatingPost.getAttribute("href")).toBe("/explore?compose=post");
+  expect(floatingPost.classList.contains("bw-mobile-compose-fab")).toBe(true);
   const header = screen.getByRole("banner");
   expect(within(header).getByRole("link", { name: "Search BrightWay" }).getAttribute("href")).toBe("/search");
   expect(within(header).getByRole("link", { name: "Messages", exact: true }).getAttribute("href")).toBe("/messages");

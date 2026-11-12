@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link, useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import ExploreBillboard from "../components/discovery/ExploreBillboard";
 import PostsPanel from "../components/posts/PostsPanel";
@@ -15,6 +15,17 @@ const views = [["for-you", "For You"], ["following", "Following"], ["saved", "Sa
 export default function ExplorePage() {
   const { account } = useAuth();
   const outlet = useOutletContext();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const composePostOnOpen = new URLSearchParams(location.search).get("compose") === "post";
+  const [mobilePostNotice, setMobilePostNotice] = useState("");
+  const finishMobileCompose = (message = "") => {
+    setMobilePostNotice(message);
+    if (!composePostOnOpen) return;
+    const params = new URLSearchParams(location.search);
+    params.delete("compose");
+    navigate({ pathname: location.pathname, search: params.toString() ? "?" + params : "", hash: location.hash }, { replace: true });
+  };
   const [view, setView] = useState("for-you");
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
@@ -33,8 +44,10 @@ export default function ExplorePage() {
               </button>
             ))}
           </nav>
-          <PostsPanel key={account.id + ":" + view} view={view} timeline
-            composerAccount={view === "for-you" ? account : null}
+          {mobilePostNotice && <p role="status" className="bw-explore-mobile-post-notice">{mobilePostNotice}</p>}
+          <PostsPanel key={account.id + ":" + view + ":" + (composePostOnOpen ? location.key : "feed")} view={view} timeline
+            composerAccount={account} showInlineComposer={view === "for-you"}
+            composePostOnOpen={composePostOnOpen} onComposeRequestFinished={finishMobileCompose}
             composerPhotoId={outlet?.profileDraft?.profile.photo?.id} />
         </section>
       </div>

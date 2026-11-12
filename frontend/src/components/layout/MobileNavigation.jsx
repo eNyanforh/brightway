@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import NavigationIcon from "./NavigationIcon";
 import "./mobile-navigation.css";
 
@@ -9,7 +9,6 @@ const items = [
     to: "/opportunities",
     icon: "opportunities",
   },
-  { label: "Post", to: "/posts", icon: "post" },
   { label: "Network", to: "/network", icon: "network" },
   { label: "Learning", to: "/learning", icon: "learning" },
 ];
@@ -36,10 +35,15 @@ export default function MobileNavigation({ onNavigate }) {
     >
       {items.map(item => (
         <NavLink key={item.label} to={item.to} onClick={onNavigate}
-          className={item.icon === "post" ? "bw-mobile-navigation-post" : undefined}>
+>
           {({ isActive }) => <Content item={item} active={isActive} />}
         </NavLink>
       ))}
+      <Link className="bw-mobile-compose-fab" to="/explore?compose=post"
+        onClick={onNavigate} aria-label="Create Post">
+        <NavigationIcon name="post" size={24} />
+        <span>Post</span>
+      </Link>
     </nav>
   );
 }

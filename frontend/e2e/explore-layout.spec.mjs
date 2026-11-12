@@ -28,6 +28,7 @@ const specializedFormats = formats.filter(format => format.type !== "POST");
 
 async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED", submittedNotice = null) {
   const writes = [];
+  const publishedPosts = [];
   await page.route("**/*", async route => {
     const background = backgroundMessaging(route); if (background) return background;
     const request = route.request();
@@ -40,17 +41,22 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
       case "/api/v1/auth/me": return reply({ account });
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
       case "/api/v1/work/access": return reply({ hasWork: false });
-      case "/api/v1/explore/posts": return reply({ items: posts, nextCursor: null });
+      case "/api/v1/explore/posts": return reply({ items: [...publishedPosts, ...posts], nextCursor: null });
       case "/api/v1/learning/discover":
       case "/api/v1/opportunities": return reply({ items: [], nextCursor: null });
       case "/api/v1/posts/me": {
         const draft = request.postDataJSON();
         writes.push(draft);
-        return reply({ post: {
+        const newPost = {
           id: "new-post", body: draft.body, type: draft.type, tags: draft.tags, eventDetails: draft.eventDetails || null, questionDetails: draft.questionDetails || null,
           createdAt: fixturePost.createdAt, moderationStatus: submittedStatus, moderationVersion: 1, moderationFeedback: null, moderationNotice: submittedNotice,
           member: { name: "Synthetic Member", username: "synthetic" },
-        } }, 201);
+        };
+        if (submittedStatus === "PUBLISHED") {
+          publishedPosts.unshift({ ...newPost, reaction: { liked: false, count: 0 },
+            saved: false, reposted: false, views: 0 });
+        }
+        return reply({ post: newPost }, 201);
       }
       default: throw Error("Unexpected synthetic request " + url.pathname);
     }
@@ -87,6 +93,30 @@ test("Explore shows the compact four-action launcher instead of an always-open p
   const achievement = launcher.getByRole("button", { name: "Share an Achievement" });
   const event = launcher.getByRole("button", { name: "Create an Event" });
   const question = launcher.getByRole("button", { name: "Ask a Question" });
+  if (isMobile) {
+    await expect(explore.locator(".bw-explore-billboard")).toBeHidden();
+    await expect(explore.locator(".bw-post-quick-actions")).toBeHidden();
+    const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
+    const floatingPost = navigation.getByRole("link", { name: "Create Post" });
+    await expect(floatingPost).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "Explore" })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "Opportunities" })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "Network" })).toBeVisible();
+    await expect(navigation.getByRole("link", { name: "Learning" })).toBeVisible();
+    const [fabBox, navBox] = await Promise.all([floatingPost.boundingBox(), navigation.boundingBox()]);
+    expect(fabBox.y + fabBox.height).toBeLessThan(navBox.y + 1);
+    await floatingPost.click();
+    const dialog = page.getByRole("dialog", { name: "Create Post" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("textbox", { name: "Write a post" })).toBeFocused();
+    await dialog.getByRole("button", { name: "Close editor" }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(floatingPost).toBeFocused();
+    expect(writes).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await testInfo.attach("Mobile Explore floating Post", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+    return;
+  }
   await expect(explore.getByRole("heading", { name: "Explore community" })).toHaveCount(1);
   await expect(explore.getByText("Discover what’s possible")).toHaveCount(0);
   await expect(explore.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "For You" })).toHaveAttribute("aria-pressed", "true");
@@ -160,12 +190,14 @@ test("Explore shows the compact four-action launcher instead of an always-open p
 });
 
 for (const format of formats) {
-  test("Explore publishes tagged " + format.type.toLowerCase() + "s immediately", async ({ page }, testInfo) => {
+  test("Explore publishes tagged " + format.type.toLowerCase() + "s immediately", async ({ page, isMobile }, testInfo) => {
+    test.skip(isMobile && format.type !== "POST", "Mobile Explore has one floating Post action; the inline type launcher is desktop-only.");
     const writes = await fixture(page);
     await page.goto("/explore");
     const explore = page.getByRole("region", { name: "Explore", exact: true });
     const launcher = explore.getByRole("group", { name: "Choose how to contribute" });
-    await launcher.getByRole("button", { name: format.choice }).click();
+    if (isMobile) await page.getByRole("link", { name: "Create Post" }).click();
+    else await launcher.getByRole("button", { name: format.choice }).click();
     const editor = format.type === "POST"
       ? page.getByRole("dialog", { name: "Create Post" }).getByRole("form", { name: "Create a post" })
       : format.type === "ACHIEVEMENT"
@@ -225,7 +257,8 @@ for (const format of formats) {
     await expect(explore.getByRole("article").filter({ hasText: format.body })).toBeVisible();
     await expect(explore.getByText("Post published. BrightWay Management may review it later.")).toBeVisible();
     await expect(page.getByRole("form", { name: "Create a post" })).toHaveCount(0);
-    await expect(launcher).toBeVisible();
+    if (isMobile) await expect(explore.locator(".bw-post-quick-actions")).toBeHidden();
+    else await expect(launcher).toBeVisible();
     expect(writes).toEqual([expect.objectContaining({
       body: format.body, type: format.type, tags: ["Community work"],
       ...(format.type === "QUESTION" ? { questionDetails: {
@@ -240,7 +273,8 @@ for (const format of formats) {
   });
 }
 
-test("achievement publishes immediately without AI screening", async ({ page }) => {
+test("achievement publishes immediately without AI screening", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Achievement quick actions are hidden on mobile Explore.");
   const writes = await fixture(page, [fixturePost], "PUBLISHED");
   await page.goto("/explore");
   const explore = page.getByRole("region", { name: "Explore", exact: true });
@@ -256,7 +290,8 @@ test("achievement publishes immediately without AI screening", async ({ page }) 
   expect(writes).toHaveLength(1);
 });
 
-test("event admission settings validate ticket price and capacity before publishing", async ({ page }) => {
+test("event admission settings validate ticket price and capacity before publishing", async ({ page, isMobile }) => {
+  test.skip(isMobile, "The mobile Explore composer launches a standard Post.");
   await fixture(page);
   await page.goto("/explore");
   await page.getByRole("button", { name: "Create an Event" }).click();
@@ -381,7 +416,8 @@ test("event host can review, approve and decline attendance requests", async ({ 
   ]);
 });
 
-test("achievement, event and question composers offer the same subject categories", async ({ page }) => {
+test("achievement, event and question composers offer the same subject categories", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Specialized inline composer shortcuts remain on desktop Explore.");
   await fixture(page);
   await page.goto("/explore");
   const launcher = page.getByRole("group", { name: "Choose how to contribute" });
@@ -409,6 +445,7 @@ test("achievement, event and question composers offer the same subject categorie
 });
 
 test("achievement modal supports suggested topics, close button and mobile-friendly sizing", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Achievement shortcut is not shown on mobile Explore.");
   await fixture(page);
   await page.goto("/explore");
   const launcher = page.getByRole("group", { name: "Choose how to contribute" });
@@ -433,6 +470,7 @@ test("achievement modal supports suggested topics, close button and mobile-frien
 });
 
 test("question modal supports topic suggestions, focus restoration and mobile layout", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Question shortcut is not shown on mobile Explore.");
   await fixture(page);
   await page.goto("/explore");
   const trigger = page.getByRole("group", { name: "Choose how to contribute" })
@@ -1082,7 +1120,8 @@ test("mobile event and question primary actions stay left of the right utility g
   }
 });
 
-test("the billboard rotates and stops when the member pauses it", async ({ page }) => {
+test("the billboard rotates and stops when the member pauses it", async ({ page, isMobile }) => {
+  test.skip(isMobile, "The Explore billboard is hidden on mobile.");
   await fixture(page);
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.clock.install();
