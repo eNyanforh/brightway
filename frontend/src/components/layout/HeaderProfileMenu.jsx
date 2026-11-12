@@ -4,6 +4,7 @@ import styled from "styled-components";
 
 import { useAuth } from "../../auth/useAuth";
 import ProfilePicture from "../profile/ProfilePicture";
+import { useAccountContexts, AccountContextFacepile, AccountContextChoices } from "./AccountContexts";
 
 export default function HeaderProfileMenu({
   photoId,
@@ -12,6 +13,7 @@ export default function HeaderProfileMenu({
   profileBusy,
 }) {
   const { account, logout } = useAuth();
+  const { contexts, loading: contextsLoading, error: contextsError, refresh: refreshContexts } = useAccountContexts(account?.id);
   const navigate = useNavigate();
 
   const [open, setOpen] = useState(false);
@@ -105,7 +107,7 @@ export default function HeaderProfileMenu({
         aria-label="Open account menu"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => { if (!open) refreshContexts(); setOpen((value) => !value); }}
       >
         {photoId ? (
           <ProfilePicture
@@ -117,6 +119,7 @@ export default function HeaderProfileMenu({
         ) : (
           <ProfilePicture name={name} decorative />
         )}
+        <AccountContextFacepile contexts={contexts} />
       </Trigger>
 
       {open && (
@@ -125,6 +128,13 @@ export default function HeaderProfileMenu({
             <strong>{name}</strong>
             <span>@{account.username}</span>
           </Identity>
+
+          <AccountContextChoices
+            contexts={contexts}
+            loading={contextsLoading}
+            error={contextsError}
+            onSelect={destination => { setOpen(false); navigate(destination); }}
+          />
 
           <Action
             ref={firstAction}
@@ -204,6 +214,7 @@ const Wrapper = styled.div`
 `;
 
 const Trigger = styled.button`
+  position: relative;
   width: 43px;
   height: 43px;
   border-radius: 50%;
@@ -256,7 +267,7 @@ const Panel = styled.div`
   top: calc(100% + 20px);
   z-index: 110;
 
-  width: min(240px, calc(100vw - 24px));
+  width: min(310px, calc(100vw - 24px));
   max-height: calc(100dvh - 110px);
   padding: 8px;
   overflow-y: auto;
