@@ -4,7 +4,8 @@ import styled from "styled-components";
 
 import { useAuth } from "../../auth/useAuth";
 import ProfilePicture from "../profile/ProfilePicture";
-import { useAccountContexts, AccountContextFacepile, AccountContextChoices } from "./AccountContexts";
+import { AccountContextFacepile, AccountContextChoices } from "./AccountContexts";
+import { useAccountContexts } from "./useAccountContexts";
 
 export default function HeaderProfileMenu({
   photoId,
