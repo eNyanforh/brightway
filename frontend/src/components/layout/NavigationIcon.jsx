@@ -151,6 +151,9 @@ export default function NavigationIcon({
     case "downvote":
       shape = <><path d="m12 21 9-9h-5V3H8v9H3l9 9Z" /></>;
       break;
+    case "link":
+      shape = <><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></>;
+      break;
     case "flag":
       shape = <><path d="M5 22V3m0 1c6-4 8 4 16 0v12c-8 4-10-4-16 0" /></>;
       break;

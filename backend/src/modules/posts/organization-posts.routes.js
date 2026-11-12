@@ -52,8 +52,8 @@ export function createOrganizationPostRoutes({ posts, photos, sessions, clientUr
     respond((req, actor) => posts.decideEventRequest(actor, req.params.id, req.params.requestId, req.body)));
   router.put("/explore/posts/:source/:id/view", access, trustedOrigin, writes,
     respond((req, actor) => posts.recordView(actor, req.params.source, req.params.id)));
-  router.post("/explore/posts/member/:id/report", access, trustedOrigin, writes,
-    respond((req, actor) => posts.reportQuestion(actor, req.params.id, req.body), 201));
+  router.post("/explore/posts/:source/:id/report", access, trustedOrigin, writes,
+    respond((req, actor) => posts.reportPost(actor, req.params.source, req.params.id, req.body), 201));
 
   const answers = "/explore/posts/member/:id/answers";
   router.get(answers, access, respond((req, actor) => posts.answers(actor, req.params.id, req.query)));

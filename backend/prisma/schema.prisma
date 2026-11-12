@@ -985,6 +985,7 @@ model Organization {
 }
 model OrganizationPost {
   views PostView[]
+  reports PostReport[]
   reposts PostRepost[]
   saves PostSave[]
   comments PostComment[]
@@ -1153,14 +1154,17 @@ enum PostReportReason {
 
 model PostReport {
   id String @id @default(uuid())
-  memberPostId String
-  memberPost MemberPost @relation(fields: [memberPostId], references: [id], onDelete: Cascade)
+  memberPostId String?
+  memberPost MemberPost? @relation(fields: [memberPostId], references: [id], onDelete: Cascade)
+  organizationPostId String?
+  organizationPost OrganizationPost? @relation(fields: [organizationPostId], references: [id], onDelete: Cascade)
   reporterId String
   reporter Account @relation(fields: [reporterId], references: [id], onDelete: Cascade)
   reason PostReportReason
   details String? @db.VarChar(500)
   createdAt DateTime @default(now())
   @@unique([memberPostId, reporterId])
+  @@unique([organizationPostId, reporterId])
   @@index([createdAt])
 }
 

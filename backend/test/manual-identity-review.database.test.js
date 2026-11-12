@@ -159,6 +159,12 @@ test("database manual identity requests serialize retries and decisions, revoke 
       assert.equal(owned?.type, type);
       assert.equal(visible?.type, type);
       assert.equal(visible?.member?.verified, true, "Approved public authors show their verified badge in Explore.");
+      assert.deepEqual(await posts.reportPost(viewerActor, "member", post.id, { reason: "OTHER", details: "Review this content" }), { reported: true },
+        "Every member post type, including events, can be reported.");
+      assert.deepEqual(await posts.reportPost(viewerActor, "member", post.id, { reason: "OTHER" }), { reported: true });
+      assert.equal(await db.postReport.count({ where: { memberPostId: post.id } }), 1,
+        "Duplicate reports do not create multiple records.");
+      await assert.rejects(posts.reportPost(actor, "member", post.id, { reason: "SPAM" }), { status: 400 });
       assert.equal(owned?.member?.verified, true, "Approved publishers retain the badge in My Posts.");
       assert.deepEqual(owned?.tags, typedDraft.tags);
       assert.deepEqual(visible?.tags, typedDraft.tags);
@@ -523,6 +529,11 @@ test("database manual identity requests serialize retries and decisions, revoke 
       organizationId: organization.id, authorId: viewer.id, requestKey: randomUUID(), body: "Synthetic school update.",
       createdAt: new Date(+date - 1000),
     } });
+    assert.deepEqual(await posts.reportPost(actor, "organization", original.id, { reason: "MISINFORMATION" }), { reported: true });
+    assert.deepEqual(await posts.reportPost(actor, "organization", original.id, { reason: "MISINFORMATION" }), { reported: true });
+    assert.equal(await db.postReport.count({ where: { organizationPostId: original.id } }), 1,
+      "Organization reports are deduplicated.");
+    await assert.rejects(posts.reportPost(viewerActor, "organization", original.id, { reason: "SPAM" }), { status: 400 });
     const repost = reposted => posts.setReposted(actor, "organization", original.id, { reposted });
     await assert.rejects(posts.setReposted(viewerActor, "member", postId, { reposted: true }), { status: 403 });
     const copies = await Promise.all([repost(true), repost(true)]);
