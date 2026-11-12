@@ -217,7 +217,7 @@ export default function PersonalPostComposer({
                 <span>Make it meaningful</span>
               </div>
             )}
-            <textarea ref={bodyInput} id={editorId + "-body"} aria-label={format.editor} placeholder={isAchievement ? "I’m proud to share that…\n\nHere’s what I accomplished, what it took, and what I learned along the way." : format.prompt} rows={isAchievement ? 6 : 4} maxLength={2000}
+            <textarea ref={bodyInput} autoFocus={isDialog} id={editorId + "-body"} aria-label={format.editor} placeholder={isAchievement ? "I’m proud to share that…\n\nHere’s what I accomplished, what it took, and what I learned along the way." : format.prompt} rows={isAchievement ? 6 : 4} maxLength={2000}
               value={body} disabled={disabled} onChange={event => onBodyChange(event.target.value)} />
             {isAchievement && (
               <div className="bw-achievement-writing-foot">
