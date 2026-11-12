@@ -5,6 +5,7 @@ import { photoUrl } from "../../api/profile";
 import Icon from "../layout/Icon";
 import EventBuilder from "./EventBuilder";
 import QuestionBuilder from "./QuestionBuilder";
+import PostMediaPicker from "./PostMediaPicker";
 import NavigationIcon from "../layout/NavigationIcon";
 
 const types = [
@@ -60,7 +61,8 @@ export function PostTopicTags({ tags, onRemove, disabled }) {
 
 export default function PersonalPostComposer({
   account, photoId, body, type, tags, open, disabled,
-  onSelect, onCancel, onBodyChange, onTagsChange, onSubmit, hideInlineOptions = false,
+  onSelect, onCancel, onBodyChange, onTagsChange, onSubmit,
+  media = [], onMediaUploaded, onMediaRemoved, onMediaBusyChange, hideInlineOptions = false,
 }) {
   const topicId = useId();
   const editorId = useId();
@@ -196,6 +198,8 @@ export default function PersonalPostComposer({
     // The parent closes the editor only after the server accepts the post.
   }
 
+  const mediaControls = <PostMediaPicker media={media} disabled={disabled}
+    onUploaded={onMediaUploaded} onRemoved={onMediaRemoved} onBusyChange={onMediaBusyChange} />;
   const editor = open && type !== "EVENT" && type !== "QUESTION" ? (
         <form id={editorId} className={"bw-personal-composer-form" + (isAchievement ? " bw-achievement-composer" : isPost ? " bw-standard-post-composer" : "")} aria-label="Create a post" onSubmit={submit}>
           <div className="bw-post-editor-heading" data-post-type={format.type}>
@@ -270,6 +274,7 @@ export default function PersonalPostComposer({
               </div>
             </div>}
           </div>
+          {mediaControls}
           <div className="bw-personal-composer-footer">
             <span>{isAchievement ? "Your achievement will be shared with the BrightWay community." : body.length + " / 2,000"}</span>
             <div className="bw-post-editor-actions">
@@ -299,11 +304,13 @@ export default function PersonalPostComposer({
 
       {open && type === "EVENT" && (
         <EventBuilder body={body} tags={tags} disabled={disabled} onBodyChange={onBodyChange}
-          onTagsChange={onTagsChange} onCancel={closeEditor} onSubmit={onSubmit} triggerRef={eventTrigger} />
+          onTagsChange={onTagsChange} onCancel={closeEditor} onSubmit={onSubmit}
+          mediaControls={mediaControls} triggerRef={eventTrigger} />
       )}
       {open && type === "QUESTION" && (
         <QuestionBuilder body={body} tags={tags} disabled={disabled} onBodyChange={onBodyChange}
-          onTagsChange={onTagsChange} onCancel={closeEditor} onSubmit={onSubmit} triggerRef={questionTrigger} />
+          onTagsChange={onTagsChange} onCancel={closeEditor} onSubmit={onSubmit}
+          mediaControls={mediaControls} triggerRef={questionTrigger} />
       )}
       {open && type !== "EVENT" && type !== "QUESTION" && (isDialog ? createPortal(
         <div className={"bw-achievement-modal-backdrop bw-post-panel" + (isPost ? " bw-standard-post-modal-backdrop" : "")} onMouseDown={event => {
