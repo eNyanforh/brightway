@@ -84,6 +84,11 @@ jobs:
           for path in superadmin/login superadmin/users help; do
             curl --insecure --fail --show-error --silent "https://127.0.0.1:8443/$path" | python3 -c 'import sys; assert "<div id=\"root\">" in sys.stdin.read()'
           done
+          # Module workers require a JavaScript MIME type, including through production Nginx.
+          pdf_worker=$(docker compose -f deploy/staging/compose.yaml exec -T web sh -c 'find /usr/share/nginx/html/assets -name "pdf.worker*.mjs" -exec basename {} \;')
+          test -n "$pdf_worker"
+          worker_type=$(curl --insecure --fail --show-error --silent --output /dev/null --write-out '%{content_type}' "https://127.0.0.1:8443/assets/$pdf_worker")
+          test "$worker_type" = application/javascript
           # Missing/wrong-realm cookies must be rejected before any database access.
           for path in management/auth/me management/tools/users; do
             status=$(curl --insecure --show-error --silent --output /dev/null --write-out '%{http_code}' --cookie '__Host-brightway_session=synthetic-wrong-realm' "https://127.0.0.1:8443/api/v1/$path")
