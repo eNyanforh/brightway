@@ -53,6 +53,7 @@ model Account {
   officialConversations MessagingConversation[] @relation("MessageRecipient")
   sentMessages DirectMessage[]
   messageFiles MessageAttachment[]
+  postMedia PostMedia[]
   messageUploadAttempts MessagingUploadAttempt[]
   messagingPreference MessagingPreference?
   messagingTyping MessagingTyping[]
@@ -1034,6 +1035,7 @@ enum MemberPostRelevanceStatus {
 }
 
 model MemberPost {
+  media PostMedia[]
   views PostView[]
   reports PostReport[]
   registrations EventRegistration[]
@@ -1066,6 +1068,28 @@ model MemberPost {
   @@index([moderationStatus, withdrawnAt, createdAt, id])
   @@index([authorId, withdrawnAt, createdAt, id])
   @@index([authorId, createdAt])
+}
+
+enum PostMediaKind {
+  IMAGE
+  VIDEO
+  PDF
+}
+
+model PostMedia {
+  id String @id @default(uuid())
+  ownerId String
+  owner Account @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  memberPostId String?
+  memberPost MemberPost? @relation(fields: [memberPostId], references: [id], onDelete: Cascade)
+  kind PostMediaKind
+  name String @db.VarChar(120)
+  contentType String @db.VarChar(40)
+  size Int
+  storageKey String @unique
+  createdAt DateTime @default(now())
+  @@index([memberPostId, createdAt])
+  @@index([ownerId, createdAt])
 }
 
 // Legacy registrations are approved on migration; new requests can require host approval.
