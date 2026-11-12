@@ -311,8 +311,10 @@ function feedPost({ likes, _count, saves, reposts, registrations, answers = [], 
     ...(post.author ? memberPost(post, true) : post),
     reaction: likeSummary({ likes, _count }),
     views: _count.views ?? 0,
-    commentCount: _count.comments ?? 0,
-    repostCount: _count.reposts ?? 0,
+    ...(post.author ? {
+      commentCount: _count.comments ?? 0,
+      repostCount: _count.reposts ?? 0,
+    } : {}),
     ...(registrations && { registration: {
       registered: registrations[0]?.status === "APPROVED",
       status: registrations[0]?.status ?? null,
