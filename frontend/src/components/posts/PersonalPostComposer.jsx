@@ -9,6 +9,12 @@ import NavigationIcon from "../layout/NavigationIcon";
 
 const types = [
   {
+    type: "POST", label: "Post", choice: "Create Post", icon: "post",
+    editor: "Write a post", heading: "Share an update",
+    prompt: "Share an educational insight, resource, career update, or something useful with the community.",
+    publish: "Publish post",
+  },
+  {
     type: "ACHIEVEMENT", label: "Achievement", choice: "Share an Achievement", icon: "awards",
     editor: "Write an achievement", heading: "Celebrate your achievement",
     prompt: "What did you accomplish? Share what you learned along the way.",
@@ -64,6 +70,7 @@ export default function PersonalPostComposer({
   const disabledRef = useRef(disabled);
   disabledRef.current = disabled;
   const achievementTrigger = useRef(null);
+  const postTrigger = useRef(null);
   const eventTrigger = useRef(null);
   const questionTrigger = useRef(null);
   const [topicDraft, setTopicDraft] = useState("");
@@ -72,6 +79,9 @@ export default function PersonalPostComposer({
   const topicLimit = tags.length >= MAX_POST_TOPICS;
   const format = types.find(option => option.type === type) ?? types[0];
   const isAchievement = type === "ACHIEVEMENT";
+  const isPost = type === "POST";
+  const isDialog = isAchievement || isPost;
+  const richTopics = isAchievement || isPost;
   const initial = (account?.person?.firstName || account?.username || "B").slice(0, 1).toUpperCase();
 
   useEffect(() => {
@@ -79,7 +89,7 @@ export default function PersonalPostComposer({
   }, [open, type]);
 
   useEffect(() => {
-    if (!open || !isAchievement) return undefined;
+    if (!open || !isDialog) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const dialog = modalRef.current;
@@ -107,10 +117,10 @@ export default function PersonalPostComposer({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      achievementTrigger.current?.focus();
+      (isAchievement ? achievementTrigger : postTrigger).current?.focus();
     };
     // Focus restoration and scroll locking belong to the modal's open lifecycle.
-  }, [open, isAchievement]);
+  }, [open, isAchievement, isDialog]);
 
   function selectType(nextType) {
     if (disabled) return;
@@ -167,7 +177,7 @@ export default function PersonalPostComposer({
   }
 
   const editor = open && type !== "EVENT" && type !== "QUESTION" ? (
-        <form id={editorId} className={"bw-personal-composer-form" + (isAchievement ? " bw-achievement-composer" : "")} aria-label="Create a post" onSubmit={submit}>
+        <form id={editorId} className={"bw-personal-composer-form" + (isAchievement ? " bw-achievement-composer" : isPost ? " bw-standard-post-composer" : "")} aria-label="Create a post" onSubmit={submit}>
           <div className="bw-post-editor-heading" data-post-type={format.type}>
             <span className="bw-post-editor-icon"><NavigationIcon name={format.icon} size={22} /></span>
             <div>
@@ -204,15 +214,15 @@ export default function PersonalPostComposer({
               </div>
             )}
           </div>
-          <div className={"bw-post-topic-editor" + (isAchievement ? " bw-achievement-topic-editor" : "")}>
-            {isAchievement && <div className="bw-achievement-topic-head">
+          <div className={"bw-post-topic-editor" + (richTopics ? " bw-achievement-topic-editor" : "")}>
+            {richTopics && <div className="bw-achievement-topic-head">
               <span className="bw-achievement-topic-icon"><NavigationIcon name="tag" size={19} /></span>
-              <div><h4>Connect your achievement</h4><p>Choose the fields your achievement relates to so the right people can discover your story.</p></div>
+              <div><h4>{isAchievement ? "Connect your achievement" : "Choose your post topics"}</h4><p>Choose the fields your {isAchievement ? "achievement" : "post"} relates to so the right people can discover it.</p></div>
               <span className="bw-achievement-topic-count">{tags.length}/{MAX_POST_TOPICS}</span>
             </div>}
             <div className="bw-post-topic-heading">
-              <label htmlFor={topicId}>{isAchievement ? "Topics" : "Topic tags"}</label>
-              <span id={topicId + "-hint"}>{isAchievement ? "At least one topic required" : "Add 1–" + MAX_POST_TOPICS + " topics"}</span>
+              <label htmlFor={topicId}>{richTopics ? "Topics" : "Topic tags"}</label>
+              <span id={topicId + "-hint"}>{richTopics ? "At least one topic required" : "Add 1–" + MAX_POST_TOPICS + " topics"}</span>
             </div>
             <div className="bw-post-topic-entry">
               <input ref={topicInput} id={topicId} value={topicDraft} maxLength={MAX_POST_TOPIC_LENGTH + 1}
@@ -228,7 +238,7 @@ export default function PersonalPostComposer({
             </div>
             {topicError && <p id={topicId + "-error"} className="bw-post-topic-error" role="alert">{topicError}</p>}
             <PostTopicTags tags={tags} onRemove={removeTopic} disabled={disabled} />
-            {isAchievement && <div className="bw-achievement-topic-suggestions">
+            {richTopics && <div className="bw-achievement-topic-suggestions">
               <span>Explore subjects</span>
               <div className="bw-achievement-topic-suggestion-list">
                 {POST_SUBJECT_CATEGORIES.filter(item => !tags.some(tag => tag.toLowerCase() === item.toLowerCase())).map(item => (
@@ -257,7 +267,7 @@ export default function PersonalPostComposer({
           {photoId ? <img src={photoUrl(photoId)} alt="" /> : initial}
         </div>
         {types.map(option => (
-          <button type="button" key={option.type} ref={option.type === "ACHIEVEMENT" ? achievementTrigger : option.type === "EVENT" ? eventTrigger : option.type === "QUESTION" ? questionTrigger : undefined} className="bw-post-quick-action"
+          <button type="button" key={option.type} ref={option.type === "POST" ? postTrigger : option.type === "ACHIEVEMENT" ? achievementTrigger : option.type === "EVENT" ? eventTrigger : option.type === "QUESTION" ? questionTrigger : undefined} className="bw-post-quick-action"
             data-post-type={option.type} aria-expanded={open && type === option.type}
             aria-controls={open ? editorId : undefined} disabled={disabled}
             onClick={() => selectType(option.type)}>
@@ -275,11 +285,11 @@ export default function PersonalPostComposer({
         <QuestionBuilder body={body} tags={tags} disabled={disabled} onBodyChange={onBodyChange}
           onTagsChange={onTagsChange} onCancel={closeEditor} onSubmit={onSubmit} triggerRef={questionTrigger} />
       )}
-      {open && type !== "EVENT" && type !== "QUESTION" && (isAchievement ? createPortal(
+      {open && type !== "EVENT" && type !== "QUESTION" && (isDialog ? createPortal(
         <div className="bw-achievement-modal-backdrop bw-post-panel" onMouseDown={event => {
           if (event.target === event.currentTarget && !disabled) closeEditor();
         }}>
-          <div className="bw-achievement-modal-dialog" ref={modalRef} role="dialog" aria-modal="true" aria-label="Share an Achievement">
+          <div className="bw-achievement-modal-dialog" ref={modalRef} role="dialog" aria-modal="true" aria-label={format.choice}>
             {editor}
           </div>
         </div>, document.body
