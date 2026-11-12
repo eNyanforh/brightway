@@ -64,8 +64,9 @@ export default function HeaderProfileMenu({
   }, []);
 
   function dismiss() {
+    if (mobile) panelRef.current?.close();
     setOpen(false);
-    trigger.current?.focus({ preventScroll: true });
+    queueMicrotask(() => trigger.current?.focus({ preventScroll: true }));
   }
 
   function renderPanel(element) {
@@ -91,8 +92,9 @@ export default function HeaderProfileMenu({
     const escape = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        if (mobile) panel.close();
         setOpen(false);
-        trigger.current?.focus();
+        queueMicrotask(() => trigger.current?.focus({ preventScroll: true }));
       }
     };
 
