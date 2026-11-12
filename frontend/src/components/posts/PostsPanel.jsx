@@ -162,7 +162,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
   const type = post.member ? post.type ?? "POST" : "ORGANIZATION";
   const engagementCard = post.member && ["POST", "ACHIEVEMENT"].includes(type);
   const ownPost = session?.account?.username === post.member?.username;
-  const canReport = !ownPost && !canManage && (!post.member || post.moderationStatus === "PUBLISHED");
+  const canReport = !ownPost && !canManage && !["PENDING", "REJECTED"].includes(post.moderationStatus);
   const reviewStatus = post.member ? post.moderationStatus : null;
   const heldForReview = reviewStatus === "PENDING" || reviewStatus === "REJECTED";
   const reviewBanner = heldForReview ? (
