@@ -18,7 +18,9 @@ export default function ExplorePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const composePostOnOpen = new URLSearchParams(location.search).get("compose") === "post";
-  const finishMobileCompose = () => {
+  const [mobilePostNotice, setMobilePostNotice] = useState("");
+  const finishMobileCompose = (message = "") => {
+    setMobilePostNotice(message);
     if (!composePostOnOpen) return;
     const params = new URLSearchParams(location.search);
     params.delete("compose");
@@ -42,6 +44,7 @@ export default function ExplorePage() {
               </button>
             ))}
           </nav>
+          {mobilePostNotice && <p role="status" className="bw-explore-mobile-post-notice">{mobilePostNotice}</p>}
           <PostsPanel key={account.id + ":" + view + ":" + (composePostOnOpen ? location.key : "feed")} view={view} timeline
             composerAccount={account} showInlineComposer={view === "for-you"}
             composePostOnOpen={composePostOnOpen} onComposeRequestFinished={finishMobileCompose}
