@@ -40,6 +40,11 @@ it("uses only active approved memberships and enrolled schools for the avatar fa
   ] });
   const user = mount();
   await waitFor(() => expect(document.querySelectorAll(".bw-context-facepile .bw-context-avatar")).toHaveLength(2));
+  const avatarButton = screen.getByRole("button", { name: "Open account menu" });
+  // Context pictures stay to the left of, and never inside or on top of, the main portrait.
+  expect(avatarButton.firstElementChild.classList.contains("bw-context-facepile-wrap")).toBe(true);
+  expect(avatarButton.lastElementChild.classList.contains("bw-picture")).toBe(true);
+  expect(avatarButton.lastElementChild.querySelector(".bw-context-facepile")).toBeNull();
   expect(staffApi.directory).toHaveBeenCalledWith(expect.any(AbortSignal), { tab: "approved" });
   await user.click(screen.getByRole("button", { name: "Open account menu" }));
   const menu = within(screen.getByRole("navigation", { name: "Switch account" }));
