@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { organizationPostsApi, uploadPostMedia } from "../../api/organization-posts";
 import NavigationIcon from "../layout/NavigationIcon";
 import PostPhotoGallery from "./PostPhotoGallery";
+import DocumentCarousel from "./DocumentCarousel";
 
 const formats = [
   { key: "IMAGE", label: "Add photos", icon: "image", accept: "image/jpeg,image/png,image/webp" },
@@ -116,6 +117,7 @@ export default function PostMediaPicker({
           </li>
         ))}
       </ul>}
+      {media[0]?.kind === "DOCUMENT" && <DocumentCarousel key={media[0].id} item={media[0]} />}
       {uploadNotice && <p role="status">{uploadNotice}</p>}
       {error && <p className="bw-post-media-picker-error" role="alert">{error}</p>}
     </section>

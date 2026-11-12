@@ -1545,6 +1545,9 @@ export function createOrganizationPosts({ prisma, media, now = () => new Date() 
           if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags || !sameEvent || !sameQuestion || !sameMedia) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
           return { post: ownerMemberPost(post, true) };
         }
+        // Historical ordinary posts remain readable and exact retries remain
+        // idempotent, but individuals may only create purposeful post types.
+        if (data.type === "POST") throw fail(400, "Choose Achievement, Event, or Question. Regular posting is no longer available for individual accounts.");
         // An older tagless post may be retried, but new posts require a topic.
         if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });

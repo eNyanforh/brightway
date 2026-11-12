@@ -26,7 +26,8 @@ export default function QuestionBuilder({ body, tags, disabled, onBodyChange, on
 
   useEffect(() => {
     titleRef.current?.focus();
-    const trigger = triggerRef?.current;
+    const trigger = window.matchMedia?.("(max-width: 700px)")?.matches
+      ? document.querySelector(".bw-mobile-compose-fab") : triggerRef?.current;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     function handleKey(event) {
