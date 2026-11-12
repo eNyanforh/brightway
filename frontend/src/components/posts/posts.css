@@ -1641,8 +1641,8 @@
   .bw-post-panel .bw-discussion-composer textarea { transition: none; }
 }
 
-/* Authenticated authors manage their own post from a quiet three-dot menu.
-   Anchored in each card; never cover the username or verification badge. */
+/* Every post has the same three-dot menu. Owners get Edit/Delete;
+   other viewers can Report. Both can copy a link or save when supported. */
 .bw-post-manage-card { position: relative; }
 .bw-post-manage-card .bw-timeline-byline,
 .bw-post-card.bw-post-manage-card > header {
@@ -1705,6 +1705,9 @@
 }
 .bw-post-panel .bw-post-options-dropdown .bw-post-options-delete { color: #b23939; }
 .bw-post-panel .bw-post-options-dropdown .bw-post-options-delete:hover { background: #fff1f1; }
+.bw-post-panel .bw-post-options-dropdown .bw-post-options-report { color: #a33333; }
+.bw-post-panel .bw-post-options-dropdown .bw-post-options-report:hover,
+.bw-post-panel .bw-post-options-dropdown .bw-post-options-report:focus-visible { background: #fff1f1; }
 .bw-post-manage-backdrop {
   position: fixed;
   inset: 0;
