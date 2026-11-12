@@ -1,9 +1,9 @@
-import { Router } from "express";
+import { Router, raw } from "express";
 import { rateLimit } from "express-rate-limit";
 import { createRequireAuth, createSessionCookieConfig, requireTrustedOrigin } from "../auth/session.http.js";
 import { fail } from "../network/network.schema.js";
 
-export function createOrganizationPostRoutes({ posts, photos, sessions, clientUrl, nodeEnv }) {
+export function createOrganizationPostRoutes({ posts, photos, media, sessions, clientUrl, nodeEnv }) {
   const router = Router();
   const auth = createRequireAuth({ sessions, cookieName: createSessionCookieConfig(nodeEnv).name });
   const trustedOrigin = requireTrustedOrigin(clientUrl);
@@ -25,6 +25,52 @@ export function createOrganizationPostRoutes({ posts, photos, sessions, clientUr
     }
   };
   const path = "/organization-workspace/:organizationId/posts";
+  if (media) {
+    const mediaTypes = ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "application/pdf"];
+    const uploadLimiter = rateLimit({
+      windowMs: 60000, limit: 6, standardHeaders: "draft-8", legacyHeaders: false,
+      keyGenerator: req => req.auth.account.id,
+      message: { success: false, message: "Too many media uploads. Try again in a minute." },
+    });
+    router.post("/posts/media", access, trustedOrigin, uploadLimiter,
+      raw({ type: mediaTypes, limit: "20mb", inflate: false }),
+      respond((req, actor) => media.upload(actor, req.query.name, req.body, req.get("Content-Type")), 201));
+    router.delete("/posts/media/:id", access, trustedOrigin, writes,
+      respond((req, actor) => media.discard(actor, req.params.id)));
+    router.get("/posts/media/:id", access, async (req, res, next) => {
+      try {
+        const actor = { accountId: req.auth.account.id, sessionId: req.auth.sessionId };
+        const file = await media.file(actor, req.params.id);
+        const size = file.bytes.length;
+        const range = req.get("Range");
+        res.set({
+          "Content-Type": file.contentType, "X-Content-Type-Options": "nosniff",
+          "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer",
+          "Accept-Ranges": "bytes",
+          "Content-Security-Policy": "frame-ancestors 'self'",
+          "Content-Disposition": (req.query.download === "1" ? "attachment" : "inline")
+            + '; filename="' + file.name.replace(/[\\"]/g, "_") + '"',
+        });
+        if (range) {
+          const match = /^bytes=(\\d+)-(\\d*)$/.exec(range);
+          const start = match && Number(match[1]);
+          const end = match && match[2] ? Number(match[2]) : size - 1;
+          if (!match || start >= size || end < start || end >= size) {
+            res.status(416).set("Content-Range", "bytes */" + size).end();
+            return;
+          }
+          res.status(206).set({
+            "Content-Range": `bytes ${start}-${end}/${size}`,
+            "Content-Length": String(end - start + 1),
+          }).send(file.bytes.subarray(start, end + 1));
+          return;
+        }
+        res.set("Content-Length", String(size)).send(file.bytes);
+      } catch (error) {
+        next(error.status ? error : fail(503, "This media is temporarily unavailable."));
+      }
+    });
+  }
   router.get("/explore/members/:username/photo/:photoId", access, async (req, res, next) => {
     try {
       const actor = { accountId: req.auth.account.id, sessionId: req.auth.sessionId };
