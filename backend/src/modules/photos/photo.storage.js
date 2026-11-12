@@ -122,7 +122,7 @@ export function createR2Storage({
         Key: key,
       });
 
-      if (maxBytes > 5 * 1024 * 1024 || maxBytes <= 0) throw new Error("Invalid storage read limit.");
+      if (maxBytes > 20 * 1024 * 1024 || maxBytes <= 0) throw new Error("Invalid storage read limit.");
 
       if (
         !result.Body ||
