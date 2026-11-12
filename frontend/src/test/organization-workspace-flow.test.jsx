@@ -48,7 +48,7 @@ it("an approved organization in My Workspace opens its private administrator wor
   const entry = await screen.findByRole("link", { name: "Manage" }); expect(entry.getAttribute("href")).toBe(base);
   await f.user.click(entry); expect(screen.queryByRole("heading", { name: "Switch account" })).toBeNull(); await screen.findByRole("heading", { name: organization.name, level: 1 });
   await screen.findByRole("navigation", { name: "Organization tools" });
-  expect(document.querySelector(".bw-design-personal").textContent).toContain(organization.name);
+  expect(document.querySelector(".bw-design-personal")).toBeNull();
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/staff"))).toBe(false);
 });
 it("desktop and mobile organization navigation expose scoped operational tools without personal destinations", async () => {
@@ -84,7 +84,7 @@ it("a direct issuer review URL keeps the organization tools available and links 
   await screen.findByRole("heading", { name: "Credential Review", level: 1 });
   const nav = screen.getByRole("navigation", { name: "Organization tools" }); await f.user.click(within(nav).getByRole("link", { name: "Staff" }));
   const invite = await screen.findByRole("button", { name: "Invite staff", exact: true }); await waitFor(() => expect(invite.disabled).toBe(false)); await f.user.click(invite);
-  await screen.findByLabelText("BrightWay username"); expect(document.querySelector(".bw-design-personal").textContent).toContain(organization.name);
+  await screen.findByLabelText("BrightWay username"); expect(document.querySelector(".bw-design-personal")).toBeNull();
 });
 it("denied organization membership cannot leave another organization's tools or name in the workspace", async () => {
   mount(base, () => reply("Organization membership required", 403)); await screen.findByRole("alert");
@@ -510,5 +510,5 @@ it("leaving an organization hides its navigation and name in the real account la
   await screen.findByRole("region", { name: "Explore" });
   expect(screen.queryByRole("navigation", { name: "Organization tools" })).toBeNull();
   expect(screen.queryByRole("navigation", { name: "Mobile organization navigation" })).toBeNull();
-  expect(document.querySelector(".bw-design-personal").textContent).not.toContain(organization.name);
+  expect(document.querySelector(".bw-design-personal")).toBeNull();
 });
