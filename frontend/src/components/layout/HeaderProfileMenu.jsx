@@ -39,7 +39,7 @@ export default function HeaderProfileMenu({
 
   // The header's primary identity follows the authorized workspace/Campus route.
   // A route parameter alone cannot establish organization or student access.
-  const orgId = /^\\/organization-workspace\\/([^/]+)(?:\\/|$)/.exec(pathname)?.[1];
+  const orgId = pathname.startsWith("/organization-workspace/") ? pathname.split("/")[2] : null;
   const params = new URLSearchParams(search);
   const campusView = pathname === "/learning" && params.get("view") === "campus";
   const campusId = campusView ? params.get("campus") : null;
