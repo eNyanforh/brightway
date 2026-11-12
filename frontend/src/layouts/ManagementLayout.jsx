@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useManagement } from "../auth/management-context";
 import ManagementNavigation from "../components/layout/ManagementNavigation";
+import BrightWayLogo from "../components/layout/BrightWayLogo";
 import WorkspaceIcon from "../components/workspace/WorkspaceIcon";
 import "./app-shell.css";
 import "../pages/superadmin.css";
@@ -36,7 +37,7 @@ export default function ManagementLayout() {
   return <div className="bw-app-shell bw-management-shell">
     <a className="bw-mgmt-skip" href="#management-content">Skip to content</a>
     <header className="bw-management-independent-header">
-      <Link className="bw-mgmt-wordmark" to="/superadmin"><span className="bw-superadmin-mark" aria-hidden="true">b↗</span><span>BrightWay<small>MANAGEMENT</small></span></Link>
+      <Link className="bw-mgmt-wordmark" to="/superadmin" aria-label="BrightWay Management home"><BrightWayLogo className="bw-superadmin-logo" width={38} height={38} /><span className="bw-mgmt-brand-text">BrightWay<small>MANAGEMENT</small></span></Link>
       <button ref={menuButton} className="bw-mgmt-menu-toggle" aria-label="Toggle management navigation" aria-controls="management-sidebar" aria-expanded={open} onClick={() => setOpen(!open)}><WorkspaceIcon name={open ? "close" : "menu"} size={18} /><span>Menu</span></button>
       <span className="bw-mgmt-breadcrumb">Management <span>/</span> <strong>{section}</strong></span>
       <div className="bw-mgmt-staff"><span className="bw-mgmt-staff-symbol" aria-hidden="true"><WorkspaceIcon name="shield" size={18} /></span><span>{staff.fullName || staff.username}<small>Management identity</small></span></div>
