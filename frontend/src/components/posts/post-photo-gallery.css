@@ -1,15 +1,21 @@
 /* Photo grids share the same treatment in feeds, profiles and the composer. */
 .bw-photo-gallery {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr));
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr);
   width: 100%; min-width: 0; aspect-ratio: 1.25; gap: 3px; overflow: hidden;
   border-radius: 12px; background: #f0f2f5;
 }
 .bw-photo-gallery[data-count="1"] { display: block; max-height: 640px; }
-.bw-photo-gallery[data-count="2"] { grid-template-rows: minmax(0, 1fr); }
-.bw-photo-gallery[data-layout="stacked"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); aspect-ratio: 1; }
-.bw-photo-gallery[data-count="3"][data-layout="grid"] .bw-photo-gallery-tile:first-child { grid-row: span 2; }
-.bw-photo-gallery[data-layout="landscape"] { aspect-ratio: 1; grid-template-rows: 1.35fr 1fr; }
-.bw-photo-gallery[data-layout="landscape"] .bw-photo-gallery-tile:first-child { grid-column: span 2; }
+.bw-photo-gallery[data-layout="portrait"] {
+  grid-template-columns: minmax(0, var(--bw-gallery-lead, .67fr)) minmax(0, var(--bw-gallery-rest, .33fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+.bw-photo-gallery[data-layout="portrait"][data-count="4"] { grid-template-rows: repeat(3, minmax(0, 1fr)); }
+.bw-photo-gallery[data-layout="portrait"] .bw-photo-gallery-tile:first-child { grid-row: 1 / -1; }
+.bw-photo-gallery[data-layout="landscape"] {
+  grid-template-rows: minmax(0, var(--bw-gallery-lead, .67fr)) minmax(0, var(--bw-gallery-rest, .33fr));
+}
+.bw-photo-gallery[data-layout="landscape"][data-count="4"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.bw-photo-gallery[data-layout="landscape"] .bw-photo-gallery-tile:first-child { grid-column: 1 / -1; }
 .bw-photo-gallery-tile { position: relative; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
 .bw-photo-gallery .bw-photo-gallery-open {
   display: block; position: relative; width: 100%; height: 100%; min-height: 0;
@@ -17,8 +23,9 @@
   overflow: hidden; cursor: zoom-in; text-align: center; isolation: isolate;
 }
 .bw-gallery-photo { display: block; position: relative; width: 100%; height: 100%; }
-.bw-photo-gallery .bw-gallery-photo > img { display: block; width: 100%; height: 100%; object-fit: cover; transition: filter .18s ease; }
-.bw-photo-gallery[data-count="1"] .bw-gallery-photo > img { object-fit: contain; }
+.bw-photo-gallery .bw-gallery-photo > img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; transition: filter .18s ease; }
+/* Single photos and pairs retain the full image, aligned at the top. */
+.bw-photo-gallery:is([data-count="1"], [data-count="2"]) .bw-gallery-photo > img { object-fit: contain; }
 .bw-photo-gallery-open:hover .bw-gallery-photo > img { filter: brightness(.94); }
 .bw-gallery-photo[data-status="error"] > img { opacity: 0; }
 .bw-gallery-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem; background: #f0f2f5; color: #757d87; pointer-events: none; font-size: .8rem; }
@@ -76,7 +83,7 @@ dialog.bw-photo-viewer {
 .bw-photo-viewer-thumbnails { display: flex; justify-content: center; gap: 10px; }
 .bw-photo-viewer-thumbnails > button { width: 56px; height: 56px; padding: 3px; border-radius: 10px; border: 2px solid transparent; background: transparent; opacity: .6; }
 .bw-photo-viewer-thumbnails > button[aria-pressed="true"] { border-color: #4694ff; opacity: 1; }
-.bw-photo-viewer-thumbnails img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 5px; }
+.bw-photo-viewer-thumbnails img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; border-radius: 5px; }
 .bw-photo-viewer-footer > p { margin: 10px auto 0; color: #bdbdbd; font-size: .75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 560px; }
 @keyframes bw-gallery-pulse { from { background: #f0f2f5; } to { background: #e1e5eb; } }
 @media (max-width: 700px) {

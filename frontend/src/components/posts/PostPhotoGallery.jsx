@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { postMediaUrl } from "../../api/organization-posts";
 import NavigationIcon from "../layout/NavigationIcon";
+import { photoLayout } from "./photo-layout";
 import "./post-photo-gallery.css";
 
 function Photo({ file, onLoaded, eager = false }) {
@@ -13,7 +14,7 @@ function Photo({ file, onLoaded, eager = false }) {
         onLoad={event => {
           setStatus("ready");
           onLoaded?.(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight);
-        }} onError={() => setStatus("error")} />
+        }} onError={() => { setStatus("error"); onLoaded?.(1); }} />
       {status === "loading" && <span className="bw-gallery-placeholder" aria-hidden="true"><NavigationIcon name="image" size={28} /></span>}
       {status === "error" && <span className="bw-gallery-placeholder bw-gallery-unavailable"><NavigationIcon name="image" size={28} /><span>Photo unavailable</span></span>}
     </span>
@@ -142,21 +143,26 @@ function PhotoViewer({ images, initialIndex, onClose }) {
 
 export default function PostPhotoGallery({ images, onRemove, disabled = false }) {
   const [viewing, setViewing] = useState(null);
-  const [measurement, setMeasurement] = useState(null);
-  const ratio = measurement?.id === images[0]?.id ? measurement.ratio : 1;
+  const [measurements, setMeasurements] = useState({});
   if (!images.length) return null;
-  const layout = images.length === 1 ? "single" : images.length === 2 && ratio > 1.45
-    ? "stacked" : images.length === 3 && ratio > 1.2 ? "landscape" : "grid";
+  // Wait for the whole set before choosing the collage so later images do not
+  // repeatedly change the layout as they load. Failed photos use a square slot.
+  const ready = images.every(file => measurements[file.id] > 0);
+  const { layout, aspect, lead } = photoLayout(images.map(file => ready ? measurements[file.id] : 1));
+  const styles = { aspectRatio: aspect,
+    ...(lead ? { "--bw-gallery-lead": lead + "fr", "--bw-gallery-rest": (1 - lead) + "fr" } : {}),
+  };
   return (
     <>
       <div className="bw-photo-gallery" data-count={images.length} data-layout={layout}
-        style={images.length === 1 ? { aspectRatio: Math.max(.8, Math.min(1.91, ratio)) } : undefined}
+        style={styles}
         role="group" aria-label={onRemove ? "Selected photos" : "Post photos"}>
         {images.map((file, index) => <div className="bw-photo-gallery-tile" key={file.id}>
           <button type="button" className="bw-photo-gallery-open"
             aria-label={"Open photo " + (index + 1) + " of " + images.length + ": " + file.name}
             onClick={() => setViewing(index)}>
-            <Photo file={file} onLoaded={index === 0 ? value => setMeasurement({ id: file.id, ratio: value }) : undefined} />
+            <Photo file={file} onLoaded={value => setMeasurements(current => current[file.id] === value
+              ? current : { ...current, [file.id]: value })} />
             <span className="bw-photo-gallery-expand" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5" /></svg></span>
           </button>
           {onRemove && <button className="bw-photo-gallery-remove" type="button" disabled={disabled}
