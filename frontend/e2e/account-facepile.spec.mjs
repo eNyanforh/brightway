@@ -23,13 +23,13 @@ async function fixture(page) {
     const path = url.pathname;
     const reply = data => route.fulfill({ json: { success: true, data } });
     if (path === "/api/v1/my-campus") return reply({ items: [studentCampus] });
+    if (path === "/api/v1/my-workspace") return reply({ tab: "approved", search: "", items: [organization],
+      counts: { approved: 1, pending: 0, invitations: 0, history: 0 }, nextCursor: null });
     const background = backgroundMessaging(route);
     if (background) return background;
     if (path === "/api/v1/auth/me") return reply({ account });
     if (path === "/api/v1/profile/me") return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
     if (path === "/api/v1/work/access") return reply({ hasWork: true });
-    if (path === "/api/v1/my-workspace") return reply({ tab: "approved", search: "", items: [organization],
-      counts: { approved: 1, pending: 0, invitations: 0, history: 0 }, nextCursor: null });
     if (path === `/api/v1/organization-workspace/${orgId}`) return reply(context);
     if (path === `/api/v1/organization-workspace/${orgId}/dashboard`) return reply(dashboardFixture(orgId));
     if (path === "/api/v1/explore/posts") return reply({ items: [], nextCursor: null });
