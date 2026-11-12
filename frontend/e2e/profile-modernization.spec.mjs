@@ -651,7 +651,11 @@ test("public member routes use root handles, keep private contacts hidden and sh
   await expect(rail.locator(".bw-profile-activity-item .bw-timeline-post")).toHaveCount(3);
   await expect(rail.getByLabel("28 views")).toHaveCount(3);
   await expect(rail.getByRole("link", { name: /View full post/ })).toHaveCount(3);
-  await expect(rail.getByRole("button", { name: "Post options" })).toHaveCount(0);
+  await expect(rail.getByRole("button", { name: "Post options" })).toHaveCount(3);
+  const publicPost = rail.locator(".bw-timeline-post").first();
+  await publicPost.getByRole("button", { name: "Post options" }).click();
+  await expect(publicPost.getByRole("menuitem", { name: "Report post" })).toBeVisible();
+  await expect(publicPost.getByRole("menuitem", { name: "Edit post" })).toHaveCount(0);
   await expect(page.getByText("synthetic@example.org")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Contact" })).toHaveCount(0);
   await page.goto("/profile");
