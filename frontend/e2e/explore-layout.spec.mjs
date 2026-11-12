@@ -22,6 +22,9 @@ const formats = [
   { type: "EVENT", choice: "Create an Event", editor: "Write an event", label: "Event", heading: "What's happening", body: "Join our student research workshop on Friday at 2 PM." },
   { type: "QUESTION", choice: "Ask a Question", editor: "Write a question", label: "Question", heading: "Let's learn together", body: "How can I find a mentor for my first programming project?" },
 ];
+// Regular posts use the generic timeline card; only these three have
+// specialized presentation cards and type-specific actions.
+const specializedFormats = formats.filter(format => format.type !== "POST");
 
 async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED", submittedNotice = null) {
   const writes = [];
@@ -454,7 +457,7 @@ test("question modal supports topic suggestions, focus restoration and mobile la
 });
 
 test("The feed renders different presentation cards for stored achievements, events and questions", async ({ page }) => {
-  const typed = formats.map((format, index) => ({
+  const typed = specializedFormats.map((format, index) => ({
     ...fixturePost,
     id: "33333333-3333-4333-8333-33333333333" + index,
     type: format.type, body: format.body, tags: ["Learning"],
@@ -478,7 +481,7 @@ test("The feed renders different presentation cards for stored achievements, eve
   await fixture(page, [...typed, fixturePost, explanationQuestion]);
   await page.goto("/explore");
   const explore = page.getByRole("region", { name: "Explore", exact: true });
-  for (const format of formats) {
+  for (const format of specializedFormats) {
     const card = explore.getByRole("article").filter({ hasText: format.body });
     await expect(card.locator(".bw-post-story")).toHaveAttribute("data-post-type", format.type);
     await expect(card.locator(".bw-post-story--compact")).toBeVisible();
@@ -620,7 +623,7 @@ test("publisher avatars display real member and organization photos with safe in
 });
 
 test("purpose-driven post cards expose distinct actions and functional registration and answer voting", async ({ page }) => {
-  const [achievement, event, question] = formats.map((format, index) => ({
+  const [achievement, event, question] = specializedFormats.map((format, index) => ({
     ...fixturePost,
     id: "44444444-4444-4444-8444-44444444444" + index,
     type: format.type,
