@@ -17,6 +17,7 @@ const fixturePost = {
   saved: false,
 };
 const formats = [
+  { type: "POST", choice: "Create Post", editor: "Write a post", label: "Post", body: "Here is a useful online study guide for new programmers." },
   { type: "ACHIEVEMENT", choice: "Share an Achievement", editor: "Write an achievement", label: "Achievement", heading: "A milestone worth celebrating", body: "I finished my first research project!" },
   { type: "EVENT", choice: "Create an Event", editor: "Write an event", label: "Event", heading: "What's happening", body: "Join our student research workshop on Friday at 2 PM." },
   { type: "QUESTION", choice: "Ask a Question", editor: "Write a question", label: "Question", heading: "Let's learn together", body: "How can I find a mentor for my first programming project?" },
@@ -71,7 +72,7 @@ test("Explore remains readable at tablet width without horizontal scrolling", as
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
 
-test("Explore shows the compact three-action launcher instead of an always-open post box", async ({ page, isMobile }, testInfo) => {
+test("Explore shows the compact four-action launcher instead of an always-open post box", async ({ page, isMobile }, testInfo) => {
   const writes = await fixture(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/explore");
@@ -79,6 +80,7 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   const explore = page.getByRole("region", { name: "Explore", exact: true });
   const billboard = explore.getByRole("region", { name: "BrightWay billboard" });
   const launcher = explore.getByRole("group", { name: "Choose how to contribute" });
+  const post = launcher.getByRole("button", { name: "Create Post" });
   const achievement = launcher.getByRole("button", { name: "Share an Achievement" });
   const event = launcher.getByRole("button", { name: "Create an Event" });
   const question = launcher.getByRole("button", { name: "Ask a Question" });
@@ -89,7 +91,7 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   await expect(billboard.getByRole("link", { name: "Browse opportunities" })).toHaveAttribute("href", "/opportunities");
   await expect(billboard.getByRole("button", { name: "Play slideshow" })).toBeVisible();
   await expect(launcher.getByRole("img", { name: "Your profile photo" })).toBeVisible();
-  for (const action of [achievement, event, question]) await expect(action).toBeVisible();
+  for (const action of [post, achievement, event, question]) await expect(action).toBeVisible();
   await expect(explore.getByRole("button", { name: "Share a Post" })).toHaveCount(0);
   await expect(explore.getByRole("form", { name: "Create a post" })).toHaveCount(0);
 
@@ -114,6 +116,14 @@ test("Explore shows the compact three-action launcher instead of an always-open 
   await expect(billboard.getByRole("heading", { name: "Celebrate the winners" })).toBeVisible();
   await billboard.getByRole("button", { name: "Virtual Campus spotlight" }).click();
   await expect(billboard.getByRole("link", { name: "Explore learning" })).toHaveAttribute("href", "/learning");
+
+  await post.click();
+  const postDialog = page.getByRole("dialog", { name: "Create Post" });
+  await expect(postDialog).toBeVisible();
+  await expect(postDialog.getByRole("textbox", { name: "Write a post" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(postDialog).toHaveCount(0);
+  await expect(post).toBeFocused();
 
   await achievement.click();
   const dialog = page.getByRole("dialog", { name: "Share an Achievement" });
@@ -153,9 +163,11 @@ for (const format of formats) {
     const explore = page.getByRole("region", { name: "Explore", exact: true });
     const launcher = explore.getByRole("group", { name: "Choose how to contribute" });
     await launcher.getByRole("button", { name: format.choice }).click();
-    const editor = format.type === "ACHIEVEMENT"
-      ? page.getByRole("dialog", { name: "Share an Achievement" }).getByRole("form", { name: "Create a post" })
-      : format.type === "EVENT"
+    const editor = format.type === "POST"
+      ? page.getByRole("dialog", { name: "Create Post" }).getByRole("form", { name: "Create a post" })
+      : format.type === "ACHIEVEMENT"
+        ? page.getByRole("dialog", { name: "Share an Achievement" }).getByRole("form", { name: "Create a post" })
+        : format.type === "EVENT"
         ? page.getByRole("dialog", { name: "Create an Event" }).getByRole("form", { name: "Create a post" })
         : page.getByRole("dialog", { name: "Ask a Question" }).getByRole("form", { name: "Create a post" });
     const content = format.type === "QUESTION" ? editor.getByLabel("Question title") : editor.getByRole("textbox", { name: format.editor });
@@ -194,7 +206,7 @@ for (const format of formats) {
     const publish = editor.getByRole("button", { name: "Publish " + format.label.toLowerCase() });
     await expect(publish).toBeDisabled();
 
-    const topics = editor.getByRole("textbox", { name: format.type === "ACHIEVEMENT" ? "Topics" : "Topic tags" });
+    const topics = editor.getByRole("textbox", { name: ["ACHIEVEMENT", "POST"].includes(format.type) ? "Topics" : "Topic tags" });
     await topics.fill("#Research");
     await topics.press("Enter");
     await topics.fill("research");
