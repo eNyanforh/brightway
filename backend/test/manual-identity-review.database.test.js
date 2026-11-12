@@ -164,6 +164,9 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.deepEqual((await postMedia.read(viewerActor, uploadedPdf.id, posts, "bytes=0-49")).bytes,
       pdfBytes.subarray(0, 50), "Embedded PDF viewer receives ranged bytes.");
     await assert.rejects(postMedia.upload(actor, { name: "unsafe.mp4" }, Buffer.alloc(50), "video/mp4"), { status: 415 });
+    // These upload-specific fixture posts must not change the later feed cursor
+    // assertions, which intentionally enumerate only the original fixture posts.
+    await db.memberPost.deleteMany({ where: { id: { in: [publishedMedia.id, documentPost.id] } } });
     assert.deepEqual(await posts.memberPhoto(viewerActor, owner.username, photo.id), { personId: owner.personId, photoId: photo.id });
     await assert.rejects(posts.memberPhoto(viewerActor, owner.username, randomUUID()), { status: 404 });
 
