@@ -98,7 +98,7 @@
 }
 .bw-post-quick-actions {
   display: grid;
-  grid-template-columns: 42px repeat(3, minmax(0, 1fr));
+  grid-template-columns: 42px repeat(4, minmax(0, 1fr));
   gap: .25rem;
   align-items: center;
   min-width: 0;
@@ -162,6 +162,9 @@
   object-fit: cover;
 }
 
+.bw-post-quick-action[data-post-type="POST"], .bw-post-editor-heading[data-post-type="POST"] {
+  --post-accent: #175cd3; --post-tint: #edf4ff;
+}
 .bw-post-quick-action[data-post-type="ACHIEVEMENT"], .bw-post-editor-heading[data-post-type="ACHIEVEMENT"] {
   --post-accent: #905a0a; --post-tint: #fff2db;
 }
@@ -427,7 +430,7 @@
 .bw-post-story .bw-post-topic-tags { margin: .5rem 0; }
 
 @container (max-width: 30rem) {
-  .bw-post-quick-actions { grid-template-columns: 34px repeat(3, minmax(0, 1fr)); gap: .12rem; }
+  .bw-post-quick-actions { grid-template-columns: 34px repeat(4, minmax(0, 1fr)); gap: .12rem; }
   .bw-post-quick-avatar { width: 32px; height: 32px; }
   .bw-post-panel .bw-post-quick-action {
     flex-direction: column;
@@ -733,6 +736,52 @@
   }
 }
 
+
+/* General posts share the full-screen, focus-managed modal infrastructure.
+   Their own visual system uses the BrightWay blue / black / white palette. */
+.bw-standard-post-modal-backdrop.bw-post-panel {
+  background: #000b;
+}
+.bw-standard-post-modal-backdrop .bw-achievement-modal-dialog {
+  color: #000;
+}
+.bw-standard-post-composer .bw-post-editor-heading {
+  padding-bottom: .75rem;
+  border-bottom: 1px solid #dce8ff;
+}
+.bw-standard-post-composer .bw-post-editor-heading h3,
+.bw-standard-post-composer .bw-achievement-topic-head h4,
+.bw-standard-post-composer .bw-post-topic-heading,
+.bw-standard-post-composer textarea {
+  color: #000;
+}
+.bw-standard-post-composer textarea {
+  min-height: 160px;
+  border-color: #bfd5ff;
+  background: #fff;
+}
+.bw-standard-post-composer .bw-achievement-topic-editor {
+  background: #fff;
+  border-color: #dce8ff;
+}
+.bw-standard-post-composer .bw-achievement-topic-icon {
+  background: #edf4ff;
+  color: #175cd3;
+}
+.bw-standard-post-composer .bw-achievement-topic-head p {
+  color: #000;
+}
+.bw-standard-post-composer .bw-personal-composer-footer {
+  padding-top: .75rem;
+}
+.bw-post-panel .bw-standard-post-composer .bw-personal-composer-submit {
+  background: #175cd3;
+  color: #fff;
+  border-radius: 10px;
+}
+.bw-post-panel .bw-standard-post-composer .bw-personal-composer-submit:hover:enabled {
+  background: #1556c4;
+}
 
 /* BrightWay event builder: structured event creation, without third-party branding. */
 .bw-event-modal-backdrop.bw-post-panel {
