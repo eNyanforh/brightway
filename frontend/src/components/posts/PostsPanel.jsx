@@ -558,7 +558,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
       setType("ACHIEVEMENT");
       setTags([]);
       setComposerOpen(false);
-      if (composePostOnOpen) onComposeRequestFinished?.();
+      if (composePostOnOpen) onComposeRequestFinished?.(post.moderationStatus === "PUBLISHED"
+        ? "Post published. BrightWay Management may review it later."
+        : "Submitted for moderation. Track the decision in My Posts.");
       const held = memberComposer && post.moderationStatus !== "PUBLISHED";
       setSubmissionFeedback(held ? post.moderationNotice ?? null : null);
       setNotice(memberComposer ? post.moderationStatus === "PUBLISHED"
