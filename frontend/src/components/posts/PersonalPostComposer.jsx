@@ -85,7 +85,14 @@ export default function PersonalPostComposer({
   const initial = (account?.person?.firstName || account?.username || "B").slice(0, 1).toUpperCase();
 
   useEffect(() => {
-    if (open) bodyInput.current?.focus();
+    if (!open) return undefined;
+    // Opening from the floating navigation link remounts Explore; wait for
+    // navigation focus handling to settle before focusing the modal editor.
+    bodyInput.current?.focus();
+    const frame = window.requestAnimationFrame?.(() => {
+      if (bodyInput.current && !disabledRef.current) bodyInput.current.focus();
+    });
+    return () => { if (frame != null) window.cancelAnimationFrame?.(frame); };
   }, [open, type]);
 
   useEffect(() => {
