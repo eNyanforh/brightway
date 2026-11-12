@@ -6,6 +6,7 @@ import { assertMfaSession } from "../auth/mfa.service.js";
 import { assertNetworkSession, lockNetworkAccounts } from "../network/network-authority.js";
 import { fail } from "../network/network.schema.js";
 import { requireOrganizationProfile } from "../organizations/organization-profile.schema.js";
+import { postMediaIds, postMediaSelect } from "./post-media.service.js";
 
 const publishPermission = "organization.posts.publish";
 const pageSize = 20;
@@ -22,7 +23,11 @@ const postSelect = {
   organization: { select: { id: true, name: true, username: true, profilePhotoId: true } },
 };
 const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true, profile: { select: { photoId: true } } } } };
-const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true, questionDetails: true, body: true, createdAt: true, author: { select: memberSelect } };
+const memberPostSelect = {
+  id: true, type: true, tags: true, eventDetails: true, questionDetails: true,
+  body: true, createdAt: true, author: { select: memberSelect },
+  media: { where: { discardedAt: null }, select: postMediaSelect, orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
+};
 const ownMemberPostSelect = {
   ...memberPostSelect,
   moderationStatus: true, moderationVersion: true, moderationFeedback: true,
@@ -87,6 +92,7 @@ const memberPostInput = postInput.extend({
   tags: topicTags.default([]),
   eventDetails: eventDetailsInput.optional(),
   questionDetails: questionDetailsInput.optional(),
+  mediaIds: postMediaIds.default([]),
 }).superRefine((value, ctx) => {
   if (value.type !== "QUESTION" && value.questionDetails)
     ctx.addIssue({ code: "custom", path: ["questionDetails"], message: "Question details are only allowed on questions." });
@@ -372,7 +378,7 @@ function findPosts(model, select, where, cursor, source) {
   });
 }
 
-export function createOrganizationPosts({ prisma, now = () => new Date() }) {
+export function createOrganizationPosts({ prisma, media, now = () => new Date() }) {
   const identity = createManualIdentityReviewService({ prisma, now });
 
   async function memberEligibility(db, accountId) {
@@ -1532,15 +1538,21 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
           const sameTags = post.tags.length === data.tags.length && post.tags.every((tag, index) => tag === data.tags[index]);
           const sameEvent = sameEventDetails(post.eventDetails, data.eventDetails);
           const sameQuestion = sameQuestionDetails(post.questionDetails, data.questionDetails);
-          if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags || !sameEvent || !sameQuestion) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
+          const existingMedia = (post.media || []).map(item => item.id).sort();
+          const requestedMedia = [...data.mediaIds].sort();
+          const sameMedia = existingMedia.length === requestedMedia.length &&
+            existingMedia.every((id, index) => id === requestedMedia[index]);
+          if (withdrawnAt || post.body !== data.body || post.type !== data.type || !sameTags || !sameEvent || !sameQuestion || !sameMedia) throw fail(409, "This publishing request already belongs to another post. Edit your draft before trying again.");
           return { post: ownerMemberPost(post, true) };
         }
         // An older tagless post may be retried, but new posts require a topic.
         if (!data.tags.length) throw fail(400, "Add at least one topic tag before publishing.");
         const recent = await tx.memberPost.count({ where: { authorId: actor.accountId, createdAt: { gte: new Date(+now() - 900000) } } });
         if (recent >= 20) throw fail(429, "You have reached the publishing limit. Try again in 15 minutes.");
+        if (data.mediaIds.length && !media) throw fail(503, "Post attachments are temporarily unavailable.");
         const post = await tx.memberPost.create({ data: { ...key, type: data.type, tags: data.tags, eventDetails: data.eventDetails ?? undefined, questionDetails: data.questionDetails ?? undefined, body: data.body, moderationStatus: "PUBLISHED", createdAt: now() }, select: ownMemberPostSelect });
-        return { post: ownerMemberPost(post, true) };
+        const attachments = data.mediaIds.length ? await media.bind(tx, actor.accountId, data.mediaIds, post.id) : [];
+        return { post: ownerMemberPost({ ...post, media: data.mediaIds.map(id => attachments.find(file => file.id === id)) }, true) };
       });
     },
 

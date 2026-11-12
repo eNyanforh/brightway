@@ -35,6 +35,32 @@ async function readPage(path, signal) {
 const workspacePath = id => "/organization-workspace/" + encodeURIComponent(id) + "/posts";
 const explorePost = (source, id) => `/explore/posts/${source}/${encodeURIComponent(id)}`;
 export const memberPhotoUrl = (username, photoId) => `${base}/explore/members/${encodeURIComponent(username)}/photo/${encodeURIComponent(photoId)}`;
+export const postMediaUrl = id => `${base}/posts/media/${encodeURIComponent(id)}`;
+
+export async function uploadPostMedia(file, signal) {
+  if (!file?.type) throw new ApiError("Choose a JPEG, PNG, WebP, MP4, WebM or PDF file.");
+  return requestBinaryPostMedia(file, signal);
+}
+async function requestBinaryPostMedia(file, signal) {
+  let response;
+  try {
+    response = await fetch(base + "/posts/me/media?name=" + encodeURIComponent(file.name), {
+      method: "POST", credentials: "include", cache: "no-store", signal,
+      headers: { "Content-Type": file.type }, body: file,
+    });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new ApiError("Unable to upload this attachment. Try again.");
+  }
+  let result;
+  try { result = await response.json(); } catch {
+    throw new ApiError("BrightWay returned an unexpected media upload response.", response.status);
+  }
+  if (!response.ok || result?.success !== true) {
+    throw new ApiError(result?.message || "Could not upload this attachment.", response.status);
+  }
+  return result.data;
+}
 const query = params => "?" + new URLSearchParams(params);
 
 export const organizationPostsApi = {
@@ -67,6 +93,7 @@ export const organizationPostsApi = {
     : "/posts/me/activity") + query({ kind, ...(cursor ? { cursor } : {}) }), signal),
   memberList: (cursor, signal) => readPage("/posts/me" + (cursor ? query({ cursor }) : ""), signal),
   publicMemberList: (username, cursor, signal) => readPage("/posts/members/" + encodeURIComponent(username) + (cursor ? query({ cursor }) : ""), signal),
+  discardPostMedia: (id, signal) => request("/posts/me/media/" + encodeURIComponent(id), signal, "DELETE"),
   memberPublish: (body, signal) => request("/posts/me", signal, "POST", body),
   memberEdit: (postId, payload, signal) => request("/posts/me/" + encodeURIComponent(postId), signal, "PATCH", payload),
   memberWithdraw: (postId, signal) => request("/posts/me/" + encodeURIComponent(postId), signal, "DELETE"),

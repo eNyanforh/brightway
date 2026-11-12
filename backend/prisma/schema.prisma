@@ -54,6 +54,8 @@ model Account {
   sentMessages DirectMessage[]
   messageFiles MessageAttachment[]
   messageUploadAttempts MessagingUploadAttempt[]
+  postMediaFiles PostMedia[]
+  postMediaUploadAttempts PostMediaUploadAttempt[]
   messagingPreference MessagingPreference?
   messagingTyping MessagingTyping[]
   messagingPresence MessagingPresence?
@@ -1034,6 +1036,7 @@ enum MemberPostRelevanceStatus {
 }
 
 model MemberPost {
+  media PostMedia[]
   views PostView[]
   reports PostReport[]
   registrations EventRegistration[]
@@ -1166,6 +1169,44 @@ model PostReport {
   @@unique([memberPostId, reporterId])
   @@unique([organizationPostId, reporterId])
   @@index([createdAt])
+}
+
+enum PostMediaKind {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+// Images, native browser-playable videos, and PDFs are first-party, private
+// objects. Unattached uploads are drafts owned by the uploader and cannot be
+// exposed through a published post until claimed transactionally.
+model PostMedia {
+  id String @id @default(uuid())
+  ownerId String
+  owner Account @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  postId String?
+  post MemberPost? @relation(fields: [postId], references: [id], onDelete: Cascade)
+  storageKey String @unique
+  kind PostMediaKind
+  name String @db.VarChar(160)
+  contentType String @db.VarChar(64)
+  size Int
+  pageCount Int?
+  createdAt DateTime @default(now())
+  discardedAt DateTime?
+  @@index([ownerId, createdAt])
+  @@index([postId, createdAt])
+}
+
+// Immutable upload-attempt budget: removing discarded drafts must not restore
+// a member's daily capacity to re-upload harmful or large files.
+model PostMediaUploadAttempt {
+  id String @id @default(uuid())
+  ownerId String
+  owner Account @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  inputSize Int
+  createdAt DateTime @default(now())
+  @@index([ownerId, createdAt])
 }
 
 model PostLike {

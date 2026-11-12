@@ -38,7 +38,7 @@ function zonedToIso(value, zone) {
   return new Date(estimate).toISOString();
 }
 
-export default function EventBuilder({ body, tags, disabled, onBodyChange, onTagsChange, onCancel, onSubmit, triggerRef }) {
+export default function EventBuilder({ body, tags, disabled, onBodyChange, onTagsChange, onCancel, onSubmit, mediaControls, triggerRef }) {
   const titleId = useId();
   const dialogRef = useRef(null);
   const titleRef = useRef(null);
@@ -281,6 +281,7 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
               <p>Preview of how your event will appear in the BrightWay feed.</p>
             </aside>
           </div>
+          {mediaControls}
           <footer className="bw-event-builder-footer">
             <span>Registration is available in BrightWay. Ticket prices are informational; payment collection and ticket issuance are not yet supported.</span>
             <div><button type="button" onClick={onCancel} disabled={disabled}>Cancel</button><button className="bw-event-publish" type="submit" disabled={!valid}>Publish event</button></div>

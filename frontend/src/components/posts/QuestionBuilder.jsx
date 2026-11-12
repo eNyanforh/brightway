@@ -10,7 +10,7 @@ const intents = [
   { id: "DISCUSSION", label: "Start a discussion", detail: "Explore different perspectives" },
 ];
 
-export default function QuestionBuilder({ body, tags, disabled, onBodyChange, onTagsChange, onCancel, onSubmit, triggerRef }) {
+export default function QuestionBuilder({ body, tags, disabled, onBodyChange, onTagsChange, onCancel, onSubmit, mediaControls, triggerRef }) {
   const uid = useId();
   const modalRef = useRef(null);
   const titleRef = useRef(null);
@@ -147,6 +147,7 @@ export default function QuestionBuilder({ body, tags, disabled, onBodyChange, on
             </aside>
           </div>
 
+          {mediaControls}
           <footer className="bw-question-builder-footer">
             <p>Questions are shared publicly. Members can respond in the comments.</p>
             <div><button type="button" disabled={disabled} onClick={onCancel}>Cancel</button>

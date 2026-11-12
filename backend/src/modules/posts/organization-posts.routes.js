@@ -1,9 +1,9 @@
-import { Router } from "express";
+import { Router, raw } from "express";
 import { rateLimit } from "express-rate-limit";
 import { createRequireAuth, createSessionCookieConfig, requireTrustedOrigin } from "../auth/session.http.js";
 import { fail } from "../network/network.schema.js";
 
-export function createOrganizationPostRoutes({ posts, photos, sessions, clientUrl, nodeEnv }) {
+export function createOrganizationPostRoutes({ posts, photos, media, sessions, clientUrl, nodeEnv }) {
   const router = Router();
   const auth = createRequireAuth({ sessions, cookieName: createSessionCookieConfig(nodeEnv).name });
   const trustedOrigin = requireTrustedOrigin(clientUrl);
@@ -36,6 +36,50 @@ export function createOrganizationPostRoutes({ posts, photos, sessions, clientUr
       next(error.status ? error : fail(503, "Profile photo is temporarily unavailable."));
     }
   });
+  // Media bytes never pass through the JSON parser or a public bucket URL.
+  // Raw request bodies have strict MIME, size and per-account rate limits.
+  if (media) {
+    const uploads = rateLimit({
+      windowMs: 60000, limit: 6, standardHeaders: "draft-8", legacyHeaders: false,
+      keyGenerator: req => req.auth.account.id,
+      message: { success: false, message: "Too many media uploads. Try again shortly." },
+    });
+    router.post("/posts/me/media", access, trustedOrigin, uploads,
+      raw({ type: ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm", "application/pdf"],
+        limit: "25mb", inflate: false }),
+      respond((req, actor) => media.upload(actor, req.query, req.body, req.get("Content-Type")), 201));
+    router.delete("/posts/me/media/:mediaId", access, trustedOrigin, writes,
+      respond((req, actor) => media.discard(actor, req.params.mediaId)));
+    router.get("/posts/media/:mediaId", access, async (req, res, next) => {
+      const actor = { accountId: req.auth.account.id, sessionId: req.auth.sessionId };
+      try {
+        if (Object.keys(req.query).length) throw fail(400, "Invalid media query.");
+        const item = await media.read(actor, req.params.mediaId, posts, req.get("Range") || "");
+        res.set({
+          "Content-Type": item.contentType,
+          "Content-Length": String(item.bytes.length),
+          "Accept-Ranges": "bytes",
+          "X-Content-Type-Options": "nosniff",
+          // These objects remain private but can be displayed by BrightWay's
+          // separately-hosted web app when CLIENT_URL is a different origin.
+          "Cross-Origin-Resource-Policy": "cross-origin",
+          "Referrer-Policy": "no-referrer",
+          "Cache-Control": "private, no-store",
+          "Content-Disposition": `inline; filename="${item.name.replace(/["\\]/g, "_")}"`,
+          ...(item.partial ? { "Content-Range": `bytes ${item.start}-${item.end}/${item.size}` } : {}),
+        });
+        if (item.contentType === "application/pdf") {
+          // Helmet's global SAMEORIGIN frame policy would block the native
+          // PDF document viewer when the frontend and API use different hosts.
+          const clientOrigin = new URL(clientUrl).origin;
+          res.removeHeader("X-Frame-Options");
+          res.setHeader("Content-Security-Policy",
+            "default-src 'none'; frame-ancestors 'self' " + clientOrigin);
+        }
+        res.status(item.partial ? 206 : 200).send(item.bytes);
+      } catch (error) { next(error.status ? error : fail(503, "This media file is temporarily unavailable.")); }
+    });
+  }
   router.get("/explore/posts", access, respond((req, actor) => posts.feed(actor, req.query)));
   router.get("/explore/posts/:source/:id", access,
     respond((req, actor) => posts.readPost(actor, req.params.source, req.params.id)));

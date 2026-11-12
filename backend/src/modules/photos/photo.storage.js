@@ -117,6 +117,25 @@ export function createR2Storage({
       });
     },
 
+    // Bounded byte-range reads allow private MP4/WebM playback without
+    // buffering the whole video or exposing R2 objects through public URLs.
+    async getRange(key, { start, end, maxBytes = 4 * 1024 * 1024 } = {}) {
+      if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) ||
+          start < 0 || end < start || end - start + 1 > maxBytes ||
+          maxBytes < 1 || maxBytes > 5 * 1024 * 1024) {
+        throw Object.assign(new Error("Invalid media byte range."), { status: 416 });
+      }
+      const result = await send(GetObjectCommand, { Key: key, Range: `bytes=${start}-${end}` });
+      if (!result.Body || (result.ContentLength ?? 0) > maxBytes) {
+        throw Object.assign(new Error("Media cannot be read."), { status: 503 });
+      }
+      const bytes = Buffer.from(await result.Body.transformToByteArray());
+      if (bytes.length !== end - start + 1) {
+        throw Object.assign(new Error("Incomplete media range."), { status: 503 });
+      }
+      return bytes;
+    },
+
     async get(key, { maxBytes = 2 * 1024 * 1024 } = {}) {
       const result = await send(GetObjectCommand, {
         Key: key,
