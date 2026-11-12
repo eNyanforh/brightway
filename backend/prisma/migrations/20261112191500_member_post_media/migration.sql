@@ -8,6 +8,7 @@ CREATE TABLE "PostMedia" (
   "name" VARCHAR(120) NOT NULL,
   "contentType" VARCHAR(40) NOT NULL,
   "size" INTEGER NOT NULL,
+  "pages" INTEGER,
   "storageKey" TEXT NOT NULL,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "PostMedia_pkey" PRIMARY KEY ("id")
