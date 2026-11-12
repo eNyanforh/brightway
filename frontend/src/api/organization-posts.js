@@ -35,9 +35,23 @@ async function readPage(path, signal) {
 const workspacePath = id => "/organization-workspace/" + encodeURIComponent(id) + "/posts";
 const explorePost = (source, id) => `/explore/posts/${source}/${encodeURIComponent(id)}`;
 export const memberPhotoUrl = (username, photoId) => `${base}/explore/members/${encodeURIComponent(username)}/photo/${encodeURIComponent(photoId)}`;
+export const postMediaUrl = (id, download = false) => base + "/posts/media/" + encodeURIComponent(id)
+  + (download ? "?download=1" : "");
+async function uploadPostMedia(file, signal) {
+  const response = await fetch(base + "/posts/media?name=" + encodeURIComponent(file.name), {
+    method: "POST", credentials: "include", cache: "no-store", signal,
+    headers: { "Content-Type": file.type }, body: file,
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || result?.success !== true) throw new ApiError(
+    result?.message || "Could not upload this attachment.", response.status);
+  return result.data;
+}
 const query = params => "?" + new URLSearchParams(params);
 
 export const organizationPostsApi = {
+  uploadMedia: uploadPostMedia,
+  discardMedia: (id, signal) => request("/posts/media/" + encodeURIComponent(id), signal, "DELETE"),
   feed: (view, cursor, signal) => readPage("/explore/posts" + query({ view, ...(cursor ? { cursor } : {}) }), signal),
   readPost: (source, id, signal) => request(explorePost(source, id), signal),
   setLike: (source, id, liked, signal) => request(explorePost(source, id) + "/like", signal, "PUT", { liked }),
