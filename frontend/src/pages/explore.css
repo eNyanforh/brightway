@@ -523,7 +523,7 @@
   .bw-explore .bw-billboard-art { border-radius: 14px; }
   .bw-explore .bw-billboard-art svg { width: 29px; height: 29px; }
   .bw-explore .bw-personal-composer { padding: .5rem .4rem; }
-  .bw-explore .bw-post-quick-actions { grid-template-columns: 34px repeat(3, minmax(0, 1fr)); gap: .12rem; }
+  .bw-explore .bw-post-quick-actions { grid-template-columns: 34px repeat(4, minmax(0, 1fr)); gap: .12rem; }
   .bw-explore .bw-post-panel .bw-post-quick-action { flex-direction: column; min-height: 70px; gap: .12rem; padding: .2rem .1rem; font-size: .67rem; text-align: center; }
   .bw-explore .bw-timeline-post { grid-template-columns: 34px minmax(0, 1fr); column-gap: .45rem; padding: .75rem .52rem .55rem; }
   .bw-explore .bw-timeline-avatar { width: 34px; height: 34px; }
