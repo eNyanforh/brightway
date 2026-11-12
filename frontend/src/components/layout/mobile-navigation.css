@@ -11,7 +11,7 @@
     right: 0;
 
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 
     padding: 7px 4px
       calc(7px + env(safe-area-inset-bottom, 0px));
@@ -65,11 +65,39 @@
     outline-offset: -3px;
   }
 
-  .bw-mobile-navigation-post .bw-mobile-navigation-icon {
-    width: 29px;
-    height: 29px;
-    border: 1px solid #c8d6e9;
-    border-radius: 9px;
+  /* A single floating creation action, clear of the fixed four-tab bar. */
+  .bw-mobile-navigation .bw-mobile-compose-fab {
+    position: fixed;
+    z-index: 95;
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    width: auto;
+    min-width: 112px;
+    min-height: 54px;
+    padding: 12px 18px;
+    border: 1px solid #175cd3;
+    border-radius: 999px;
+    background: #175cd3;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 7px 20px #0003;
+    text-decoration: none;
+  }
+  .bw-mobile-navigation .bw-mobile-compose-fab:hover {
+    border-color: #124ba9;
+    background: #124ba9;
+    color: #fff;
+  }
+  .bw-mobile-navigation .bw-mobile-compose-fab:focus-visible {
+    outline: 3px solid #000;
+    outline-offset: 3px;
   }
 
   /* Leave room for the fixed bottom navigation. */
