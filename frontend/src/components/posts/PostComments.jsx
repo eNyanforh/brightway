@@ -3,7 +3,7 @@ import NavigationIcon from "../layout/NavigationIcon";
 import { organizationPostsApi as api } from "../../api/organization-posts";
 import DiscussionAuthor from "./DiscussionAuthor";
 
-export default function PostComments({ source, postId, children, showComment = true, primaryAction = null, commentCount = null }) {
+export default function PostComments({ source, postId, children, showComment = true, primaryAction = null, commentCount = null, engagementPreview = null, onEngagementChange }) {
   const regionId = useId();
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(null);
@@ -67,6 +67,7 @@ export default function PostComments({ source, postId, children, showComment = t
       requestKey.current = null;
       setBody("");
       input.current?.focus();
+      onEngagementChange?.();
     });
   }
 
@@ -74,14 +75,16 @@ export default function PostComments({ source, postId, children, showComment = t
     void run(signal => api.deleteComment(source, postId, id, signal), () => {
       setPage(previous => ({ ...previous, items: previous.items.filter(item => item.id !== id) }));
       setDeleteId(null);
+      onEngagementChange?.();
     });
   }
 
   return (
     <div className="bw-post-comments">
-      <div className={primaryAction ? "bw-timeline-actions bw-timeline-actions--split" : "bw-timeline-actions"}>
+      <div className={"bw-timeline-actions" + (primaryAction ? " bw-timeline-actions--split" : "") + (engagementPreview ? " bw-timeline-actions--engagement" : "")}>
+        {engagementPreview && <div className="bw-post-engagement-left">{engagementPreview}</div>}
         {primaryAction && <div className="bw-post-primary-action">{primaryAction}</div>}
-        <div className={primaryAction ? "bw-post-secondary-actions" : "bw-post-secondary-actions bw-post-secondary-actions--default"}>
+        <div className={"bw-post-secondary-actions" + (!primaryAction && !engagementPreview ? " bw-post-secondary-actions--default" : "")}>
           {showComment && (
             <button type="button" className="bw-timeline-action" aria-label="Comments" title="Comments"
               aria-expanded={expanded} aria-controls={regionId} disabled={pending} onClick={toggle}>
