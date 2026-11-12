@@ -4,7 +4,7 @@
   z-index: 100;
   background: #fff;
   border-bottom: 1px solid #e5eaf1;
-  color: #182339;
+  color: #000;
   font-family: "Inter Variable", Inter, ui-sans-serif, system-ui,
     -apple-system, "Segoe UI", sans-serif;
   line-height: 1.55;
@@ -30,7 +30,7 @@
   gap: 10px;
   width: 230px;
   padding: 0;
-  color: #19396b;
+  color: #175cd3;
   text-decoration: none;
   letter-spacing: -1.1px;
   font-size: 25px;
@@ -70,7 +70,7 @@
   padding: 9px 0;
   border: 0;
   background: transparent;
-  color: #182339;
+  color: #000;
   font: inherit;
   font-size: 13px;
   opacity: 1;
@@ -267,7 +267,7 @@
   min-height: 42px;
   padding: 10px 12px;
   border-radius: 8px;
-  color: #233b60;
+  color: #000;
   text-decoration: none;
   font-size: 13px;
 }
@@ -287,7 +287,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #243a5a;
+  color: #000;
   font-weight: 650;
 }
 .bw-header-search-suggestion > span:last-child { flex-shrink: 0; color: #647087; font-size: 11px; }
