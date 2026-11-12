@@ -921,3 +921,24 @@ test("signup country and photo are stored together and profile failure rolls bac
     undefined,
   );
 });
+
+
+test("a consumed signup draft cannot match a concurrent request's earlier cutoff", async () => {
+  const db = fakeDatabase();
+  const setup = createPhotoService({ prisma: db, storage: storage(), process: processed, now: clock });
+  const draft = await setup.begin();
+  const assets = await Promise.all([0, 1].map(() => setup.uploadDraft(draft.token, Buffer.from("test"), "image/png")));
+  let created = 0;
+  const results = await Promise.allSettled(assets.map(asset => {
+    let clockReads = 0;
+    const service = createPhotoService({ prisma: db, storage: storage(),
+      now: () => new Date(+clock() + (clockReads++ < 2 ? 0 : 1)),
+    });
+    return service.registerAsset(asset.photoAssetId, draft.token, async () => ({
+      id: "account-" + (++created), person: { id: "person-" + created },
+    }));
+  }));
+  assert.equal(results.filter(result => result.status === "fulfilled").length, 1);
+  assert.equal(created, 1);
+  assert.equal(results.find(result => result.status === "rejected").reason.status, 400);
+});

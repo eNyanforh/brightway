@@ -62,8 +62,11 @@ export function createPhotoService({ prisma, storage, process = processPhoto, pr
     async registerAsset(assetId, token, createAccount, { countryCode } = {}) {
       const owner = await draft(token);
       return prisma.$transaction(async (tx) => {
+        // A waiting request may have captured its expiry cutoff before this
+        // transaction. Consume with a fixed past value, not a newer wall-clock
+        // timestamp that could still satisfy that request's WHERE predicate.
         const consumed = await tx.signupDraft.updateMany({ where: { id: owner.id, expiresAt: { gt: now() } },
-          data: { expiresAt: now() } });
+          data: { expiresAt: new Date(0) } });
         if (consumed.count !== 1) throw error(400, "Your signup draft has already been used or expired.");
         const claimed = await tx.photoAsset.updateMany({ where: {
           id: assetId, draftId: owner.id, state: "READY", personId: null,

@@ -1275,7 +1275,8 @@ test("rich post cards render native image galleries, playable video and LinkedIn
   }));
   await fixture(page, items);
   await page.route("**/api/v1/posts/media/*", route => route.fulfill({
-    status: 200, headers: { "Content-Type": "application/octet-stream" }, body: "synthetic media",
+    status: 200, headers: { "Content-Type": "image/svg+xml" },
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#0866ff"/></svg>',
   }));
   await page.goto("/explore");
   const imageCard = page.getByRole("article").filter({ hasText: "Rich media example IMAGE" });
@@ -1336,4 +1337,72 @@ test("member composer uploads a PDF and binds its ID to the published post", asy
     body: "This PDF summarizes our community research.", type: "POST",
     mediaIds: [mediaId],
   })]);
+});
+
+test("post photo galleries open an accessible viewer and keep mobile images edge to edge", async ({ page, isMobile }) => {
+  const media = Array.from({ length: 4 }, (_, index) => ({
+    id: "gallery-photo-" + index, kind: "IMAGE", name: "community-" + index + ".webp", size: 100,
+  }));
+  await fixture(page, [{ ...fixturePost, type: "POST", media }]);
+  await page.route("**/api/v1/posts/media/gallery-photo-*", route => route.fulfill({
+    contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000"><rect width="800" height="1000" fill="#0866ff"/></svg>',
+  }));
+  await page.goto("/explore");
+  const gallery = page.getByRole("group", { name: "Post photos" });
+  const trigger = gallery.getByRole("button", { name: "Open photo 2 of 4: community-1.webp" });
+  await trigger.click();
+  const viewer = page.getByRole("dialog", { name: "Photo viewer" });
+  await expect(viewer.getByText("2 of 4")).toBeVisible();
+  await expect(viewer.getByRole("button", { name: "Close photo viewer" })).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(viewer.getByText("3 of 4")).toBeVisible();
+  await viewer.getByRole("button", { name: "View photo 4" }).click();
+  await expect(viewer.getByRole("button", { name: "Next photo" })).toBeDisabled();
+  await viewer.getByRole("button", { name: "Zoom in" }).click();
+  await expect(viewer.getByRole("button", { name: "Zoom out" })).toHaveAttribute("aria-pressed", "true");
+  // Native modal focus must stay inside the viewer even at the tab boundary.
+  await viewer.getByRole("button", { name: "View photo 4" }).focus();
+  await page.keyboard.press("Tab");
+  expect(await viewer.evaluate(element => element.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(viewer).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  if (isMobile) {
+    const bounds = await gallery.boundingBox();
+    expect(Math.abs(bounds.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(bounds.width - page.viewportSize().width)).toBeLessThanOrEqual(2);
+    expect(await gallery.evaluate(element => getComputedStyle(element).borderRadius)).toBe("0px");
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
+test("photo preview closes without discarding the post editor or its uploaded images", async ({ page, isMobile }) => {
+  await fixture(page);
+  await page.route("**/api/v1/posts/me/media?*", route => route.fulfill({ status: 201, json: {
+    success: true, data: { id: "preview-photo", kind: "IMAGE", name: "study-group.webp", size: 100 },
+  } }));
+  await page.route("**/api/v1/posts/media/preview-photo", route => route.fulfill({
+    contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700"><rect width="1000" height="700" fill="#0866ff"/></svg>',
+  }));
+  await page.goto("/explore");
+  if (isMobile) await page.getByRole("link", { name: "Create Post" }).click();
+  else await page.getByRole("group", { name: "Choose how to contribute" }).getByRole("button", { name: "Create Post" }).click();
+  const editor = page.getByRole("dialog", { name: "Create Post", exact: true });
+  await editor.getByRole("textbox", { name: "Write a post" }).fill("Our study group’s latest achievement.");
+  await editor.locator('input[type="file"][accept="image/jpeg,image/png,image/webp"]').setInputFiles({
+    name: "study-group.webp", mimeType: "image/webp", buffer: Buffer.from("synthetic image upload"),
+  });
+  const open = editor.getByRole("button", { name: "Open photo 1 of 1: study-group.webp" });
+  await open.click();
+  const viewer = page.getByRole("dialog", { name: "Photo viewer" });
+  await expect(viewer).toBeVisible();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  expect(await viewer.evaluate(element => element.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(viewer).toHaveCount(0);
+  await expect(editor).toBeVisible();
+  await expect(open).toBeFocused();
+  await expect(editor.getByRole("textbox", { name: "Write a post" })).toHaveValue("Our study group’s latest achievement.");
+  await expect(editor.getByText("1 of 4 added")).toBeVisible();
 });
