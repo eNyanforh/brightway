@@ -8,6 +8,7 @@ import PostComments from "./PostComments";
 import QuestionAnswers from "./QuestionAnswers";
 import AvatarGroup from "./AvatarGroup";
 import EventAttendeeSummary from "./EventAttendeeSummary";
+import PostEngagementFacepile from "./PostEngagementFacepile";
 import EventRequestReview from "./EventRequestReview";
 import VerificationBadge from "../VerificationBadge";
 import PostTimestamp from "./PostTimestamp";
@@ -145,6 +146,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
   const [failedAvatarUrl, setFailedAvatarUrl] = useState(null);
   const [viewCount, setViewCount] = useState(post.views);
   const [reviewSummary, setReviewSummary] = useState(null);
+  const [engagementRevision, setEngagementRevision] = useState(0);
   const displayPost = reviewSummary && post.type === "EVENT"
     ? { ...post, registration: reviewSummary.registration, eventAttendees: reviewSummary.eventAttendees }
     : post;
@@ -158,6 +160,9 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
   const publisher = post.organization || post.member;
   const source = postSource(post);
   const type = post.member ? post.type ?? "POST" : "ORGANIZATION";
+  const engagementCard = post.member && ["POST", "ACHIEVEMENT"].includes(type);
+  const ownPost = session?.account?.username === post.member?.username;
+  const canReport = (engagementCard || type === "QUESTION") && !ownPost;
   const reviewStatus = post.member ? post.moderationStatus : null;
   const heldForReview = reviewStatus === "PENDING" || reviewStatus === "REJECTED";
   const reviewBanner = heldForReview ? (
@@ -228,7 +233,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
     }
   }
 
-  async function reportQuestion(event) {
+  async function reportMemberPost(event) {
     event.preventDefault();
     if (reportBusy) return;
     setReportBusy(true); setCardError("");
@@ -293,8 +298,8 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
       )}
       <button type="button" className="bw-timeline-action" aria-label="Share" title="Share"
         onClick={() => void sharePost()}><NavigationIcon name="share" size={19} /></button>
-      {type === "QUESTION" && !isQuestionPublisher && (
-        <button type="button" className="bw-timeline-action" aria-label="Report question" title="Report"
+      {canReport && (
+        <button type="button" className="bw-timeline-action" aria-label={type === "QUESTION" ? "Report question" : "Report post"} title="Report"
           aria-expanded={reportOpen} disabled={reported} onClick={() => setReportOpen(open => !open)}>
           <NavigationIcon name="flag" size={19} />
         </button>
@@ -320,7 +325,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
       {cardError && <p className="bw-post-error" role="alert">{cardError}</p>}
       {reported && <p className="bw-post-action-notice" role="status">Report submitted for moderation.</p>}
       {reportOpen && !reported && (
-        <form className="bw-question-report" aria-label="Report question" onSubmit={event => void reportQuestion(event)}>
+        <form className="bw-question-report" aria-label={type === "QUESTION" ? "Report question" : "Report post"} onSubmit={event => void reportMemberPost(event)}>
           <label>Reason
             <select value={reason} onChange={e => setReason(e.target.value)} disabled={reportBusy}>
               <option value="SPAM">Spam</option>
@@ -379,7 +384,12 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
             answerCount={answerCount} answerParticipants={answerParticipants} />
           {!heldForReview && <PostComments postId={post.id} source={source}
             commentCount={post.commentCount}
-            showComment={type !== "QUESTION"} primaryAction={primaryAction}>
+            showComment={type !== "QUESTION"} primaryAction={primaryAction}
+            engagementPreview={engagementCard ? <PostEngagementFacepile
+              postId={post.id}
+              engagementCount={(post.reaction?.count ?? 0) + (post.commentCount ?? 0) + (post.repostCount ?? 0) + Number(Boolean(post.reposted))}
+              revision={engagementRevision} /> : null}
+            onEngagementChange={() => setEngagementRevision(current => current + 1)}>
             {controls}
           </PostComments>}
           {!heldForReview && extras}
