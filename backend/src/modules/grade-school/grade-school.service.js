@@ -355,7 +355,7 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
     async myCampus(actor) {
       return tx(async db => {
         await live(db, actor);
-        const rows = await db.gradeSchoolRegistration.findMany({ where: { student: { accountId: actor.accountId } }, include: { ...registrationInclude, student: { include: { ...studentInclude, campus: { select: { displayName: true } } } } }, orderBy: { createdAt: "desc" } });
+        const rows = await db.gradeSchoolRegistration.findMany({ where: { student: { accountId: actor.accountId } }, include: { ...registrationInclude, student: { include: { ...studentInclude, campus: { select: { displayName: true, organization: { select: { profilePhotoId: true } } } } } } }, orderBy: { createdAt: "desc" } });
         const available = new Map();
         for (const campusId of new Set(rows.map(r => r.campusId))) {
           try { await eligible(db, campusId); available.set(campusId, true); }
