@@ -1086,6 +1086,7 @@ model PostMedia {
   name String @db.VarChar(120)
   contentType String @db.VarChar(40)
   size Int
+  pages Int?
   storageKey String @unique
   createdAt DateTime @default(now())
   @@index([memberPostId, createdAt])
