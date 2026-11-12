@@ -213,12 +213,14 @@ it("Explore saves a post privately and removes it from Saved without reloading t
     }
     return reply(context);
   });
-  await f.user.click(await screen.findByRole("button", { name: "Save post", pressed: false }));
-  await screen.findByRole("button", { name: "Save post", pressed: true });
+  await f.user.click(await screen.findByRole("button", { name: "Post options" }));
+  await f.user.click(screen.getByRole("menuitem", { name: "Save post" }));
+  await screen.findByRole("button", { name: "Post options" });
   expect(f.fetch.mock.calls.filter(([url]) => url.endsWith("/explore/posts?view=for-you"))).toHaveLength(1);
   await f.user.click(screen.getByRole("button", { name: "Saved", exact: true }));
   await screen.findByText(body);
-  await f.user.click(screen.getByRole("button", { name: "Save post", pressed: true }));
+  await f.user.click(screen.getByRole("button", { name: "Post options" }));
+  await f.user.click(screen.getByRole("menuitem", { name: "Remove from saved" }));
   await screen.findByText("Save a post to find it here later.");
   expect(screen.queryByText(body)).toBeNull();
   expect(f.fetch.mock.calls.filter(([url]) => url.endsWith("/explore/posts?view=saved"))).toHaveLength(1);
