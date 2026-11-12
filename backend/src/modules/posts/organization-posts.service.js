@@ -882,21 +882,26 @@ export function createOrganizationPosts({ prisma, now = () => new Date() }) {
       });
     },
 
-    async reportQuestion(actor, idValue, input) {
-      const id = parse(identifier, idValue, "Choose a valid question.");
+    async reportPost(actor, sourceValue, idValue, input) {
+      const ref = postRef(sourceValue, idValue);
       const { reason, details } = parse(reportInput, input, "Choose a report reason.");
-      return writeVisiblePost(actor, { source: "member", id }, async tx => {
-        const post = await tx.memberPost.findUniqueOrThrow({ where: { id }, select: { type: true, authorId: true } });
-        if (!["QUESTION", "POST", "ACHIEVEMENT"].includes(post.type)) {
-          throw fail(400, "Only questions, posts and achievements can be reported here.");
-        }
+      return writeVisiblePost(actor, ref, async tx => {
+        const post = await postModel(tx, ref.source).findUniqueOrThrow({
+          where: { id: ref.id }, select: { authorId: true },
+        });
         if (post.authorId === actor.accountId) throw fail(400, "You cannot report your own post.");
+        // The database guarantees one report per viewer and target. Repeat
+        // submissions are idempotent and never create duplicate moderation work.
         await tx.postReport.createMany({
-          data: [{ memberPostId: id, reporterId: actor.accountId, reason, details: details || null }],
+          data: [{ ...postTarget(ref), reporterId: actor.accountId, reason, details: details || null }],
           skipDuplicates: true,
         });
         return { reported: true };
       });
+    },
+    // Compatibility with existing internal consumers of the legacy method.
+    reportQuestion(actor, idValue, input) {
+      return this.reportPost(actor, "member", idValue, input);
     },
 
     async answers(actor, idValue, input) {
