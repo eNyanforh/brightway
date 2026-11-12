@@ -88,9 +88,9 @@ it("organization switching keeps personal drafts separate and reflects the actin
   await user.clear(await screen.findByLabelText("Personal headline")); await user.type(screen.getByLabelText("Personal headline"), "Unsaved personal headline");
   await user.click(screen.getByRole("button", { name: "Open account menu" })); expect(screen.queryByRole("button", { name: "Switch account", exact: true })).toBeNull(); await user.click(screen.getByRole("button", { name: "My Workspace", exact: true }));
   await user.click(await screen.findByRole("link", { name: "Manage", exact: true })); await screen.findByRole("heading", { name: "Global school", level: 1 });
-  await waitFor(() => expect(document.querySelector(".bw-design-personal").textContent).toContain("Global school"));
+  expect(document.querySelector(".bw-design-personal")).toBeNull();
   await user.click(screen.getByRole("link", { name: "Personal account", exact: true }));
-  expect((await screen.findByLabelText("Personal headline")).value).toBe("Unsaved personal headline"); expect(document.querySelector(".bw-design-personal").textContent).toContain("Personal account");
+  expect((await screen.findByLabelText("Personal headline")).value).toBe("Unsaved personal headline"); expect(document.querySelector(".bw-design-personal")).toBeNull();
 });
 
 it("searches on the server and carries enabled/revoked filters into the directory request", async () => {

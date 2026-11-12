@@ -46,7 +46,8 @@ function mount(path, fetchMock) {
   // Keep background data requests outside the auth-session response queue.
   vi.stubGlobal("fetch", (url, options) =>
     url.includes("/explore/posts?") ? reply(200, { success: true, data: { items: [], nextCursor: null } }) :
-    url.endsWith("/work/access") ? reply(200, { success: true, data: { hasWork: false } }) : url.endsWith("/profile/me")
+    url.endsWith("/work/access") ? reply(200, { success: true, data: { hasWork: false } }) :
+    url.includes("/my-workspace") || url.endsWith("/my-campus") ? reply(200, { success: true, data: { items: [] } }) : url.endsWith("/profile/me")
       ? reply(200, {
           success: true,
           data: {

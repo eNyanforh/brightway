@@ -249,7 +249,7 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
     async guardianRequests(actor) {
       return tx(async db => {
         await live(db, actor);
-        const rows = await db.gradeSchoolGuardian.findMany({ where: { guardianId: actor.accountId, status: { not: "REVOKED" } }, include: { student: { include: { account: { select: identity }, campus: { select: { displayName: true } }, registrations: { include: { period: true, section: { include: { schoolClass: true } } }, orderBy: { createdAt: "desc" } } } } }, orderBy: { createdAt: "desc" } });
+        const rows = await db.gradeSchoolGuardian.findMany({ where: { guardianId: actor.accountId, status: { not: "REVOKED" } }, include: { student: { include: { account: { select: identity }, campus: { select: { displayName: true, organization: { select: { profilePhotoId: true } } } }, registrations: { include: { period: true, section: { include: { schoolClass: true } } }, orderBy: { createdAt: "desc" } } } } }, orderBy: { createdAt: "desc" } });
         return { items: rows.map(r => ({ id: r.id, campusId: r.campusId, version: r.version, status: r.status, relationship: r.relationship, schoolName: r.student.campus.displayName,
           student: person(r.student.account), registrations: r.status === "CONFIRMED" ? r.student.registrations.map(v => ({ id: v.id, period: v.period.name, section: v.section.name, status: v.status })) : [] })) };
       });
@@ -355,13 +355,13 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
     async myCampus(actor) {
       return tx(async db => {
         await live(db, actor);
-        const rows = await db.gradeSchoolRegistration.findMany({ where: { student: { accountId: actor.accountId } }, include: { ...registrationInclude, student: { include: { ...studentInclude, campus: { select: { displayName: true } } } } }, orderBy: { createdAt: "desc" } });
+        const rows = await db.gradeSchoolRegistration.findMany({ where: { student: { accountId: actor.accountId } }, include: { ...registrationInclude, student: { include: { ...studentInclude, campus: { select: { displayName: true, organization: { select: { profilePhotoId: true } } } } } } }, orderBy: { createdAt: "desc" } });
         const available = new Map();
         for (const campusId of new Set(rows.map(r => r.campusId))) {
           try { await eligible(db, campusId); available.set(campusId, true); }
           catch (e) { if (e.status !== 403) throw e; available.set(campusId, false); }
         }
-        return { items: rows.map(r => ({ id: r.id, campusId: r.campusId, schoolName: r.student.campus.displayName, status: r.status, available: available.get(r.campusId),
+        return { items: rows.map(r => ({ id: r.id, campusId: r.campusId, schoolName: r.student.campus.displayName, photoId: r.student.campus.organization?.profilePhotoId ?? null, status: r.status, available: available.get(r.campusId),
           studentStatus: r.student.status, period: r.period.name, year: r.period.year.name, section: r.section.schoolClass.name + " / " + r.section.name,
           message: r.status === "PRE_REGISTERED" ? `Welcome, ${r.student.account.person.firstName}! Your registration has been confirmed by the school. Your Campus access is currently being finalized. Please be patient while the administration completes the process. You will receive full access once your registration is fully activated. — ${r.student.campus.displayName} Administration.` : null })) };
       });

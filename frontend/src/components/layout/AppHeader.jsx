@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { searchDirectory } from "../../api/directory-search";
 import { searchContent } from "../../api/content-search";
 import HeaderProfileMenu from "./HeaderProfileMenu";
+import BrightWayLogo from "./BrightWayLogo";
 import NavigationIcon from "./NavigationIcon";
 import "./app-header.css";
 
@@ -114,14 +115,8 @@ export default function AppHeader({
           to={workspaceLabel ? "/superadmin" : "/explore"}
           aria-label={workspaceLabel ? "BrightWay, go to Management" : "BrightWay, go to Explore"}
         >
-          <span className="bw-design-brand-mark">
-            b<span>↗</span>
-          </span>
-
-          <span className="bw-design-brand-wordmark">
-            BrightWay
-            <span className="bw-design-brand-dot">.</span>
-          </span>
+          <BrightWayLogo className="bw-design-brand-logo" width={42} height={42} />
+          <span className="bw-design-brand-wordmark">BrightWay</span>
         </Link>
 
         {personalSearch && (
@@ -164,11 +159,6 @@ export default function AppHeader({
         )}
 
         <div className="bw-design-account">
-          <span className="bw-design-personal">
-            <span />
-            {actingOrganization?.name || workspaceLabel || "Personal account"}
-          </span>
-
           {personalSearch && !onSearchPage && (
             <Link className="bw-design-utility bw-design-mobile-action" to="/search" aria-label="Search BrightWay" title="Search BrightWay">
               <NavigationIcon name="search" />

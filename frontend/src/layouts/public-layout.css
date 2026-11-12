@@ -83,7 +83,7 @@
 .bw-reference-header { position: relative; z-index: 20; flex-shrink: 0; background: #fff; color: #000; font-size: 16px; line-height: normal; }
 .bw-reference-navbar { display: flex; align-items: center; justify-content: space-between; height: 10svh; min-height: 77px; padding: 16px 32px; border-bottom: 1px solid #eaeaea; font-weight: 500; }
 .bw-reference-brand { display: flex; align-items: center; gap: 10px; font-size: 28.8px; font-weight: 900; white-space: nowrap; letter-spacing: normal; }
-.bw-reference-brand img { width: 45px; height: 45px; object-fit: contain; }
+.bw-reference-brand img { width: 45px; height: 45px; object-fit: contain; flex-shrink: 0; }
 .bw-reference-audiences { display: flex; }
 .bw-reference-audiences a { position: relative; margin-left: 24px; padding-bottom: 6px; }
 .bw-reference-audiences a[aria-current="page"]::after { content: ""; position: absolute; left: 50%; bottom: -1px; transform: translateX(-50%); width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; }
@@ -106,3 +106,15 @@
   .bw-reference-mobile-auth { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
   .bw-reference-mobile-auth .bw-reference-button { min-height: 44px; }
 }
+
+@media (max-width: 700px) {
+  /* Mobile branding is the logo alone, including the public header and footer. */
+  .bw-reference-brand > span, .bw-footer-brand-wordmark { display: none; }
+  .bw-footer-brand-logo { width: 37px; height: 37px; object-fit: contain; }
+}
+
+.bw-footer-brand > a { display: inline-flex; align-items: center; gap: 11px; }
+.bw-footer-brand-logo { display: block; width: 37px; height: 37px; object-fit: contain; flex-shrink: 0; }
+
+.bw-footer-brand .bw-footer-brand-wordmark { color: #fff; }
+.bw-footer-brand .bw-footer-brand-wordmark > span { color: #86b3ff; }
