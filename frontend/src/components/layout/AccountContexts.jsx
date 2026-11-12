@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import ProfilePicture from "../profile/ProfilePicture";
 import { organizationPictureUrl } from "../../api/organization-profile";
 import "./account-contexts.css";
 
@@ -12,33 +12,39 @@ function ContextAvatar({ context, className = "" }) {
   </span>;
 }
 
-export function AccountContextFacepile({ contexts }) {
-  if (!contexts.length) return null;
+/** The active account is the full-size leading identity; its alternatives stay beside it. */
+export function AccountContextPrimary({ context }) {
+  return <ContextAvatar context={context} className="bw-context-main-avatar" />;
+}
+
+export function AccountContextFacepile({ contexts, activeContext, personalPhotoId, personalName }) {
+  const alternatives = [
+    ...(activeContext ? [{ key: "personal", type: "personal", name: personalName }] : []),
+    ...contexts.filter(context => context.key !== activeContext?.key),
+  ];
+  if (!alternatives.length) return null;
   return <span className="bw-context-facepile-wrap" aria-hidden="true">
     <span className="bw-context-facepile">
-      {contexts.slice(0, 3).map(context => <ContextAvatar key={context.key} context={context} />)}
+      {alternatives.slice(0, 3).map(context => context.type === "personal"
+        ? <ProfilePicture key={context.key} id={personalPhotoId}
+            name={personalName} decorative className="bw-context-avatar bw-context-personal-alternative" />
+        : <ContextAvatar key={context.key} context={context} />)}
     </span>
   </span>;
 }
 
-export function AccountContextChoices({ contexts, loading, error, onSelect }) {
-  const location = useLocation();
-  const currentCampus = new URLSearchParams(location.search).get("campus");
-  const selectedOrganization = contexts.find(item => item.type === "organization" &&
-    (location.pathname === `/organization-workspace/${item.id}` ||
-      location.pathname.startsWith(`/organization-workspace/${item.id}/`)));
-  const selectedSchool = contexts.find(item => item.type === "school" &&
-    location.pathname === "/learning" && currentCampus === item.id);
+export function AccountContextChoices({ contexts, activeContext, loading, error, onSelect }) {
+  const activeKey = activeContext?.key;
   return <nav className="bw-context-chooser" aria-label="Switch account">
     <h3>Switch account</h3>
     <button type="button" className="bw-context-choice" onClick={() => onSelect("/explore")}
-      aria-current={!selectedOrganization && !selectedSchool ? "page" : undefined}>
+      aria-current={!activeKey ? "page" : undefined}>
       <span className="bw-context-personal-icon" aria-hidden="true">P</span>
       <span className="bw-context-choice-label"><strong>Personal account</strong><small>Your BrightWay experience</small></span>
-      {!selectedOrganization && !selectedSchool && <span className="bw-context-current">Current</span>}
+      {!activeKey && <span className="bw-context-current">Current</span>}
     </button>
     {contexts.map(context => {
-      const active = selectedOrganization?.key === context.key || selectedSchool?.key === context.key;
+      const active = activeKey === context.key;
       return <button key={context.key} type="button" className="bw-context-choice"
         onClick={() => onSelect(context.to)} aria-current={active ? "page" : undefined}>
         <ContextAvatar context={context} />
