@@ -106,7 +106,11 @@ it("renders another member's activity with the same cards and no owner controls"
   expect(screen.getByRole("region", { name: "Member activity" })).toBeTruthy();
   expect(within(rail).getByLabelText("43 views")).toBeTruthy();
   expect(within(rail).getByRole("link", { name: "Maya Cole" }).getAttribute("href")).toBe("/maya");
-  expect(within(rail).queryByRole("button", { name: "Post options" })).toBeNull();
+  expect(within(rail).getByRole("button", { name: "Post options" })).toBeTruthy();
+  await userEvent.setup().click(within(rail).getByRole("button", { name: "Post options" }));
+  const publicOptions = within(rail).getByRole("menu", { name: "Post options" });
+  expect(within(publicOptions).getByRole("menuitem", { name: "Report post" })).toBeTruthy();
+  expect(within(publicOptions).queryByRole("menuitem", { name: "Edit post" })).toBeNull();
   expect(screen.queryByRole("link", { name: "All posts" })).toBeNull();
   expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/posts/members/maya");
 
@@ -159,7 +163,7 @@ it("offers Edit and Delete only through the three-dot menu, and updates then del
   expect(screen.queryByRole("button", { name: "Delete post" })).toBeNull();
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: "Post options" }));
-  const menu = screen.getByRole("menu", { name: "Manage post" });
+  const menu = screen.getByRole("menu", { name: "Post options" });
   expect(within(menu).getByRole("menuitem", { name: "Edit post" })).toBeTruthy();
   expect(within(menu).getByRole("menuitem", { name: "Delete post" })).toBeTruthy();
   await user.click(within(menu).getByRole("menuitem", { name: "Edit post" }));
