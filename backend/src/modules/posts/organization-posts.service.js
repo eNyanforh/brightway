@@ -22,7 +22,7 @@ const postSelect = {
   organization: { select: { id: true, name: true, username: true, profilePhotoId: true } },
 };
 const memberSelect = { id: true, username: true, person: { select: { firstName: true, middleName: true, lastName: true, profile: { select: { photoId: true } } } } };
-const postMediaSelect = { id: true, name: true, kind: true, contentType: true, size: true };
+const postMediaSelect = { id: true, name: true, kind: true, contentType: true, size: true, pages: true };
 const memberPostSelect = { id: true, type: true, tags: true, eventDetails: true, questionDetails: true, body: true, createdAt: true,
   media: { orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: postMediaSelect },
   author: { select: memberSelect } };
