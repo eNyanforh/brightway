@@ -527,7 +527,22 @@
      and its portal outside the hidden composer container. */
   .bw-explore .bw-explore-billboard,
   .bw-explore .bw-personal-composer { display: none; }
-  .bw-explore-main { gap: 10px; }
+  /* Full-bleed mobile feed: no inset card edges or shadow, only post separators. */
+  .bw-explore { width: 100vw; max-width: 100vw; margin-left: calc(50% - 50vw); overflow-x: clip; gap: 0; }
+  .bw-explore-main, .bw-explore-timeline, .bw-explore .bw-timeline-panel { width: 100%; max-width: none; min-width: 0; }
+  .bw-explore-main { gap: 0; }
+  .bw-explore .bw-timeline-post,
+  .bw-explore .bw-timeline-post:hover {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid #e4e8ef;
+    border-radius: 0;
+    box-shadow: none;
+    transition: none;
+  }
+  .bw-explore .bw-post-card { border-radius: 0; border-inline: 0; box-shadow: none; }
+  .bw-explore .bw-post-panel { gap: 0; }
+  .bw-explore .bw-explore-right { display: none; }
   .bw-explore-right { grid-template-columns: 1fr; }
   .bw-explore .bw-billboard-slide { padding: .95rem 1rem; min-height: 178px; }
   .bw-explore .bw-billboard-art { border-radius: 17px; }
