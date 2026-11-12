@@ -14,6 +14,7 @@ import VerificationBadge from "../VerificationBadge";
 import PostTimestamp from "./PostTimestamp";
 import { AuthContext } from "../../auth/auth-context";
 import PostCaption from "./PostCaption";
+import PostMedia from "./PostMedia";
 import PostManageMenu from "./PostManageMenu";
 import PostModerationNotice from "./PostModerationNotice";
 import "./posts.css";
@@ -92,6 +93,7 @@ function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerP
     <>
       {post.member && <PersonalPostTypeLabel type={post.type} />}
       <PostCaption body={post.body} />
+      <PostMedia media={post.media} />
       {topicTags}
     </>
   );
@@ -115,6 +117,7 @@ function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerP
       {!(post.type === "QUESTION" && post.questionDetails?.title?.trim() === post.body?.trim()) && (
         <PostCaption body={post.body} className="bw-post-story-body" />
       )}
+      <PostMedia media={post.media} />
       {topicTags}
       {post.type === "EVENT" && post.registration && (
         <EventAttendeeSummary count={post.registration.count ?? 0}
@@ -445,6 +448,8 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const [type, setType] = useState(composePostOnOpen ? "POST" : "ACHIEVEMENT");
   const [composerOpen, setComposerOpen] = useState(Boolean(composePostOnOpen));
   const [tags, setTags] = useState([]);
+  const [media, setMedia] = useState([]);
+  const [mediaUploading, setMediaUploading] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState("");
@@ -522,7 +527,17 @@ export default function PostsPanel({ organization, personal = false, view = "for
     setBody(value);
   }
 
+  function clearUnusedMedia() {
+    for (const file of media) {
+      void api.discardPostMedia(file.id).catch(() => {
+        // Server-side draft cleanup retries abandoned objects.
+      });
+    }
+    setMedia([]);
+  }
+
   function selectComposer(value) {
+    clearUnusedMedia();
     publishKey.current = null;
     setSubmissionFeedback(null);
     setType(value);
@@ -533,7 +548,8 @@ export default function PostsPanel({ organization, personal = false, view = "for
   }
 
   function cancelComposer() {
-    if (pending) return;
+    if (pending || mediaUploading) return;
+    clearUnusedMedia();
     publishKey.current = null;
     setBody("");
     setTags([]);
@@ -550,12 +566,14 @@ export default function PostsPanel({ organization, personal = false, view = "for
 
   function publish(event, eventDetails, questionDetails) {
     event.preventDefault();
-    if (!canPublish || !body.trim() || (memberComposer && (!composerOpen || !tags.length)) || active.current) return;
+    if (!canPublish || mediaUploading || !body.trim() || (memberComposer && (!composerOpen || !tags.length)) || active.current) return;
     setNotice("");
     setSubmissionFeedback(null);
     publishKey.current ??= crypto.randomUUID();
     const draft = { body, requestKey: publishKey.current };
-    void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags, ...(type === "EVENT" && eventDetails ? { eventDetails } : {}), ...(type === "QUESTION" && questionDetails ? { questionDetails } : {}) }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
+    void run(signal => memberComposer ? api.memberPublish({ ...draft, type, tags,
+      ...(media.length ? { mediaIds: media.map(file => file.id) } : {}),
+      ...(type === "EVENT" && eventDetails ? { eventDetails } : {}), ...(type === "QUESTION" && questionDetails ? { questionDetails } : {}) }, signal) : api.publish(organizationId, draft, signal), ({ post }) => {
       const published = timeline ? { ...post, reaction: { liked: false, count: 0 }, saved: false, reposted: false, views: 0, ...(type === "EVENT" ? { registration: { registered: false, count: 0 }, eventAttendees: [] } : {}), ...(type === "QUESTION" ? { answerCount: 0 } : {}) } : post;
       // Pending submissions must never appear in Explore before approval.
       if (!timeline || !memberComposer || post.moderationStatus === "PUBLISHED") {
@@ -568,6 +586,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
       setBody("");
       setType("ACHIEVEMENT");
       setTags([]);
+      setMedia([]);
       setComposerOpen(false);
       if (composePostOnOpen) onComposeRequestFinished?.(post.moderationStatus === "PUBLISHED"
         ? "Post published. BrightWay Management may review it later."
@@ -669,7 +688,11 @@ export default function PostsPanel({ organization, personal = false, view = "for
     <section className={timeline ? "bw-post-panel bw-timeline-panel" : "bw-post-panel"} aria-label={organization ? "Organization posts" : personal ? "Your posts" : "Explore posts"}>
       {memberComposer && (!personal || canPublish) && (
         <PersonalPostComposer account={composerAccount} photoId={composerPhotoId} body={body} type={type} tags={tags}
-          open={composerOpen} disabled={!canPublish || pending} hideInlineOptions={!showInlineComposer}
+          media={media} mediaUploading={mediaUploading}
+          onMediaUploaded={file => { publishKey.current = null; setMedia(current => [...current, file]); }}
+          onMediaRemoved={id => { publishKey.current = null; setMedia(current => current.filter(file => file.id !== id)); }}
+          onMediaBusyChange={setMediaUploading}
+          open={composerOpen} disabled={!canPublish || pending || mediaUploading} hideInlineOptions={!showInlineComposer}
           onSelect={selectComposer} onCancel={cancelComposer} onBodyChange={changeBody}
           onTagsChange={changeTags} onSubmit={publish} />
       )}
