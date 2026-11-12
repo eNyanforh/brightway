@@ -1406,3 +1406,42 @@ test("photo preview closes without discarding the post editor or its uploaded im
   await expect(editor.getByRole("textbox", { name: "Write a post" })).toHaveValue("Our study group’s latest achievement.");
   await expect(editor.getByText("1 of 4 added")).toBeVisible();
 });
+
+test("mixed photo collages anchor every preview at the top and follow the first photo orientation", async ({ page }) => {
+  const sets = [
+    { name: "Mixed pair", sizes: [[800, 1200], [1600, 800]], layout: "pair" },
+    { name: "Wide first three", sizes: [[1600, 900], [800, 1200], [1000, 1000]], layout: "landscape" },
+    { name: "Wide first four", sizes: [[1600, 900], [800, 1200], [1000, 1000], [1600, 900]], layout: "landscape" },
+    { name: "Tall first four", sizes: [[800, 1200], [1600, 900], [1000, 1000], [800, 1200]], layout: "portrait" },
+  ];
+  await fixture(page, sets.map((set, index) => ({ ...fixturePost, id: "framing-post-" + index, body: set.name, type: "POST",
+    media: set.sizes.map((_, photo) => ({ id: `frame-${index}-${photo}`, kind: "IMAGE", name: `photo-${photo}.webp`, size: 100 })),
+  })));
+  await page.route("**/api/v1/posts/media/frame-*", route => {
+    const [, set, photo] = new URL(route.request().url()).pathname.split("/").at(-1).split("-");
+    const [width, height] = sets[Number(set)].sizes[Number(photo)];
+    return route.fulfill({ contentType: "image/svg+xml", body:
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="#0866ff"/><rect width="100%" height="120" fill="#ff5050"/><text x="20" y="70" font-size="40">TOP</text></svg>` });
+  });
+  await page.goto("/explore");
+  for (const set of sets) {
+    const gallery = page.getByRole("article").filter({ hasText: set.name }).getByRole("group", { name: "Post photos" });
+    await gallery.scrollIntoViewIfNeeded();
+    await expect(gallery).toHaveAttribute("data-layout", set.layout);
+    for (const image of await gallery.getByRole("img").all()) {
+      await expect.poll(() => image.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
+      expect(await image.evaluate(element => getComputedStyle(element).objectPosition)).toBe("50% 0%");
+      if (set.layout === "pair") expect(await image.evaluate(element => getComputedStyle(element).objectFit)).toBe("contain");
+    }
+    const tiles = await gallery.locator(".bw-photo-gallery-tile").all();
+    const boxes = await Promise.all(tiles.map(tile => tile.boundingBox()));
+    if (set.layout === "landscape") {
+      expect(boxes[0].y + boxes[0].height).toBeLessThan(boxes[1].y);
+      expect(Math.abs(boxes[1].y - boxes.at(-1).y)).toBeLessThan(1);
+    } else {
+      expect(Math.abs(boxes[0].y - boxes[1].y)).toBeLessThan(1);
+      expect(boxes[0].x + boxes[0].width).toBeLessThan(boxes[1].x);
+    }
+    expect(await gallery.evaluate(element => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+  }
+});

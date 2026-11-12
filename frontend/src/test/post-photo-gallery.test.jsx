@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import PostPhotoGallery from "../components/posts/PostPhotoGallery";
+import { photoLayout } from "../components/posts/photo-layout";
 import PostMediaPicker from "../components/posts/PostMediaPicker";
 import { organizationPostsApi } from "../api/organization-posts";
 
@@ -10,19 +11,35 @@ const images = Array.from({ length: 4 }, (_, index) => ({
 }));
 const openPhoto = index => screen.getByRole("button", { name: new RegExp("^Open photo " + index + " of") });
 
-it("adapts a single photo to its dimensions and balances landscape multi-photo layouts", () => {
+it("keeps pairs side by side and waits for every photo before framing a collage", () => {
   const { rerender } = render(<PostPhotoGallery images={images.slice(0, 1)} />);
-  const image = screen.getByRole("img", { name: images[0].name });
-  Object.defineProperties(image, { naturalWidth: { value: 800, configurable: true }, naturalHeight: { value: 1200, configurable: true } });
-  fireEvent.load(image);
+  function load(index, width, height) {
+    const image = screen.getByRole("img", { name: images[index].name });
+    Object.defineProperties(image, { naturalWidth: { value: width, configurable: true }, naturalHeight: { value: height, configurable: true } });
+    fireEvent.load(image);
+  }
+  load(0, 800, 1200);
   expect(screen.getByRole("group", { name: "Post photos" }).style.aspectRatio).toMatch(/^0\.8(?: \/ 1)?$/);
   rerender(<PostPhotoGallery images={images.slice(0, 2)} />);
-  expect(screen.getByRole("group", { name: "Post photos" }).dataset.layout).toBe("grid");
-  Object.defineProperties(image, { naturalWidth: { value: 1600, configurable: true }, naturalHeight: { value: 800, configurable: true } });
-  fireEvent.load(image);
-  expect(screen.getByRole("group", { name: "Post photos" }).dataset.layout).toBe("stacked");
+  load(0, 1600, 800);
+  load(1, 800, 1200);
+  expect(screen.getByRole("group", { name: "Post photos" }).dataset.layout).toBe("pair");
   rerender(<PostPhotoGallery images={images.slice(0, 3)} />);
+  expect(screen.getByRole("group", { name: "Post photos" }).dataset.layout).toBe("portrait");
+  load(2, 1600, 800);
   expect(screen.getByRole("group", { name: "Post photos" }).dataset.layout).toBe("landscape");
+});
+
+it("frames three and four photos around the first photo while using all image dimensions", () => {
+  for (const count of [3, 4]) {
+    expect(photoLayout(Array(count).fill(1.5)).layout).toBe("landscape");
+    expect(photoLayout(Array(count).fill(.65)).layout).toBe("portrait");
+    expect(photoLayout(Array(count).fill(1)).layout).toBe("portrait");
+    expect(photoLayout(Array(count).fill(.65)).aspect).toBeGreaterThanOrEqual(.8);
+  }
+  expect(photoLayout([1.5, 2, 2]).aspect).not.toBe(photoLayout([1.5, .5, .5]).aspect);
+  expect(photoLayout([2, .6]).layout).toBe("pair");
+  expect(photoLayout([NaN, Infinity, 0]).layout).toBe("portrait");
 });
 
 it("opens the selected photo, supports keyboard and thumbnail navigation, and restores focus and scrolling", async () => {
