@@ -131,9 +131,16 @@ test("Explore shows the compact four-action launcher instead of an always-open p
   const card = explore.getByRole("article").first();
   await expect(card.getByText("Post", { exact: true })).toBeVisible();
   await expect(card.locator(".bw-post-story")).toHaveCount(0);
-  for (const action of ["Comments", "Repost", "Like", "Save post"]) {
+  for (const action of ["Comments", "Repost", "Like"]) {
     await expect(card.getByRole("button", { name: action, exact: true })).toBeVisible();
   }
+  await expect(card.getByRole("button", { name: "Post options" })).toBeVisible();
+  await card.getByRole("button", { name: "Post options" }).click();
+  await expect(card.getByRole("menuitem", { name: "Save post" })).toBeVisible();
+  await expect(card.getByRole("menuitem", { name: "Copy link" })).toBeVisible();
+  await expect(card.getByRole("menuitem", { name: "Report post" })).toBeVisible();
+  await expect(card.getByRole("menuitem", { name: "Edit post" })).toHaveCount(0);
+  await card.getByRole("button", { name: "Post options" }).click();
   const bounds = await Promise.all([
     billboard.boundingBox(), launcher.boundingBox(),
     explore.getByRole("complementary", { name: "Explore sidebar" }).boundingBox(),
@@ -747,7 +754,8 @@ test("purpose-driven post cards expose distinct actions and functional registrat
   await expect(answers.getByLabel("Upvotes 1")).toBeVisible();
   await expect(answers.getByLabel("Downvotes 0")).toBeVisible();
   expect(calls).toContainEqual({ value: 1 });
-  await questionCard.getByRole("button", { name: "Report question" }).click();
+  await questionCard.getByRole("button", { name: "Post options" }).click();
+  await questionCard.getByRole("menuitem", { name: "Report post" }).click();
   const report = questionCard.getByRole("form", { name: "Report question" });
   await report.getByRole("button", { name: "Submit report" }).click();
   await expect(questionCard.getByText("Report submitted for moderation.")).toBeVisible();
@@ -1178,7 +1186,8 @@ test("post and achievement footers show real engaged avatars left and actions, r
     await expect(card.getByRole("button", { name: post.type === "POST" ? "Like" : "Celebrate" })).toBeVisible();
     await expect(card.getByRole("button", { name: "Repost" })).toBeVisible();
     await expect(card.getByRole("button", { name: "Share" })).toBeVisible();
-    await expect(card.getByRole("button", { name: "Report post" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Report post" })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Post options" })).toBeVisible();
     await expect(right.getByLabel(/views$/)).toBeVisible();
     const [leftBox, rightBox] = await Promise.all([left.boundingBox(), right.boundingBox()]);
     expect(leftBox).toBeTruthy();
@@ -1186,7 +1195,8 @@ test("post and achievement footers show real engaged avatars left and actions, r
     expect(leftBox.x + leftBox.width).toBeLessThanOrEqual(rightBox.x + 1);
     expect(Math.abs(leftBox.y + leftBox.height / 2 - (rightBox.y + rightBox.height / 2)))
       .toBeLessThanOrEqual(10);
-    await card.getByRole("button", { name: "Report post" }).click();
+    await card.getByRole("button", { name: "Post options" }).click();
+    await card.getByRole("menuitem", { name: "Report post" }).click();
     const report = card.getByRole("form", { name: "Report post" });
     await expect(report).toBeVisible();
     await report.getByRole("button", { name: "Submit report" }).click();
