@@ -60,7 +60,7 @@ export function PostTopicTags({ tags, onRemove, disabled }) {
 
 export default function PersonalPostComposer({
   account, photoId, body, type, tags, open, disabled,
-  onSelect, onCancel, onBodyChange, onTagsChange, onSubmit,
+  onSelect, onCancel, onBodyChange, onTagsChange, onSubmit, hideInlineOptions = false,
 }) {
   const topicId = useId();
   const editorId = useId();
@@ -117,7 +117,12 @@ export default function PersonalPostComposer({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      (isAchievement ? achievementTrigger : postTrigger).current?.focus();
+      // On narrow screens the inline choices are hidden and the persistent
+      // floating Post shortcut is the accessible return-focus target.
+      const mobileFab = window.matchMedia("(max-width: 700px)").matches
+        ? document.querySelector(".bw-mobile-compose-fab") : null;
+      if (mobileFab) mobileFab.focus();
+      else (isAchievement ? achievementTrigger : postTrigger).current?.focus();
     };
     // Focus restoration and scroll locking belong to the modal's open lifecycle.
   }, [open, isAchievement, isDialog]);
@@ -261,7 +266,7 @@ export default function PersonalPostComposer({
   ) : null;
 
   return (
-    <div className="bw-personal-composer" aria-label="Community contribution composer">
+    <div className={"bw-personal-composer" + (hideInlineOptions ? " bw-personal-composer--without-options" : "")} aria-label="Community contribution composer">
       <div className="bw-post-quick-actions" role="group" aria-label="Choose how to contribute">
         <div className="bw-timeline-avatar bw-post-quick-avatar" role="img" aria-label="Your profile photo">
           {photoId ? <img src={photoUrl(photoId)} alt="" /> : initial}
