@@ -30,7 +30,10 @@ function initialDraft(post) {
   };
 }
 
-export default function PostManageMenu({ post, busy = false, onEdit, onDelete }) {
+export default function PostManageMenu({
+  post, busy = false, canManage = false, canReport = false,
+  onEdit, onDelete, onReport, onCopyLink, onSave,
+}) {
   const trigger = useRef(null);
   const menu = useRef(null);
   const dialog = useRef(null);
@@ -43,6 +46,7 @@ export default function PostManageMenu({ post, busy = false, onEdit, onDelete })
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const locked = saving || busy;
+  const canSave = typeof post.saved === "boolean" && typeof onSave === "function";
 
   useEffect(() => { savingRef.current = locked; }, [locked]);
   const member = Boolean(post.member);
@@ -106,6 +110,11 @@ export default function PostManageMenu({ post, busy = false, onEdit, onDelete })
     setError("");
     setTagDraft("");
     setMode(next);
+  }
+  function runMenuAction(action) {
+    setMenuOpen(false);
+    trigger.current?.focus();
+    action?.();
   }
   function addTag(raw) {
     const tag = normalizePostTopic(raw);
@@ -189,13 +198,37 @@ export default function PostManageMenu({ post, busy = false, onEdit, onDelete })
           <NavigationIcon name="more-horizontal" size={20} />
         </button>
         {menuOpen && (
-          <div ref={menu} id={id} className="bw-post-options-dropdown" role="menu" aria-label="Manage post">
-            <button type="button" role="menuitem" onClick={() => choose("edit")}>
-              <NavigationIcon name="edit" size={17} /> Edit post
+          <div ref={menu} id={id} className="bw-post-options-dropdown" role="menu" aria-label="Post options"
+            onKeyDown={event => {
+              const items = [...menu.current.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+              const index = items.indexOf(document.activeElement);
+              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                items[(index + (event.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
+              } else if (event.key === "Home" || event.key === "End") {
+                event.preventDefault();
+                (event.key === "Home" ? items[0] : items.at(-1))?.focus();
+              }
+            }}>
+            {canManage && <>
+              <button type="button" role="menuitem" onClick={() => choose("edit")}>
+                <NavigationIcon name="edit" size={17} /> Edit post
+              </button>
+              <button type="button" role="menuitem" className="bw-post-options-delete" onClick={() => choose("delete")}>
+                <NavigationIcon name="trash" size={17} /> Delete post
+              </button>
+            </>}
+            <button type="button" role="menuitem" onClick={() => runMenuAction(onCopyLink)}>
+              <NavigationIcon name="link" size={17} /> Copy link
             </button>
-            <button type="button" role="menuitem" className="bw-post-options-delete" onClick={() => choose("delete")}>
-              <NavigationIcon name="trash" size={17} /> Delete post
-            </button>
+            {canSave && <button type="button" role="menuitem" onClick={() => runMenuAction(onSave)}>
+              <NavigationIcon name="bookmark" size={17} />
+              {post.saved ? "Remove from saved" : "Save post"}
+            </button>}
+            {canReport && <button type="button" role="menuitem" className="bw-post-options-report"
+              onClick={() => runMenuAction(onReport)}>
+              <NavigationIcon name="flag" size={17} /> Report post
+            </button>}
           </div>
         )}
       </div>
