@@ -118,6 +118,22 @@ test("database manual identity requests serialize retries and decisions, revoke 
     assert.equal((await posts.readPost(viewerActor, "member", postId)).post.id, postId);
     assert.deepEqual(await posts.memberPhoto(viewerActor, owner.username, photo.id), { personId: owner.personId, photoId: photo.id });
     await assert.rejects(posts.memberPhoto(viewerActor, owner.username, randomUUID()), { status: 404 });
+
+    // Engagement previews contain actual public, verified participants only;
+    // deleted comments cannot linger in an avatar stack.
+    assert.deepEqual(await posts.engagementPreview(viewerActor, postId), { participants: [] });
+    const { comment: engagingComment } = await posts.addComment(actor, "member", postId, {
+      body: "Sharing more details about my education project.", requestKey: randomUUID(),
+    });
+    assert.deepEqual(await posts.engagementPreview(viewerActor, postId), {
+      participants: [{ username: owner.username, name: "Sample owner", photoId: photo.id, verified: true }],
+    });
+    assert.deepEqual(await posts.reportQuestion(viewerActor, postId, { reason: "SPAM" }), { reported: true },
+      "Members can report general posts, not only questions");
+    await assert.rejects(posts.reportQuestion(actor, postId, { reason: "SPAM" }), { status: 400 });
+    await posts.deleteComment(actor, "member", postId, engagingComment.id);
+    assert.deepEqual(await posts.engagementPreview(viewerActor, postId), { participants: [] });
+
     for (const type of ["ACHIEVEMENT", "EVENT", "QUESTION"]) {
       const details = {
         title: "Student Research Workshop", startAt: "2027-01-15T12:00:00Z", endAt: "2027-01-15T14:00:00Z",
