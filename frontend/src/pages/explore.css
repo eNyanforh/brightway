@@ -542,7 +542,9 @@
   }
   .bw-explore .bw-post-card { border-radius: 0; border-inline: 0; box-shadow: none; }
   .bw-explore .bw-post-panel { gap: 0; }
-  .bw-explore .bw-explore-right { display: none; }
+  /* Keep Suggested People accessible below the feed on narrow screens. */
+  .bw-explore .bw-timeline-panel { padding-bottom: 148px; }
+  .bw-explore .bw-discussion-submit { scroll-margin-block-end: 160px; }
   .bw-explore-right { grid-template-columns: 1fr; }
   .bw-explore .bw-billboard-slide { padding: .95rem 1rem; min-height: 178px; }
   .bw-explore .bw-billboard-art { border-radius: 17px; }
