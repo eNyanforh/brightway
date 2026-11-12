@@ -28,6 +28,7 @@ const specializedFormats = formats.filter(format => format.type !== "POST");
 
 async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED", submittedNotice = null) {
   const writes = [];
+  const publishedPosts = [];
   await page.route("**/*", async route => {
     const background = backgroundMessaging(route); if (background) return background;
     const request = route.request();
@@ -40,17 +41,22 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
       case "/api/v1/auth/me": return reply({ account });
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
       case "/api/v1/work/access": return reply({ hasWork: false });
-      case "/api/v1/explore/posts": return reply({ items: posts, nextCursor: null });
+      case "/api/v1/explore/posts": return reply({ items: [...publishedPosts, ...posts], nextCursor: null });
       case "/api/v1/learning/discover":
       case "/api/v1/opportunities": return reply({ items: [], nextCursor: null });
       case "/api/v1/posts/me": {
         const draft = request.postDataJSON();
         writes.push(draft);
-        return reply({ post: {
+        const newPost = {
           id: "new-post", body: draft.body, type: draft.type, tags: draft.tags, eventDetails: draft.eventDetails || null, questionDetails: draft.questionDetails || null,
           createdAt: fixturePost.createdAt, moderationStatus: submittedStatus, moderationVersion: 1, moderationFeedback: null, moderationNotice: submittedNotice,
           member: { name: "Synthetic Member", username: "synthetic" },
-        } }, 201);
+        };
+        if (submittedStatus === "PUBLISHED") {
+          publishedPosts.unshift({ ...newPost, reaction: { liked: false, count: 0 },
+            saved: false, reposted: false, views: 0 });
+        }
+        return reply({ post: newPost }, 201);
       }
       default: throw Error("Unexpected synthetic request " + url.pathname);
     }
