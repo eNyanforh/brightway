@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
+import BrightWayLogo from "./BrightWayLogo";
 
 export default function PublicHeader() {
   const { account } = useAuth();
@@ -23,7 +24,7 @@ export default function PublicHeader() {
     }}>
       <div className="bw-reference-navbar">
         <Link to="/" className="bw-reference-brand" aria-label="BrightWay home" onClick={closeMenu}>
-          <img src={`${import.meta.env.BASE_URL}images/reference/brightway-logo.png`} width="45" height="45" alt="" />
+          <BrightWayLogo width={45} height={45} />
           <span>BRIGHTWAY</span>
         </Link>
         <nav className="bw-reference-audiences" aria-label="Choose your audience">
