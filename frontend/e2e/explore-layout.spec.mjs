@@ -1211,3 +1211,48 @@ test("post and achievement footers show real engaged avatars left and actions, r
     expect(await tray.evaluate(element => element.scrollWidth >= element.clientWidth)).toBe(true);
   }
 });
+
+test("event and organization post menus expose Report and keep it out of action footers", async ({ page }) => {
+  const event = {
+    ...fixturePost, id: "9e111111-1111-4111-8111-111111111111", type: "EVENT",
+    body: "Join our career development workshop.",
+    eventDetails: { title: "Career development workshop", startAt: "2027-01-15T12:00:00Z",
+      endAt: "2027-01-15T14:00:00Z", format: "IN_PERSON", venue: "University campus" },
+    registration: { registered: false, status: null, count: 0 }, eventAttendees: [],
+    reaction: undefined, saved: false,
+  };
+  const organization = {
+    id: "ab222222-2222-4222-8222-222222222222",
+    name: "University Careers Office", username: "careers", profilePhotoId: null,
+  };
+  const announcement = {
+    id: "ac333333-3333-4333-8333-333333333333",
+    body: "Our institution is hosting a community learning session.",
+    createdAt: fixturePost.createdAt, organization,
+    reaction: { liked: false, count: 0 }, saved: false, reposted: false,
+  };
+  await fixture(page, [event, announcement]);
+  const reports = [];
+  await page.route("**/api/v1/explore/posts/*/*/report", route => {
+    const url = new URL(route.request().url());
+    reports.push({ source: url.pathname.split("/").at(-3), payload: route.request().postDataJSON() });
+    return route.fulfill({ status: 201, json: { success: true, data: { reported: true } } });
+  });
+  await page.goto("/explore");
+  for (const cardText of [event.body, announcement.body]) {
+    const card = page.getByRole("article").filter({ hasText: cardText });
+    await expect(card.getByRole("button", { name: "Report post" })).toHaveCount(0);
+    await card.getByRole("button", { name: "Post options" }).click();
+    const menu = card.getByRole("menu", { name: "Post options" });
+    await expect(menu.getByRole("menuitem", { name: "Copy link" })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "Save post" })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "Edit post" })).toHaveCount(0);
+    await menu.getByRole("menuitem", { name: "Report post" }).click();
+    const form = card.getByRole("form", { name: "Report post" });
+    await expect(form).toBeVisible();
+    await form.getByRole("button", { name: "Submit report" }).click();
+    await expect(card.getByText("Report submitted for moderation.")).toBeVisible();
+  }
+  expect(reports.map(report => report.source)).toEqual(["member", "organization"]);
+  expect(reports.every(report => report.payload.reason === "SPAM")).toBe(true);
+});
