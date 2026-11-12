@@ -2069,3 +2069,22 @@
   .bw-post-document-viewport { min-height: 290px; height: min(540px, 125vw); }
   .bw-post-document-header { padding-inline: .65rem; }
 }
+
+/* Member and public-profile Activity use the same flat mobile post surfaces. */
+@media (max-width: 700px) {
+  html:has(.bw-explore) { scroll-padding-block-end: 160px; }
+  .bw-profile-activity-list { gap: 0; }
+  .bw-profile-activities .bw-profile-activity-item.bw-post-panel,
+  .bw-public-person-content .bw-profile-activity-item.bw-post-panel {
+    width: 100%;
+    max-width: none;
+    border-radius: 0;
+    border: 0;
+    border-bottom: 1px solid #e4e8ef;
+    box-shadow: none;
+  }
+  .bw-profile-activities .bw-profile-activity-item.bw-post-panel:hover,
+  .bw-public-person-content .bw-profile-activity-item.bw-post-panel:hover {
+    box-shadow: none;
+  }
+}
