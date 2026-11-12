@@ -67,6 +67,16 @@ function PhotoViewer({ images, initialIndex, onClose }) {
       onKeyDown={event => {
         // Keep enclosing composer focus/escape handlers out of the topmost modal.
         event.stopPropagation();
+        if (event.key === "Tab") {
+          const controls = [...dialog.current.querySelectorAll('button:not([disabled]), a[href]')];
+          const first = controls[0];
+          const last = controls.at(-1);
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault(); last?.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault(); first?.focus();
+          }
+        }
         if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
         if (event.key === "ArrowRight" && !zoomed) { event.preventDefault(); event.stopPropagation(); select(index + 1); }
         if (event.key === "ArrowLeft" && !zoomed) { event.preventDefault(); event.stopPropagation(); select(index - 1); }

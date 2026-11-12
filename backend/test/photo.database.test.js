@@ -69,8 +69,29 @@ test("database photo claims roll back on duplicate identity and a draft creates 
     assert.equal(await prisma.account.count({ where: { person: { firstName: marker } } }), 0);
     assert.equal(await prisma.person.count({ where: { firstName: marker } }), 0);
 
-    const results = await Promise.allSettled(assets.map((asset, index) =>
-      photos.registerAsset(asset.id, token, create(index))));
+    // Both requests read the live draft before either transaction consumes it.
+    // Each cutoff is captured at t, while the old consumption timestamp was
+    // captured at t+1ms. A waiting UPDATE must not match that newer timestamp.
+    const captured = Date.now();
+    let readers = 0;
+    let releaseReaders;
+    const ready = new Promise(resolve => { releaseReaders = resolve; });
+    const racingPrisma = {
+      signupDraft: { async findUnique(args) {
+        const row = await prisma.signupDraft.findUnique(args);
+        if (++readers === 2) releaseReaders();
+        await ready;
+        return row;
+      } },
+      $transaction: prisma.$transaction.bind(prisma),
+    };
+    const results = await Promise.allSettled(assets.map((asset, index) => {
+      let clockReads = 0;
+      const racingPhotos = createPhotoService({ prisma: racingPrisma, storage: {},
+        now: () => new Date(captured + (clockReads++ < 2 ? 0 : 1)),
+      });
+      return racingPhotos.registerAsset(asset.id, token, create(index));
+    }));
     results.forEach((result, index) => {
       if (result.status === "rejected") report(`Photo registration race, request ${index + 1}`, result.reason);
     });

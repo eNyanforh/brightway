@@ -111,3 +111,19 @@ it("shows large selected-photo previews and removes only the chosen uploaded pho
   expect(removed).toHaveBeenCalledWith(images[1].id);
   expect(screen.queryByRole("dialog")).toBeNull();
 });
+
+
+it("wraps Tab and Shift+Tab inside the viewer at both focus boundaries", async () => {
+  const user = userEvent.setup();
+  render(<PostPhotoGallery images={images} />);
+  await user.click(openPhoto(1));
+  const viewer = screen.getByRole("dialog");
+  // Loading disables zoom, so the original-photo link is the first control.
+  const first = within(viewer).getByRole("link", { name: "Open original photo in a new tab" });
+  const last = within(viewer).getByRole("button", { name: "View photo 4" });
+  last.focus();
+  await user.tab();
+  expect(document.activeElement).toBe(first);
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(last);
+});
