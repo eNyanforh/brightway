@@ -8,7 +8,7 @@ export default function PostEngagementFacepile({ postId, engagementCount, revisi
   const anchor = useRef(null);
   const [snapshot, setSnapshot] = useState({ id: null, people: [] });
   useEffect(() => {
-    if (!postId || engagementCount <= 0) return undefined;
+    if (!postId || (engagementCount <= 0 && revision === 0)) return undefined;
     const controller = new AbortController();
     let observer;
     const load = () => {
