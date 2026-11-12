@@ -1,3 +1,4 @@
+import { allowedEngines } from "../campus/campus.schema.js";
 import { dashboardQuerySchema, dashboardPeriod, readTeamStatistics, readReviewStatistics } from "./organization-dashboard.js";
 import { requireOrganizationProfile, organizationProfileReady, organizationSetupView } from "./organization-profile.schema.js";
 import { organizationWorkspace } from "../../../../shared/organization-workspace.mjs";
@@ -22,7 +23,7 @@ export function createOrganizationStaffService({ prisma, storage, now = () => ne
     if (!result) throw fail(404, "Organization workspace is unavailable.");
     // A stored permission never grants academic/billing authority without an active,
     // currently eligible Campus and an explicitly enabled country product.
-    result._campusAvailable = Boolean(result.campus?.status === "ACTIVE" &&
+    result._campusAvailable = Boolean(result.campus?.status === "ACTIVE" && allowedEngines(result).includes(result.campus.engine) &&
       result.locations?.some(location => location.countryCode === "LR" && location.verifiedAt) &&
       (await db.productAvailability?.findUnique?.({ where: {
         product_countryCode: { product: "VIRTUAL_CAMPUS", countryCode: "LR" },

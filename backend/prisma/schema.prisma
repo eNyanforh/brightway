@@ -38,6 +38,10 @@ enum PersonGender {
 }
 
 model Account {
+  tvetLearners TvetLearner[]
+  tvetAssignments TvetAssignment[]
+  tvetSupportRelationships TvetSupporter[]
+  tvetCertificatesIssued TvetCertificate[] @relation("TvetCertificateIssuer")
   schoolStudents GradeSchoolStudent[]
   schoolTeaching GradeSchoolOffering[]
   schoolGuardians GradeSchoolGuardian[]
@@ -1728,6 +1732,7 @@ enum AdmissionApplicationStatus {
   WITHDRAWN
 }
 model Program {
+  tvetPrograms TvetProgram[]
   id String @id @default(uuid())
   organizationId String
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -1779,6 +1784,7 @@ model AdmissionCycle {
   @@index([programId, createdAt, id])
 }
 model AdmissionApplication {
+  tvetEnrolment TvetEnrolment?
   schoolRegistration GradeSchoolRegistration?
   id String @id @default(uuid())
   cycleId String
@@ -1965,6 +1971,8 @@ model ProductAvailability {
 }
 
 model VirtualCampus {
+  tvetPrograms TvetProgram[]
+  tvetLearners TvetLearner[]
   schoolSubjects GradeSchoolSubject[]
   schoolClasses GradeSchoolClass[]
   schoolYears GradeSchoolYear[]
@@ -2238,4 +2246,258 @@ model GradeSchoolScore {
   score Float
   @@id([assessmentId, registrationId])
   @@index([registrationId])
+}
+
+enum TvetLearnerStatus {
+ PRE_REGISTERED
+ ACTIVE
+ SUSPENDED
+ FORMER
+}
+enum TvetEnrolmentStatus {
+ PRE_REGISTERED
+ ACTIVE
+ SUSPENDED
+ WITHDRAWN
+ COMPLETED
+}
+enum TvetSubmissionStatus {
+ DRAFT
+ FINAL
+}
+enum TvetAttendanceStatus {
+ PRESENT
+ ABSENT
+ LATE
+ EXCUSED
+}
+enum TvetAssessmentKind {
+ SCORE
+ COMPETENCY
+ PRACTICAL
+}
+enum TvetOutcome {
+ COMPETENT
+ NOT_YET_COMPETENT
+}
+enum TvetSupportStatus {
+ PENDING
+ CONFIRMED
+ REVOKED
+}
+model TvetProgram {
+ id String @id @default(uuid())
+ campusId String
+ campus VirtualCampus @relation(fields:[campusId],references:[organizationId],onDelete:Restrict)
+ name String @db.VarChar(160)
+ feeMinor Int @default(0)
+ currency String @default("USD") @db.VarChar(3)
+ discoverProgramId String?
+ discoverProgram Program? @relation(fields:[discoverProgramId],references:[id],onDelete:Restrict)
+ intakes TvetIntake[]
+ modules TvetModule[]
+ @@unique([campusId,id])
+ @@unique([campusId,name])
+}
+model TvetIntake {
+ id String @id @default(uuid())
+ campusId String
+ programId String
+ program TvetProgram @relation(fields:[campusId,programId],references:[campusId,id],onDelete:Restrict)
+ name String @db.VarChar(120)
+ startsOn DateTime @db.Date
+ endsOn DateTime @db.Date
+ minimumAttendance Float @default(0)
+ startedAt DateTime?
+ requirements Json?
+ version Int @default(1)
+ sections TvetSection[]
+ assignments TvetAssignment[]
+ enrolments TvetEnrolment[]
+ @@unique([campusId,id])
+ @@unique([campusId,programId,id])
+ @@unique([campusId,programId,name])
+}
+model TvetSection {
+ id String @id @default(uuid())
+ campusId String
+ intakeId String
+ intake TvetIntake @relation(fields:[campusId,intakeId],references:[campusId,id],onDelete:Restrict)
+ name String @db.VarChar(80)
+ capacity Int
+ assignments TvetAssignment[]
+ enrolments TvetEnrolment[]
+ @@unique([campusId,intakeId,id])
+ @@unique([campusId,intakeId,name])
+}
+model TvetModule {
+ id String @id @default(uuid())
+ campusId String
+ programId String
+ program TvetProgram @relation(fields:[campusId,programId],references:[campusId,id],onDelete:Restrict)
+ name String @db.VarChar(120)
+ required Boolean @default(true)
+ assignments TvetAssignment[]
+ @@unique([campusId,programId,id])
+ @@unique([campusId,programId,name])
+}
+model TvetAssignment {
+ id String @id @default(uuid())
+ campusId String
+ programId String
+ intakeId String
+ intake TvetIntake @relation(fields:[campusId,programId,intakeId],references:[campusId,programId,id],onDelete:Restrict)
+ sectionId String?
+ section TvetSection? @relation(fields:[campusId,intakeId,sectionId],references:[campusId,intakeId,id],onDelete:Restrict)
+ moduleId String?
+ module TvetModule? @relation(fields:[campusId,programId,moduleId],references:[campusId,programId,id],onDelete:Restrict)
+ scopeKey String @db.VarChar(80)
+ instructorId String?
+ instructor Account? @relation(fields:[instructorId],references:[id],onDelete:Restrict)
+ version Int @default(1)
+ schedules TvetSchedule[]
+ attendance TvetAttendance[]
+ assessments TvetAssessment[]
+ @@unique([campusId,id])
+ @@unique([intakeId,scopeKey])
+ @@index([instructorId,campusId,intakeId])
+}
+model TvetLearner {
+ id String @id @default(uuid())
+ campusId String
+ campus VirtualCampus @relation(fields:[campusId],references:[organizationId],onDelete:Restrict)
+ accountId String
+ account Account @relation(fields:[accountId],references:[id],onDelete:Restrict)
+ status TvetLearnerStatus @default(PRE_REGISTERED)
+ version Int @default(1)
+ enrolments TvetEnrolment[]
+ supporters TvetSupporter[]
+ @@unique([campusId,id])
+ @@unique([campusId,accountId])
+}
+model TvetEnrolment {
+ id String @id @default(uuid())
+ campusId String
+ learnerId String
+ learner TvetLearner @relation(fields:[campusId,learnerId],references:[campusId,id],onDelete:Restrict)
+ programId String
+ intakeId String
+ intake TvetIntake @relation(fields:[campusId,programId,intakeId],references:[campusId,programId,id],onDelete:Restrict)
+ sectionId String
+ section TvetSection @relation(fields:[campusId,intakeId,sectionId],references:[campusId,intakeId,id],onDelete:Restrict)
+ admissionId String? @unique
+ admission AdmissionApplication? @relation(fields:[admissionId],references:[id],onDelete:Restrict)
+ source String @db.VarChar(12)
+ status TvetEnrolmentStatus @default(PRE_REGISTERED)
+ version Int @default(1)
+ createdAt DateTime @default(now())
+ activatedAt DateTime?
+ completedAt DateTime?
+ attendance TvetAttendanceRecord[]
+ results TvetResult[]
+ certificate TvetCertificate?
+ @@unique([campusId,id])
+ @@unique([learnerId,intakeId])
+ @@index([campusId,intakeId,sectionId,status,id])
+}
+model TvetSupporter {
+ id String @id @default(uuid())
+ campusId String
+ learnerId String
+ learner TvetLearner @relation(fields:[campusId,learnerId],references:[campusId,id],onDelete:Restrict)
+ supporterId String
+ supporter Account @relation(fields:[supporterId],references:[id],onDelete:Restrict)
+ relationship String @db.VarChar(20)
+ status TvetSupportStatus @default(PENDING)
+ version Int @default(1)
+ createdAt DateTime @default(now())
+ confirmedAt DateTime?
+ @@unique([learnerId,supporterId])
+ @@index([supporterId,status])
+}
+model TvetSchedule {
+ id String @id @default(uuid())
+ campusId String
+ assignmentId String
+ assignment TvetAssignment @relation(fields:[campusId,assignmentId],references:[campusId,id],onDelete:Restrict)
+ weekday Int
+ startsAt Int
+ endsAt Int
+ room String @db.VarChar(100)
+ @@unique([assignmentId,weekday,startsAt])
+ @@index([campusId,weekday])
+}
+model TvetAttendance {
+ id String @id @default(uuid())
+ campusId String
+ assignmentId String
+ assignment TvetAssignment @relation(fields:[campusId,assignmentId],references:[campusId,id],onDelete:Restrict)
+ heldOn DateTime @db.Date
+ startsAt Int
+ status TvetSubmissionStatus @default(DRAFT)
+ version Int @default(1)
+ finalizedAt DateTime?
+ records TvetAttendanceRecord[]
+ @@unique([campusId,id])
+ @@unique([assignmentId,heldOn,startsAt])
+}
+model TvetAttendanceRecord {
+ campusId String
+ attendanceId String
+ attendance TvetAttendance @relation(fields:[campusId,attendanceId],references:[campusId,id],onDelete:Restrict)
+ enrolmentId String
+ enrolment TvetEnrolment @relation(fields:[campusId,enrolmentId],references:[campusId,id],onDelete:Restrict)
+ status TvetAttendanceStatus
+ @@id([attendanceId,enrolmentId])
+ @@index([enrolmentId])
+}
+model TvetAssessment {
+ id String @id @default(uuid())
+ campusId String
+ assignmentId String
+ assignment TvetAssignment @relation(fields:[campusId,assignmentId],references:[campusId,id],onDelete:Restrict)
+ title String @db.VarChar(160)
+ kind TvetAssessmentKind
+ required Boolean @default(true)
+ maxScore Float?
+ passingMark Float?
+ heldOn DateTime @db.Date
+ results TvetResult[]
+ @@unique([campusId,id])
+ @@unique([assignmentId,title])
+}
+model TvetResult {
+ id String @id @default(uuid())
+ campusId String
+ assessmentId String
+ assessment TvetAssessment @relation(fields:[campusId,assessmentId],references:[campusId,id],onDelete:Restrict)
+ enrolmentId String
+ enrolment TvetEnrolment @relation(fields:[campusId,enrolmentId],references:[campusId,id],onDelete:Restrict)
+ attempt Int
+ heldOn DateTime @db.Date
+ score Float?
+ outcome TvetOutcome
+ feedback String @db.VarChar(500)
+ status TvetSubmissionStatus @default(DRAFT)
+ version Int @default(1)
+ finalizedAt DateTime?
+ @@unique([assessmentId,enrolmentId,attempt])
+ @@index([enrolmentId,status])
+}
+model TvetCertificate {
+ id String @id @default(uuid())
+ campusId String
+ enrolmentId String @unique
+ enrolment TvetEnrolment @relation(fields:[campusId,enrolmentId],references:[campusId,id],onDelete:Restrict)
+ issuedById String
+ issuedBy Account @relation("TvetCertificateIssuer",fields:[issuedById],references:[id],onDelete:Restrict)
+ number String @unique @db.VarChar(50)
+ title String @db.VarChar(160)
+ snapshot Json
+ issuedAt DateTime @default(now())
+ version Int @default(1)
+ revokedAt DateTime?
+ revocationReason String? @db.VarChar(500)
+ @@unique([campusId,enrolmentId])
+ @@index([campusId,issuedAt])
 }

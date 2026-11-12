@@ -1,3 +1,4 @@
+import TvetWorkspace from "../tvet/TvetWorkspace";
 import GradeSchoolWorkspace from "../grade-school/GradeSchoolWorkspace";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -111,8 +112,8 @@ export default function CampusSetupOverview({ organization }) {
     </header>
     {error && <p className="bw-campus-message" role="alert">{error}</p>}
     {notice && <p className="bw-campus-message bw-campus-success" role="status">{notice}</p>}
-    {campus?.status === "ACTIVE" && campus.engine === "GRADE_SCHOOL" && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p)) && <><nav className="bw-school-mode-tabs" aria-label="Campus tools"><button type="button" aria-pressed={schoolView} onClick={() => setSchoolView(true)}>School management</button><button type="button" aria-pressed={!schoolView} onClick={() => setSchoolView(false)}>Campus settings & announcements</button></nav>{schoolView && <GradeSchoolWorkspace key={id} campusId={id} />}</>}
-    <div className="bw-campus-layout" hidden={schoolView && campus?.status === "ACTIVE" && campus.engine === "GRADE_SCHOOL" && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p))}>
+    {campus?.status === "ACTIVE" && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p)) && <><nav className="bw-school-mode-tabs" aria-label="Campus tools"><button type="button" aria-pressed={schoolView} onClick={() => setSchoolView(true)}>{campus.engine === "TVET" ? "TVET management" : "School management"}</button><button type="button" aria-pressed={!schoolView} onClick={() => setSchoolView(false)}>Campus settings & announcements</button></nav>{schoolView && (campus.engine === "TVET" ? <TvetWorkspace key={id} campusId={id} /> : <GradeSchoolWorkspace key={id} campusId={id} />)}</>}
+    <div className="bw-campus-layout" hidden={schoolView && campus?.status === "ACTIVE" && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p))}>
       <div className="bw-campus-main">
         <section className="bw-campus-panel" aria-labelledby="campus-eligibility">
           <div className="bw-campus-panel-heading"><div><span className="bw-campus-overline">01 / AVAILABILITY</span><h3 id="campus-eligibility">Campus eligibility</h3></div><strong className={data.eligible ? "bw-campus-yes" : "bw-campus-no"}>{data.eligible ? "Eligible" : "Restricted"}</strong></div>
@@ -172,7 +173,7 @@ export default function CampusSetupOverview({ organization }) {
           {data.canSetup && <Link className="bw-campus-staff-link" to={"/organization-workspace/" + id + "/staff"}>Manage staff permissions</Link>}
         </section>
         <section className="bw-campus-panel"><span className="bw-campus-overline">ACADEMIC ENGINES</span><h3>{campus?.engine ? label[campus.engine] : "Choose an engine"}</h3>
-          <p>{campus?.engine === "GRADE_SCHOOL" ? "Manage academic years, classes, students, teachers, subject attendance and grades in School management." : campus?.engine === "TVET" ? "Trades, cohorts, instructors, competency assessments and certificates follow in Sprint 11." : "Select Grade School or TVET according to your verified organization capability."}</p>
+          <p>{campus?.engine === "GRADE_SCHOOL" ? "Manage academic years, classes, students, teachers, subject attendance and grades in School management." : campus?.engine === "TVET" ? "Manage trades, intakes, learners, instructors, training attendance, competencies and certificates in TVET management." : "Select Grade School or TVET according to your verified organization capability."}</p>
           <p className="bw-campus-caution">Admission acceptance does not register a learner. Billing cannot be charged from this setup screen.</p>
         </section>
         <Link className="bw-campus-back" to={"/organization-workspace/" + id}>Return to dashboard</Link>
