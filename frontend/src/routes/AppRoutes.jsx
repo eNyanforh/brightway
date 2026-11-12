@@ -1,3 +1,4 @@
+const ManagementBillingPage = lazy(() => import("../pages/ManagementBillingPage"));
 const MessagesPage = lazy(() => import("../pages/MessagesPage"));
 const OfficialMessagesPage = lazy(() => import("../pages/MessagesPage").then(m => ({ default: m.OfficialMessagesPage })));
 const ManagementDirectoryPage = lazy(() => import("../pages/ManagementDirectoryPage"));
@@ -70,6 +71,7 @@ export default function AppRoutes() {
         <Route path="login" element={<ManagementLoginPage />} />
         <Route element={<ManagementGate />}><Route element={<ManagementLayout />}>
           <Route path="" element={<Suspense fallback={<p role="status">Loading BrightWay management…</p>}><ManagementPage /></Suspense>}>
+            <Route path="billing" element={<ManagementTool><ManagementBillingPage /></ManagementTool>} />
             <Route path="users" element={<ManagementTool><ManagementDirectoryPage kind="users" /></ManagementTool>} />
             <Route path="directory" element={<ManagementTool><ManagementDirectoryPage kind="organizations" /></ManagementTool>} />
             <Route path="team" element={<ManagementTool><ManagementDirectoryPage kind="team" /></ManagementTool>} />

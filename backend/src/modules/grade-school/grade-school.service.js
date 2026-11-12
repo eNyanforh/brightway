@@ -1,3 +1,4 @@
+import { chargeRegistration, registrationBilling, assertRegistrationBilling } from "../billing/billing-core.js";
 import { createCampusService } from "../campus/campus.service.js";
 import { assessEligibility } from "../campus/campus.schema.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
@@ -184,12 +185,14 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
           const previous = await db.gradeSchoolRegistration.findUnique({ where: { campusId_studentId_periodId: { campusId, studentId: student.id, periodId: data.periodId } }, include: { electives: true } });
           if (previous) {
             if (previous.sectionId !== data.sectionId || previous.source !== data.source || previous.admissionId !== data.admissionId || JSON.stringify(previous.electives.map(e => e.offeringId).sort()) !== JSON.stringify([...data.electiveIds].sort())) throw conflict();
+            await chargeRegistration(db, previous, actor);
             return previous;
           }
         }
         if (await db.gradeSchoolRegistration.count({ where: { campusId, sectionId: data.sectionId, periodId: data.periodId, status: { not: "FORMER" } } }) >= section.capacity) throw s.fail(409, "This section has reached its capacity for the period.");
         if (!student) student = await db.gradeSchoolStudent.create({ data: { campusId, accountId: account.id } });
         const row = await db.gradeSchoolRegistration.create({ data: { campusId, studentId: student.id, periodId: data.periodId, sectionId: data.sectionId, admissionId: data.admissionId, source: data.source } });
+        await chargeRegistration(db, row, actor);
         if (data.electiveIds.length) await db.gradeSchoolElective.createMany({ data: data.electiveIds.map(offeringId => ({ campusId, registrationId: row.id, offeringId })) });
         await audit(db, actor, campusId, "REGISTERED", { registrationId: row.id, studentId: student.id, periodId: data.periodId, sectionId: data.sectionId, source: data.source, admissionId: data.admissionId, electiveIds: data.electiveIds });
         await notify(db, { recipientId: account.id, eventKey: "school-registration:" + row.id, kind: "CAMPUS_REGISTRATION", title: "Your school registration is confirmed. Campus access is being finalized.", href: ownHref, actorAccountId: actor.accountId });
@@ -361,9 +364,9 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
           try { await eligible(db, campusId); available.set(campusId, true); }
           catch (e) { if (e.status !== 403) throw e; available.set(campusId, false); }
         }
-        return { items: rows.map(r => ({ id: r.id, campusId: r.campusId, schoolName: r.student.campus.displayName, status: r.status, available: available.get(r.campusId),
+        return { items: await Promise.all(rows.map(async r => ({ billing: await registrationBilling(db, r, now()), id: r.id, campusId: r.campusId, schoolName: r.student.campus.displayName, status: r.status, available: available.get(r.campusId),
           studentStatus: r.student.status, period: r.period.name, year: r.period.year.name, section: r.section.schoolClass.name + " / " + r.section.name,
-          message: r.status === "PRE_REGISTERED" ? `Welcome, ${r.student.account.person.firstName}! Your registration has been confirmed by the school. Your Campus access is currently being finalized. Please be patient while the administration completes the process. You will receive full access once your registration is fully activated. — ${r.student.campus.displayName} Administration.` : null })) };
+          message: r.status === "PRE_REGISTERED" ? `Welcome, ${r.student.account.person.firstName}! Your registration has been confirmed by the school. Your Campus access is currently being finalized. Please be patient while the administration completes the process. You will receive full access once your registration is fully activated. — ${r.student.campus.displayName} Administration.` : null }))) };
       });
     },
     async learnerReport(actor, registrationId, asGuardian = false) {
@@ -373,11 +376,13 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
         const registration = await db.gradeSchoolRegistration.findFirst({ where, include: registrationInclude });
         if (!registration) throw s.fail(403, "Active registration and authorized student or confirmed guardian access are required.");
         await eligible(db, registration.campusId);
+        await assertRegistrationBilling(db, registration, now());
         const result = await report(db, registration);
         const announcements = await db.campusAnnouncement.findMany({ where: { campusId: registration.campusId, withdrawnAt: null, audience: "CAMPUS" }, select: { id: true, title: true, body: true, createdAt: true }, take: 50, orderBy: { createdAt: "desc" } });
         // Keep student and contact data out of unrelated accounts and all drafts out of reports.
         await live(db, actor); await eligible(db, registration.campusId);
         if (!await db.gradeSchoolRegistration.findFirst({ where, select: { id: true } })) throw s.fail(403, "Student or guardian access has changed. Reload your Campus access.");
+        await assertRegistrationBilling(db, registration, now());
         return { ...result, announcements };
       });
     },

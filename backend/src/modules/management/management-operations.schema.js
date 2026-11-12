@@ -15,8 +15,9 @@ export const caseActionSchema = z.strictObject({ expectedVersion: z.int().positi
   if ((v.action === "STATUS") !== !!v.status || (v.action === "PRIORITY") !== !!v.priority) ctx.addIssue({ code: "custom", message: "Use fields for the chosen action only." });
 });
 export const messageSchema = z.strictObject({ expectedVersion: z.int().positive(), body: z.string().trim().min(2).max(4000), internal: z.boolean().default(false), requestKey: uuid });
-export const capabilitiesForOperations = ["user-manager", "organization-manager", "staff-reader", "support-agent", "moderation-agent", "audit-reader", "operations-reader"];
+export const capabilitiesForOperations = ["billing-admin", "user-manager", "organization-manager", "staff-reader", "support-agent", "moderation-agent", "audit-reader", "operations-reader"];
 export const managementToolCatalog = [
+  ["billing", "Campus billing", "Confirm platform payments, review statements and record audited adjustments.", "/management/billing", "billing-admin"],
   ["official-messages", "Official messages", "Contact users and organizations as BrightWay with an audited staff identity.", "/management/official-messages", "support-agent"],
   ["users", "Users", "Find accounts, investigate access and revoke sessions.", "/management/users", "user-manager"],
   ["directory", "Organizations", "Oversee approved organizations and control platform access.", "/management/organizations", "organization-manager"],

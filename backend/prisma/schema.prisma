@@ -38,6 +38,7 @@ enum PersonGender {
 }
 
 model Account {
+  campusCharges BillingCharge[]
   tvetLearners TvetLearner[]
   tvetAssignments TvetAssignment[]
   tvetSupportRelationships TvetSupporter[]
@@ -1971,6 +1972,7 @@ model ProductAvailability {
 }
 
 model VirtualCampus {
+  billingAccount BillingAccount?
   tvetPrograms TvetProgram[]
   tvetLearners TvetLearner[]
   schoolSubjects GradeSchoolSubject[]
@@ -2091,6 +2093,8 @@ model GradeSchoolYear {
   @@unique([campusId, name])
 }
 model GradeSchoolPeriod {
+  billingSemesterId String?
+  billingSemester BillingSemester? @relation(fields: [campusId, billingSemesterId], references: [campusId, id], onDelete: Restrict)
   id String @id @default(uuid())
   campusId String
   yearId String
@@ -2140,6 +2144,7 @@ model GradeSchoolStudent {
   @@unique([campusId, id])
 }
 model GradeSchoolRegistration {
+  billingCharge BillingCharge?
   id String @id @default(uuid())
   campusId String
   studentId String
@@ -2376,6 +2381,7 @@ model TvetLearner {
  @@unique([campusId,accountId])
 }
 model TvetEnrolment {
+ billingCharge BillingCharge?
  id String @id @default(uuid())
  campusId String
  learnerId String
@@ -2500,4 +2506,130 @@ model TvetCertificate {
  revocationReason String? @db.VarChar(500)
  @@unique([campusId,enrolmentId])
  @@index([campusId,issuedAt])
+}
+
+// USD platform ledger. Institution tuition/program/material fees never enter it.
+model BillingAccount {
+  campusId String @id
+  campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
+  currency String @default("USD") @db.VarChar(3)
+  createdAt DateTime @default(now())
+  semesters BillingSemester[]
+  charges BillingCharge[]
+  payments CampusPayment[]
+  entries BillingLedgerEntry[]
+  audits BillingAudit[]
+}
+model BillingSemester {
+  id String @id @default(uuid())
+  campusId String
+  account BillingAccount @relation(fields: [campusId], references: [campusId], onDelete: Restrict)
+  name String @db.VarChar(100)
+  startsOn DateTime @db.Date
+  endsOn DateTime @db.Date
+  resumesOn DateTime @db.Date
+  periods GradeSchoolPeriod[]
+  charges BillingCharge[]
+  @@unique([campusId, id])
+  @@unique([campusId, name])
+}
+model BillingCharge {
+  id String @id @default(uuid())
+  campusId String
+  account BillingAccount @relation(fields: [campusId], references: [campusId], onDelete: Restrict)
+  unitKey String @unique @db.VarChar(160)
+  @@unique([campusId, schoolRegistrationId])
+  @@unique([campusId, tvetEnrolmentId])
+  engine CampusEngine
+  learnerAccountId String
+  learnerAccount Account @relation(fields: [learnerAccountId], references: [id], onDelete: Restrict)
+  semesterId String?
+  semester BillingSemester? @relation(fields: [campusId, semesterId], references: [campusId, id], onDelete: Restrict)
+  schoolRegistrationId String? @unique
+  schoolRegistration GradeSchoolRegistration? @relation(fields: [campusId, schoolRegistrationId], references: [campusId, id], onDelete: Restrict)
+  tvetEnrolmentId String? @unique
+  tvetEnrolment TvetEnrolment? @relation(fields: [campusId, tvetEnrolmentId], references: [campusId, id], onDelete: Restrict)
+  label String @db.VarChar(240)
+  amountCents Int @default(100)
+  dueAt DateTime?
+  noticeAt DateTime?
+  enforceAt DateTime?
+  createdAt DateTime @default(now())
+  allocations CampusPaymentAllocation[]
+  adjustments BillingAdjustment[]
+  entries BillingLedgerEntry[]
+  @@unique([campusId, id])
+  @@index([campusId, createdAt, id])
+  @@index([engine, dueAt])
+}
+model CampusPayment {
+  id String @id @default(uuid())
+  campusId String
+  account BillingAccount @relation(fields: [campusId], references: [campusId], onDelete: Restrict)
+  submittedById String
+  requestKey String @unique
+  inputHash String @db.VarChar(64)
+  amountCents Int
+  reference String @db.VarChar(160)
+  status String @default("PENDING") @db.VarChar(12)
+  settlementReference String? @unique @db.VarChar(160)
+  decidedById String?
+  decidedAt DateTime?
+  reason String? @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  allocations CampusPaymentAllocation[]
+  entries BillingLedgerEntry[]
+  @@unique([campusId, id])
+  @@index([campusId, createdAt, id])
+  @@index([status, createdAt, id])
+}
+model CampusPaymentAllocation {
+  id String @id @default(uuid())
+  campusId String
+  paymentId String
+  payment CampusPayment @relation(fields: [campusId, paymentId], references: [campusId, id], onDelete: Restrict)
+  chargeId String
+  charge BillingCharge @relation(fields: [campusId, chargeId], references: [campusId, id], onDelete: Restrict)
+  amountCents Int
+  @@unique([paymentId, chargeId])
+}
+model BillingAdjustment {
+  id String @id @default(uuid())
+  campusId String
+  chargeId String
+  charge BillingCharge @relation(fields: [campusId, chargeId], references: [campusId, id], onDelete: Restrict)
+  requestKey String @unique
+  inputHash String @db.VarChar(64)
+  amountCents Int
+  reason String @db.VarChar(1000)
+  actorId String
+  createdAt DateTime @default(now())
+  entries BillingLedgerEntry[]
+  @@unique([campusId, id])
+}
+model BillingLedgerEntry {
+  id String @id @default(uuid())
+  campusId String
+  account BillingAccount @relation(fields: [campusId], references: [campusId], onDelete: Restrict)
+  kind String @db.VarChar(12)
+  amountCents Int
+  chargeId String? @unique
+  charge BillingCharge? @relation(fields: [campusId, chargeId], references: [campusId, id], onDelete: Restrict)
+  paymentId String? @unique
+  payment CampusPayment? @relation(fields: [campusId, paymentId], references: [campusId, id], onDelete: Restrict)
+  adjustmentId String? @unique
+  adjustment BillingAdjustment? @relation(fields: [campusId, adjustmentId], references: [campusId, id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@index([campusId, createdAt, id])
+}
+model BillingAudit {
+  id String @id @default(uuid())
+  campusId String
+  account BillingAccount @relation(fields: [campusId], references: [campusId], onDelete: Restrict)
+  actorId String
+  actorKind String @db.VarChar(16)
+  action String @db.VarChar(40)
+  data Json
+  createdAt DateTime @default(now())
+  @@index([campusId, createdAt, id])
 }

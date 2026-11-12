@@ -3,8 +3,8 @@ import { NavLink } from "react-router-dom";
 import { managementPath } from "./management-paths";
 import WorkspaceIcon from "../workspace/WorkspaceIcon";
 import "./management-navigation.css";
-const icons = { users:"people",directory:"building",team:"shield",support:"mail",moderation:"alert","official-messages":"mail","post-reviews":"shield",audit:"archive",operations:"clock",organizations:"people",credentials:"archive",names:"edit" };
-const operationalKeys = new Set(["users","directory","team","support","moderation","post-reviews","official-messages","audit","operations"]);
+const icons = { billing:"archive", users:"people",directory:"building",team:"shield",support:"mail",moderation:"alert","official-messages":"mail","post-reviews":"shield",audit:"archive",operations:"clock",organizations:"people",credentials:"archive",names:"edit" };
+const operationalKeys = new Set(["billing","users","directory","team","support","moderation","post-reviews","official-messages","audit","operations"]);
 const active = ({ isActive }) => isActive ? "bw-design-sidebar-active" : "";
 export default function ManagementNavigation({ management, mobile = false, id, open, onNavigate }) {
   const allowed = management?.allowed === true, tools = allowed ? management.tools.filter(tool => tool.allowed) : [];

@@ -1,3 +1,4 @@
+import { clearBilling } from "../test-support/billing-cleanup.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -144,6 +145,7 @@ test("Sprint 10 SQL: academic isolation, registrations, assigned teachers, guard
         assert.equal((await db.gradeSchoolAttendance.findUnique({ where: { id: rollback.id } })).version, 1);
         assert.equal(await db.gradeSchoolAttendanceRecord.count({ where: { attendanceId: rollback.id } }), 0);
       } finally {
+    await clearBilling(db, organizations);
         await db.$executeRawUnsafe('DROP TRIGGER school_test_audit_failure ON "VirtualCampusAudit"');
         await db.$executeRawUnsafe('DROP FUNCTION school_test_audit_failure()');
       }

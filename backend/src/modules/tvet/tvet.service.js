@@ -1,3 +1,4 @@
+import { chargeEnrolment } from "../billing/billing-core.js";
 import { randomUUID } from "node:crypto";
 import { createCampusService } from "../campus/campus.service.js";
 import { assessEligibility } from "../campus/campus.schema.js";
@@ -102,10 +103,10 @@ export function createTvetService({prisma,now=()=>new Date()}) {
    let learner=await db.tvetLearner.findUnique({where:{campusId_accountId:{campusId,accountId:a.id}}});if(learner&&["SUSPENDED","FORMER"].includes(learner.status))throw s.fail(409,"Restore the learner membership before enrolling.");
    if(data.source==="RETURNING"&&(!learner||!await db.tvetEnrolment.findFirst({where:{learnerId:learner.id,intakeId:{not:i.id},activatedAt:{not:null}}})))throw s.fail(400,"Returning enrolment requires an earlier activated intake.");
    if(data.admissionId&&!await db.admissionApplication.findFirst({where:{id:data.admissionId,applicantId:a.id,status:"ACCEPTED",withdrawnAt:null,schoolRegistration:null,cycle:{organizationId:campusId,...(i.program.discoverProgramId?{programId:i.program.discoverProgramId}:{})}}}))throw s.fail(400,"Choose an accepted admission for this learner and training program.");
-   const old=learner&&await db.tvetEnrolment.findUnique({where:{learnerId_intakeId:{learnerId:learner.id,intakeId:i.id}}});if(old){if(old.sectionId!==section.id||old.source!==data.source||old.admissionId!==data.admissionId)throw conflict();return old;}
+   const old=learner&&await db.tvetEnrolment.findUnique({where:{learnerId_intakeId:{learnerId:learner.id,intakeId:i.id}}});if(old){if(old.sectionId!==section.id||old.source!==data.source||old.admissionId!==data.admissionId)throw conflict();await chargeEnrolment(db,old,actor);return old;}
    if(await db.tvetEnrolment.count({where:{campusId,sectionId:section.id,status:{not:"WITHDRAWN"}}})>=section.capacity)throw s.fail(409,"This training section has reached its capacity.");
    if(!learner)learner=await db.tvetLearner.create({data:{campusId,accountId:a.id}});
-   const row=await db.tvetEnrolment.create({data:{campusId,learnerId:learner.id,programId:i.programId,intakeId:i.id,sectionId:section.id,source:data.source,admissionId:data.admissionId}});await audit(db,actor,campusId,"ENROLLED",{enrolmentId:row.id,learnerId:learner.id,...data});await notify(db,{recipientId:a.id,eventKey:"tvet-enrolment:"+row.id,kind:"CAMPUS_REGISTRATION",title:"Your training enrolment is confirmed. Campus access is being finalized.",href:ownHref,actorAccountId:actor.accountId});return row;
+   const row=await db.tvetEnrolment.create({data:{campusId,learnerId:learner.id,programId:i.programId,intakeId:i.id,sectionId:section.id,source:data.source,admissionId:data.admissionId}});await chargeEnrolment(db,row,actor);await audit(db,actor,campusId,"ENROLLED",{enrolmentId:row.id,learnerId:learner.id,...data});await notify(db,{recipientId:a.id,eventKey:"tvet-enrolment:"+row.id,kind:"CAMPUS_REGISTRATION",title:"Your training enrolment is confirmed. Campus access is being finalized.",href:ownHref,actorAccountId:actor.accountId});return row;
   });},
   async enrolments(actor,campusId,input={}){const q=s.parse(s.query,input);return work(actor,campusId,false,true,async db=>{
    const where={campusId,...(q.intakeId?{intakeId:q.intakeId}:{}),...(q.q?{learner:{account:{OR:[{username:{contains:q.q,mode:"insensitive"}},{person:{firstName:{contains:q.q,mode:"insensitive"}}},{person:{lastName:{contains:q.q,mode:"insensitive"}}}]}}}:{})};if(q.cursor&&!await db.tvetEnrolment.findFirst({where:{...where,id:q.cursor}}))throw s.fail(404,"Learner page is unavailable.");

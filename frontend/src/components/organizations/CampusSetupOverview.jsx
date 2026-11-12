@@ -1,3 +1,4 @@
+import CampusBilling from "../billing/CampusBilling";
 import TvetWorkspace from "../tvet/TvetWorkspace";
 import GradeSchoolWorkspace from "../grade-school/GradeSchoolWorkspace";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -113,6 +114,7 @@ export default function CampusSetupOverview({ organization }) {
     {error && <p className="bw-campus-message" role="alert">{error}</p>}
     {notice && <p className="bw-campus-message bw-campus-success" role="status">{notice}</p>}
     {campus?.status === "ACTIVE" && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p)) && <><nav className="bw-school-mode-tabs" aria-label="Campus tools"><button type="button" aria-pressed={schoolView} onClick={() => setSchoolView(true)}>{campus.engine === "TVET" ? "TVET management" : "School management"}</button><button type="button" aria-pressed={!schoolView} onClick={() => setSchoolView(false)}>Campus settings & announcements</button></nav>{schoolView && (campus.engine === "TVET" ? <TvetWorkspace key={id} campusId={id} /> : <GradeSchoolWorkspace key={id} campusId={id} />)}</>}
+    {campus?.status === "ACTIVE" && data.permissions.includes("organization.campus.billing.manage") && <details className="bw-campus-panel"><summary>Campus billing & payments</summary><CampusBilling key={id} campusId={id} /></details>}
     <div className="bw-campus-layout" hidden={schoolView && campus?.status === "ACTIVE" && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p))}>
       <div className="bw-campus-main">
         <section className="bw-campus-panel" aria-labelledby="campus-eligibility">
