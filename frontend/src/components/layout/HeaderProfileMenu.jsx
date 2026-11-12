@@ -232,32 +232,35 @@ const Wrapper = styled.div`
 `;
 
 const Trigger = styled.button`
-  /* Facepile is a horizontal sibling of the portrait, not an overlay. */
+  /* Every visible identity is the same size; primary is the rightmost avatar. */
+  --bw-header-avatar-size: 43px;
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   flex-shrink: 0;
   gap: 8px;
-  min-height: 43px;
+  min-height: var(--bw-header-avatar-size);
   padding: 0;
   border: 0;
   border-radius: 9px;
   background: transparent;
   cursor: pointer;
 
-  &:hover .bw-picture {
-    box-shadow: 0 0 0 3px #dce8fa;
+  &:hover .bw-picture,
+  &:hover .bw-context-main-avatar {
+    box-shadow: 0 0 0 3px #175cd3;
   }
 
   .bw-picture {
     flex: none;
     display: grid;
     place-items: center;
-    width: 43px;
-    height: 43px;
+    width: var(--bw-header-avatar-size);
+    height: var(--bw-header-avatar-size);
     border-radius: 50%;
     overflow: hidden;
-    background: #e2ebfa;
+    background: #fff;
+    color: #000;
     transition: box-shadow 0.2s;
   }
 
@@ -268,14 +271,9 @@ const Trigger = styled.button`
   }
 
   @media (max-width: 700px) {
-    min-height: 33px;
+    --bw-header-avatar-size: 33px;
     gap: 6px;
-
-    .bw-picture {
-      width: 33px;
-      height: 33px;
-      font-size: 11px;
-    }
+    .bw-picture { font-size: 11px; }
   }
 `;
 
@@ -294,8 +292,8 @@ const Panel = styled.div`
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(21, 43, 73, 0.15);
-  color: #182339;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  color: #000;
 
   @media (max-width: 700px) {
     width: min(280px, calc(100vw - 24px));
@@ -323,7 +321,7 @@ const Identity = styled.div`
   span {
     margin-top: 3px;
     font-size: 11px;
-    color: #61718a;
+    color: #000;
   }
 `;
 
@@ -337,7 +335,7 @@ const Action = styled.button`
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #182339;
+  color: #000;
   font-size: 13px;
   cursor: pointer;
 
@@ -363,7 +361,7 @@ const MobileOrganization = styled.section`
     border-top: 1px solid #e5eaf1;
 
     .organization-eyebrow {
-      color: #6a7b95;
+      color: #000;
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 1.15px;
@@ -371,14 +369,14 @@ const MobileOrganization = styled.section`
 
     h3 {
       margin: 9px 0;
-      color: #182339;
+      color: #000;
       font-size: 15px;
       line-height: 1.45;
     }
 
     p {
       margin: 0 0 14px;
-      color: #647087;
+      color: #000;
       font-size: 12px;
       line-height: 1.6;
     }
