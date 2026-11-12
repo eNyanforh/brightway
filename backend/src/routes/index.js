@@ -73,6 +73,8 @@ import { createDirectorySearch } from "../modules/search/directory-search.servic
 import { createContentSearch } from "../modules/search/content-search.service.js";
 import { createDirectorySearchRoutes } from "../modules/search/directory-search.routes.js";
 import { createOrganizationPosts } from "../modules/posts/organization-posts.service.js";
+import { createPostMediaService } from "../modules/posts/post-media.service.js";
+import { createPostMediaStorage } from "../modules/posts/post-media.storage.js";
 import { createMemberPostModeration } from "../modules/posts/member-post-moderation.service.js";
 import { createOrganizationPostRoutes } from "../modules/posts/organization-posts.routes.js";
 
@@ -105,7 +107,9 @@ router.use(createDirectorySearchRoutes({
 router.use(createPeopleSuggestionRoutes({ suggest: createPeopleSuggestions({ prisma }), sessions, nodeEnv: env.NODE_ENV }));
 const photoStorage = createR2Storage();
 const photos = createPhotoService({ prisma, storage: photoStorage });
-router.use(createOrganizationPostRoutes({ posts: publicPosts, photos, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createOrganizationPostRoutes({ posts: publicPosts, photos,
+  media: createPostMediaService({ prisma, storage: createPostMediaStorage(), posts: publicPosts }),
+  sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const managementCases = createManagementCases({ prisma });
 const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
 router.use(createBillingRoutes({ billing: createBillingService({ prisma }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
