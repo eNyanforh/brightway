@@ -1,65 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { staffApi } from "../../api/organization-staff";
-import { schoolApi } from "../../api/grade-school";
 import { organizationPictureUrl } from "../../api/organization-profile";
 import AvatarGroup from "../posts/AvatarGroup";
 import "./account-contexts.css";
-
-function resolveContexts(directory, campus) {
-  const organizations = (Array.isArray(directory?.items) ? directory.items : [])
-    .filter(row => row?.id && row?.name)
-    .map(row => ({ key: `org:${row.id}`, id: row.id, type: "organization",
-      name: row.name, photoId: row.photoId || null, to: `/organization-workspace/${row.id}` }));
-  const seen = new Set();
-  const schools = (Array.isArray(campus?.items) ? campus.items : [])
-    .filter(row => row?.campusId && row?.schoolName &&
-      row.status === "ACTIVE" && row.studentStatus === "ACTIVE" && row.available === true)
-    .filter(row => {
-      if (seen.has(row.campusId)) return false;
-      seen.add(row.campusId);
-      return true;
-    })
-    .map(row => ({ key: `school:${row.campusId}`, id: row.campusId, type: "school",
-      name: row.schoolName, photoId: row.photoId || null,
-      to: `/learning?view=campus&campus=${encodeURIComponent(row.campusId)}` }));
-  return [...organizations, ...schools];
-}
-
-/** Read only session-authorized memberships; URLs do not grant workspace access. */
-export function useAccountContexts(accountId) {
-  const [snapshot, setSnapshot] = useState({ accountId, items: [], loading: true, error: false });
-  const [refreshVersion, setRefreshVersion] = useState(0);
-  const refresh = useCallback(() => setRefreshVersion(v => v + 1), []);
-  useEffect(() => {
-    if (!accountId) { setSnapshot({ accountId, items: [], loading: false, error: false }); return; }
-    const controller = new AbortController();
-    setSnapshot({ accountId, items: [], loading: true, error: false });
-    Promise.allSettled([
-      staffApi.directory(controller.signal, { tab: "approved" }),
-      schoolApi.myCampus(controller.signal),
-    ]).then(([organizations, schools]) => {
-      if (controller.signal.aborted) return;
-      const failure = organizations.status === "rejected" || schools.status === "rejected";
-      setSnapshot({
-        accountId,
-        items: resolveContexts(
-          organizations.status === "fulfilled" ? organizations.value : null,
-          schools.status === "fulfilled" ? schools.value : null,
-        ),
-        loading: false,
-        error: failure,
-      });
-    });
-    return () => controller.abort();
-  }, [accountId, refreshVersion]);
-  return {
-    contexts: snapshot.accountId === accountId ? snapshot.items : [],
-    loading: snapshot.accountId !== accountId || snapshot.loading,
-    error: snapshot.accountId === accountId && snapshot.error,
-    refresh,
-  };
-}
 
 function ContextAvatar({ context, className = "" }) {
   const initials = context.name.trim().split(/\s+/u).slice(0, 2)
