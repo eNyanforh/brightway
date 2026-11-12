@@ -110,6 +110,7 @@ export default function HeaderProfileMenu({
         aria-controls={panelId}
         onClick={() => { if (!open) refreshContexts(); setOpen((value) => !value); }}
       >
+        <AccountContextFacepile contexts={contexts} />
         {photoId ? (
           <ProfilePicture
             key={photoId}
@@ -120,7 +121,6 @@ export default function HeaderProfileMenu({
         ) : (
           <ProfilePicture name={name} decorative />
         )}
-        <AccountContextFacepile contexts={contexts} />
       </Trigger>
 
       {open && (
@@ -215,33 +215,33 @@ const Wrapper = styled.div`
 `;
 
 const Trigger = styled.button`
-  position: relative;
-  width: 43px;
-  height: 43px;
-  border-radius: 50%;
-  border: none;
-  background: #e2ebfa;
-  display: flex;
+  /* Facepile is a horizontal sibling of the portrait, not an overlay. */
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  gap: 8px;
+  min-height: 43px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
   cursor: pointer;
-  transition: 0.2s;
 
-  &:hover {
+  &:hover .bw-picture {
     box-shadow: 0 0 0 3px #dce8fa;
   }
 
-  img {
-    width: 25px;
-    height: 25px;
-    object-fit: contain;
-  }
-
   .bw-picture {
+    flex: none;
+    display: grid;
+    place-items: center;
     width: 43px;
     height: 43px;
     border-radius: 50%;
     overflow: hidden;
+    background: #e2ebfa;
+    transition: box-shadow 0.2s;
   }
 
   .bw-picture img {
@@ -251,8 +251,8 @@ const Trigger = styled.button`
   }
 
   @media (max-width: 700px) {
-    width: 33px;
-    height: 33px;
+    min-height: 33px;
+    gap: 6px;
 
     .bw-picture {
       width: 33px;
