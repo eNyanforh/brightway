@@ -1,7 +1,7 @@
 .bw-app-shell {
   min-height: 100vh;
   background: #f3f6fb;
-  color: #152b49;
+  color: #000;
 }
 .bw-app-header {
   display: grid;

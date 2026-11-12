@@ -1,27 +1,29 @@
+/* Full-size, horizontally stacked switching identities (same size as the main portrait).
+   The entire stack sits beside the primary portrait, never underneath it. */
 .bw-context-facepile-wrap {
-  position: absolute;
-  right: -6px;
-  bottom: -8px;
+  display: inline-flex;
+  position: static;
+  flex: none;
+  align-items: center;
   pointer-events: none;
-  z-index: 2;
 }
-.bw-context-facepile { display: flex; align-items: center; padding-left: 7px; }
+.bw-context-facepile { display: inline-flex; align-items: center; padding: 0 2px; }
 .bw-context-avatar {
   position: relative;
   display: inline-grid;
   place-items: center;
-  flex: none;
-  width: 27px;
-  height: 27px;
+  flex: 0 0 var(--bw-header-avatar-size, 43px);
+  width: var(--bw-header-avatar-size, 43px);
+  height: var(--bw-header-avatar-size, 43px);
+  min-width: 0;
+  overflow: hidden;
   border: 2px solid #fff;
   border-radius: 50%;
-  overflow: hidden;
-  background: #e9effa;
-  color: #254878;
-  font-size: 9px;
+  background: #fff;
+  color: #000;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1;
-  letter-spacing: -.3px;
 }
 .bw-context-avatar img {
   position: absolute;
@@ -32,12 +34,27 @@
 }
 .bw-context-avatar img[hidden] { display: none; }
 .bw-context-facepile .bw-context-avatar {
-  width: 18px;
-  height: 18px;
-  font-size: 6px;
-  box-shadow: 0 1px 4px #15325435;
+  width: var(--bw-header-avatar-size, 43px);
+  height: var(--bw-header-avatar-size, 43px);
+  flex-basis: var(--bw-header-avatar-size, 43px);
+  box-shadow: 0 0 0 1px #175cd3;
 }
-.bw-context-facepile .bw-context-avatar + .bw-context-avatar { margin-left: -6px; }
+.bw-context-facepile .bw-context-avatar + .bw-context-avatar { margin-left: -12px; }
+.bw-context-main-avatar {
+  border: 2px solid #175cd3;
+  box-shadow: 0 0 0 2px #fff;
+}
+.bw-context-facepile .bw-context-personal-alternative {
+  display: inline-grid;
+  place-items: center;
+}
+.bw-context-choice .bw-context-avatar {
+  flex: 0 0 27px;
+  width: 27px;
+  height: 27px;
+  font-size: 9px;
+  border: 1px solid #175cd3;
+}
 .bw-context-chooser {
   padding: 4px 0 9px;
   margin-bottom: 5px;
@@ -47,7 +64,7 @@
   font-size: 11px;
   line-height: 1.4;
   font-weight: 750;
-  color: #647087;
+  color: #000;
   margin: 3px 12px 7px;
 }
 .bw-context-choice {
@@ -61,7 +78,7 @@
   border: 0;
   border-radius: 9px;
   background: transparent;
-  color: #182339;
+  color: #000;
   cursor: pointer;
 }
 .bw-context-choice:hover,.bw-context-choice:focus-visible {
@@ -91,11 +108,14 @@
 .bw-context-choice-label small {
   display: block;
   font-size: 10px;
-  color: #647087;
+  color: #000;
 }
 .bw-context-current { color: #175cd3; font-size: 9px; font-weight: 700; flex-shrink: 0; }
-.bw-context-feedback { margin: 4px 9px; padding: 5px; font-size: 10px; color: #647087; line-height: 1.5; }
+.bw-context-feedback { margin: 4px 9px; padding: 5px; font-size: 10px; color: #000; line-height: 1.5; }
 @media (max-width: 700px) {
-  .bw-context-facepile-wrap { bottom: -6px; right: -5px; }
-  .bw-context-facepile .bw-context-avatar { width: 16px; height: 16px; }
+  .bw-context-avatar { font-size: 11px; }
+  .bw-context-facepile .bw-context-avatar + .bw-context-avatar { margin-left: -10px; }
+}
+@media (max-width: 370px) {
+  .bw-context-facepile .bw-context-avatar:nth-child(n+3) { display: none; }
 }

@@ -180,6 +180,7 @@ export default function AppHeader({
           )}
 
           <HeaderProfileMenu
+            actingOrganization={actingOrganization}
             hasWork={hasWork}
             photoId={photoId}
             unsaved={unsaved}
