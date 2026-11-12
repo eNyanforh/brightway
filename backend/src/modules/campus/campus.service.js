@@ -38,7 +38,7 @@ export function createCampusService({ prisma, now = () => new Date() }) {
     const product = await db.productAvailability.findUnique({ where: { product_countryCode: { product: "VIRTUAL_CAMPUS", countryCode: "LR" } } });
     const eligibility = assessEligibility(organization, product);
     const isPrimary = membership.role === "PRIMARY_ADMIN";
-    const active = organization.campus?.status === "ACTIVE" && eligibility.eligible;
+    const active = organization.campus?.status === "ACTIVE" && eligibility.eligible && eligibility.supportedEngines.includes(organization.campus.engine);
     const grants = isPrimary && active ? [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH]
       : active ? (membership.permissions || []).filter(key => [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH].includes(key)) : [];
     if (primary && !isPrimary) throw fail(403, "Only the primary organization administrator can change Campus activation.");
@@ -55,7 +55,7 @@ export function createCampusService({ prisma, now = () => new Date() }) {
     organizationId: ctx.organization.id, eligible: ctx.eligibility.eligible, eligibility: ctx.eligibility,
     campus: ctx.organization.campus ? {
       engine: ctx.organization.campus.engine,
-      status: !ctx.eligibility.eligible && ctx.organization.campus.status === "ACTIVE" ? "BLOCKED" : ctx.organization.campus.status,
+      status: !ctx.active && ctx.organization.campus.status === "ACTIVE" ? "BLOCKED" : ctx.organization.campus.status,
       storedStatus: ctx.organization.campus.status,
       version: ctx.organization.campus.version, displayName: ctx.organization.campus.displayName,
       contactEmail: ctx.organization.campus.contactEmail, activatedAt: ctx.organization.campus.activatedAt,
@@ -174,6 +174,10 @@ export function createCampusService({ prisma, now = () => new Date() }) {
         const recipients = staffIds.map(recipientId => ({ recipientId, href: "/organization-workspace/" + organizationId + "/campus" }));
         if (data.audience === "CAMPUS" && ctx.organization.campus.engine === "GRADE_SCHOOL") {
           const learners = await db.gradeSchoolStudent.findMany({ where: { campusId: organizationId, status: "ACTIVE", account: { status: "ACTIVE" }, registrations: { some: { status: "ACTIVE" } } }, select: { accountId: true } });
+          for (const learner of learners) if (learner.accountId !== actor.accountId && !staffIds.includes(learner.accountId)) recipients.push({ recipientId: learner.accountId, href: "/learning?view=campus" });
+        }
+        if (data.audience === "CAMPUS" && ctx.organization.campus.engine === "TVET") {
+          const learners = await db.tvetLearner.findMany({ where: { campusId: organizationId, status: "ACTIVE", account: { status: "ACTIVE" }, enrolments: { some: { status: "ACTIVE" } } }, select: { accountId: true } });
           for (const learner of learners) if (learner.accountId !== actor.accountId && !staffIds.includes(learner.accountId)) recipients.push({ recipientId: learner.accountId, href: "/learning?view=campus" });
         }
         // Legacy announcements default to STAFF. Only explicitly campus-wide

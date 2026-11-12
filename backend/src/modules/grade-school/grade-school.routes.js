@@ -3,7 +3,7 @@ import { rateLimit } from "express-rate-limit";
 import { createRequireAuth, createSessionCookieConfig, requireTrustedOrigin } from "../auth/session.http.js";
 import { fail } from "./grade-school.schema.js";
 
-export function createGradeSchoolRoutes({ school, sessions, clientUrl, nodeEnv }) {
+export function createGradeSchoolRoutes({ school, tvet, sessions, clientUrl, nodeEnv }) {
   const router = Router(), path = "/organization-workspace/:organizationId/campus/grade-school";
   const auth = createRequireAuth({ sessions, cookieName: createSessionCookieConfig(nodeEnv).name });
   const noStore = (req, res, next) => { res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); next(); };
@@ -33,8 +33,8 @@ export function createGradeSchoolRoutes({ school, sessions, clientUrl, nodeEnv }
     router.post(path + "/" + kind, write, respond((r, a) => school.createSession(a, r.params.organizationId, kind, r.body), 201));
     router.put(path + "/" + kind + "/:id", write, respond((r, a) => school.submit(a, r.params.organizationId, kind, r.params.id, r.body)));
   }
-  router.get("/my-campus", read, respond((r, a) => school.myCampus(a)));
-  router.get("/my-campus/guardians", read, respond((r, a) => school.guardianRequests(a)));
+  router.get("/my-campus", read, respond((r, a) => tvet ? Promise.all([school.myCampus(a), tvet.myCampus(a)]).then(pages => ({ items: pages.flatMap(p => p.items) })) : school.myCampus(a)));
+  router.get("/my-campus/guardians", read, respond((r, a) => tvet ? Promise.all([school.guardianRequests(a), tvet.supporters(a)]).then(pages => ({ items: pages.flatMap(p => p.items) })) : school.guardianRequests(a)));
   router.put("/my-campus/guardians/:id", write, respond((r, a) => school.guardianDecision(a, r.params.id, r.body)));
   router.get("/my-campus/guardians/registrations/:id", read, respond((r, a) => school.learnerReport(a, r.params.id, true)));
   router.get("/my-campus/registrations/:id", read, respond((r, a) => school.learnerReport(a, r.params.id)));
