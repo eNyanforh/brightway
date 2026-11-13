@@ -944,9 +944,9 @@
 }
 .bw-explore .bw-challenge-primary { min-width: 0; }
 .bw-explore .bw-challenge-title {
-  margin: 0 0 7px;
+  margin: 0 0 2px;
   font-size: 15px;
-  line-height: 1.3;
+  line-height: 1.25;
   font-weight: 750;
   overflow-wrap: anywhere;
 }
@@ -983,7 +983,7 @@
   align-items: flex-end;
   justify-content: center;
   min-width: 0;
-  gap: 5px;
+  gap: 1px;
   text-align: right;
 }
 .bw-explore .bw-challenge-prize > strong {
@@ -991,7 +991,7 @@
   color: #3b82f6;
   font-size: 14px;
   font-weight: 750;
-  line-height: 1.35;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 .bw-explore .bw-challenge-mode {
@@ -1002,6 +1002,7 @@
   color: #6b7280;
   border-radius: 0;
   font-size: 12px;
+  line-height: 1.2;
   font-weight: 400;
   white-space: normal;
 }
