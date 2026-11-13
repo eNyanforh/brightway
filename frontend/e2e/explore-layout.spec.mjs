@@ -1817,24 +1817,26 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   const feed = page.getByRole("region", { name: "Explore posts" });
   const card = feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" });
   await expect(card).toBeVisible();
-  // Same cover/body rhythm as Opportunities: 88px cover, 20px header padding,
-  // 21px white body (17px compact mobile), 40px publisher photo and 19px footer spacing.
-  const cover = card.locator(".bw-timeline-opportunity-category");
+  // Brightway.me's actual reference wraps the white compact card in a
+  // 16px-padded gradient category container; it has no full-height cover.
+  const heading = card.locator(".bw-timeline-opportunity-category");
   const body = card.locator(".bw-challenge-card");
-  const cardRhythm = await cover.evaluate(element => {
+  const shell = await card.evaluate(element => {
     const style = getComputedStyle(element);
-    return { minHeight: style.minHeight, paddingTop: style.paddingTop, display: style.display };
+    return { padding: style.paddingTop, background: style.backgroundImage };
   });
-  expect(cardRhythm.minHeight).toBe("88px");
-  expect(cardRhythm.paddingTop).toBe("20px");
-  const padding = await body.evaluate(element => getComputedStyle(element).paddingTop);
-  expect(padding).toBe(isMobile ? "17px" : "21px");
-  const avatarWidth = await card.locator(".bw-challenge-organization-avatar").evaluate(element => element.getBoundingClientRect().width);
-  expect(avatarWidth).toBe(40);
-  const dividerMargin = await card.locator(".bw-challenge-divider").evaluate(element => getComputedStyle(element).marginTop);
-  expect(dividerMargin).toBe("19px");
-  const actionPadding = await card.locator(".bw-challenge-actions").evaluate(element => getComputedStyle(element).paddingTop);
-  expect(actionPadding).toBe("16px");
+  expect(shell.padding).toBe(isMobile ? "12px" : "16px");
+  expect(shell.background).toContain("linear-gradient");
+  await expect(body).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  expect(await body.evaluate(element => getComputedStyle(element).paddingTop))
+    .toBe(isMobile ? "12px" : "16px");
+  expect(await heading.evaluate(element => getComputedStyle(element).minHeight)).toBe("0px");
+  const avatarWidth = await card.locator(".bw-challenge-organization-avatar")
+    .evaluate(element => element.getBoundingClientRect().width);
+  expect(avatarWidth).toBe(isMobile ? 40 : 45);
+  const dividerMargin = await card.locator(".bw-challenge-divider")
+    .evaluate(element => getComputedStyle(element).marginTop);
+  expect(dividerMargin).toBe("16px");
   const title = card.getByRole("heading", { name: opportunity.title });
   const organizer = card.locator(".bw-challenge-organization");
   const deadline = card.locator(".bw-challenge-deadline");

@@ -61,23 +61,21 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
   }
 
   return <div className="bw-timeline-opportunity-card bw-challenge-card">
-    <h3 className="bw-challenge-title"><Link to={detail}>{opportunity.title}</Link></h3>
-
     <div className="bw-challenge-overview">
+      <Link className="bw-challenge-organization-avatar" to={profile} aria-label={"View " + organization.name + " profile"}>
+        <OrganizationAvatar organization={{ ...organization, photoUrl }} icon="briefcase" />
+      </Link>
       <div className="bw-challenge-primary">
+        <h3 className="bw-challenge-title"><Link to={detail}>{opportunity.title}</Link></h3>
         <div className="bw-challenge-organization">
-          <Link className="bw-challenge-organization-avatar" to={profile} aria-label={"View " + organization.name + " profile"}>
-            <OrganizationAvatar organization={{ ...organization, photoUrl }} icon="briefcase" />
-          </Link>
           <span className="bw-challenge-organization-name">
             <Link to={profile}>{organization.name}</Link>
             {Boolean(organization.verifiedAt) && <VerificationBadge kind="organization" />}
           </span>
         </div>
-        <p className="bw-challenge-deadline"><NavigationIcon name="calendar" size={17} /> <span>Deadline: <strong>{formattedDeadline}</strong></span></p>
+        <p className="bw-challenge-deadline">Deadline: {formattedDeadline}</p>
       </div>
       <div className="bw-challenge-prize" aria-label="Challenge prize and participation mode">
-        <span className="bw-challenge-prize-label">Prize</span>
         <strong>{opportunity.prize?.trim() || "Not listed"}</strong>
         <span className="bw-challenge-mode">{mode}</span>
       </div>
