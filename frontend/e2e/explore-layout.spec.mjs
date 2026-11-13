@@ -43,6 +43,9 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
       const match = [...publishedPosts, ...posts].find(item => item.id === id);
       return match ? reply({ post: match }) : route.fulfill({ status: 404, json: { success: false, message: "Post unavailable." } });
     }
+    if (request.method() === "GET" && /^\/api\/v1\/explore\/posts\/(member|organization)\/[^/]+\/comments$/.test(url.pathname)) {
+      return reply({ items: [], nextCursor: null });
+    }
     switch (url.pathname) {
       case "/api/v1/auth/me": return reply({ account });
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
@@ -1376,7 +1379,7 @@ test("member composer uploads a PDF and binds its ID to the published post", asy
   })]);
 });
 
-test("post photo galleries open an accessible viewer and keep mobile images edge to edge", async ({ page, isMobile }) => {
+test("a published photo opens its post once and preserves the discussion while paging", async ({ page, isMobile }, testInfo) => {
   const media = Array.from({ length: 4 }, (_, index) => ({
     id: "gallery-photo-" + index, kind: "IMAGE", name: "community-" + index + ".webp", size: 100,
   }));
@@ -1390,26 +1393,65 @@ test("post photo galleries open an accessible viewer and keep mobile images edge
   await trigger.click();
   const postViewer = page.getByRole("dialog", { name: "Post viewer" });
   await expect(postViewer).toBeVisible();
-  const photoTrigger = postViewer.getByRole("button", { name: "Open photo 2 of 4: community-1.webp" });
-  await photoTrigger.click();
-  const viewer = page.getByRole("dialog", { name: "Photo viewer" });
-  await expect(viewer.getByText("2 of 4")).toBeVisible();
-  await expect(viewer.getByRole("button", { name: "Close photo viewer" })).toBeFocused();
+  const photos = postViewer.getByRole("group", { name: "Photos in this post" });
+  const previous = photos.getByRole("button", { name: "Previous photo" });
+  const next = photos.getByRole("button", { name: "Next photo" });
+  const draft = postViewer.getByRole("textbox", { name: "Write a comment" });
+  await expect(photos.getByRole("img", { name: media[1].name })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp("post=" + fixturePost.id + ".*photo=2"));
+  await expect(postViewer.getByRole("link", { name: "Maya Cole", exact: true })).toBeVisible();
+  await expect(postViewer.getByText(fixturePost.body)).toBeVisible();
+  await expect(page.locator("dialog[open]")).toHaveCount(1);
+  await draft.fill("My draft stays with this post.");
+  await previous.click();
+  await expect(photos.getByRole("img", { name: media[0].name })).toBeVisible();
+  await expect(previous).toBeDisabled();
+  await expect(draft).toHaveValue("My draft stays with this post.");
+  await expect(postViewer.getByRole("button", { name: "Share", exact: true })).toBeVisible();
+
+  // Left/right changes photos. Typing or moving the caret in a comment does not.
+  await next.focus();
   await page.keyboard.press("ArrowRight");
-  await expect(viewer.getByText("3 of 4")).toBeVisible();
-  await viewer.getByRole("button", { name: "View photo 4" }).click();
-  await expect(viewer.getByRole("button", { name: "Next photo" })).toBeDisabled();
-  await viewer.getByRole("button", { name: "Zoom in" }).click();
-  await expect(viewer.getByRole("button", { name: "Zoom out" })).toHaveAttribute("aria-pressed", "true");
-  // Native modal focus must stay inside the viewer even at the tab boundary.
-  await viewer.getByRole("button", { name: "View photo 4" }).focus();
-  await page.keyboard.press("Tab");
-  expect(await viewer.evaluate(element => element.contains(document.activeElement))).toBe(true);
+  await expect(photos.getByRole("img", { name: media[1].name })).toBeVisible();
+  await draft.press("ArrowRight");
+  await expect(photos.getByRole("img", { name: media[1].name })).toBeVisible();
+  if (isMobile) {
+    await photos.locator("img").evaluate(element => {
+      const from = new Touch({identifier: 1, target: element, clientX: 265, clientY: 160});
+      const to = new Touch({identifier: 1, target: element, clientX: 85, clientY: 161});
+      element.dispatchEvent(new TouchEvent("touchstart", {bubbles: true, touches: [from], changedTouches: [from]}));
+      element.dispatchEvent(new TouchEvent("touchend", {bubbles: true, touches: [], changedTouches: [to]}));
+    });
+  } else {
+    const photoRect = await photos.boundingBox();
+    const authorRect = await postViewer.locator(".bw-immersive-post-author").boundingBox();
+    const commentRect = await draft.boundingBox();
+    expect(photoRect.x + photoRect.width).toBeLessThanOrEqual(authorRect.x + 1);
+    expect(commentRect.y).toBeGreaterThan(authorRect.y);
+    await next.click();
+  }
+  await expect(photos.getByRole("img", { name: media[2].name })).toBeVisible();
+  await next.click();
+  await expect(next).toBeDisabled();
+  await expect(draft).toHaveValue("My draft stays with this post.");
+  const bounds = await previous.boundingBox();
+  expect(Math.min(bounds.width, bounds.height)).toBeGreaterThanOrEqual(44);
+  await photos.getByRole("button", {name: "Zoom in"}).click();
+  await expect(photos.getByRole("button", {name: "Zoom out"})).toHaveAttribute("aria-pressed","true");
+  await expect(page.locator("dialog[open]")).toHaveCount(1);
+  await photos.getByRole("button", {name: "Zoom out"}).click();
+  await testInfo.attach(isMobile ? "Mobile post and photos" : "Desktop post and photos", {
+    body: await page.screenshot(), contentType: "image/png"
+  });
+  await page.goBack();
+  await expect(postViewer).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(page).toHaveURL(/\/explore$/);
+  await page.goForward();
+  await expect(photos.getByRole("img", { name: media[3].name })).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(viewer).toHaveCount(0);
-  await expect(photoTrigger).toBeFocused();
-  await postViewer.getByRole("button", { name: "Close post viewer" }).click();
-  await expect(page.getByRole("article").first()).toBeFocused();
+  await expect(postViewer).toHaveCount(0);
+  await expect(page).toHaveURL(/\/explore$/);
   if (isMobile) {
     const bounds = await gallery.boundingBox();
     expect(Math.abs(bounds.x)).toBeLessThanOrEqual(1);

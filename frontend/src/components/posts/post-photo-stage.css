@@ -1,0 +1,25 @@
+.bw-post-photo-stage {
+  position: relative; isolation: isolate; width: 100%; height: 100%; min-height: 0;
+  overflow: hidden; background: white;
+}
+.bw-post-photo-viewport { position: absolute; inset: 0; overflow: hidden; touch-action: pinch-zoom; }
+.bw-post-photo-viewport > img { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; }
+.bw-post-photo-viewport[data-zoomed="true"] { overflow: auto; touch-action: pan-x pan-y pinch-zoom; overscroll-behavior: contain; }
+.bw-post-photo-viewport[data-zoomed="true"] > img { width: 200%; height: 200%; max-width: none; max-height: none; }
+.bw-post-photo-status { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; color: #555; font-size: 14px; }
+.bw-post-photo-status > button { min-height: 44px; padding: 0 16px; background: white; border: 1px solid #bbb; border-radius: 24px; cursor: pointer; }
+.bw-post-viewer .bw-post-photo-stage > button {
+  position: absolute; display: grid; place-items: center; width: 44px; height: 44px;
+  padding: 0; border: 0; border-radius: 50%; background: rgb(25 25 25 / 82%); color: white; cursor: pointer;
+}
+.bw-post-viewer .bw-post-photo-stage > button:disabled { opacity: .35; cursor: default; }
+.bw-post-viewer .bw-post-photo-stage > button:hover:enabled { background: #151515; }
+.bw-post-photo-prev, .bw-post-photo-next { top: 50%; transform: translateY(-50%); }
+.bw-post-photo-prev { left: 12px; }
+.bw-post-photo-next { right: 12px; }
+.bw-post-photo-zoom { inset: 12px auto auto 12px; }
+.bw-post-photo-position {
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  padding: 3px 9px; border-radius: 14px; background: rgb(25 25 25 / 78%); color: white;
+  font-size: 12px; line-height: 1.6; font-variant-numeric: tabular-nums; pointer-events: none;
+}
