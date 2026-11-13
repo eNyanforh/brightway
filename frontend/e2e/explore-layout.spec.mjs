@@ -35,6 +35,7 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
     const url = new URL(request.url());
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();
+    if (/^\/api\/v1\/organizations\/[^/]+\/photo\/[^/]+$/.test(url.pathname)) return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9ySN6FcAAAAASUVORK5CYII=", "base64") });
     const reply = (data, status = 200) => route.fulfill({ status, json: { success: true, data } });
     if (/^\/api\/v1\/explore\/posts\/(member|organization)\/[^/]+\/view$/.test(url.pathname)) return reply({ views: 1 });
     // Shared links read one server-authorized post rather than assuming it is in the first feed page.
@@ -1707,6 +1708,7 @@ test("published opportunities join the main Explore feed and remain separate fro
   const card = feed.getByRole("article", { name: "Job opportunity: Research assistant opportunity" });
   await expect(card).toBeVisible();
   await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
+  await expect(card.getByRole("img", { name: "Community Research Institute profile picture" })).toHaveAttribute("src", /\/api\/v1\/organizations\//);
   await expect(card.getByRole("link", { name: "Community Research Institute" })).toHaveAttribute("href", "/organizations/" + organizationId);
   await expect(card.getByRole("link", { name: "Research assistant opportunity" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
   await expect(card.getByRole("link", { name: "Apply on BrightWay" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
