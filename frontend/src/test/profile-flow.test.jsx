@@ -830,12 +830,12 @@ it("closes expanded navigation after a destination is chosen", async () => {
   expect(network.getAttribute("aria-current")).toBe("page");
 });
 
-it("provides four mobile destinations and a floating Post shortcut without another profile read", async () => {
+it("provides five mobile destinations and a floating Post shortcut without another profile read", async () => {
   const fetchMock = mount();
   await ready();
   const navigation = screen.getByRole("navigation", { name: "Mobile navigation" });
   expect([...navigation.children].map((item) => item.textContent)).toEqual([
-    "Explore", "Opportunities", "Network", "Learning", "Post",
+    "Explore", "Opportunities", "Network", "Learning", "Notifications", "Post",
   ]);
   const floatingPost = within(navigation).getByRole("link", { name: "Create Post" });
   expect(floatingPost.getAttribute("href")).toBe("/explore?compose=post");

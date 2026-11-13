@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 
@@ -20,11 +21,13 @@ export default function HeaderProfileMenu({
   const { pathname, search } = useLocation();
 
   const [open, setOpen] = useState(false);
+  const [mobile, setMobile] = useState(() => window.matchMedia?.("(max-width: 700px)").matches || false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const wrapper = useRef(null);
   const trigger = useRef(null);
+  const panelRef = useRef(null);
   const firstAction = useRef(null);
   const mutation = useRef(false);
 
@@ -54,12 +57,34 @@ export default function HeaderProfileMenu({
   const activeContext = orgId ? orgContext || verifiedOrganization : campusContext || null;
 
   useEffect(() => {
-    if (!open) return;
+    const query = window.matchMedia?.("(max-width: 700px)");
+    const update = () => setMobile(query.matches);
+    query?.addEventListener?.("change", update);
+    return () => query?.removeEventListener?.("change", update);
+  }, []);
 
+  function dismiss() {
+    if (mobile) panelRef.current?.close();
+    setOpen(false);
+    queueMicrotask(() => trigger.current?.focus({ preventScroll: true }));
+  }
+
+  function renderPanel(element) {
+    return mobile ? createPortal(element, document.body) : element;
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const panel = panelRef.current;
+    const previousOverflow = document.body.style.overflow;
+    if (mobile) {
+      panel.showModal();
+      document.body.style.overflow = "hidden";
+    }
     firstAction.current?.focus();
 
     const outside = (event) => {
-      if (!wrapper.current?.contains(event.target)) {
+      if (!wrapper.current?.contains(event.target) && !panel?.contains(event.target)) {
         setOpen(false);
       }
     };
@@ -67,8 +92,9 @@ export default function HeaderProfileMenu({
     const escape = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        if (mobile) panel.close();
         setOpen(false);
-        trigger.current?.focus();
+        queueMicrotask(() => trigger.current?.focus({ preventScroll: true }));
       }
     };
 
@@ -76,10 +102,11 @@ export default function HeaderProfileMenu({
     document.addEventListener("keydown", escape);
 
     return () => {
+      if (mobile) { panel.close(); document.body.style.overflow = previousOverflow; }
       document.removeEventListener("pointerdown", outside);
       document.removeEventListener("keydown", escape);
     };
-  }, [open]);
+  }, [open, mobile]);
 
   async function signOut() {
     if (profileBusy || mutation.current) return;
@@ -113,9 +140,13 @@ export default function HeaderProfileMenu({
 
   return (
     <Wrapper
+      className="bw-header-profile"
       ref={wrapper}
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
+        // Native modal focus changes also bubble through the portal. Only the
+        // desktop popover should dismiss when focus leaves its wrapper.
+        if (mobile) return;
+        if (!event.currentTarget.contains(event.relatedTarget) && !panelRef.current?.contains(event.relatedTarget)) {
           setOpen(false);
         }
       }}
@@ -125,6 +156,7 @@ export default function HeaderProfileMenu({
         type="button"
         aria-label="Open account menu"
         aria-expanded={open}
+        aria-haspopup={mobile ? "dialog" : undefined}
         aria-controls={panelId}
         onClick={() => { if (!open) refreshContexts(); setOpen((value) => !value); }}
       >
@@ -139,8 +171,22 @@ export default function HeaderProfileMenu({
           : <ProfilePicture key={photoId || "personal"} id={photoId} name={name} decorative />}
       </Trigger>
 
-      {open && (
-        <Panel id={panelId} aria-label="Account menu">
+      {open && renderPanel(
+        <Panel ref={panelRef} as={mobile ? "dialog" : "div"} id={panelId} aria-label="Account menu"
+          onCancel={event => { event.preventDefault(); dismiss(); }}
+          onKeyDown={event => {
+            if (!mobile || event.key !== "Tab") return;
+            const targets = [...event.currentTarget.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), [tabindex="0"]')]
+              .filter(element => element.getClientRects().length > 0);
+            if (!event.shiftKey && document.activeElement === targets.at(-1)) { event.preventDefault(); targets[0]?.focus(); }
+            if (event.shiftKey && document.activeElement === targets[0]) { event.preventDefault(); targets.at(-1)?.focus(); }
+          }}
+          onClick={event => {
+            if (!mobile || event.target !== event.currentTarget) return;
+            const rect = event.currentTarget.getBoundingClientRect();
+            if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dismiss();
+          }}>
+          {mobile && <div className="bw-account-drawer-header"><strong>BrightWay</strong><button type="button" aria-label="Close account menu" onClick={dismiss}>×</button></div>}
           <Identity>
             <strong>{name}</strong>
             <span>@{account.username}</span>
@@ -296,10 +342,26 @@ const Panel = styled.div`
   color: #000;
 
   @media (max-width: 700px) {
-    width: min(280px, calc(100vw - 24px));
-    max-height: calc(
-      100dvh - 150px - env(safe-area-inset-bottom, 0px)
-    );
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(360px, 88vw);
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(24px, env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 0;
+    box-shadow: 12px 0 48px #0003;
+    &::backdrop { background: #0007; }
+    .bw-account-drawer-header { display:flex; align-items:center; justify-content:space-between; padding:0 4px 12px 12px; }
+    .bw-account-drawer-header strong { font-size:20px; letter-spacing:-.6px; color:#000; }
+    .bw-account-drawer-header button { width:44px; height:44px; border:0; border-radius:50%; background:transparent; color:#444; font-size:28px; cursor:pointer; }
+    .bw-context-chooser { padding-block:12px; }
+    .bw-context-choice { min-height:56px; }
+    .bw-context-choice-label strong { font-size:14px; }
+    .bw-context-choice-label small { font-size:12px; color:#666; }
+    .bw-context-feedback { font-size:12px; color:#666; }
   }
 `;
 
@@ -323,6 +385,7 @@ const Identity = styled.div`
     font-size: 11px;
     color: #000;
   }
+  @media (max-width:700px) { padding-block:16px; strong { font-size:20px; } span { font-size:13px; color:#666; } }
 `;
 
 const Action = styled.button`
@@ -349,6 +412,7 @@ const Action = styled.button`
     opacity: 0.5;
     cursor: not-allowed;
   }
+  @media (max-width:700px) { min-height:48px; font-size:15px; border-radius:4px; }
 `;
 
 const MobileOrganization = styled.section`

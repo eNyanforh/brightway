@@ -312,3 +312,24 @@
   .bw-design-search-wrap--mobile-open .bw-design-search input { font-size: 13px; }
   .bw-design-search-wrap--mobile-open .bw-design-search button[type="submit"] { font-size: 12px; }
 }
+
+/* The personal mobile shell puts identity, search and messaging in one row. */
+@media (max-width: 700px) {
+  .bw-design-header--personal { border-color:#deddda; padding-top:env(safe-area-inset-top, 0px); }
+  .bw-design-header--personal .bw-design-header-inner { flex-wrap:nowrap; gap:10px; min-height:60px; padding:8px 12px; }
+  .bw-design-header--personal .bw-design-brand { display:none; }
+  .bw-design-header--personal .bw-design-account { display:contents; }
+  .bw-design-header--personal .bw-header-profile { order:-1; flex:0 0 auto; }
+  .bw-design-header--personal .bw-header-profile > button { min-height:44px; min-width:44px; }
+  .bw-design-header--personal .bw-design-search-wrap { display:block; order:0; flex:1 1 0; width:auto; max-width:none; margin:0; }
+  .bw-design-header--personal .bw-design-search { display:flex; height:38px; gap:8px; padding:0 10px; border-radius:4px; background:#edf1f3; color:#555; }
+  .bw-design-header--personal .bw-design-search input { padding:8px 0; font-size:16px; line-height:1.3; }
+  .bw-design-header--personal .bw-design-search input::placeholder { color:#666; }
+  .bw-design-header--personal .bw-design-search button[type="submit"] { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); }
+  .bw-design-header--personal .bw-design-search button[type="submit"]:focus-visible { position:fixed; top:64px; right:12px; width:auto; height:44px; padding:10px 16px; clip-path:none; background:#fff; border:1px solid #aaa; }
+  .bw-design-header--personal .bw-design-utility { display:none; }
+  .bw-design-header--personal .bw-design-messages { display:inline-flex; order:1; width:44px; height:44px; padding:9px; color:#444; }
+  .bw-design-header--personal .bw-design-messages svg { width:25px; height:25px; }
+  .bw-design-header--personal .bw-header-search-suggestions { position:fixed; top:calc(60px + env(safe-area-inset-top, 0px)); left:8px; right:8px; border-color:#ddd; border-radius:0 0 8px 8px; max-height:60dvh; }
+  .bw-design-header--personal .bw-header-search-suggestions a { min-height:48px; font-size:14px; }
+}

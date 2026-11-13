@@ -1472,3 +1472,60 @@ test("mixed photo collages anchor every preview at the top and follow the first 
     expect(await gallery.evaluate(element => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
   }
 });
+
+test("mobile shell keeps search in one row and opens a contained account drawer", async ({ page, isMobile }, testInfo) => {
+  test.skip(!isMobile, "Mobile shell geometry and native drawer interaction.");
+  await fixture(page);
+  await page.goto("/explore");
+  const header = page.locator(".bw-design-header");
+  const accountButton = header.getByRole("button", { name: "Open account menu" });
+  const search = header.getByRole("searchbox", { name: "Search BrightWay content and people" });
+  const messages = header.getByRole("link", { name: "Messages", exact: true });
+  for (const width of [320, 390, 700]) {
+    await page.setViewportSize({ width, height: 844 });
+    const [avatar, field, message, bar] = await Promise.all([
+      accountButton.boundingBox(), search.boundingBox(), messages.boundingBox(), header.boundingBox(),
+    ]);
+    expect(avatar.x + avatar.width).toBeLessThan(field.x);
+    expect(field.x + field.width).toBeLessThan(message.x);
+    expect(Math.abs(avatar.y + avatar.height / 2 - (field.y + field.height / 2))).toBeLessThan(2);
+    expect(bar.height).toBeLessThanOrEqual(64);
+    expect(await search.evaluate(element => getComputedStyle(element).fontSize)).toBe("16px");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  const post = page.locator(".bw-timeline-post").first();
+  const caption = post.locator(".bw-post-caption");
+  const [cardBox, textBox] = await Promise.all([post.boundingBox(), caption.boundingBox()]);
+  expect(textBox.x - cardBox.x).toBeLessThanOrEqual(13);
+  expect(cardBox.width - textBox.width).toBeLessThanOrEqual(25);
+  const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
+  await expect(navigation.getByRole("link", { name: "Notifications", exact: true })).toHaveAttribute("href", "/notifications");
+  await expect(header.getByRole("link", { name: "Notifications", exact: true })).toBeHidden();
+  expect(await navigation.getByRole("link", { name: "Explore", exact: true }).evaluate(element => getComputedStyle(element).color)).toBe("rgb(25, 25, 25)");
+  await accountButton.click();
+  const drawer = page.getByRole("dialog", { name: "Account menu", exact: true });
+  await expect(drawer).toBeVisible();
+  expect(await drawer.evaluate(element => element.matches(":modal"))).toBe(true);
+  expect(await page.locator("body").evaluate(element => element.style.overflow)).toBe("hidden");
+  await testInfo.attach("Mobile account drawer", { body: await page.screenshot(), contentType: "image/png" });
+  for (let index = 0; index < 12; index++) {
+    await page.keyboard.press("Tab");
+    expect(await drawer.evaluate(element => element.contains(document.activeElement))).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(drawer).toHaveCount(0);
+  await expect(accountButton).toBeFocused();
+  expect(await page.locator("body").evaluate(element => element.style.overflow)).toBe("");
+  await accountButton.click();
+  await page.getByRole("dialog", { name: "Account menu", exact: true }).getByRole("button", { name: "Close account menu" }).click();
+  await expect(accountButton).toBeFocused();
+  await page.getByRole("link", { name: "Create Post" }).click();
+  const chooser = page.getByRole("dialog", { name: "Create a post", exact: true });
+  const sheet = await chooser.boundingBox();
+  expect(sheet.x).toBe(0);
+  expect(sheet.width).toBe(390);
+  expect(Math.round(sheet.y + sheet.height)).toBe(844);
+  await chooser.getByRole("button", { name: "Close post choices" }).click();
+  await testInfo.attach("Mobile feed refresh", { body: await page.screenshot(), contentType: "image/png" });
+});

@@ -7,7 +7,7 @@ const account = { id, username: "synthetic", person: { firstName: "Synthetic", l
 const person = { kind: "people", name: "Maya Cole", username: "maya", headline: "Student designer", verified: true, href: "/maya" };
 const organization = { kind: "organizations", name: "Maya Learning Centre", username: "maya_learning", verified: true, href: "/organizations/" + id };
 
-test("the personal header opens directory search and filters results on desktop and mobile", async ({ page, isMobile }) => {
+test("the personal header opens directory search and filters results on desktop and mobile", async ({ page }) => {
   const searches = [];
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -38,10 +38,6 @@ test("the personal header opens directory search and filters results on desktop 
     }
   });
   await page.goto("/explore");
-  if (isMobile) {
-    await page.getByRole("link", { name: "Search BrightWay" }).click();
-    await expect(page.getByRole("searchbox", { name: "Search BrightWay content and people" })).toBeVisible();
-  }
   const field = page.getByRole("searchbox", { name: "Search BrightWay content and people" });
   await field.fill("maya");
   expect(searches).toEqual([]);

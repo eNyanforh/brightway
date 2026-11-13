@@ -36,8 +36,7 @@ async function stub(page) {
   return { calls, errors };
 }
 
-test("header search provides live matches and an accessible all-results link on desktop", async ({ page, isMobile }) => {
-  test.skip(isMobile, "The mobile header opens the results page before entering a query.");
+test("header search provides live matches and an accessible all-results link on desktop and mobile", async ({ page }) => {
   const { calls, errors } = await stub(page);
   await page.goto("/explore");
   const field = page.getByRole("searchbox", { name: "Search BrightWay content and people" });
@@ -52,10 +51,9 @@ test("header search provides live matches and an accessible all-results link on 
   expect(errors).toEqual([]);
 });
 
-test("Search updates the URL while typing in its only header input on desktop and mobile", async ({ page, isMobile }) => {
+test("Search updates the URL while typing in its only header input on desktop and mobile", async ({ page }) => {
   const { calls, errors } = await stub(page);
-  await page.goto(isMobile ? "/explore" : "/search");
-  if (isMobile) await page.getByRole("link", { name: "Search BrightWay" }).click();
+  await page.goto("/search");
   const field = page.getByRole("searchbox", { name: "Search BrightWay content and people" });
   await expect(field).toBeVisible();
   await field.fill("software engineer");
