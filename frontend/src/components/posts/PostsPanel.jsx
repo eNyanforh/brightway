@@ -932,7 +932,13 @@ export default function PostsPanel({ organization, personal = false, view = "for
               view === "following" ? "Posts and opportunities from people and organizations you follow will appear here." : "Posts and opportunities from verified people and organizations will appear here."}</p>
       )}
       {feedEntries.map(entry => entry.kind === "opportunity"
-        ? <ExploreOpportunityCard key={entry.key} opportunity={entry.item} />
+        ? <ExploreOpportunityCard key={entry.key} opportunity={entry.item}
+          onSavedChange={(id, saved) => setOpportunityPage(previous => previous ? {
+            ...previous,
+            items: view === "saved" && !saved
+              ? previous.items.filter(item => item.id !== id)
+              : previous.items.map(item => item.id === id ? { ...item, saved } : item),
+          } : previous)} />
         : <PostCard key={entry.key} post={entry.item} timeline={timeline}
           canManage={Boolean(organization || personal || (entry.item.member && entry.item.member.username === composerAccount?.username))}
           canManageEvent={Boolean(entry.item.member && (personal || entry.item.member.username === composerAccount?.username))}
