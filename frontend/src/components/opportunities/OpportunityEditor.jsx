@@ -15,7 +15,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     e.preventDefault(); if (lock.current) return; lock.current = true; setBusy(true); setError(null);
     const controller = new AbortController(); request.current = controller;
     try {
-      const body = { ...draft, deadline: new Date(draft.deadline).toISOString() };
+      const body = { ...draft, prize: draft.type === "CHALLENGE" ? (draft.prize || "") : "", deadline: new Date(draft.deadline).toISOString() };
       const result = opportunity ? await api.edit(organizationId, opportunity.id, { ...body, expectedVersion: opportunity.version }, controller.signal)
         : await api.create(organizationId, { ...body, requestKey: requestKey.current }, controller.signal);
       if (!controller.signal.aborted) onSaved(result);
