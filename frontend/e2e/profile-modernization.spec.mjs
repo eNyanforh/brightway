@@ -250,8 +250,9 @@ test("my profile has three responsive tabs below the private dashboard on deskto
   await expect(rail.getByLabel("28 views")).toBeVisible();
   await expect(rail.getByLabel("2 comments")).toBeVisible();
   await expect(rail.getByText("6 people attending")).toBeVisible();
-  await expect(activity.getByRole("link", { name: /View full post/ }).first())
-    .toHaveAttribute("href", "/explore?source=member&post=11111111-1111-4111-8111-111111111111");
+  await expect(activity.getByRole("link", { name: /View full post/ })).toHaveCount(0);
+  await expect(rail.getByRole("article").first()).toHaveAttribute("aria-haspopup", "dialog");
+  await expect(rail.getByRole("article").first()).toHaveAttribute("tabindex", "0");
   const feedLayout = await rail.evaluate(element => {
     const cards = [...element.querySelectorAll(".bw-profile-activity-item")];
     const first = cards[0].getBoundingClientRect();
@@ -650,7 +651,8 @@ test("public member routes use root handles, keep private contacts hidden and sh
   const rail = page.getByRole("region", { name: "Member posts" });
   await expect(rail.locator(".bw-profile-activity-item .bw-timeline-post")).toHaveCount(3);
   await expect(rail.getByLabel("28 views")).toHaveCount(3);
-  await expect(rail.getByRole("link", { name: /View full post/ })).toHaveCount(3);
+  await expect(rail.getByRole("link", { name: /View full post/ })).toHaveCount(0);
+  await expect(rail.locator("article[aria-haspopup=dialog]")).toHaveCount(3);
   await expect(rail.getByRole("button", { name: "Post options" })).toHaveCount(3);
   const publicPost = rail.locator(".bw-timeline-post").first();
   await publicPost.getByRole("button", { name: "Post options" }).click();

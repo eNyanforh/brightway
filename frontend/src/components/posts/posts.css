@@ -2069,7 +2069,6 @@
   .bw-achievement-modal-dialog input,.bw-achievement-modal-dialog textarea,.bw-event-modal-dialog input,.bw-event-modal-dialog textarea,.bw-question-dialog input,.bw-question-dialog textarea { font-size:16px; }
 }
 
-/* Distribution topics are metadata beneath the story, not prominent post content. */
 /* Mobile: actionable controls lead on the left; real engagement avatars sit on the right. */
 @media (max-width: 700px) {
   .bw-timeline-refresh { display: none; }
