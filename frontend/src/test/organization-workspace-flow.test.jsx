@@ -159,7 +159,7 @@ it("Explore separates recent posts from posts by organizations the viewer follow
   const following = screen.getByRole("button", { name: "Following", exact: true });
   await f.user.click(following);
   expect(following.getAttribute("aria-pressed")).toBe("true");
-  await screen.findByText("Posts from people and organizations you follow will appear here.");
+  await screen.findByText("Posts and opportunities from people and organizations you follow will appear here.");
   expect(screen.queryByText(body)).toBeNull();
 });
 
@@ -186,12 +186,15 @@ it("Explore updates likes in place and removes only the post that becomes unavai
   const cards = await screen.findAllByRole("article");
   const organizationLike = within(cards[0]).getByRole("button", { name: "Like", pressed: false });
   const memberLike = within(cards[1]).getByRole("button", { name: "Like", pressed: false });
+  await waitFor(() => expect(organizationLike.disabled).toBe(false));
   await f.user.click(organizationLike);
   await within(cards[0]).findByText("1 like");
   expect(organizationLike.getAttribute("aria-pressed")).toBe("true");
   expect(memberLike.getAttribute("aria-pressed")).toBe("false");
+  await waitFor(() => expect(organizationLike.disabled).toBe(false));
   await f.user.click(organizationLike);
   await waitFor(() => expect(organizationLike.getAttribute("aria-pressed")).toBe("false"));
+  await waitFor(() => expect(memberLike.disabled).toBe(false));
   await f.user.click(memberLike);
   await screen.findByText("This post is no longer available.");
   expect(screen.queryByText("A member update.")).toBeNull();
