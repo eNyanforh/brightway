@@ -72,3 +72,18 @@ it("navigates only within loaded posts, respects text entry and restores the ope
   expect(document.activeElement).toBe(opener);
   opener.remove();
 });
+
+
+it("pauses background feed videos without interrupting the active viewer video", () => {
+  const paused = [];
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(function () { paused.push(this); });
+  const background = document.createElement("div");
+  background.className = "bw-post-panel";
+  const feedVideo = document.createElement("video");
+  background.appendChild(feedVideo); document.body.appendChild(background);
+  const rendered = render(<PostViewer posts={[post]} post={post} onClose={() => {}} onNavigate={() => {}}
+    renderPost={() => <article className="bw-post-panel"><video aria-label="Active video" /></article>} />);
+  expect(paused).toEqual([feedVideo]);
+  expect(paused).not.toContain(screen.getByLabelText("Active video"));
+  rendered.unmount(); background.remove();
+});

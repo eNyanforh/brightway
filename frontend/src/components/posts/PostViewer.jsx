@@ -25,7 +25,9 @@ export default function PostViewer({ posts = [], post, loading = false, onClose,
     const element = dialog.current;
     const opener = document.activeElement;
     const overflow = document.body.style.overflow;
-    document.querySelectorAll(".bw-post-panel video").forEach(video => video.pause());
+    document.querySelectorAll(".bw-post-panel video").forEach(video => {
+      if (!element.contains(video)) video.pause();
+    });
     document.body.style.overflow = "hidden";
     element.showModal();
     closeButton.current?.focus();
