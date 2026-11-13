@@ -1798,7 +1798,7 @@ test("desktop avatar menu uses a large circular hover target", async ({ page, is
   await expect(menu).toHaveCSS("border-radius", "50%");
 });
 
-test("Challenge Explore card prioritizes title, verified organizer, deadline, prize and mode, with working save", async ({ page }) => {
+test("Challenge Explore card prioritizes title, verified organizer, deadline, prize and mode, with working save", async ({ page, isMobile }) => {
   const opportunityId = "77777777-7777-4777-8777-777777777777";
   const organizationId = "55555555-5555-4555-8555-555555555555";
   const opportunity = {
@@ -1817,6 +1817,24 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   const feed = page.getByRole("region", { name: "Explore posts" });
   const card = feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" });
   await expect(card).toBeVisible();
+  // Same cover/body rhythm as Opportunities: 88px cover, 20px header padding,
+  // 21px white body (17px compact mobile), 40px publisher photo and 19px footer spacing.
+  const cover = card.locator(".bw-timeline-opportunity-category");
+  const body = card.locator(".bw-challenge-card");
+  const cardRhythm = await cover.evaluate(element => {
+    const style = getComputedStyle(element);
+    return { minHeight: style.minHeight, paddingTop: style.paddingTop, display: style.display };
+  });
+  expect(cardRhythm.minHeight).toBe("88px");
+  expect(cardRhythm.paddingTop).toBe("20px");
+  const padding = await body.evaluate(element => getComputedStyle(element).paddingTop);
+  expect(padding).toBe(isMobile ? "17px" : "21px");
+  const avatarWidth = await card.locator(".bw-challenge-organization-avatar").evaluate(element => element.getBoundingClientRect().width);
+  expect(avatarWidth).toBe(40);
+  const dividerMargin = await card.locator(".bw-challenge-divider").evaluate(element => getComputedStyle(element).marginTop);
+  expect(dividerMargin).toBe("19px");
+  const actionPadding = await card.locator(".bw-challenge-actions").evaluate(element => getComputedStyle(element).paddingTop);
+  expect(actionPadding).toBe("16px");
   const title = card.getByRole("heading", { name: opportunity.title });
   const organizer = card.locator(".bw-challenge-organization");
   const deadline = card.locator(".bw-challenge-deadline");
@@ -1834,6 +1852,11 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   expect(prizeBounds.x).toBeGreaterThan(organizerBounds.x);
   await expect(card.locator(".bw-challenge-divider")).toHaveCount(1);
   await expect(card.getByRole("link", { name: "Participate on BrightWay" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  const [participateBounds, actionsBounds] = await Promise.all([
+    card.getByRole("link", { name: "Participate on BrightWay" }).boundingBox(),
+    card.locator(".bw-challenge-secondary").boundingBox(),
+  ]);
+  expect(participateBounds.x + participateBounds.width).toBeLessThanOrEqual(actionsBounds.x + 1);
   await expect(card.getByRole("button", { name: "Share challenge" })).toBeVisible();
   await expect(card.getByRole("link", { name: "View challenge" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
   const save = card.getByRole("button", { name: "Save challenge" });
