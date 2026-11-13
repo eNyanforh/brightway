@@ -530,7 +530,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const [page, setPage] = useState(null);
   // Opportunity listings are not posts: load their authorized catalog separately,
   // then interleave them visually in Explore without changing post actions/viewers.
-  const showOpportunities = timeline && !personal && !organizationId && view !== "saved";
+  const showOpportunities = timeline && !personal && !organizationId;
   const [opportunityPage, setOpportunityPage] = useState(null);
   const [opportunityError, setOpportunityError] = useState(null);
   const [opportunityLoading, setOpportunityLoading] = useState(false);
@@ -543,6 +543,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     try {
       const data = await opportunitiesApi.browse({
         ...(view === "following" ? { following: "true" } : {}),
+        ...(view === "saved" ? { saved: "true" } : {}),
         ...(cursor ? { cursor } : {}),
       }, controller.signal);
       if (!controller.signal.aborted) {
@@ -927,7 +928,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
       {page && feedEntries.length === 0 && (!showOpportunities || opportunityPage || opportunityError) && (
         <p className="bw-post-empty">{organization ? "Your organization has no published posts yet." :
           personal ? "You have no submissions yet." :
-            view === "saved" ? "Save a post to find it here later." :
+            view === "saved" ? "Save a post or challenge to find it here later." :
               view === "following" ? "Posts and opportunities from people and organizations you follow will appear here." : "Posts and opportunities from verified people and organizations will appear here."}</p>
       )}
       {feedEntries.map(entry => entry.kind === "opportunity"
