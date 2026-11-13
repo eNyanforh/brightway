@@ -136,6 +136,7 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
             ${q.type ? Prisma.sql`AND o."type"::text = ${q.type}` : Prisma.empty}
             ${q.q ? Prisma.sql`AND (o."title" ILIKE ${pattern} OR o."description" ILIKE ${pattern} OR o."location" ILIKE ${pattern} OR org."name" ILIKE ${pattern})` : Prisma.empty}
             ${q.following ? Prisma.sql`AND EXISTS (SELECT 1 FROM "NetworkFollow" f WHERE f."followerId" = ${actor.accountId} AND f."targetOrganizationId" = org."id" AND f."active" = true)` : Prisma.empty}
+            ${q.saved ? Prisma.sql`AND EXISTS (SELECT 1 FROM "OpportunitySave" s WHERE s."accountId" = ${actor.accountId} AND s."opportunityId" = o."id")` : Prisma.empty}
         ) SELECT c.* FROM candidates c
         ${q.cursor ? Prisma.sql`WHERE EXISTS (SELECT 1 FROM candidates a WHERE a."id" = ${q.cursor}
           AND (c.rank, c."createdAt", c."id") < (a.rank, a."createdAt", a."id"))` : Prisma.empty}
