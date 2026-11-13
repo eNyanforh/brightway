@@ -5,6 +5,7 @@ import { expect, it, vi } from "vitest";
 import { AuthContext } from "../auth/auth-context";
 import OpportunityDetailPage from "../pages/OpportunityDetailPage";
 import OpportunitiesPage from "../pages/OpportunitiesPage";
+import OpportunityCard from "../components/opportunities/OpportunityCard";
 import OrganizationApplications from "../components/opportunities/OrganizationApplications";
 import OpportunityEditor from "../components/opportunities/OpportunityEditor";
 import NotificationsPage from "../pages/NotificationsPage";
@@ -27,6 +28,16 @@ it("applicants preserve a false answer and drafts across failures, then explicit
   await screen.findByRole("alert"); expect(question.value).toBe("false"); expect(writes[0]).toMatchObject({ shareProfile: true, expectedVersion: 0, expectedOpportunityVersion: 2, answers: { [qid]: false } });
   fail = false; await user.click(screen.getByRole("button", { name: "Submit application" }));
   await screen.findByRole("heading", { name: "Application timeline" }); expect(screen.queryByRole("button", { name: "Submit application" })).toBeNull();
+});
+it("opportunity publisher shows avatar and name and only a verified badge for approved organizations", () => {
+  const verified = { ...opp, organization: { ...org, profilePhotoId: "published-photo", verifiedAt: "2026-11-01T00:00:00Z" } };
+  const { rerender } = render(<MemoryRouter><OpportunityCard opportunity={verified} /></MemoryRouter>);
+  const photo = screen.getByRole("img", { name: "Research Institute profile picture" });
+  expect(photo.getAttribute("src")).toBe("/api/v1/organizations/" + org.id + "/photo/published-photo");
+  expect(screen.getByRole("link", { name: "Research Institute" }).getAttribute("href")).toBe("/organizations/" + org.id);
+  expect(screen.getByRole("img", { name: "Verified organization" })).toBeTruthy();
+  rerender(<MemoryRouter><OpportunityCard opportunity={{ ...verified, organization: { ...verified.organization, verifiedAt: null } }} /></MemoryRouter>);
+  expect(screen.queryByRole("img", { name: "Verified organization" })).toBeNull();
 });
 it("opportunity discovery exposes four filters and uses live on-platform links", async () => {
   const fetch = vi.fn(() => reply({ items: [opp], nextCursor: null })); vi.stubGlobal("fetch", fetch);

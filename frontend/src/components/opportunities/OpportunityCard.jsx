@@ -1,14 +1,14 @@
 import { Link } from "react-router-dom";
 import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
 import NavigationIcon from "../layout/NavigationIcon";
-import VerificationBadge from "../VerificationBadge";
+import OpportunityOrganization from "./OpportunityOrganization";
 import "./opportunities.css";
 export default function OpportunityCard({ opportunity: o }) {
   const type = OPPORTUNITY_TYPES[o.type];
   return <article className={`bw-op-card bw-op-${o.type.toLowerCase()}`}>
     <div className="bw-op-card-cover"><span><NavigationIcon name={type.icon} size={22} />{type.label}</span><span className="bw-op-card-mode">{o.workMode === "REMOTE" ? "Remote" : o.workMode === "HYBRID" ? "Hybrid" : "In person"}</span></div>
     <div className="bw-op-card-body">
-      <p className="bw-op-provider">{o.organization.name} <VerificationBadge kind="organization" /></p>
+      <OpportunityOrganization organization={o.organization} />
       <h3><Link to={`/opportunities/${o.id}`}>{o.title}</Link></h3>
       <p className="bw-op-location"><NavigationIcon name="pin" size={15} />{o.location}</p>
       <p className="bw-op-preview">{o.description}</p>
