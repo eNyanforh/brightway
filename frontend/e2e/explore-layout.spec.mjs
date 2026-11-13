@@ -1497,7 +1497,7 @@ test("mobile shell keeps search in one row and opens a contained account drawer"
   const accountButton = header.getByRole("button", { name: "Open account menu" });
   await expect(page).toHaveTitle("Brightway - Learn, Network and Earn");
   await expect(accountButton.locator("svg path")).toHaveAttribute("d", "M4 7h16M4 12h16M4 17h16");
-  await expect(accountButton.locator("svg")).toHaveAttribute("width", "24");
+  await expect(accountButton.locator("svg")).toHaveAttribute("width", "30");
   const menuSize = await accountButton.evaluate(element => {
     const rect = element.getBoundingClientRect();
     return { width: rect.width, height: rect.height };
@@ -1781,7 +1781,7 @@ test("desktop avatar menu uses a large circular hover target", async ({ page, is
     return { width: rect.width, height: rect.height };
   });
   expect(dimensions).toEqual({ width: 44, height: 44 });
-  await expect(menu.locator("svg")).toHaveAttribute("width", "24");
+  await expect(menu.locator("svg")).toHaveAttribute("width", "30");
   await menu.hover();
   await expect(menu).toHaveCSS("background-color", "rgb(240, 241, 242)");
   await expect(menu).toHaveCSS("border-radius", "50%");
