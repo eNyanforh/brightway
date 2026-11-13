@@ -877,3 +877,194 @@
   .bw-explore .bw-timeline-opportunity-card .bw-timeline-opportunity-body { padding: .4rem 0 .1rem; }
   .bw-explore .bw-timeline-opportunity-category > span { font-size: .86rem; }
 }
+
+
+/* Challenge-only Explore card. Keep the category gradient and white surface,
+   but make the opportunity itself (not the publisher) the visual starting point. */
+.bw-explore .bw-timeline-opportunity-challenge .bw-challenge-card {
+  display: block;
+  padding: 20px;
+  min-width: 0;
+  color: #111;
+}
+.bw-explore .bw-challenge-title {
+  margin: 0 0 16px;
+  font-size: clamp(1.12rem, 2.1vw, 1.35rem);
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+.bw-explore .bw-challenge-title a { color: #111; text-decoration: none; }
+.bw-explore .bw-challenge-title a:hover { color: #175cd3; text-decoration: underline; }
+.bw-explore .bw-challenge-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(100px, auto);
+  gap: 12px;
+  align-items: start;
+}
+.bw-explore .bw-challenge-primary { min-width: 0; }
+.bw-explore .bw-challenge-organization {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.bw-explore .bw-challenge-organization-avatar {
+  display: block;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #e4e7ec;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.bw-explore .bw-challenge-organization-avatar > img,
+.bw-explore .bw-challenge-organization-avatar > span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bw-explore .bw-challenge-organization-name {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  min-width: 0;
+  font-size: .91rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.bw-explore .bw-challenge-organization-name a { color: #202020; text-decoration: none; }
+.bw-explore .bw-challenge-organization-name a:hover { text-decoration: underline; }
+.bw-explore .bw-challenge-deadline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  font-size: .84rem;
+  color: #5b6574;
+}
+.bw-explore .bw-challenge-deadline svg { flex-shrink: 0; }
+.bw-explore .bw-challenge-deadline strong { color: #1e293b; font-weight: 700; }
+.bw-explore .bw-challenge-prize {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-end;
+  text-align: right;
+  min-width: 0;
+}
+.bw-explore .bw-challenge-prize-label {
+  color: #6a7483;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.bw-explore .bw-challenge-prize > strong {
+  color: #111;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+  max-width: 180px;
+}
+.bw-explore .bw-challenge-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  margin-top: 5px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: #ecf4ff;
+  color: #1558b0;
+  font-size: .73rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bw-explore .bw-challenge-divider {
+  border-top: 1px solid #e5e7eb;
+  margin: 18px 0 14px;
+}
+.bw-explore .bw-challenge-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.bw-explore .bw-challenge-participate {
+  flex: 0 1 auto;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 14px;
+  line-height: 1.2;
+  font-size: .82rem;
+}
+.bw-explore .bw-challenge-secondary {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+}
+.bw-explore .bw-challenge-secondary button,
+.bw-explore .bw-challenge-secondary a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #444;
+  font: inherit;
+  font-size: .79rem;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+.bw-explore .bw-challenge-secondary button:hover,
+.bw-explore .bw-challenge-secondary a:hover {
+  background: #eef4fe;
+  color: #175cd3;
+}
+.bw-explore .bw-challenge-secondary [aria-pressed="true"] { color: #175cd3; }
+.bw-explore .bw-challenge-secondary button:disabled { cursor: progress; opacity: .65; }
+.bw-explore .bw-challenge-secondary button:focus-visible,
+.bw-explore .bw-challenge-secondary a:focus-visible,
+.bw-explore .bw-challenge-title a:focus-visible,
+.bw-explore .bw-challenge-organization a:focus-visible {
+  outline: 3px solid #84b5ff;
+  outline-offset: 2px;
+}
+.bw-explore .bw-challenge-feedback {
+  margin: 10px 0 0;
+  color: #344054;
+  font-size: .8rem;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .bw-explore .bw-timeline-opportunity-challenge .bw-challenge-card { padding: 14px; }
+  .bw-explore .bw-challenge-title { margin-bottom: 14px; font-size: 1.1rem; }
+  .bw-explore .bw-challenge-overview { grid-template-columns: minmax(0, 1fr) minmax(82px, auto); gap: 7px; }
+  .bw-explore .bw-challenge-organization { gap: 8px; }
+  .bw-explore .bw-challenge-organization-avatar { flex-basis: 40px; width: 40px; height: 40px; }
+  .bw-explore .bw-challenge-organization-name { font-size: .82rem; }
+  .bw-explore .bw-challenge-deadline { margin-top: 12px; font-size: .76rem; }
+  .bw-explore .bw-challenge-prize > strong { font-size: .9rem; max-width: 115px; }
+  .bw-explore .bw-challenge-mode { font-size: .69rem; padding-inline: 7px; white-space: normal; text-align: center; }
+  .bw-explore .bw-challenge-divider { margin: 14px 0 10px; }
+  .bw-explore .bw-challenge-participate { font-size: .76rem; padding: 9px; }
+  .bw-explore .bw-challenge-secondary { gap: 0; }
+  .bw-explore .bw-challenge-secondary button,
+  .bw-explore .bw-challenge-secondary a { width: 44px; padding: 7px; }
+  .bw-explore .bw-challenge-secondary button span,
+  .bw-explore .bw-challenge-secondary a span { display: none; }
+}
