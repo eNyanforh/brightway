@@ -947,7 +947,7 @@ test("modern post comments preserve create, delete, pagination and close behavio
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
 
-test("question cards display real answerers beneath topic tags and a distinct Answer action", async ({ page }) => {
+test("question cards display real answerers above distribution topics and a distinct Answer action", async ({ page }) => {
   const question = {
     ...fixturePost,
     id: "88888888-8888-4888-8888-888888888888",
@@ -976,7 +976,8 @@ test("question cards display real answerers beneath topic tags and a distinct An
   await expect(facepile.getByRole("link", { name: "Alex Rivera answered" })).toContainText("AR");
   const tagsBox = await topics.boundingBox();
   const summaryBox = await summary.boundingBox();
-  expect(summaryBox.y).toBeGreaterThan(tagsBox.y);
+  // The answer summary is story content, while topics are distribution metadata below it.
+  expect(summaryBox.y + summaryBox.height).toBeLessThanOrEqual(tagsBox.y + 1);
   const answer = card.getByRole("button", { name: "Answer", exact: true });
   await expect(answer).toBeVisible();
   const appearance = await answer.evaluate(element => ({
