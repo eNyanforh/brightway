@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { opportunitiesApi as api } from "../api/opportunities";
 import { useAuth } from "../auth/useAuth";
 import { OPPORTUNITY_TYPES, APPLICATION_STATUSES, OPPORTUNITY_STATUSES } from "../../../shared/opportunities.mjs";
-import VerificationBadge from "../components/VerificationBadge";
+import OpportunityOrganization from "../components/opportunities/OpportunityOrganization";
 import ApplicationQuestions from "../components/opportunities/ApplicationQuestions";
 import ApplicationHistory from "../components/opportunities/ApplicationHistory";
 import "../components/opportunities/opportunities.css";
@@ -54,7 +54,7 @@ function Detail({ id, applicationRoute }) {
     {notice && <p className="bw-op-success" role="status">{notice}</p>}
     {!opportunity && !error && <p role="status">Opening opportunity…</p>}
     {opportunity && <>
-      <header className={`bw-op-detail-header bw-op-${opportunity.type.toLowerCase()}`}><p className="bw-op-eyebrow">{OPPORTUNITY_TYPES[opportunity.type].label} · {OPPORTUNITY_STATUSES[opportunity.status]}</p><h1>{app?.opportunitySnapshot?.title || opportunity.title}</h1><p>{opportunity.organization.name} <VerificationBadge kind="organization" /></p><div className="bw-op-detail-meta"><span>{opportunity.location}</span><span>{opportunity.workMode.replaceAll("_", " ")}</span><span>Deadline: {new Date(opportunity.deadline).toLocaleString("en-GB")}</span></div></header>
+      <header className={`bw-op-detail-header bw-op-${opportunity.type.toLowerCase()}`}><p className="bw-op-eyebrow">{OPPORTUNITY_TYPES[opportunity.type].label} · {OPPORTUNITY_STATUSES[opportunity.status]}</p><h1>{app?.opportunitySnapshot?.title || opportunity.title}</h1><OpportunityOrganization organization={opportunity.organization} inverse /><div className="bw-op-detail-meta"><span>{opportunity.location}</span><span>{opportunity.workMode.replaceAll("_", " ")}</span><span>Deadline: {new Date(opportunity.deadline).toLocaleString("en-GB")}</span></div></header>
       <div className="bw-op-detail-layout"><div>
         <section className="bw-op-surface"><h2>About this opportunity</h2><p className="bw-op-description">{app?.opportunitySnapshot?.description || opportunity.description}</p></section>
         <section className="bw-op-surface"><div className="bw-op-section-title"><h2>{editable ? "Your application" : "Application details"}</h2>{app && <span className={`bw-op-status bw-op-status-${app.status.toLowerCase()}`}>{APPLICATION_STATUSES[app.status]}</span>}</div>
