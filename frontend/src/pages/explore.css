@@ -972,7 +972,7 @@
 .bw-explore .bw-challenge-organization-name a { color: #344054; text-decoration: none; }
 .bw-explore .bw-challenge-organization-name a:hover { text-decoration: underline; }
 .bw-explore .bw-challenge-deadline {
-  margin: 8px 0 0;
+  margin: 0;
   color: #6b7280;
   font-size: 12px;
   line-height: 1.45;
@@ -1006,7 +1006,7 @@
   white-space: normal;
 }
 .bw-explore .bw-challenge-divider {
-  margin: 16px 0 12px;
+  margin: 0 0 12px;
   border-top: 1px solid #eaecf0;
 }
 .bw-explore .bw-challenge-actions {
@@ -1068,10 +1068,15 @@
   outline-offset: 2px;
 }
 .bw-explore .bw-challenge-feedback {
-  margin: 10px 0 0;
+  margin: 0;
   color: #475467;
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+/* Keep every element inside the compact Challenge card flush at its top edge.
+   Bottom margins and grid/flex gaps remain available for deliberate spacing. */
+.bw-explore .bw-timeline-opportunity-challenge .bw-challenge-card :where(*) {
+  margin-top: 0;
 }
 @media (max-width: 700px) {
   .bw-explore .bw-timeline-post.bw-timeline-opportunity-challenge,
