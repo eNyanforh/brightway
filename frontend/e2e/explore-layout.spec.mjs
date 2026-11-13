@@ -1709,7 +1709,7 @@ test("published opportunities join the main Explore feed and remain separate fro
   await expect(card).toBeVisible();
   await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
   await expect(card.getByRole("img", { name: "Community Research Institute profile picture" })).toHaveAttribute("src", /\/api\/v1\/organizations\//);
-  await expect(card.getByRole("link", { name: "Community Research Institute" })).toHaveAttribute("href", "/organizations/" + organizationId);
+  await expect(card.locator(".bw-post-publisher-name").getByRole("link", { name: "Community Research Institute" })).toHaveAttribute("href", "/organizations/" + organizationId);
   await expect(card.getByRole("link", { name: "Research assistant opportunity" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
   await expect(card.getByRole("link", { name: "Apply on BrightWay" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
   await expect(card.getByRole("button", { name: "Post options" })).toHaveCount(0);
