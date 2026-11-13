@@ -233,13 +233,17 @@
   background: #fff;
   color: #191919;
 }
+/* Discussion is a sheet over the entire viewer, never squeezed into the action rail. */
 .bw-immersive-post .bw-post-comments-section:not([hidden]) {
-  position: absolute;
+  position: fixed;
   z-index: 28;
-  inset: auto 0 0;
-  margin: 0;
-  max-height: 70%;
+  left: max(24px, calc((100vw - 1000px) / 2));
+  bottom: max(24px, calc((100dvh - 820px) / 2));
+  width: min(1000px, calc(100vw - 48px));
+  max-height: 70dvh;
   overflow-y: auto;
+  box-sizing: border-box;
+  margin: 0;
   padding: 18px;
   border-radius: 18px 18px 0 0;
   background: #fff;
@@ -271,9 +275,35 @@
   .bw-post-viewer-navigation { right: 10px; bottom: max(8px, env(safe-area-inset-bottom)); }
   .bw-post-viewer-navigation button { width: 36px; height: 36px; }
   .bw-post-viewer-hint { display: block; position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); left: 16px; color: #fff9; font-size: 11px; pointer-events: none; }
-  .bw-immersive-post .bw-post-comments-section:not([hidden]),.bw-immersive-post-trays { max-height: 77dvh; }
+  .bw-immersive-post .bw-post-comments-section:not([hidden]) {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 77dvh;
+  }
+  .bw-immersive-post-trays { max-height: 77dvh; }
   .bw-immersive-post-stage .bw-document-carousel { padding: 68px 0 95px; box-sizing: border-box; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bw-post-viewer * { scroll-behavior: auto !important; }
 }
+
+/* Compact entry point for non-timeline post cards. */
+.bw-post-card-viewer-link { display: flex; justify-content: flex-end; margin: 8px 0 4px; }
+.bw-post-card-viewer-link button,.bw-post-card-viewer-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #424242;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+.bw-post-card-viewer-link button:hover,.bw-post-card-viewer-link a:hover { background: #f2f2f2; }
+.bw-timeline-action.bw-post-open-viewer { text-decoration: none; }
