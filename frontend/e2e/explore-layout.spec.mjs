@@ -1719,3 +1719,46 @@ test("published opportunities join the main Explore feed and remain separate fro
   await page.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "Following" }).click();
   await expect(feed.getByRole("article", { name: "Job opportunity: Research assistant opportunity" })).toHaveCount(0);
 });
+
+test("main Explore feed displays the four reference gradient categories with white opportunity cards", async ({ page }) => {
+  const organizationId = "55555555-5555-4555-8555-555555555555";
+  const categories = [
+    { type: "JOB", label: "Job", heading: "Jobs & Internships", action: "Apply" },
+    { type: "SCHOLARSHIP", label: "Scholarship", heading: "Scholarships", action: "Apply" },
+    { type: "CHALLENGE", label: "Challenge", heading: "Challenges & Competitions", action: "Participate" },
+    { type: "EVENT", label: "Event", heading: "Events", action: "Register" },
+  ];
+  const opportunities = categories.map((category, index) => ({
+    id: "66666666-6666-4666-8666-66666666666" + index,
+    type: category.type,
+    title: category.heading + " listing",
+    description: "A verified opportunity for BrightWay members.",
+    location: "Monrovia",
+    workMode: "IN_PERSON",
+    publishedAt: "2026-11-13T12:00:00Z",
+    createdAt: "2026-11-12T12:00:00Z",
+    status: "PUBLISHED",
+    deadline: "2099-01-01T12:00:00Z",
+    organization: { id: organizationId, name: "Community Research Institute", verifiedAt: "2026-11-01T12:00:00Z", profilePhotoId: "org-photo-1" },
+  }));
+  await fixture(page, [], "PUBLISHED", null, opportunities);
+  await page.goto("/explore");
+
+  const feed = page.getByRole("region", { name: "Explore posts" });
+  const gradients = [];
+  for (const category of categories) {
+    const card = feed.getByRole("article", { name: category.label + " opportunity: " + category.heading + " listing" });
+    await expect(card).toBeVisible();
+    await expect(card.locator(".bw-timeline-opportunity-category")).toContainText(category.heading);
+    await expect(card.getByRole("link", { name: "See all" })).toHaveAttribute("href", "/opportunities?type=" + category.type);
+    await expect(card.locator(".bw-timeline-opportunity-card")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
+    await expect(card.getByRole("link", { name: category.action + " on BrightWay" }))
+      .toHaveAttribute("href", /\/opportunities\/66666666-/);
+    const background = await card.evaluate(element => getComputedStyle(element).backgroundImage);
+    expect(background).toContain("linear-gradient");
+    gradients.push(background);
+  }
+  expect(new Set(gradients).size).toBe(4);
+  await expect(feed.getByText("Grants & Funding")).toHaveCount(0);
+});
