@@ -357,7 +357,7 @@ it("loads the header photo once and opens the profile from another app page", as
   await waitFor(() =>
     expect(
       screen
-        .getByRole("button", { name: "Open account menu" })
+        .getByRole("link", { name: "Open personal account" })
         .querySelector("img"),
     ).toBeTruthy(),
   );
