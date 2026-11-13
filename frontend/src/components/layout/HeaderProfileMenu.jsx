@@ -174,8 +174,8 @@ export default function HeaderProfileMenu({
         aria-controls={panelId}
         onClick={() => { if (!open) refreshContexts(); setOpen(value => !value); }}
       >
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+          strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M4 7h16M4 12h16M4 17h16" />
         </svg>
       </Trigger>
@@ -299,9 +299,10 @@ const Wrapper = styled.div`
 const Trigger = styled.button`
   display: inline-grid;
   place-items: center;
-  flex: 0 0 32px;
-  width: 32px;
+  flex: 0 0 44px;
+  width: 44px;
   height: 44px;
+  min-width: 44px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -310,7 +311,6 @@ const Trigger = styled.button`
   cursor: pointer;
   &:hover, &[aria-expanded="true"] { background: #f0f1f2; color: #111; }
   &:focus-visible { outline: 2px solid #191919; outline-offset: 2px; }
-  @media (max-width: 700px) { flex-basis: 30px; width: 30px; }
 `;
 
 const Panel = styled.div`
