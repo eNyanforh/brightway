@@ -14,12 +14,15 @@ async function fixture(page) {
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.route("**/*", route => {
-    const background = backgroundMessaging(route);
-    if (background) return background;
     const url = new URL(route.request().url());
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();
     const reply = data => route.fulfill({ json: { success: true, data } });
+    // The shared background stub intentionally provides empty context lists.
+    // This journey supplies authorized memberships and enrollments instead.
+    const background = ["/api/v1/my-workspace", "/api/v1/my-campus"].includes(url.pathname)
+      ? null : backgroundMessaging(route);
+    if (background) return background;
     switch (url.pathname) {
       case "/api/v1/auth/me": return reply({ account });
       case "/api/v1/work/access": return reply({ hasWork: true });
