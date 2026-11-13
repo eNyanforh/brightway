@@ -4,8 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
 
 import { useAuth } from "../../auth/useAuth";
-import ProfilePicture from "../profile/ProfilePicture";
-import { AccountContextFacepile, AccountContextPrimary, AccountContextChoices } from "./AccountContexts";
+import { AccountContextFacepile, AccountContextChoices } from "./AccountContexts";
 import { useAccountContexts } from "./useAccountContexts";
 
 export default function HeaderProfileMenu({
@@ -49,7 +48,8 @@ export default function HeaderProfileMenu({
   const orgContext = orgId && contexts.find(context => context.type === "organization" && context.id === orgId);
   const verifiedOrganization = orgId && actingOrganization?.id === orgId
     ? { key: `org:${orgId}`, id: orgId, type: "organization", name: actingOrganization.name,
-        photoId: actingOrganization.photoId || actingOrganization.profilePhotoId || null }
+        photoId: actingOrganization.photoId || actingOrganization.profilePhotoId || null,
+        to: `/organization-workspace/${encodeURIComponent(orgId)}` }
     : null;
   const campusContext = campusView && (campusId
     ? contexts.find(context => context.type === "school" && context.id === campusId)
@@ -62,6 +62,13 @@ export default function HeaderProfileMenu({
     query?.addEventListener?.("change", update);
     return () => query?.removeEventListener?.("change", update);
   }, []);
+
+  function canSwitchAccount() {
+    if (profileBusy || mutation.current) return false;
+    if (unsaved && !window.confirm("Switch accounts and discard your unsaved profile edits?")) return false;
+    setOpen(false);
+    return true;
+  }
 
   function dismiss() {
     if (mobile) panelRef.current?.close();
@@ -151,6 +158,13 @@ export default function HeaderProfileMenu({
         }
       }}
     >
+      <AccountContextFacepile
+        contexts={contexts}
+        activeContext={activeContext}
+        personalPhotoId={photoId}
+        personalName={name}
+        onNavigate={canSwitchAccount}
+      />
       <Trigger
         ref={trigger}
         type="button"
@@ -158,17 +172,12 @@ export default function HeaderProfileMenu({
         aria-expanded={open}
         aria-haspopup={mobile ? "dialog" : undefined}
         aria-controls={panelId}
-        onClick={() => { if (!open) refreshContexts(); setOpen((value) => !value); }}
+        onClick={() => { if (!open) refreshContexts(); setOpen(value => !value); }}
       >
-        <AccountContextFacepile
-          contexts={contexts}
-          activeContext={activeContext}
-          personalPhotoId={photoId}
-          personalName={name}
-        />
-        {activeContext
-          ? <AccountContextPrimary context={activeContext} />
-          : <ProfilePicture key={photoId || "personal"} id={photoId} name={name} decorative />}
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
       </Trigger>
 
       {open && renderPanel(
@@ -186,7 +195,7 @@ export default function HeaderProfileMenu({
             const rect = event.currentTarget.getBoundingClientRect();
             if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dismiss();
           }}>
-          {mobile && <div className="bw-account-drawer-header"><strong>BrightWay</strong><button type="button" aria-label="Close account menu" onClick={dismiss}>×</button></div>}
+          {mobile && <div className="bw-account-drawer-header"><strong>BRIGHTWAY</strong><button type="button" aria-label="Close account menu" onClick={dismiss}>×</button></div>}
           <Identity>
             <strong>{name}</strong>
             <span>@{account.username}</span>
@@ -197,7 +206,7 @@ export default function HeaderProfileMenu({
             activeContext={activeContext}
             loading={contextsLoading}
             error={contextsError}
-            onSelect={destination => { setOpen(false); navigate(destination); }}
+            onSelect={destination => { if (canSwitchAccount()) navigate(destination); }}
           />
 
           <Action
@@ -272,55 +281,36 @@ export default function HeaderProfileMenu({
 }
 
 const Wrapper = styled.div`
+  --bw-header-avatar-size: 43px;
+  --bw-header-avatar-overlap: 14px;
   position: relative;
   display: flex;
   align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 4px;
+  @media (max-width: 700px) {
+    --bw-header-avatar-size: 36px;
+    --bw-header-avatar-overlap: 12px;
+    gap: 1px;
+  }
 `;
 
 const Trigger = styled.button`
-  /* Every visible identity is the same size; primary is the rightmost avatar. */
-  --bw-header-avatar-size: 43px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-shrink: 0;
-  gap: 8px;
-  min-height: var(--bw-header-avatar-size);
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 44px;
   padding: 0;
   border: 0;
-  border-radius: 9px;
+  border-radius: 50%;
   background: transparent;
+  color: #444;
   cursor: pointer;
-
-  &:hover .bw-picture,
-  &:hover .bw-context-main-avatar {
-    box-shadow: 0 0 0 3px #175cd3;
-  }
-
-  .bw-picture {
-    flex: none;
-    display: grid;
-    place-items: center;
-    width: var(--bw-header-avatar-size);
-    height: var(--bw-header-avatar-size);
-    border-radius: 50%;
-    overflow: hidden;
-    background: #fff;
-    color: #000;
-    transition: box-shadow 0.2s;
-  }
-
-  .bw-picture img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  @media (max-width: 700px) {
-    --bw-header-avatar-size: 33px;
-    gap: 6px;
-    .bw-picture { font-size: 11px; }
-  }
+  &:hover, &[aria-expanded="true"] { background: #f0f1f2; color: #111; }
+  &:focus-visible { outline: 2px solid #191919; outline-offset: 2px; }
+  @media (max-width: 700px) { flex-basis: 30px; width: 30px; }
 `;
 
 const Panel = styled.div`

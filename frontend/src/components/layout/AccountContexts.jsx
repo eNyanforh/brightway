@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import ProfilePicture from "../profile/ProfilePicture";
 import { organizationPictureUrl } from "../../api/organization-profile";
 import "./account-contexts.css";
@@ -12,25 +13,47 @@ function ContextAvatar({ context, className = "" }) {
   </span>;
 }
 
-/** The active account is the full-size leading identity; its alternatives stay beside it. */
-export function AccountContextPrimary({ context }) {
-  return <ContextAvatar context={context} className="bw-context-main-avatar" />;
-}
-
-export function AccountContextFacepile({ contexts, activeContext, personalPhotoId, personalName }) {
-  const alternatives = [
-    ...(activeContext ? [{ key: "personal", type: "personal", name: personalName }] : []),
-    ...contexts.filter(context => context.key !== activeContext?.key),
+/**
+ * Each avatar is a real navigation link. The current identity is first (left),
+ * and alternatives overlap towards the right. Nothing here grants access:
+ * organization and campus links originate from the signed-in user's
+ * approved membership/enrollment directory.
+ */
+export function AccountContextFacepile({ contexts, activeContext, personalPhotoId, personalName, onNavigate }) {
+  const personal = { key: "personal", type: "personal", name: personalName || "Personal account", to: "/explore" };
+  const available = [personal, ...contexts];
+  // Organization workspace bootstrap can resolve before the membership list.
+  // Keep that already-authorized identity visible while the list is loading.
+  if (activeContext && !available.some(context => context.key === activeContext.key)) {
+    available.push(activeContext);
+  }
+  const activeKey = activeContext?.key || personal.key;
+  const ordered = [
+    ...available.filter(context => context.key === activeKey),
+    ...available.filter(context => context.key !== activeKey),
   ];
-  if (!alternatives.length) return null;
-  return <span className="bw-context-facepile-wrap" aria-hidden="true">
+  return <nav key={activeKey} className="bw-context-facepile-wrap" aria-label="Account shortcuts">
     <span className="bw-context-facepile">
-      {alternatives.slice(0, 3).map(context => context.type === "personal"
-        ? <ProfilePicture key={context.key} id={personalPhotoId}
-            name={personalName} decorative className="bw-context-avatar bw-context-personal-alternative" />
-        : <ContextAvatar key={context.key} context={context} />)}
+      {ordered.map((context, index) => {
+        const active = context.key === activeKey;
+        const to = context.to || `/organization-workspace/${encodeURIComponent(context.id)}`;
+        const label = context.type === "personal" ? "personal account" :
+          context.type === "school" ? `${context.name} school campus` : `${context.name} organization workspace`;
+        return <Link key={context.key} to={to}
+          className="bw-context-facepile-link"
+          style={{ zIndex: ordered.length - index }}
+          aria-label={`Open ${label}`}
+          aria-current={active ? "true" : undefined}
+          title={active ? `Current: ${label}` : `Open ${label}`}
+          onClick={event => { if (onNavigate?.(context) === false) event.preventDefault(); }}>
+          {context.type === "personal"
+            ? <ProfilePicture id={personalPhotoId} name={personalName} decorative
+                className="bw-context-avatar bw-context-personal-alternative" />
+            : <ContextAvatar context={context} />}
+        </Link>;
+      })}
     </span>
-  </span>;
+  </nav>;
 }
 
 export function AccountContextChoices({ contexts, activeContext, loading, error, onSelect }) {
