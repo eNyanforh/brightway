@@ -53,16 +53,12 @@ export default function ExplorePage() {
       </div>
 
       <aside className="bw-explore-right" aria-label="Explore sidebar">
-        <section className="bw-explore-aside-card"><p className="bw-explore-section-eyebrow">TAKE YOUR NEXT STEP</p><h2>Open opportunities</h2><Suspense fallback={<p role="status">Loading opportunities…</p>}><OpportunityBrowser key={`${account.id}:${view}`} compact following={view === "following"} /></Suspense><Link className="bw-explore-aside-link" to="/opportunities">Browse opportunities →</Link></section>
+        <section className="bw-explore-aside-card"><h2>Open opportunities</h2><Suspense fallback={<p role="status">Loading opportunities…</p>}><OpportunityBrowser key={`${account.id}:${view}`} compact following={view === "following"} /></Suspense><Link className="bw-explore-aside-link" to="/opportunities">Browse opportunities →</Link></section>
         <section className="bw-explore-aside-card">
           <div className="bw-explore-aside-title-row">
             <span className="bw-explore-aside-icon"><NavigationIcon name="network" size={20} /></span>
-            <div>
-              <p className="bw-explore-section-eyebrow">CONNECT</p>
-              <h2>Grow your network</h2>
-            </div>
+            <h2>Grow your network</h2>
           </div>
-          <p className="bw-explore-aside-description">Meet people who share your interests, skills, and ambitions.</p>
           <details className="bw-suggestions" open={suggestionsOpen}
             onToggle={event => setSuggestionsOpen(event.currentTarget.open)}>
             <summary><span>Suggested people</span><span className="bw-suggestions-chevron" aria-hidden="true">⌄</span></summary>
@@ -77,12 +73,11 @@ export default function ExplorePage() {
           </Link>
         </section>
 
-        <section className="bw-explore-aside-card"><p className="bw-explore-section-eyebrow">KEEP LEARNING</p><h2>Discover programs</h2><Suspense fallback={<p role="status">Loading programs…</p>}><LearningResults key={`${account.id}:${view}`} compact filters={{ kind: "programs", ...(view === "following" ? { following: "true" } : {}) }} /></Suspense><Link className="bw-explore-aside-link" to="/learning">Explore education & training →</Link></section>
+        <section className="bw-explore-aside-card"><h2>Discover programs</h2><Suspense fallback={<p role="status">Loading programs…</p>}><LearningResults key={`${account.id}:${view}`} compact filters={{ kind: "programs", ...(view === "following" ? { following: "true" } : {}) }} /></Suspense><Link className="bw-explore-aside-link" to="/learning">Explore education & training →</Link></section>
         <section className="bw-explore-aside-card bw-explore-journey">
-          <p className="bw-explore-section-eyebrow">YOUR JOURNEY</p>
+          
           <span className="bw-explore-journey-icon"><NavigationIcon name="awards" size={23} /></span>
-          <h2>Progress worth sharing.</h2>
-          <p>Projects, achievements, and events can inspire someone taking their next step.</p>
+          <h2>Your posts</h2>
           <Link className="bw-explore-aside-link" to="/posts">
             View my posts <span aria-hidden="true">↗</span>
           </Link>

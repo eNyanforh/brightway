@@ -116,7 +116,7 @@ export default function AppHeader({
           aria-label={workspaceLabel ? "BrightWay, go to Management" : "BrightWay, go to Explore"}
         >
           <BrightWayLogo className="bw-design-brand-logo" width={42} height={42} />
-          <span className="bw-design-brand-wordmark">BrightWay</span>
+          <span className="bw-design-brand-wordmark">BRIGHTWAY</span>
         </Link>
 
         {personalSearch && (

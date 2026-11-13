@@ -19,13 +19,13 @@ export default function PublicLayout() {
       </main>
       <footer className="bw-public-footer">
         <div className="bw-footer-inner">
-          <div className="bw-footer-brand"><Link to="/" aria-label="BrightWay home"><BrightWayLogo className="bw-footer-brand-logo" width={37} height={37} /><span className="bw-footer-brand-wordmark">BrightWay<span>.</span></span></Link><p>Not just social.<br />Purposeful.</p></div>
+          <div className="bw-footer-brand"><Link to="/" aria-label="BrightWay home"><BrightWayLogo className="bw-footer-brand-logo" width={37} height={37} /><span className="bw-footer-brand-wordmark">BRIGHTWAY<span>.</span></span></Link><p>Not just social.<br />Purposeful.</p></div>
           <nav aria-label="Footer navigation">
             <div><strong>Find your way</strong><Link to="/">For individuals</Link><Link to="/?audience=schools">For schools</Link><Link to="/partners">Partners</Link></div>
-            <div><strong>Your BrightWay</strong><Link to="/login">Log in</Link><Link to="/register">Create an account</Link><Link to="/">About BrightWay</Link></div>
+            <div><strong>Your BRIGHTWAY</strong><Link to="/login">Log in</Link><Link to="/register">Create an account</Link><Link to="/">About BRIGHTWAY</Link></div>
           </nav>
         </div>
-        <div className="bw-footer-bottom">© {new Date().getFullYear()} BrightWay. <span>Empower. Learn. Network. Earn.</span></div>
+        <div className="bw-footer-bottom">© {new Date().getFullYear()} BRIGHTWAY. <span>Empower. Learn. Network. Earn.</span></div>
       </footer>
     </div>
   );

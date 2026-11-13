@@ -13,13 +13,13 @@ const destinations = [
 ];
 
 const contexts = [
-  { prefix: "/messages", icon: "messages", title: "Keep the conversation going", description: "Find people with shared interests and build a connection before messaging.", shortcuts: ["people", "opportunities"] },
-  { prefix: "/network", icon: "network", title: "Connect with people", description: "Find people by name, profession, skills, or interests.", shortcuts: ["people", "organizations"] },
-  { prefix: "/opportunities", icon: "opportunities", title: "Explore your next step", description: "Discover opportunities published by organizations.", shortcuts: ["opportunities", "organizations"] },
-  { prefix: "/learning", icon: "learning", title: "Explore learning", description: "Find programs and training options on BrightWay.", shortcuts: ["programs", "organizations"] },
-  { prefix: "/profile", icon: "network", title: "Discover connections", description: "Find people and explore the BrightWay community.", shortcuts: ["people", "achievements"] },
-  { prefix: "/posts", icon: "awards", title: "Community activity", description: "Discover achievements, questions, and events.", shortcuts: ["achievements", "questions", "events"] },
-  { prefix: "/notifications", icon: "notifications", title: "Discover what's new", description: "Browse people and community content.", shortcuts: ["people", "events"] },
+  { prefix: "/messages", icon: "messages", title: "Connect with people", shortcuts: ["people", "opportunities"] },
+  { prefix: "/network", icon: "network", title: "Connect with people", shortcuts: ["people", "organizations"] },
+  { prefix: "/opportunities", icon: "opportunities", title: "More opportunities", shortcuts: ["opportunities", "organizations"] },
+  { prefix: "/learning", icon: "learning", title: "Explore learning", shortcuts: ["programs", "organizations"] },
+  { prefix: "/profile", icon: "network", title: "Find connections", shortcuts: ["people", "achievements"] },
+  { prefix: "/posts", icon: "awards", title: "Community activity", shortcuts: ["achievements", "questions", "events"] },
+  { prefix: "/notifications", icon: "notifications", title: "Discover what's new", shortcuts: ["people", "events"] },
 ];
 
 export default function ModuleRightRail() {
@@ -27,22 +27,17 @@ export default function ModuleRightRail() {
   const q = pathname === "/search" ? (new URLSearchParams(search).get("q") || "").trim() : "";
   const isSearch = pathname === "/search";
   const context = contexts.find(item => pathname === item.prefix || pathname.startsWith(item.prefix + "/"));
-  const title = isSearch ? "Explore by category" : context?.title || "Explore BrightWay";
-  const description = isSearch
-    ? "Narrow the results to the content you're looking for."
-    : context?.description || "Discover the people, opportunities, and learning that matter to you.";
+  const title = isSearch ? "Browse categories" : context?.title || "Discover";
   const categoryOptions = isSearch ? destinations : destinations.filter(item => (context?.shortcuts || ["people", "opportunities", "programs"]).includes(item.kind));
   const searchLink = kind => "/search?" + new URLSearchParams({ ...(q ? { q } : {}), kind });
 
   return (
     <aside className="bw-module-right" aria-label={isSearch ? "Search discovery sidebar" : "Discovery sidebar"}>
       <section className="bw-module-right-card">
-        <p className="bw-module-right-eyebrow">DISCOVER</p>
         <div className="bw-module-right-heading">
           <span className="bw-module-right-mark"><NavigationIcon name={isSearch ? "search" : context?.icon || "explore"} size={20} /></span>
           <h2>{title}</h2>
         </div>
-        <p className="bw-module-right-description">{description}</p>
         <nav className="bw-module-right-links" aria-label="Discover categories">
           {categoryOptions.map(item => (
             <Link key={item.kind} to={searchLink(item.kind)}>
@@ -54,9 +49,7 @@ export default function ModuleRightRail() {
         </nav>
       </section>
       <section className="bw-module-right-card bw-module-right-next">
-        <p className="bw-module-right-eyebrow">EXPLORE MORE</p>
-        <h2>Find what moves you forward.</h2>
-        <p className="bw-module-right-description">Connect with people, learn new skills, and discover opportunities in one place.</p>
+        <h2>Community</h2>
         <Link to="/explore" className="bw-module-right-action">Explore community <NavigationIcon name="chevron-right" size={17} /></Link>
       </section>
     </aside>
