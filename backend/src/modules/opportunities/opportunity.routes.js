@@ -27,6 +27,7 @@ export function createOpportunityRoutes({ opportunities, sessions, clientUrl, no
   };
   router.get("/opportunities", read, respond((r, a) => opportunities.browse(a, r.query)));
   router.get("/opportunities/:id", read, respond((r, a) => opportunities.detail(a, r.params.id)));
+  router.put("/opportunities/:id/save", write, respond((r, a) => opportunities.saveOpportunity(a, r.params.id, r.body)));
   router.put("/opportunities/:id/application", write, respond((r, a) => opportunities.saveApplication(a, r.params.id, r.body)));
   router.get("/applications/me", read, respond((r, a) => opportunities.myApplications(a, r.query)));
   router.get("/applications/me/:applicationId", read, respond((r, a) => opportunities.application(a, r.params.applicationId)));
