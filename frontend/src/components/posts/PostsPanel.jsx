@@ -845,20 +845,20 @@ export default function PostsPanel({ organization, personal = false, view = "for
     setSearchParams(next, { replace: true });
   }
 
-  const feedEntries = (page?.items ?? []).map(post => ({
-    kind: "post", key: cardKey(post), item: post,
+  const feedEntries = (page?.items ?? []).map((post, index) => ({
+    kind: "post", key: cardKey(post), item: post, order: index,
     timestamp: Date.parse(post.repost?.createdAt || post.createdAt) || 0,
   }));
   if (showOpportunities) {
     const now = Date.now();
-    for (const opportunity of opportunityPage?.items ?? []) {
+    for (const [index, opportunity] of (opportunityPage?.items ?? []).entries()) {
       if (opportunity.status !== "PUBLISHED" || !(Date.parse(opportunity.deadline) > now)) continue;
       feedEntries.push({
-        kind: "opportunity", key: "opportunity:" + opportunity.id, item: opportunity,
+        kind: "opportunity", key: "opportunity:" + opportunity.id, item: opportunity, order: feedEntries.length + index,
         timestamp: Date.parse(opportunity.publishedAt || opportunity.createdAt) || 0,
       });
     }
-    feedEntries.sort((a, b) => b.timestamp - a.timestamp || a.key.localeCompare(b.key));
+    feedEntries.sort((a, b) => b.timestamp - a.timestamp || a.order - b.order);
   }
   const hasOlderActivity = Boolean(page?.nextCursor || (showOpportunities && opportunityPage?.nextCursor));
   const loadOlderActivity = () => {
