@@ -66,6 +66,7 @@ model Account {
   admissionEvents AdmissionApplicationEvent[]
   opportunityListings Opportunity[]
   opportunityApplications OpportunityApplication[]
+  savedOpportunities OpportunitySave[]
   applicationEvents OpportunityApplicationEvent[]
   profileVisitsReceived ProfileVisit[] @relation("ProfileVisitOwner")
   profileVisitsMade ProfileVisit[] @relation("ProfileVisitViewer")
@@ -1689,6 +1690,7 @@ model Opportunity {
   description String @db.VarChar(12000)
   location String @db.VarChar(180)
   workMode String @db.VarChar(16)
+  prize String? @db.VarChar(120)
   deadline DateTime
   questions Json
   version Int @default(1)
@@ -1697,9 +1699,19 @@ model Opportunity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   applications OpportunityApplication[]
+  saves OpportunitySave[]
   @@unique([organizationId, authorId, requestKey])
   @@index([status, type, deadline, createdAt, id])
   @@index([organizationId, createdAt, id])
+}
+model OpportunitySave {
+  accountId String
+  opportunityId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@id([accountId, opportunityId])
+  @@index([opportunityId])
 }
 model OpportunityApplication {
   id String @id @default(uuid())
