@@ -32,7 +32,7 @@ export function AccountContextFacepile({ contexts, activeContext, personalPhotoI
     ...available.filter(context => context.key === activeKey),
     ...available.filter(context => context.key !== activeKey),
   ];
-  return <nav key={activeKey} className="bw-context-facepile-wrap" aria-label="Account shortcuts">
+  return <nav className="bw-context-facepile-wrap" aria-label="Account shortcuts">
     <span className="bw-context-facepile">
       {ordered.map((context, index) => {
         const active = context.key === activeKey;
