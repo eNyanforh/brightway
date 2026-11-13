@@ -21,6 +21,7 @@ async function list(path, signal) {
 export const opportunitiesApi = {
   browse: (params, signal) => list("/opportunities" + query(params), signal),
   detail: (id, signal) => request("/opportunities/" + encodeURIComponent(id), { signal }),
+  setSaved: (id, saved, signal) => request("/opportunities/" + encodeURIComponent(id) + "/save", { method: "PUT", body: { saved }, signal }),
   mine: (cursor, signal) => list("/applications/me" + query({ cursor }), signal),
   application: (id, signal) => request(app(id), { signal }),
   save: (id, body, signal) => request("/opportunities/" + encodeURIComponent(id) + "/application", { method: "PUT", body, signal }),
