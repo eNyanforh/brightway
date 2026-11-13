@@ -29,6 +29,7 @@ const specializedFormats = formats;
 async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED", submittedNotice = null, opportunities = []) {
   const writes = [];
   const publishedPosts = [];
+  const savedOpportunities = new Set(opportunities.filter(item => item.saved).map(item => item.id));
   await page.route("**/*", async route => {
     const background = backgroundMessaging(route); if (background) return background;
     const request = route.request();
@@ -44,13 +45,23 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
       const match = [...publishedPosts, ...posts].find(item => item.id === id);
       return match ? reply({ post: match }) : route.fulfill({ status: 404, json: { success: false, message: "Post unavailable." } });
     }
+    if (/^\/api\/v1\/opportunities\/[^/]+\/save$/.test(url.pathname) && request.method() === "PUT") {
+      const opportunityId = url.pathname.split("/")[4];
+      const saved = request.postDataJSON().saved;
+      if (saved) savedOpportunities.add(opportunityId);
+      else savedOpportunities.delete(opportunityId);
+      return reply({ saved });
+    }
     switch (url.pathname) {
       case "/api/v1/auth/me": return reply({ account });
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
       case "/api/v1/work/access": return reply({ hasWork: false });
       case "/api/v1/explore/posts": return reply({ items: [...publishedPosts, ...posts], nextCursor: null });
       case "/api/v1/learning/discover": return reply({ items: [], nextCursor: null });
-      case "/api/v1/opportunities": return reply({ items: opportunities.filter(item => url.searchParams.get("following") !== "true" || item.followed), nextCursor: null });
+      case "/api/v1/opportunities": return reply({ items: opportunities
+        .filter(item => (url.searchParams.get("following") !== "true" || item.followed) &&
+          (url.searchParams.get("saved") !== "true" || savedOpportunities.has(item.id)))
+        .map(item => ({ ...item, saved: savedOpportunities.has(item.id) })), nextCursor: null });
       case "/api/v1/posts/me": {
         const draft = request.postDataJSON();
         writes.push(draft);
@@ -1785,4 +1796,54 @@ test("desktop avatar menu uses a large circular hover target", async ({ page, is
   await menu.hover();
   await expect(menu).toHaveCSS("background-color", "rgb(240, 241, 242)");
   await expect(menu).toHaveCSS("border-radius", "50%");
+});
+
+test("Challenge Explore card prioritizes title, verified organizer, deadline, prize and mode, with working save", async ({ page }) => {
+  const opportunityId = "77777777-7777-4777-8777-777777777777";
+  const organizationId = "55555555-5555-4555-8555-555555555555";
+  const opportunity = {
+    id: opportunityId, type: "CHALLENGE", title: "Build a Community Learning App",
+    description: "Design a useful student learning experience.", location: "Monrovia",
+    workMode: "REMOTE", prize: "US$1,000", saved: false, status: "PUBLISHED",
+    deadline: "2099-01-01T12:00:00Z", publishedAt: "2026-11-13T12:00:00Z",
+    createdAt: "2026-11-12T12:00:00Z", organization: {
+      id: organizationId, name: "Community Research Institute",
+      profilePhotoId: "org-photo-1", verifiedAt: "2026-11-01T12:00:00Z",
+    },
+  };
+  await fixture(page, [], "PUBLISHED", null, [opportunity]);
+  await page.goto("/explore");
+
+  const feed = page.getByRole("region", { name: "Explore posts" });
+  const card = feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" });
+  await expect(card).toBeVisible();
+  const title = card.getByRole("heading", { name: opportunity.title });
+  const organizer = card.locator(".bw-challenge-organization");
+  const deadline = card.locator(".bw-challenge-deadline");
+  const prize = card.locator(".bw-challenge-prize");
+  await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
+  await expect(organizer.getByRole("link", { name: opportunity.organization.name })).toHaveAttribute("href", "/organizations/" + organizationId);
+  await expect(deadline).toContainText("Deadline:");
+  await expect(prize).toContainText("US$1,000");
+  await expect(prize).toContainText("Online");
+  const [titleBounds, organizerBounds, deadlineBounds, prizeBounds] = await Promise.all([
+    title.boundingBox(), organizer.boundingBox(), deadline.boundingBox(), prize.boundingBox(),
+  ]);
+  expect(titleBounds.y).toBeLessThan(organizerBounds.y);
+  expect(organizerBounds.y).toBeLessThan(deadlineBounds.y);
+  expect(prizeBounds.x).toBeGreaterThan(organizerBounds.x);
+  await expect(card.locator(".bw-challenge-divider")).toHaveCount(1);
+  await expect(card.getByRole("link", { name: "Participate on BrightWay" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  await expect(card.getByRole("button", { name: "Share challenge" })).toBeVisible();
+  await expect(card.getByRole("link", { name: "View challenge" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  const save = card.getByRole("button", { name: "Save challenge" });
+  await expect(save).toHaveAttribute("aria-pressed", "false");
+  await save.click();
+  await expect(card.getByRole("button", { name: "Unsave challenge" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "Saved" }).click();
+  await expect(feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" })).toBeVisible();
+  await page.reload();
+  await expect(feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" }).getByRole("button", { name: "Unsave challenge" })).toBeVisible();
+  const root = page.locator("html");
+  expect(await root.evaluate(element => element.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
