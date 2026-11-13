@@ -5,7 +5,6 @@ import { PostCard } from "../posts/PostsPanel";
 import ProfileActivityContributions from "./ProfileActivityContributions";
 import "./profile-activities.css";
 
-const postLink = id => "/explore?" + new URLSearchParams({ source: "member", post: id });
 
 /** Complete owner post history in a vertical, single-column timeline.
  * Older posts append below existing posts, retaining all post interactions.
@@ -162,9 +161,6 @@ function ProfilePostTimeline({ accountId, username = null }) {
                   canManage={!publicProfile} canManageEvent={!publicProfile} onWithdraw={withdraw} onEdit={editPost} onLike={like}
                   onSave={save} onRepost={repost} onRegister={register}
                 />
-                <Link className="bw-profile-activity-link" to={postLink(post.id)}>
-                  View full post <span aria-hidden="true">↗</span>
-                </Link>
               </div>
             ))}
         </div>

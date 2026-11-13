@@ -40,6 +40,7 @@ export default function PostManageMenu({
   const id = useId();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mode, setMode] = useState(null);
+  const [portalRoot, setPortalRoot] = useState(null);
   const [draft, setDraft] = useState(() => initialDraft(post));
   const [tagDraft, setTagDraft] = useState("");
   const [error, setError] = useState("");
@@ -108,6 +109,7 @@ export default function PostManageMenu({
   }, [mode]);
 
   function choose(next) {
+    setPortalRoot(trigger.current?.closest("dialog") || document.body);
     setMenuOpen(false);
     setDraft(initialDraft(post));
     setError("");
@@ -358,7 +360,7 @@ export default function PostManageMenu({
               </form>
             )}
           </div>
-        </div>, document.body
+        </div>, portalRoot || document.body
       )}
     </>
   );

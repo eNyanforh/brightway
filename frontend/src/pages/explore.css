@@ -715,17 +715,6 @@
 .bw-explore-right .bw-suggestion-reasons li { padding: 0; border-radius: 0; background: transparent; }
 .bw-explore-right .bw-suggestions-message { padding: .65rem 0; }
 
-/* Published topics are delivery metadata, not decorative or clickable chips. */
-.bw-explore .bw-post-distribution-topics .bw-post-topic-tags li {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  font-size: inherit;
-  font-weight: 400;
-}
-
 /* Mobile feed presentation: navigation remains gesture-driven without a refresh button. */
 @media (max-width: 700px) {
   .bw-explore .bw-timeline-refresh { display: none; }
@@ -738,10 +727,5 @@
     margin-left: 0;
     justify-content: flex-start;
   }
-  .bw-explore .bw-post-distribution-topics { margin: 5px 0 4px; color: #767676; font-size: 11px; }
-  .bw-explore .bw-post-distribution-topics .bw-post-topic-tags li {
-    padding: 0;
-    color: inherit;
-    font-size: inherit;
-  }
+
 }

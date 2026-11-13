@@ -2070,40 +2070,6 @@
 }
 
 /* Distribution topics are metadata beneath the story, not prominent post content. */
-.bw-post-distribution-topics {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: .25rem .5rem;
-  margin: .45rem 0 .35rem;
-  color: #667085;
-  font-size: .72rem;
-  line-height: 1.45;
-}
-.bw-post-distribution-label { flex: 0 0 auto; font-weight: 600; }
-.bw-post-distribution-topics .bw-post-topic-tags {
-  display: inline-flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: .15rem .4rem;
-  margin: 0;
-}
-.bw-post-distribution-topics .bw-post-topic-tags li {
-  display: inline;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  font-size: inherit;
-  font-weight: 400;
-}
-.bw-post-distribution-topics .bw-post-topic-tags li + li::before {
-  content: "·";
-  padding-right: .4rem;
-  color: #9aa3af;
-}
-
 /* Mobile: actionable controls lead on the left; real engagement avatars sit on the right. */
 @media (max-width: 700px) {
   .bw-timeline-refresh { display: none; }

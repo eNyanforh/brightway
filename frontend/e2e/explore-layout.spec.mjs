@@ -556,11 +556,8 @@ test("The feed renders different presentation cards for stored achievements, eve
       await expect(card.getByRole("heading", { name: "Student Research Workshop" })).toBeVisible();
       await expect(card.getByText(/Monrovia University Campus/)).toBeVisible();
     }
-    await expect(card.getByRole("list", { name: "Topic tags" }).getByText("Learning")).toBeVisible();
-    const distribution = card.getByLabel("Distribution topics");
-    await expect(distribution).toBeVisible();
-    // Topics belong below the story content, not inside the post headline or body.
-    expect(await distribution.evaluate(element => element.previousElementSibling?.classList.contains("bw-post-story"))).toBe(true);
+    await expect(card.getByRole("list", { name: "Topic tags" })).toHaveCount(0);
+    await expect(card.getByLabel("Distribution topics")).toHaveCount(0);
     if (format.type === "QUESTION") {
       await expect(card.getByRole("button", { name: "Comments" })).toHaveCount(0);
       await expect(card.getByRole("region", { name: "Post comments" })).toHaveCount(0);
@@ -571,7 +568,7 @@ test("The feed renders different presentation cards for stored achievements, eve
   const explanation = explore.getByRole("article").filter({ hasText: explanationQuestion.body });
   await expect(explanation.getByRole("heading", { name: "What is sampling bias?" })).toBeVisible();
   await expect(explanation.getByText("Concept explanation")).toHaveCount(0);
-  await expect(explanation.getByRole("list", { name: "Topic tags" }).getByText("Research")).toBeVisible();
+  await expect(explanation.getByRole("list", { name: "Topic tags" })).toHaveCount(0);
   const legacyCard = explore.getByRole("article").filter({ hasText: fixturePost.body });
   await expect(legacyCard.locator(".bw-post-story")).toHaveCount(0);
 });
@@ -953,7 +950,7 @@ test("modern post comments preserve create, delete, pagination and close behavio
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
 
-test("question cards display real answerers above distribution topics and a distinct Answer action", async ({ page }) => {
+test("question cards display real answerers and a distinct Answer action without visible topics", async ({ page }) => {
   const question = {
     ...fixturePost,
     id: "88888888-8888-4888-8888-888888888888",
@@ -972,7 +969,7 @@ test("question cards display real answerers above distribution topics and a dist
   await fixture(page, [question]);
   await page.goto("/explore");
   const card = page.getByRole("article").filter({ hasText: question.body });
-  const topics = card.getByRole("list", { name: "Topic tags" });
+  await expect(card.getByRole("list", { name: "Topic tags" })).toHaveCount(0);
   const summary = card.getByLabel("Question answers");
   const facepile = summary.getByRole("group", { name: "Members who answered" });
   await expect(summary).toContainText("4 answers");
@@ -980,10 +977,6 @@ test("question cards display real answerers above distribution topics and a dist
   await expect(facepile.getByRole("link", { name: "Sam Brown answered" })).toHaveCount(0);
   await expect(facepile.getByRole("link", { name: "Maya Cole answered" })).toHaveAttribute("href", "/maya");
   await expect(facepile.getByRole("link", { name: "Alex Rivera answered" })).toContainText("AR");
-  const tagsBox = await topics.boundingBox();
-  const summaryBox = await summary.boundingBox();
-  // The answer summary is story content, while topics are distribution metadata below it.
-  expect(summaryBox.y + summaryBox.height).toBeLessThanOrEqual(tagsBox.y + 1);
   const answer = card.getByRole("button", { name: "Answer", exact: true });
   await expect(answer).toBeVisible();
   const appearance = await answer.evaluate(element => ({
@@ -1395,6 +1388,10 @@ test("post photo galleries open an accessible viewer and keep mobile images edge
   const gallery = page.getByRole("group", { name: "Post photos" });
   const trigger = gallery.getByRole("button", { name: "Open photo 2 of 4: community-1.webp" });
   await trigger.click();
+  const postViewer = page.getByRole("dialog", { name: "Post viewer" });
+  await expect(postViewer).toBeVisible();
+  const photoTrigger = postViewer.getByRole("button", { name: "Open photo 2 of 4: community-1.webp" });
+  await photoTrigger.click();
   const viewer = page.getByRole("dialog", { name: "Photo viewer" });
   await expect(viewer.getByText("2 of 4")).toBeVisible();
   await expect(viewer.getByRole("button", { name: "Close photo viewer" })).toBeFocused();
@@ -1410,7 +1407,9 @@ test("post photo galleries open an accessible viewer and keep mobile images edge
   expect(await viewer.evaluate(element => element.contains(document.activeElement))).toBe(true);
   await page.keyboard.press("Escape");
   await expect(viewer).toHaveCount(0);
-  await expect(trigger).toBeFocused();
+  await expect(photoTrigger).toBeFocused();
+  await postViewer.getByRole("button", { name: "Close post viewer" }).click();
+  await expect(page.getByRole("article").first()).toBeFocused();
   if (isMobile) {
     const bounds = await gallery.boundingBox();
     expect(Math.abs(bounds.x)).toBeLessThanOrEqual(1);
@@ -1547,7 +1546,7 @@ test("mobile shell keeps search in one row and opens a contained account drawer"
 });
 
 
-test("immersive post viewer opens from a feed card, browses vertically and restores focus", async ({ page, isMobile }) => {
+test("immersive post viewer opens from a feed card, browses vertically and restores focus", async ({ page, isMobile }, testInfo) => {
   const first = {
     ...fixturePost,
     id: "d1111111-1111-4111-8111-111111111111",
@@ -1566,9 +1565,10 @@ test("immersive post viewer opens from a feed card, browses vertically and resto
   await fixture(page, [first, second]);
   await page.goto("/explore");
   const card = page.getByRole("article").filter({ hasText: first.body }).first();
-  const opener = card.getByRole("button", { name: "Open post viewer" });
+  const opener = card;
+  await expect(card.getByRole("button", { name: "Open post viewer" })).toHaveCount(0);
   await expect(opener).toBeVisible();
-  await opener.click();
+  await card.locator(".bw-post-text").click();
   const viewer = page.getByRole("dialog", { name: "Post viewer" });
   await expect(viewer).toBeVisible();
   await expect(page).toHaveURL(new RegExp("post=" + first.id));
@@ -1577,9 +1577,12 @@ test("immersive post viewer opens from a feed card, browses vertically and resto
   await expect(viewer.getByRole("button", { name: "Next post" })).toBeEnabled();
   await expect(viewer.getByRole("button", { name: "Celebrate" })).toBeVisible();
   await expect(viewer.getByRole("button", { name: "Share" })).toBeVisible();
-  await expect(viewer.getByRole("button", { name: "Save post" })).toBeVisible();
-  await expect(viewer.getByLabel("Distribution topics")).toContainText("Research");
+  await expect(viewer.getByLabel("Distribution topics")).toHaveCount(0);
+  await viewer.getByRole("button", { name: "Post options" }).click();
+  await expect(viewer.getByRole("menuitem", { name: "Save post" })).toBeVisible();
+  await viewer.getByRole("button", { name: "Post options" }).click();
 
+  await testInfo.attach("Post viewer reading layout", { body: await page.screenshot(), contentType: "image/png" });
   if (isMobile) {
     const bounds = await viewer.boundingBox();
     expect(bounds.x).toBe(0);
@@ -1629,4 +1632,63 @@ test("shared post links open the viewer directly without losing the normal feed"
   await expect(viewer).toHaveCount(0);
   await expect(page).toHaveURL(/\/explore$/);
   await expect(page.getByRole("region", { name: "Explore posts" }).getByRole("article").filter({ hasText: direct.body })).toBeVisible();
+});
+
+
+test("post keyboard entry and nested controls stay independent", async ({ page }) => {
+  await fixture(page, [{ ...fixturePost, type: "ACHIEVEMENT", tags: ["Research"], views: 18 }]);
+  await page.route("**/api/v1/explore/posts/member/*/like", route => route.fulfill({ json: {
+    success: true, data: { reaction: { liked: true, count: 4 } },
+  } }));
+  await page.goto("/explore");
+  const card = page.getByRole("article", { name: "Post by Maya Cole" });
+  await card.getByRole("button", { name: "Celebrate" }).click();
+  await expect(card.getByRole("button", { name: "Celebrate" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("dialog", { name: "Post viewer" })).toHaveCount(0);
+  await card.getByRole("button", { name: "Post options" }).click();
+  await expect(card.getByRole("menuitem", { name: "Copy link" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await card.focus();
+  await page.keyboard.press("Enter");
+  const viewer = page.getByRole("dialog", { name: "Post viewer" });
+  await expect(viewer).toBeVisible();
+  await expect(viewer.getByRole("button", { name: "Close post viewer" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(card).toBeFocused();
+  await page.keyboard.press("Space");
+  await expect(viewer).toBeVisible();
+  await page.goBack();
+  await expect(viewer).toHaveCount(0);
+  await expect(card).toBeFocused();
+});
+
+test("viewer keeps long captions readable and owner edit dialogs accessible", async ({ page, isMobile }, testInfo) => {
+  const owned = { ...fixturePost, type: "ACHIEVEMENT", tags: ["Research"],
+    body: "Research progress from our community team. ".repeat(35),
+    member: { name: "Synthetic Member", username: "synthetic", verified: true } };
+  await fixture(page, [owned]);
+  await page.goto("/explore");
+  const card = page.getByRole("article", { name: "Post by Synthetic Member" });
+  await card.locator(".bw-post-type-label").click();
+  const viewer = page.getByRole("dialog", { name: "Post viewer" });
+  await expect(viewer).toBeVisible();
+  await expect(viewer.locator(".bw-post-text")).toHaveText(owned.body.trim());
+  await expect(viewer.getByRole("button", { name: "See more" })).toHaveCount(0);
+  expect(await viewer.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  const summary = viewer.locator(".bw-immersive-post-bottom");
+  expect(await summary.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+  await viewer.getByRole("button", { name: "Post options" }).click();
+  await viewer.getByRole("menuitem", { name: "Edit post" }).click();
+  const editor = page.getByRole("dialog", { name: "Edit post", exact: true });
+  await expect(editor.getByRole("textbox", { name: "Post description" })).toBeFocused();
+  await editor.getByRole("textbox", { name: "Post description" }).fill("A draft correction.");
+  await page.keyboard.press("Escape");
+  await expect(editor).toHaveCount(0);
+  await expect(viewer).toBeVisible();
+  await viewer.getByRole("button", { name: "Close post viewer" }).click();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await card.locator(".bw-post-type-label").click();
+  await expect(viewer).toBeVisible();
+  expect(await viewer.locator(".bw-post-viewer-slide").evaluate(el => el.getAnimations().length)).toBe(0);
+  await testInfo.attach(isMobile ? "Mobile reading view" : "Desktop reading view", { body: await page.screenshot(), contentType: "image/png" });
 });
