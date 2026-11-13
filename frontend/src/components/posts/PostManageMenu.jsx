@@ -84,7 +84,7 @@ export default function PostManageMenu({
     const previousFocus = document.activeElement;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    element.querySelector("textarea,button")?.focus();
+    (element.querySelector("textarea") || element.querySelector("button"))?.focus();
     const keydown = event => {
       if (event.key === "Escape") {
         event.preventDefault();
