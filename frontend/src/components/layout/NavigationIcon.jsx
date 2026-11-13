@@ -115,6 +115,9 @@ export default function NavigationIcon({
     case "question":
       shape = <><circle cx="12" cy="12" r="9" /><path d="M9.2 9a3.2 3.2 0 1 1 5.2 2.5c-1.4 1-2.4 1.7-2.4 3M12 17.7h.01" /></>;
       break;
+    case "expand":
+      shape = <><path d="M8 3H3v5m0-5 7 7M16 21h5v-5m0 5-7-7M16 3h5v5m0-5-7 7M8 21H3v-5m0 5 7-7" /></>;
+      break;
     case "chevron-left":
       shape = <path d="m15 6-6 6 6 6" />;
       break;

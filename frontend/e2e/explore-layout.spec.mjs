@@ -37,6 +37,12 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
     if (!url.pathname.startsWith("/api/")) return route.continue();
     const reply = (data, status = 200) => route.fulfill({ status, json: { success: true, data } });
     if (/^\/api\/v1\/explore\/posts\/(member|organization)\/[^/]+\/view$/.test(url.pathname)) return reply({ views: 1 });
+    // Shared links read one server-authorized post rather than assuming it is in the first feed page.
+    if (/^\/api\/v1\/explore\/posts\/(member|organization)\/[^/]+$/.test(url.pathname) && request.method() === "GET") {
+      const id = url.pathname.split("/").at(-1);
+      const match = [...publishedPosts, ...posts].find(item => item.id === id);
+      return match ? reply({ post: match }) : route.fulfill({ status: 404, json: { success: false, message: "Post unavailable." } });
+    }
     switch (url.pathname) {
       case "/api/v1/auth/me": return reply({ account });
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
@@ -1538,4 +1544,89 @@ test("mobile shell keeps search in one row and opens a contained account drawer"
   expect(Math.round(sheet.y + sheet.height)).toBe(844);
   await chooser.getByRole("button", { name: "Close post choices" }).click();
   await testInfo.attach("Mobile feed refresh", { body: await page.screenshot(), contentType: "image/png" });
+});
+
+
+test("immersive post viewer opens from a feed card, browses vertically and restores focus", async ({ page, isMobile }) => {
+  const first = {
+    ...fixturePost,
+    id: "d1111111-1111-4111-8111-111111111111",
+    body: "A research milestone that deserves a closer look.",
+    type: "ACHIEVEMENT",
+    tags: ["Research"], views: 18, commentCount: 0,
+  };
+  const second = {
+    ...fixturePost,
+    id: "d2222222-2222-4222-8222-222222222222",
+    body: "What should our study group build next?",
+    type: "QUESTION",
+    tags: ["Learning"], views: 7,
+    questionDetails: { title: "What should our study group build next?", intent: "GUIDANCE" },
+  };
+  await fixture(page, [first, second]);
+  await page.goto("/explore");
+  const card = page.getByRole("article").filter({ hasText: first.body }).first();
+  const opener = card.getByRole("button", { name: "Open post viewer" });
+  await expect(opener).toBeVisible();
+  await opener.click();
+  const viewer = page.getByRole("dialog", { name: "Post viewer" });
+  await expect(viewer).toBeVisible();
+  await expect(page).toHaveURL(new RegExp("post=" + first.id));
+  await expect(viewer.getByRole("article", { name: "Maya Cole post" })).toContainText(first.body);
+  await expect(viewer.getByRole("button", { name: "Previous post" })).toBeDisabled();
+  await expect(viewer.getByRole("button", { name: "Next post" })).toBeEnabled();
+  await expect(viewer.getByRole("button", { name: "Celebrate" })).toBeVisible();
+  await expect(viewer.getByRole("button", { name: "Share" })).toBeVisible();
+  await expect(viewer.getByRole("button", { name: "Save post" })).toBeVisible();
+  await expect(viewer.getByLabel("Distribution topics")).toContainText("Research");
+
+  if (isMobile) {
+    const bounds = await viewer.boundingBox();
+    expect(bounds.x).toBe(0);
+    expect(bounds.y).toBe(0);
+    expect(Math.abs(bounds.width - page.viewportSize().width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(bounds.height - page.viewportSize().height)).toBeLessThanOrEqual(2);
+    const slide = viewer.locator(".bw-post-viewer-slide");
+    await slide.evaluate(element => {
+      const origin = new Touch({ identifier: 7, target: element, clientX: 185, clientY: 690 });
+      const moved = new Touch({ identifier: 7, target: element, clientX: 184, clientY: 300 });
+      element.dispatchEvent(new TouchEvent("touchstart", {
+        bubbles: true, touches: [origin], changedTouches: [origin], targetTouches: [origin],
+      }));
+      element.dispatchEvent(new TouchEvent("touchend", {
+        bubbles: true, touches: [], changedTouches: [moved], targetTouches: [],
+      }));
+    });
+  } else await viewer.getByRole("button", { name: "Next post" }).click();
+
+  await expect(page).toHaveURL(new RegExp("post=" + second.id));
+  await expect(viewer.getByRole("article", { name: "Maya Cole post" })).toContainText(second.body);
+  await expect(viewer.getByRole("button", { name: "Answers" })).toHaveCount(0);
+  await expect(viewer.getByRole("button", { name: "Answer", exact: true })).toBeVisible();
+  await page.keyboard.press("ArrowUp");
+  await expect(page).toHaveURL(new RegExp("post=" + first.id));
+  await viewer.getByRole("button", { name: "Close post viewer" }).click();
+  await expect(viewer).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  await expect(page).toHaveURL(/\/explore$/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
+test("shared post links open the viewer directly without losing the normal feed", async ({ page }) => {
+  const direct = {
+    ...fixturePost,
+    id: "d3333333-3333-4333-8333-333333333333",
+    body: "Community research post linked from another page.",
+    type: "POST",
+    tags: ["Community"], views: 6,
+  };
+  await fixture(page, [direct]);
+  await page.goto("/explore?source=member&post=" + direct.id);
+  const viewer = page.getByRole("dialog", { name: "Post viewer" });
+  await expect(viewer).toBeVisible();
+  await expect(viewer.getByRole("article", { name: "Maya Cole post" })).toContainText(direct.body);
+  await viewer.getByRole("button", { name: "Close post viewer" }).click();
+  await expect(viewer).toHaveCount(0);
+  await expect(page).toHaveURL(/\/explore$/);
+  await expect(page.getByRole("region", { name: "Explore posts" }).getByRole("article").filter({ hasText: direct.body })).toBeVisible();
 });

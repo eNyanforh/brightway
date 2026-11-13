@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { organizationPostsApi as api, memberPhotoUrl } from "../../api/organization-posts";
 import { organizationPictureUrl } from "../../api/organization-profile";
 import NavigationIcon from "../layout/NavigationIcon";
@@ -16,6 +16,7 @@ import PostTimestamp from "./PostTimestamp";
 import { AuthContext } from "../../auth/auth-context";
 import PostCaption from "./PostCaption";
 import PostMedia from "./PostMedia";
+import PostViewer from "./PostViewer";
 import PostManageMenu from "./PostManageMenu";
 import PostModerationNotice from "./PostModerationNotice";
 import "./posts.css";
@@ -88,13 +89,13 @@ function QuestionAnswerSummary({ count, participants }) {
   );
 }
 
-function PostStory({ post, timeline = false, answerCount = 0, answerParticipants = [] }) {
+function PostStory({ post, timeline = false, showMedia = true, answerCount = 0, answerParticipants = [] }) {
   const format = post.member && storyFormats[post.type];
   if (!format) return (
     <>
       {post.member && <PersonalPostTypeLabel type={post.type} />}
       <PostCaption body={post.body} />
-      <PostMedia media={post.media} />
+      {showMedia && <PostMedia media={post.media} />}
     </>
   );
   return (
@@ -117,7 +118,7 @@ function PostStory({ post, timeline = false, answerCount = 0, answerParticipants
       {!(post.type === "QUESTION" && post.questionDetails?.title?.trim() === post.body?.trim()) && (
         <PostCaption body={post.body} className="bw-post-story-body" />
       )}
-      <PostMedia media={post.media} />
+      {showMedia && <PostMedia media={post.media} />}
       {post.type === "EVENT" && post.registration && (
         <EventAttendeeSummary count={post.registration.count ?? 0}
           attendees={post.eventAttendees ?? []} />
@@ -130,7 +131,7 @@ function PostStory({ post, timeline = false, answerCount = 0, answerParticipants
   );
 }
 
-export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onSave, onRepost, onRegister, canManageEvent = false, canManage = false, trackViews = true }) {
+export function PostCard({ post, timeline, immersive = false, onOpen, busy, onWithdraw, onEdit, onLike, onSave, onRepost, onRegister, canManageEvent = false, canManage = false, trackViews = true }) {
   const session = useContext(AuthContext);
   const isQuestionPublisher = post.type === "QUESTION" && Boolean(session?.account?.username)
     && session.account.username === post.member?.username;
@@ -161,6 +162,7 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
   const viewed = useRef(null);
   const publisher = post.organization || post.member;
   const source = postSource(post);
+  const viewerPath = "/explore?source=" + source + "&post=" + encodeURIComponent(post.id);
   const type = post.member ? post.type ?? "POST" : "ORGANIZATION";
   const engagementCard = post.member && ["POST", "ACHIEVEMENT"].includes(type);
   const ownPost = session?.account?.username === post.member?.username;
@@ -321,6 +323,13 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
       )}
       <button type="button" className="bw-timeline-action" aria-label="Share" title="Share"
         onClick={() => void sharePost()}><NavigationIcon name="share" size={19} /></button>
+      {!immersive && (onOpen
+        ? <button type="button" className="bw-timeline-action bw-post-open-viewer"
+            aria-label="Open post viewer" title="Open post viewer" onClick={() => onOpen(post)}>
+            <NavigationIcon name="expand" size={19} />
+          </button>
+        : <Link className="bw-timeline-action bw-post-open-viewer" to={viewerPath}
+            aria-label="Open post viewer" title="Open post viewer"><NavigationIcon name="expand" size={19} /></Link>)}
        {typeof viewCount === "number" && (
         <span className="bw-post-view-metric" aria-label={viewCount + " views"} title={viewCount + " views"}>
           <NavigationIcon name="analytics" size={19} /> <span>{viewCount.toLocaleString()}</span>
@@ -360,6 +369,66 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
       )}
     </>
   );
+
+  if (immersive) {
+    const hasMedia = Array.isArray(displayPost.media) && displayPost.media.length > 0;
+    return (
+      <article className="bw-immersive-post" data-post-type={type}
+        data-has-media={hasMedia ? "true" : "false"} ref={cardRef}
+        aria-label={(publisher.name || "BrightWay member") + " post"}>
+        <div className="bw-immersive-post-stage">
+          {hasMedia ? <PostMedia media={displayPost.media} immersive /> : (
+            <div className="bw-immersive-post-empty-stage" aria-hidden="true">
+              <NavigationIcon name={storyFormats[type]?.icon || "post"} size={60} />
+            </div>
+          )}
+        </div>
+        <div className="bw-immersive-post-bottom">
+          <div className="bw-immersive-post-author">
+            <Link to={profileUrl} className="bw-immersive-author-avatar" aria-label={"Open " + publisher.name + " profile"}>
+              {publisherAvatar}
+            </Link>
+            <span className="bw-immersive-author-meta">
+              <span className="bw-immersive-author-name">
+                <Link to={profileUrl}>{publisher.name}</Link>
+                {post.member?.verified === true && <VerificationBadge />}
+                {post.organization && <VerificationBadge kind="organization" />}
+              </span>
+              <span>{publisher.username ? "@" + publisher.username + " · " : ""}<PostTimestamp createdAt={post.createdAt} /></span>
+            </span>
+          </div>
+          {reviewBanner}
+          <PostStory post={displayPost} timeline showMedia={false}
+            answerCount={answerCount} answerParticipants={answerParticipants} />
+          {topicTags}
+        </div>
+        {!heldForReview && <div className="bw-immersive-post-rail" aria-label="Post actions">
+          <PostComments postId={post.id} source={source}
+            commentCount={post.commentCount} showComment={type !== "QUESTION"}
+            primaryAction={primaryAction}
+            onEngagementChange={() => setEngagementRevision(current => current + 1)}>
+            {controls}
+          </PostComments>
+          {typeof post.saved === "boolean" && typeof onSave === "function" && (
+            <button type="button" className="bw-immersive-utility" aria-label={post.saved ? "Unsave post" : "Save post"}
+              aria-pressed={post.saved} disabled={busy} onClick={() => onSave(post)}>
+              <NavigationIcon name="bookmark" active={post.saved} size={24} /><span>{post.saved ? "Saved" : "Save"}</span>
+            </button>
+          )}
+          {canReport && !reported && (
+            <button type="button" className="bw-immersive-utility" aria-label="Report post"
+              onClick={() => setReportOpen(true)}><NavigationIcon name="flag" size={24} /><span>Report</span></button>
+          )}
+        </div>}
+        {!heldForReview && <div className="bw-immersive-post-trays">
+          {extras}
+          {canManageEvent && post.eventDetails?.requiresApproval === true && (
+            <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
+          )}
+        </div>}
+      </article>
+    );
+  }
 
   if (timeline) {
     return (
@@ -436,6 +505,13 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
       {reviewBanner}
       <PostStory post={displayPost} />
       {topicTags}
+      <div className="bw-post-card-viewer-link">
+        {onOpen ? (
+          <button type="button" onClick={() => onOpen(post)}>
+            <NavigationIcon name="expand" size={17} /> View post
+          </button>
+        ) : <Link to={viewerPath}><NavigationIcon name="expand" size={17} /> View post</Link>}
+      </div>
       {!heldForReview && extras}
       {!heldForReview && canManageEvent && post.eventDetails?.requiresApproval === true && (
         <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
@@ -446,6 +522,12 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
 }
 
 export default function PostsPanel({ organization, personal = false, view = "for-you", disabled = false, timeline = false, composerAccount, composerPhotoId, showInlineComposer = true, composePostOnOpen = false, onComposeRequestFinished }) {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openedInFeed = useRef(false);
+  const viewerSource = searchParams.get("source");
+  const viewerId = searchParams.get("post");
+  const viewerOpen = Boolean(viewerId && ["member", "organization"].includes(viewerSource));
   const organizationId = organization?.id;
   const inlineComposer = timeline && Boolean(composerAccount);
   const memberComposer = personal || inlineComposer;
@@ -495,7 +577,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
     async signal => {
       const data = await (organizationId ? api.list(organizationId, cursor, signal)
         : personal ? api.memberList(cursor, signal) : api.feed(view, cursor, signal));
-      if (timeline && !cursor && !organizationId && !personal) {
+      if (!cursor && (timeline || personal) && !organizationId) {
         const params = new URLSearchParams(window.location.search);
         const source = params.get("source");
         const id = params.get("post");
@@ -694,6 +776,46 @@ export default function PostsPanel({ organization, personal = false, view = "for
     items => items.filter(item => item.id !== id));
   }
 
+  function viewerParams(post) {
+    const next = new URLSearchParams(searchParams);
+    next.set("source", postSource(post));
+    next.set("post", post.id);
+    return next;
+  }
+
+  function openViewer(post) {
+    openedInFeed.current = true;
+    setSearchParams(viewerParams(post));
+  }
+
+  function navigateViewer(post) {
+    setSearchParams(viewerParams(post), { replace: true });
+  }
+
+  function closeViewer() {
+    if (openedInFeed.current) {
+      openedInFeed.current = false;
+      navigate(-1);
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("post");
+    next.delete("source");
+    setSearchParams(next, { replace: true });
+  }
+
+  const viewerItems = page?.items ?? [];
+  const viewerPost = viewerOpen
+    ? viewerItems.find(item => item.id === viewerId && postSource(item) === viewerSource)
+    : null;
+  const viewerControls = selected => ({
+    canManage: Boolean(organization || personal || (selected.member && selected.member.username === composerAccount?.username)),
+    canManageEvent: Boolean(selected.member && (personal || selected.member.username === composerAccount?.username)),
+    busy: pending || disabled,
+    onWithdraw: withdraw, onEdit: editPost, onLike: like, onSave: save,
+    onRepost: repost, onRegister: register,
+  });
+
   return (
     <section className={timeline ? "bw-post-panel bw-timeline-panel" : "bw-post-panel"} aria-label={organization ? "Organization posts" : personal ? "Your posts" : "Explore posts"}>
       {memberComposer && choosingPost && <PurposefulPostChooser disabled={!canPublish || pending}
@@ -746,8 +868,12 @@ export default function PostsPanel({ organization, personal = false, view = "for
         canManage={Boolean(organization || personal || (post.member && post.member.username === composerAccount?.username))}
         canManageEvent={Boolean(post.member && (personal || post.member.username === composerAccount?.username))}
         busy={pending || disabled} onWithdraw={withdraw} onEdit={editPost} onLike={like} onSave={save} onRepost={repost}
-        onRegister={register} />)}
+        onRegister={register} onOpen={openViewer} />)}
       {page?.nextCursor && <button type="button" disabled={pending || disabled} onClick={() => void load(page.nextCursor)}>Load older posts</button>}
+      {viewerOpen && <PostViewer posts={viewerItems} post={viewerPost} loading={!page && !error}
+        onClose={closeViewer} onNavigate={navigateViewer}
+        renderPost={selected => <PostCard key={postKey(selected)} post={selected}
+          timeline immersive {...viewerControls(selected)} />} />}
     </section>
   );
 }

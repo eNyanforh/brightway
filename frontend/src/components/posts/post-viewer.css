@@ -1,0 +1,309 @@
+/* Native top-layer dialog: the normal feed and navigation remain outside. */
+.bw-post-viewer {
+  inset: 0;
+  width: min(1000px, calc(100vw - 48px));
+  height: min(820px, calc(100dvh - 48px));
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #252525;
+  border-radius: 16px;
+  background: #090909;
+  color: #fff;
+  box-shadow: 0 20px 80px #0008;
+}
+.bw-post-viewer::backdrop { background: rgb(0 0 0 / 86%); }
+.bw-post-viewer-heading {
+  position: absolute;
+  inset: 12px 12px auto 16px;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.bw-post-viewer-counter {
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: #0008;
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.bw-post-viewer-close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #ffffff50;
+  border-radius: 50%;
+  background: #0009;
+  color: #fff;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.bw-post-viewer button:focus-visible,.bw-post-viewer a:focus-visible { outline: 2px solid #8ab7ff; outline-offset: 3px; }
+.bw-post-viewer-slide { height: 100%; min-height: 0; touch-action: pan-y; }
+.bw-post-viewer-navigation {
+  position: absolute;
+  z-index: 35;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 10px;
+}
+.bw-post-viewer-navigation button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #ffffff50;
+  border-radius: 50%;
+  background: #111c;
+  color: #fff;
+  cursor: pointer;
+}
+.bw-post-viewer-navigation button:disabled { opacity: .3; cursor: default; }
+.bw-post-viewer-navigation button:first-child svg { transform: rotate(90deg); }
+.bw-post-viewer-navigation button:last-child svg { transform: rotate(90deg); }
+.bw-post-viewer-hint { display: none; }
+.bw-post-viewer-unavailable { display: grid; place-content: center; height: 100%; text-align: center; gap: 10px; padding: 30px; color: #eee; }
+.bw-post-viewer-unavailable strong { font-size: 20px; }
+.bw-post-viewer-unavailable p { font-size: 14px; color: #bbb; }
+
+.bw-immersive-post {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: radial-gradient(ellipse at 30% 30%, #17345c 0%, #101a26 43%, #090909 100%);
+  color: #fff;
+}
+.bw-immersive-post::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 45% 0 0;
+  background: linear-gradient(0deg, #000e, #000a 32%, transparent);
+  pointer-events: none;
+}
+.bw-immersive-post-stage { position: absolute; inset: 0; z-index: 0; }
+.bw-immersive-post-empty-stage { display: grid; place-items: center; height: 100%; color: #ffffff15; }
+.bw-immersive-post-stage .bw-post-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  gap: 0;
+}
+.bw-immersive-post-stage .bw-post-media > * { width: 100%; height: 100%; }
+.bw-immersive-post-stage .bw-post-video { display: flex; align-items: center; border-radius: 0; background: #000; }
+.bw-immersive-post-stage .bw-post-video video { width: 100%; height: 100%; max-height: none; object-fit: contain; }
+.bw-immersive-post-stage .bw-post-video figcaption { display: none; }
+.bw-immersive-post-stage .bw-photo-gallery {
+  height: 100%;
+  min-height: 100%;
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: 0;
+  background: #080808;
+}
+.bw-immersive-post-stage .bw-photo-gallery .bw-gallery-photo > img { object-fit: contain; }
+.bw-immersive-post-stage .bw-document-carousel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-height: 100%;
+  overflow: auto;
+}
+.bw-immersive-post-bottom {
+  position: absolute;
+  z-index: 3;
+  bottom: 62px;
+  left: max(22px, 3%);
+  width: min(63%, 600px);
+  max-height: 52%;
+  overflow-y: auto;
+  padding: 18px 6px 8px 0;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+  color: #fff;
+}
+.bw-immersive-post[data-has-media="false"] .bw-immersive-post-bottom {
+  bottom: 22%;
+  max-height: 65%;
+}
+.bw-immersive-post-author { display: flex; align-items: center; gap: 11px; margin-bottom: 10px; }
+.bw-immersive-author-avatar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  overflow: hidden;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #333;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 800;
+}
+.bw-immersive-author-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.bw-immersive-author-meta { display: grid; gap: 2px; min-width: 0; font-size: 12px; color: #ddd; }
+.bw-immersive-author-name { display: flex; align-items: center; gap: 5px; font-size: 15px; font-weight: 750; }
+.bw-immersive-author-name a { color: #fff; text-decoration: none; overflow-wrap: anywhere; }
+.bw-immersive-author-name .bw-verification-badge svg { width: 17px; height: 17px; }
+.bw-immersive-post-bottom .bw-post-story { margin: 0; background: transparent; border: 0; padding: 0; color: #fff; }
+.bw-immersive-post-bottom .bw-post-text,.bw-immersive-post-bottom .bw-post-story .bw-post-text,
+.bw-immersive-post-bottom .bw-question-feed-content h3 { color: #fff; text-shadow: 0 1px 4px #0006; }
+.bw-immersive-post-bottom .bw-post-text { font-size: clamp(16px, 2.3vw, 23px); line-height: 1.45; }
+.bw-immersive-post-bottom .bw-post-story-note { display: none; }
+.bw-immersive-post-bottom .bw-post-distribution-topics { color: #ddd; font-size: 11px; }
+.bw-immersive-post-bottom .bw-post-type-label { color: #fff; }
+.bw-immersive-post-bottom .bw-post-caption-toggle { color: #fff; }
+.bw-immersive-post-bottom .bw-event-feed-card { max-height: 250px; overflow-y: auto; }
+.bw-immersive-post-rail {
+  position: absolute;
+  z-index: 4;
+  right: 22px;
+  bottom: 88px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-height: calc(100% - 180px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.bw-immersive-post-rail::-webkit-scrollbar { display: none; }
+.bw-immersive-post-rail .bw-post-comments { display: contents; }
+.bw-immersive-post .bw-timeline-actions,.bw-immersive-post .bw-post-secondary-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  width: auto;
+  margin: 0;
+}
+.bw-immersive-post .bw-post-primary-action { width: 100%; }
+.bw-immersive-post .bw-timeline-action,.bw-immersive-post .bw-immersive-utility {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  min-height: 50px;
+  gap: 3px;
+  padding: 6px 3px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+.bw-immersive-post .bw-timeline-action svg,.bw-immersive-utility svg { width: 26px; height: 26px; }
+.bw-immersive-post .bw-timeline-action:hover,.bw-immersive-utility:hover { background: #ffffff23; }
+.bw-immersive-post .bw-timeline-action[aria-pressed="true"] { color: #9fc2ff; }
+.bw-immersive-post .bw-post-view-metric { display: flex; flex-direction: column; align-items: center; color: #ddd; padding: 5px; font-size: 11px; }
+.bw-immersive-post .bw-post-view-metric svg { width: 23px; height: 23px; }
+.bw-immersive-post .bw-action-count { color: inherit; font-size: 12px; }
+.bw-immersive-post .bw-timeline-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+.bw-immersive-post-trays { position: absolute; z-index: 20; inset: auto 0 0; max-height: 75%; overflow-y: auto; color: #161616; }
+.bw-immersive-post-trays:empty { pointer-events: none; }
+.bw-immersive-post-trays .bw-question-answers,.bw-immersive-post-trays .bw-question-report,
+.bw-immersive-post-trays .bw-post-action-notice,.bw-immersive-post-trays .bw-post-error {
+  margin: 0;
+  max-height: 70dvh;
+  overflow-y: auto;
+  padding: 18px;
+  border-radius: 16px 16px 0 0;
+  background: #fff;
+  color: #191919;
+}
+/* Discussion is a sheet over the entire viewer, never squeezed into the action rail. */
+.bw-immersive-post .bw-post-comments-section:not([hidden]) {
+  position: fixed;
+  z-index: 28;
+  left: max(24px, calc((100vw - 1000px) / 2));
+  bottom: max(24px, calc((100dvh - 820px) / 2));
+  width: min(1000px, calc(100vw - 48px));
+  max-height: 70dvh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 18px;
+  border-radius: 18px 18px 0 0;
+  background: #fff;
+  color: #111;
+}
+@media (max-width: 700px) {
+  .bw-post-viewer { inset: 0; width: 100%; height: 100dvh; margin: 0; border: 0; border-radius: 0; }
+  .bw-post-viewer-heading { inset: max(8px, env(safe-area-inset-top)) 10px auto 12px; }
+  .bw-post-viewer-slide { height: 100%; }
+  .bw-immersive-post-bottom {
+    left: 15px;
+    bottom: calc(56px + env(safe-area-inset-bottom));
+    width: calc(100% - 100px);
+    max-height: 43%;
+    padding-right: 5px;
+  }
+  .bw-immersive-post[data-has-media="false"] .bw-immersive-post-bottom {
+    bottom: 24%;
+    max-height: 57%;
+  }
+  .bw-immersive-post-bottom .bw-post-text { font-size: 17px; }
+  .bw-immersive-post-rail {
+    right: 7px;
+    bottom: calc(59px + env(safe-area-inset-bottom));
+    max-height: 59%;
+    gap: 3px;
+  }
+  .bw-immersive-post .bw-timeline-action,.bw-immersive-post .bw-immersive-utility { width: 62px; min-height: 49px; }
+  .bw-post-viewer-navigation { right: 10px; bottom: max(8px, env(safe-area-inset-bottom)); }
+  .bw-post-viewer-navigation button { width: 36px; height: 36px; }
+  .bw-post-viewer-hint { display: block; position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); left: 16px; color: #fff9; font-size: 11px; pointer-events: none; }
+  .bw-immersive-post .bw-post-comments-section:not([hidden]) {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 77dvh;
+  }
+  .bw-immersive-post-trays { max-height: 77dvh; }
+  .bw-immersive-post-stage .bw-document-carousel { padding: 68px 0 95px; box-sizing: border-box; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-post-viewer * { scroll-behavior: auto !important; }
+}
+
+/* Compact entry point for non-timeline post cards. */
+.bw-post-card-viewer-link { display: flex; justify-content: flex-end; margin: 8px 0 4px; }
+.bw-post-card-viewer-link button,.bw-post-card-viewer-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #424242;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+.bw-post-card-viewer-link button:hover,.bw-post-card-viewer-link a:hover { background: #f2f2f2; }
+.bw-timeline-action.bw-post-open-viewer { text-decoration: none; }
