@@ -850,9 +850,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
     timestamp: Date.parse(post.repost?.createdAt || post.createdAt) || 0,
   }));
   if (showOpportunities) {
-    const now = Date.now();
     for (const [index, opportunity] of (opportunityPage?.items ?? []).entries()) {
-      if (opportunity.status !== "PUBLISHED" || !(Date.parse(opportunity.deadline) > now)) continue;
+      // The authorized catalog endpoint already filters expired and unpublished listings.
+      if (opportunity.status !== "PUBLISHED") continue;
       feedEntries.push({
         kind: "opportunity", key: "opportunity:" + opportunity.id, item: opportunity, order: feedEntries.length + index,
         timestamp: Date.parse(opportunity.publishedAt || opportunity.createdAt) || 0,
