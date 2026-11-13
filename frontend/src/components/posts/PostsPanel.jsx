@@ -88,14 +88,13 @@ function QuestionAnswerSummary({ count, participants }) {
   );
 }
 
-function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerParticipants = [] }) {
+function PostStory({ post, timeline = false, answerCount = 0, answerParticipants = [] }) {
   const format = post.member && storyFormats[post.type];
   if (!format) return (
     <>
       {post.member && <PersonalPostTypeLabel type={post.type} />}
       <PostCaption body={post.body} />
       <PostMedia media={post.media} />
-      {topicTags}
     </>
   );
   return (
@@ -119,7 +118,6 @@ function PostStory({ post, topicTags, timeline = false, answerCount = 0, answerP
         <PostCaption body={post.body} className="bw-post-story-body" />
       )}
       <PostMedia media={post.media} />
-      {topicTags}
       {post.type === "EVENT" && post.registration && (
         <EventAttendeeSummary count={post.registration.count ?? 0}
           attendees={post.eventAttendees ?? []} />
@@ -183,7 +181,13 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
     </div>
   ) : null;
   const profileUrl = post.organization ? "/organizations/" + post.organization.id : "/" + encodeURIComponent(post.member.username);
-  const topicTags = post.member && <PostTopicTags tags={post.tags} />;
+  // Topics inform distribution; keep them as quiet, read-only metadata beneath the post.
+  const topicTags = post.member && post.tags?.length > 0 && (
+    <div className="bw-post-distribution-topics" aria-label="Distribution topics">
+      <span className="bw-post-distribution-label">Topics</span>
+      <PostTopicTags tags={post.tags} />
+    </div>
+  );
   const imageUrl = post.member?.photoId
     ? memberPhotoUrl(post.member.username, post.member.photoId)
     : post.organization?.profilePhotoId
@@ -390,8 +394,9 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
             <PostTimestamp createdAt={post.createdAt} />
           </header>
           {reviewBanner}
-          <PostStory post={displayPost} topicTags={topicTags} timeline
+          <PostStory post={displayPost} timeline
             answerCount={answerCount} answerParticipants={answerParticipants} />
+          {topicTags}
           {!heldForReview && <PostComments postId={post.id} source={source}
             commentCount={post.commentCount}
             showComment={type !== "QUESTION"} primaryAction={primaryAction}
@@ -429,7 +434,8 @@ export function PostCard({ post, timeline, busy, onWithdraw, onEdit, onLike, onS
         </div>
       </header>
       {reviewBanner}
-      <PostStory post={displayPost} topicTags={topicTags} />
+      <PostStory post={displayPost} />
+      {topicTags}
       {!heldForReview && extras}
       {!heldForReview && canManageEvent && post.eventDetails?.requiresApproval === true && (
         <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />

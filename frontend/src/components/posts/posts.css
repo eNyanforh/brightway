@@ -2068,3 +2068,77 @@
   .bw-purposeful-choice small { font-size:13px; line-height:1.45; }
   .bw-achievement-modal-dialog input,.bw-achievement-modal-dialog textarea,.bw-event-modal-dialog input,.bw-event-modal-dialog textarea,.bw-question-dialog input,.bw-question-dialog textarea { font-size:16px; }
 }
+
+/* Distribution topics are metadata beneath the story, not prominent post content. */
+.bw-post-distribution-topics {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: .25rem .5rem;
+  margin: .45rem 0 .35rem;
+  color: #667085;
+  font-size: .72rem;
+  line-height: 1.45;
+}
+.bw-post-distribution-label { flex: 0 0 auto; font-weight: 600; }
+.bw-post-distribution-topics .bw-post-topic-tags {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: .15rem .4rem;
+  margin: 0;
+}
+.bw-post-distribution-topics .bw-post-topic-tags li {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 400;
+}
+.bw-post-distribution-topics .bw-post-topic-tags li + li::before {
+  content: "·";
+  padding-right: .4rem;
+  color: #9aa3af;
+}
+
+/* Mobile: actionable controls lead on the left; real engagement avatars sit on the right. */
+@media (max-width: 700px) {
+  .bw-timeline-refresh { display: none; }
+  .bw-post-panel .bw-timeline-actions--engagement {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: .25rem;
+  }
+  .bw-post-panel .bw-timeline-actions--engagement .bw-post-secondary-actions {
+    order: 1;
+    display: flex;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    justify-content: flex-start;
+    margin-left: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .bw-post-panel .bw-timeline-actions--engagement .bw-post-secondary-actions::-webkit-scrollbar { display: none; }
+  .bw-post-panel .bw-timeline-actions--engagement .bw-post-engagement-left {
+    order: 2;
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+  .bw-post-panel .bw-timeline-actions--split .bw-post-primary-action { order: 0; }
+  .bw-post-panel .bw-timeline-actions--split .bw-post-secondary-actions {
+    justify-content: flex-start;
+    margin-left: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .bw-post-panel .bw-timeline-actions--split .bw-post-secondary-actions::-webkit-scrollbar { display: none; }
+}

@@ -551,6 +551,10 @@ test("The feed renders different presentation cards for stored achievements, eve
       await expect(card.getByText(/Monrovia University Campus/)).toBeVisible();
     }
     await expect(card.getByRole("list", { name: "Topic tags" }).getByText("Learning")).toBeVisible();
+    const distribution = card.getByLabel("Distribution topics");
+    await expect(distribution).toBeVisible();
+    // Topics belong below the story content, not inside the post headline or body.
+    expect(await distribution.evaluate(element => element.previousElementSibling?.classList.contains("bw-post-story"))).toBe(true);
     if (format.type === "QUESTION") {
       await expect(card.getByRole("button", { name: "Comments" })).toHaveCount(0);
       await expect(card.getByRole("region", { name: "Post comments" })).toHaveCount(0);
@@ -943,7 +947,7 @@ test("modern post comments preserve create, delete, pagination and close behavio
     .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
 });
 
-test("question cards display real answerers beneath topic tags and a distinct Answer action", async ({ page }) => {
+test("question cards display real answerers above distribution topics and a distinct Answer action", async ({ page }) => {
   const question = {
     ...fixturePost,
     id: "88888888-8888-4888-8888-888888888888",
@@ -972,7 +976,8 @@ test("question cards display real answerers beneath topic tags and a distinct An
   await expect(facepile.getByRole("link", { name: "Alex Rivera answered" })).toContainText("AR");
   const tagsBox = await topics.boundingBox();
   const summaryBox = await summary.boundingBox();
-  expect(summaryBox.y).toBeGreaterThan(tagsBox.y);
+  // The answer summary is story content, while topics are distribution metadata below it.
+  expect(summaryBox.y + summaryBox.height).toBeLessThanOrEqual(tagsBox.y + 1);
   const answer = card.getByRole("button", { name: "Answer", exact: true });
   await expect(answer).toBeVisible();
   const appearance = await answer.evaluate(element => ({
@@ -1158,7 +1163,7 @@ test("the billboard rotates and stops when the member pauses it", async ({ page,
 });
 
 
-test("post and achievement footers show real engaged avatars left and actions, report and views right", async ({ page, isMobile }) => {
+test("post and achievement footers keep engagement avatars opposite the actions on desktop and mobile", async ({ page, isMobile }) => {
   const regular = {
     ...fixturePost, id: "a9111111-1111-4111-8111-111111111111",
     type: "POST", tags: ["Education"], body: "An education resource shared with the community.",
@@ -1183,6 +1188,8 @@ test("post and achievement footers show real engaged avatars left and actions, r
   });
   await page.goto("/explore");
   const explore = page.getByRole("region", { name: "Explore", exact: true });
+  if (isMobile) await expect(explore.getByRole("button", { name: "Refresh feed" })).toHaveCount(0);
+  else await expect(explore.getByRole("button", { name: "Refresh feed" })).toBeVisible();
   for (const post of [regular, achievement]) {
     const card = explore.getByRole("article").filter({ hasText: post.body });
     await card.scrollIntoViewIfNeeded();
@@ -1203,7 +1210,8 @@ test("post and achievement footers show real engaged avatars left and actions, r
     const [leftBox, rightBox] = await Promise.all([left.boundingBox(), right.boundingBox()]);
     expect(leftBox).toBeTruthy();
     expect(rightBox).toBeTruthy();
-    expect(leftBox.x + leftBox.width).toBeLessThanOrEqual(rightBox.x + 1);
+    if (isMobile) expect(rightBox.x + rightBox.width).toBeLessThanOrEqual(leftBox.x + 1);
+    else expect(leftBox.x + leftBox.width).toBeLessThanOrEqual(rightBox.x + 1);
     expect(Math.abs(leftBox.y + leftBox.height / 2 - (rightBox.y + rightBox.height / 2)))
       .toBeLessThanOrEqual(10);
     await card.getByRole("button", { name: "Post options" }).click();
