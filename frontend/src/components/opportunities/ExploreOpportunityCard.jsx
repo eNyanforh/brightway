@@ -14,7 +14,7 @@ const EXPLORE_OPPORTUNITY_CATEGORIES = Object.freeze({
   EVENT: "Events",
 });
 
-function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, formattedDeadline }) {
+function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, formattedDeadline, onSavedChange }) {
   const [saved, setSaved] = useState(Boolean(opportunity.saved));
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -28,6 +28,7 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
     try {
       const updated = await opportunitiesApi.setSaved(opportunity.id, !saved);
       setSaved(Boolean(updated.saved));
+      onSavedChange?.(opportunity.id, Boolean(updated.saved));
       setFeedback(updated.saved ? "Challenge saved to your account." : "Challenge removed from your saved items.");
     } catch (error) {
       setFeedback(error?.message || "Could not update your saved challenge. Try again.");
@@ -105,7 +106,7 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
 }
 
 // Catalog content in Explore: not a social post, and never passed to PostViewer.
-export default function ExploreOpportunityCard({ opportunity }) {
+export default function ExploreOpportunityCard({ opportunity, onSavedChange }) {
   const organization = opportunity.organization;
   const type = OPPORTUNITY_TYPES[opportunity.type];
   const category = EXPLORE_OPPORTUNITY_CATEGORIES[opportunity.type];
@@ -128,7 +129,7 @@ export default function ExploreOpportunityCard({ opportunity }) {
     </header>
     {opportunity.type === "CHALLENGE"
       ? <ChallengeCard opportunity={opportunity} organization={organization} profile={profile} detail={detail}
-          photoUrl={photoUrl} formattedDeadline={formattedDeadline} />
+          photoUrl={photoUrl} formattedDeadline={formattedDeadline} onSavedChange={onSavedChange} />
       : <div className="bw-timeline-opportunity-card">
         <Link className="bw-timeline-avatar" to={profile} aria-label={"View " + organization.name + " profile"}>
           <OrganizationAvatar organization={{ ...organization, photoUrl }} icon="briefcase" />
