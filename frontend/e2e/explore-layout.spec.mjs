@@ -26,7 +26,7 @@ const formats = [
 // specialized presentation cards and type-specific actions.
 const specializedFormats = formats;
 
-async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED", submittedNotice = null) {
+async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED", submittedNotice = null, opportunities = []) {
   const writes = [];
   const publishedPosts = [];
   await page.route("**/*", async route => {
@@ -35,6 +35,7 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
     const url = new URL(request.url());
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();
+    if (/^\/api\/v1\/organizations\/[^/]+\/photo\/[^/]+$/.test(url.pathname)) return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9ySN6FcAAAAASUVORK5CYII=", "base64") });
     const reply = (data, status = 200) => route.fulfill({ status, json: { success: true, data } });
     if (/^\/api\/v1\/explore\/posts\/(member|organization)\/[^/]+\/view$/.test(url.pathname)) return reply({ views: 1 });
     // Shared links read one server-authorized post rather than assuming it is in the first feed page.
@@ -48,8 +49,8 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
       case "/api/v1/work/access": return reply({ hasWork: false });
       case "/api/v1/explore/posts": return reply({ items: [...publishedPosts, ...posts], nextCursor: null });
-      case "/api/v1/learning/discover":
-      case "/api/v1/opportunities": return reply({ items: [], nextCursor: null });
+      case "/api/v1/learning/discover": return reply({ items: [], nextCursor: null });
+      case "/api/v1/opportunities": return reply({ items: opportunities.filter(item => url.searchParams.get("following") !== "true" || item.followed), nextCursor: null });
       case "/api/v1/posts/me": {
         const draft = request.postDataJSON();
         writes.push(draft);
@@ -1691,4 +1692,30 @@ test("viewer keeps long captions readable and owner edit dialogs accessible", as
   await expect(viewer).toBeVisible();
   expect(await viewer.locator(".bw-post-viewer-slide").evaluate(el => el.getAnimations().length)).toBe(0);
   await testInfo.attach(isMobile ? "Mobile reading view" : "Desktop reading view", { body: await page.screenshot(), contentType: "image/png" });
+});
+
+test("published opportunities join the main Explore feed and remain separate from post viewer actions", async ({ page }) => {
+  const organizationId = "55555555-5555-4555-8555-555555555555";
+  const opportunityId = "66666666-6666-4666-8666-666666666666";
+  const listing = { id: opportunityId, type: "JOB", title: "Research assistant opportunity",
+    description: "Join a research team and build professional skills.", location: "Monrovia",
+    workMode: "IN_PERSON", publishedAt: "2026-11-13T12:00:00Z", createdAt: "2026-11-12T12:00:00Z",
+    status: "PUBLISHED", deadline: "2099-01-01T12:00:00Z", followed: false,
+    organization: { id: organizationId, name: "Community Research Institute", verifiedAt: "2026-11-01T12:00:00Z", profilePhotoId: "org-photo-1" } };
+  await fixture(page, [fixturePost], "PUBLISHED", null, [listing]);
+  await page.goto("/explore");
+  const feed = page.getByRole("region", { name: "Explore posts" });
+  const card = feed.getByRole("article", { name: "Job opportunity: Research assistant opportunity" });
+  await expect(card).toBeVisible();
+  await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
+  await expect(card.getByRole("img", { name: "Community Research Institute profile picture" })).toHaveAttribute("src", /\/api\/v1\/organizations\//);
+  await expect(card.getByRole("link", { name: "Community Research Institute" })).toHaveAttribute("href", "/organizations/" + organizationId);
+  await expect(card.getByRole("link", { name: "Research assistant opportunity" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  await expect(card.getByRole("link", { name: "Apply on BrightWay" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  await expect(card.getByRole("button", { name: "Post options" })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Like" })).toHaveCount(0);
+  await page.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "Saved" }).click();
+  await expect(feed.getByRole("article", { name: "Job opportunity: Research assistant opportunity" })).toHaveCount(0);
+  await page.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "Following" }).click();
+  await expect(feed.getByRole("article", { name: "Job opportunity: Research assistant opportunity" })).toHaveCount(0);
 });
