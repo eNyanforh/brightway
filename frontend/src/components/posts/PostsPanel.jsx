@@ -2,6 +2,8 @@ import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { organizationPostsApi as api, memberPhotoUrl } from "../../api/organization-posts";
 import { organizationPictureUrl } from "../../api/organization-profile";
+import { opportunitiesApi } from "../../api/opportunities";
+import ExploreOpportunityCard from "../opportunities/ExploreOpportunityCard";
 import NavigationIcon from "../layout/NavigationIcon";
 import PurposefulPostChooser from "./PurposefulPostChooser";
 import PersonalPostComposer, { PersonalPostTypeLabel } from "./PersonalPostComposer";
@@ -526,6 +528,51 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const inlineComposer = timeline && Boolean(composerAccount);
   const memberComposer = personal || inlineComposer;
   const [page, setPage] = useState(null);
+  // Opportunity listings are not posts: load their authorized catalog separately,
+  // then interleave them visually in Explore without changing post actions/viewers.
+  const showOpportunities = timeline && !personal && !organizationId && view !== "saved";
+  const [opportunityPage, setOpportunityPage] = useState(null);
+  const [opportunityError, setOpportunityError] = useState(null);
+  const [opportunityLoading, setOpportunityLoading] = useState(false);
+  const opportunityActive = useRef(null);
+  const loadOpportunities = useCallback(async cursor => {
+    if (!showOpportunities || opportunityActive.current) return;
+    const controller = new AbortController();
+    opportunityActive.current = controller;
+    setOpportunityLoading(true);
+    try {
+      const data = await opportunitiesApi.browse({
+        ...(view === "following" ? { following: "true" } : {}),
+        ...(cursor ? { cursor } : {}),
+      }, controller.signal);
+      if (!controller.signal.aborted) {
+        setOpportunityPage(previous => {
+          if (!cursor || !previous) return data;
+          const items = new Map(previous.items.map(item => [item.id, item]));
+          for (const item of data.items) items.set(item.id, item);
+          return { ...data, items: [...items.values()] };
+        });
+        setOpportunityError(null);
+      }
+    } catch (failure) {
+      if (!controller.signal.aborted) setOpportunityError(failure);
+    } finally {
+      if (opportunityActive.current === controller) {
+        opportunityActive.current = null;
+        setOpportunityLoading(false);
+      }
+    }
+  }, [showOpportunities, view]);
+  useEffect(() => {
+    if (!showOpportunities) return undefined;
+    let mounted = true;
+    queueMicrotask(() => { if (mounted) void loadOpportunities(); });
+    return () => {
+      mounted = false;
+      opportunityActive.current?.abort();
+      opportunityActive.current = null;
+    };
+  }, [showOpportunities, loadOpportunities]);
   const canPublish = !disabled && Boolean(personal ? page?.access?.identityVerified : inlineComposer || page);
   const [body, setBody] = useState("");
   const [type, setType] = useState("ACHIEVEMENT");
@@ -798,6 +845,26 @@ export default function PostsPanel({ organization, personal = false, view = "for
     setSearchParams(next, { replace: true });
   }
 
+  const feedEntries = (page?.items ?? []).map(post => ({
+    kind: "post", key: cardKey(post), item: post,
+    timestamp: Date.parse(post.repost?.createdAt || post.createdAt) || 0,
+  }));
+  if (showOpportunities) {
+    const now = Date.now();
+    for (const opportunity of opportunityPage?.items ?? []) {
+      if (opportunity.status !== "PUBLISHED" || !(Date.parse(opportunity.deadline) > now)) continue;
+      feedEntries.push({
+        kind: "opportunity", key: "opportunity:" + opportunity.id, item: opportunity,
+        timestamp: Date.parse(opportunity.publishedAt || opportunity.createdAt) || 0,
+      });
+    }
+    feedEntries.sort((a, b) => b.timestamp - a.timestamp || a.key.localeCompare(b.key));
+  }
+  const hasOlderActivity = Boolean(page?.nextCursor || (showOpportunities && opportunityPage?.nextCursor));
+  const loadOlderActivity = () => {
+    if (page?.nextCursor) void load(page.nextCursor);
+    if (showOpportunities && opportunityPage?.nextCursor) void loadOpportunities(opportunityPage.nextCursor);
+  };
   const viewerItems = page?.items ?? [];
   const viewerPost = viewerOpen
     ? viewerItems.find(item => item.id === viewerId && postSource(item) === viewerSource)
@@ -850,20 +917,27 @@ export default function PostsPanel({ organization, personal = false, view = "for
       {error && <p className="bw-post-error" role="alert">{error.message}{inlineComposer && error.status === 403 && <> <Link to="/profile">Open your profile</Link></>}</p>}
       {!page && !error && <p role="status">Loading posts…</p>}
       <div className={timeline ? "bw-timeline-refresh" : "bw-post-actions"}>
-        <button type="button" disabled={pending || disabled} onClick={() => void load()}>{timeline ? "Refresh feed" : "Refresh posts"}</button>
+        <button type="button" disabled={pending || disabled} onClick={() => { void load(); if (showOpportunities) void loadOpportunities(); }}>{timeline ? "Refresh feed" : "Refresh posts"}</button>
       </div>
-      {page?.items.length === 0 && (
+      {showOpportunities && opportunityError && (
+        <p className="bw-post-error" role="alert">Opportunities could not be loaded.{" "}
+          <button type="button" disabled={opportunityLoading} onClick={() => void loadOpportunities()}>Retry opportunities</button>
+        </p>
+      )}
+      {page && feedEntries.length === 0 && (!showOpportunities || opportunityPage || opportunityError) && (
         <p className="bw-post-empty">{organization ? "Your organization has no published posts yet." :
           personal ? "You have no submissions yet." :
             view === "saved" ? "Save a post to find it here later." :
-              view === "following" ? "Posts from people and organizations you follow will appear here." : "Posts from verified people and organizations will appear here."}</p>
+              view === "following" ? "Posts and opportunities from people and organizations you follow will appear here." : "Posts and opportunities from verified people and organizations will appear here."}</p>
       )}
-      {page?.items.map(post => <PostCard key={cardKey(post)} post={post} timeline={timeline}
-        canManage={Boolean(organization || personal || (post.member && post.member.username === composerAccount?.username))}
-        canManageEvent={Boolean(post.member && (personal || post.member.username === composerAccount?.username))}
-        busy={pending || disabled} onWithdraw={withdraw} onEdit={editPost} onLike={like} onSave={save} onRepost={repost}
-        onRegister={register} onOpen={openViewer} />)}
-      {page?.nextCursor && <button type="button" disabled={pending || disabled} onClick={() => void load(page.nextCursor)}>Load older posts</button>}
+      {feedEntries.map(entry => entry.kind === "opportunity"
+        ? <ExploreOpportunityCard key={entry.key} opportunity={entry.item} />
+        : <PostCard key={entry.key} post={entry.item} timeline={timeline}
+          canManage={Boolean(organization || personal || (entry.item.member && entry.item.member.username === composerAccount?.username))}
+          canManageEvent={Boolean(entry.item.member && (personal || entry.item.member.username === composerAccount?.username))}
+          busy={pending || disabled} onWithdraw={withdraw} onEdit={editPost} onLike={like} onSave={save} onRepost={repost}
+          onRegister={register} onOpen={openViewer} />)}
+      {hasOlderActivity && <button type="button" disabled={pending || disabled || opportunityLoading} onClick={loadOlderActivity}>{showOpportunities ? "Load older activity" : "Load older posts"}</button>}
       {viewerOpen && <PostViewer posts={viewerItems} post={viewerPost} loading={!page && !error}
         onClose={closeViewer} onNavigate={navigateViewer}
         renderPost={selected => <PostCard key={postKey(selected)} post={selected}
