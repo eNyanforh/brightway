@@ -1495,6 +1495,8 @@ test("mobile shell keeps search in one row and opens a contained account drawer"
   await page.goto("/explore");
   const header = page.locator(".bw-design-header");
   const accountButton = header.getByRole("button", { name: "Open account menu" });
+  await expect(page).toHaveTitle("Brightway - Learn, Network and Earn");
+  await expect(accountButton.locator("svg path")).toHaveAttribute("d", "M4 7h16M4 12h16M4 17h16");
   const search = header.getByRole("searchbox", { name: "Search BrightWay content and people" });
   const messages = header.getByRole("link", { name: "Messages", exact: true });
   for (const width of [320, 390, 700]) {
