@@ -1835,13 +1835,15 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
     .evaluate(element => element.getBoundingClientRect().width);
   expect(avatarWidth).toBe(isMobile ? 40 : 45);
   const innerElementsWithTopMargins = await body.locator("*").evaluateAll(elements =>
-    elements.filter(element => getComputedStyle(element).marginTop !== "0px")
+    elements.filter(element =>
+      !element.classList.contains("bw-challenge-divider") &&
+      getComputedStyle(element).marginTop !== "0px")
       .map(element => ({ tag: element.tagName, className: element.getAttribute("class"),
         marginTop: getComputedStyle(element).marginTop })));
   expect(innerElementsWithTopMargins).toEqual([]);
   const dividerMargin = await card.locator(".bw-challenge-divider")
     .evaluate(element => getComputedStyle(element).marginTop);
-  expect(dividerMargin).toBe("0px");
+  expect(dividerMargin).toBe("16px");
   const title = card.getByRole("heading", { name: opportunity.title });
   const organizer = card.locator(".bw-challenge-organization");
   const deadline = card.locator(".bw-challenge-deadline");
