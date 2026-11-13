@@ -1822,7 +1822,7 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   const deadline = card.locator(".bw-challenge-deadline");
   const prize = card.locator(".bw-challenge-prize");
   await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
-  await expect(organizer.getByRole("link", { name: opportunity.organization.name })).toHaveAttribute("href", "/organizations/" + organizationId);
+  await expect(organizer.getByRole("link", { name: opportunity.organization.name, exact: true })).toHaveAttribute("href", "/organizations/" + organizationId);
   await expect(deadline).toContainText("Deadline:");
   await expect(prize).toContainText("US$1,000");
   await expect(prize).toContainText("Online");
