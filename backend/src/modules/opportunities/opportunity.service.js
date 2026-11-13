@@ -241,7 +241,7 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
         if (submit && !data.shareProfile) throw fail(400, "Confirm sharing your application and professional profile with this organization.");
         const snapshot = submit ? await profileSnapshot(db, actor) : null;
         const saved = { answers: data.answers, ...(submit ? { status: "SUBMITTED", submittedAt: now(), profileSnapshot: snapshot,
-          opportunitySnapshot: { title: row.title, type: row.type, organization: row.organization.name, questions: row.questions, description: row.description, location: row.location, workMode: row.workMode, version: row.version, deadline: row.deadline.toISOString() } } : {}) };
+          opportunitySnapshot: { title: row.title, type: row.type, organization: row.organization.name, questions: row.questions, description: row.description, location: row.location, workMode: row.workMode, prize: row.prize, version: row.version, deadline: row.deadline.toISOString() } } : {}) };
         const app = previous ? await db.opportunityApplication.update({ where: { id: previous.id }, data: { ...saved, version: { increment: 1 } } })
           : await db.opportunityApplication.create({ data: { opportunityId: oppId, applicantId: actor.accountId, ...saved } });
         if (submit) await event(db, actor, { ...app, status: previous?.status || "DRAFT" }, "SUBMITTED");
