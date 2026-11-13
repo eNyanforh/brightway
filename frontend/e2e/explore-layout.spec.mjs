@@ -1851,10 +1851,18 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   await expect(deadline).toContainText("Deadline:");
   await expect(prize).toContainText("US$1,000");
   await expect(prize).toContainText("Online");
+  await expect(title).toHaveCSS("margin-bottom", "2px");
+  await expect(prize).toHaveCSS("row-gap", "1px");
+  const [prizeAmountBounds, modeBounds] = await Promise.all([
+    prize.locator("strong").boundingBox(),
+    prize.locator(".bw-challenge-mode").boundingBox(),
+  ]);
+  expect(modeBounds.y - (prizeAmountBounds.y + prizeAmountBounds.height)).toBeLessThanOrEqual(2);
   const [titleBounds, organizerBounds, deadlineBounds, prizeBounds] = await Promise.all([
     title.boundingBox(), organizer.boundingBox(), deadline.boundingBox(), prize.boundingBox(),
   ]);
   expect(titleBounds.y).toBeLessThan(organizerBounds.y);
+  expect(organizerBounds.y - (titleBounds.y + titleBounds.height)).toBeLessThanOrEqual(3);
   expect(organizerBounds.y).toBeLessThan(deadlineBounds.y);
   expect(prizeBounds.x).toBeGreaterThan(organizerBounds.x);
   await expect(card.locator(".bw-challenge-divider")).toHaveCount(1);
