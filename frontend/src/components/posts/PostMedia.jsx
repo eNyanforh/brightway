@@ -6,7 +6,7 @@ const humanBytes = size => size >= 1024 * 1024
   ? (size / (1024 * 1024)).toFixed(1) + " MB"
   : Math.max(1, Math.ceil(size / 1024)) + " KB";
 
-export default function PostMedia({ media, immersive = false }) {
+export default function PostMedia({ media, immersive = false, onOpen }) {
   if (!Array.isArray(media) || !media.length) return null;
   const images = media.filter(file => file.kind === "IMAGE");
   const video = media.find(file => file.kind === "VIDEO");
@@ -17,7 +17,7 @@ export default function PostMedia({ media, immersive = false }) {
     && !window.navigator?.connection?.saveData;
   return (
     <div className="bw-post-media" aria-label="Post attachments">
-      {images.length > 0 && <PostPhotoGallery images={images} />}
+      {images.length > 0 && <PostPhotoGallery images={images} onOpen={onOpen} />}
       {video && (
         <figure className="bw-post-video">
           <video controls playsInline preload="metadata" autoPlay={autoplay} muted={immersive} loop={immersive}

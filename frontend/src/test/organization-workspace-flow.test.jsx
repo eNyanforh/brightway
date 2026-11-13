@@ -344,7 +344,7 @@ it("the personal Post destination checks verification and lets authors withdraw 
   expect(screen.getByRole("link", { name: "Test Owner" }).getAttribute("href")).toBe("/owner");
   expect(screen.queryByText("Pending review")).toBeNull();
   expect(within(screen.getByRole("article")).getByText("Event", { exact: true })).toBeTruthy();
-  expect(within(screen.getByRole("list", { name: "Topic tags" })).getByText("Research")).toBeTruthy();
+  expect(screen.queryByRole("list", { name: "Topic tags" })).toBeNull();
   hasPosts = true;
   await f.user.click(refresh);
   await screen.findByRole("button", { name: "Create an Event" });

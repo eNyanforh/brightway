@@ -40,6 +40,7 @@ export default function PostManageMenu({
   const id = useId();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mode, setMode] = useState(null);
+  const [portalRoot, setPortalRoot] = useState(null);
   const [draft, setDraft] = useState(() => initialDraft(post));
   const [tagDraft, setTagDraft] = useState("");
   const [error, setError] = useState("");
@@ -83,7 +84,7 @@ export default function PostManageMenu({
     const previousFocus = document.activeElement;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    element.querySelector("textarea,button")?.focus();
+    (element.querySelector("textarea") || element.querySelector("button"))?.focus();
     const keydown = event => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -108,6 +109,7 @@ export default function PostManageMenu({
   }, [mode]);
 
   function choose(next) {
+    setPortalRoot(trigger.current?.closest("dialog") || document.body);
     setMenuOpen(false);
     setDraft(initialDraft(post));
     setError("");
@@ -358,7 +360,7 @@ export default function PostManageMenu({
               </form>
             )}
           </div>
-        </div>, document.body
+        </div>, portalRoot || document.body
       )}
     </>
   );

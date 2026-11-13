@@ -63,15 +63,16 @@ it("shows complete posts in a title-free vertical feed, with engagement and pagi
   expect(within(rail).getByText("USD 25.00")).toBeTruthy();
   expect(within(rail).getByText("Capacity:")).toBeTruthy();
   expect(within(rail).getByText("Approval required")).toBeTruthy();
-  expect(within(rail).getByText("Coding")).toBeTruthy();
+  expect(within(rail).queryByText("Coding")).toBeNull();
+  expect(within(rail).queryByLabelText("Distribution topics")).toBeNull();
   expect(within(rail).getAllByRole("img", { name: "Verified identity" })).toHaveLength(2);
   expect(within(rail).getAllByText("Test User")).toHaveLength(2);
   expect(within(rail).getAllByLabelText("43 views")).toHaveLength(2);
   expect(within(rail).getAllByLabelText("4 comments")).toHaveLength(2);
   expect(within(rail).getAllByLabelText("2 reposts")).toHaveLength(2);
   expect(within(rail).getByLabelText("Event attendance").textContent).toContain("6 people attending");
-  expect(within(rail).getAllByRole("link", { name: /View full post/ })[0].getAttribute("href"))
-    .toBe("/explore?source=member&post=11111111-1111-4111-8111-111111111111");
+  expect(within(rail).queryByRole("link", { name: /View full post/ })).toBeNull();
+  expect(within(rail).getAllByRole("article")[0].getAttribute("aria-haspopup")).toBe("dialog");
 
   await userEvent.setup().click(screen.getByRole("button", { name: "Load older activity" }));
   await screen.findByText("How do I find a mentor?");
