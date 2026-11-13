@@ -1497,6 +1497,12 @@ test("mobile shell keeps search in one row and opens a contained account drawer"
   const accountButton = header.getByRole("button", { name: "Open account menu" });
   await expect(page).toHaveTitle("Brightway - Learn, Network and Earn");
   await expect(accountButton.locator("svg path")).toHaveAttribute("d", "M4 7h16M4 12h16M4 17h16");
+  await expect(accountButton.locator("svg")).toHaveAttribute("width", "24");
+  const menuSize = await accountButton.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  });
+  expect(menuSize).toEqual({ width: 44, height: 44 });
   const search = header.getByRole("searchbox", { name: "Search BrightWay content and people" });
   const messages = header.getByRole("link", { name: "Messages", exact: true });
   for (const width of [320, 390, 700]) {
@@ -1763,4 +1769,20 @@ test("main Explore feed displays the four reference gradient categories with whi
   }
   expect(new Set(gradients).size).toBe(4);
   await expect(feed.getByText("Grants & Funding")).toHaveCount(0);
+});
+
+test("desktop avatar menu uses a large circular hover target", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Hover styling is checked on desktop; mobile target size is covered separately.");
+  await fixture(page);
+  await page.goto("/explore");
+  const menu = page.locator(".bw-design-header").getByRole("button", { name: "Open account menu" });
+  const dimensions = await menu.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  });
+  expect(dimensions).toEqual({ width: 44, height: 44 });
+  await expect(menu.locator("svg")).toHaveAttribute("width", "24");
+  await menu.hover();
+  await expect(menu).toHaveCSS("background-color", "rgb(240, 241, 242)");
+  await expect(menu).toHaveCSS("border-radius", "50%");
 });
