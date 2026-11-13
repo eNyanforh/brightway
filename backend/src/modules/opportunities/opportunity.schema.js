@@ -16,10 +16,12 @@ const question = z.strictObject({
 export const opportunityInput = z.strictObject({
   type: z.enum(Object.keys(OPPORTUNITY_TYPES)), title: text(160).min(3), description: text(12000).min(30),
   location: text(180).min(2), workMode: z.enum(["IN_PERSON", "REMOTE", "HYBRID"]),
+  prize: text(120).default(""),
   deadline: z.iso.datetime({ offset: true }),
   questions: z.array(question).max(20).refine(q => new Set(q.map(v => v.id)).size === q.length)
     .refine(q => q.filter(v => v.type === "FILE_UPLOAD").length <= 5),
 });
+export const saveInput = z.strictObject({ saved: z.boolean() });
 export const createInput = opportunityInput.extend({ requestKey: identifier });
 export const editInput = opportunityInput.extend({ expectedVersion: version });
 export const statusInput = z.strictObject({ expectedVersion: version, status: z.enum(["PUBLISHED", "PAUSED", "CLOSED", "CANCELLED", "REMOVED"]) });
