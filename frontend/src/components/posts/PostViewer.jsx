@@ -9,7 +9,6 @@ export default function PostViewer({ posts = [], post, loading = false, onClose,
   const dialog = useRef(null);
   const closeButton = useRef(null);
   const touch = useRef(null);
-  const navigation = useRef(null);
   const ordered = useMemo(() => [...new Map(posts.filter(item => item?.id).map(item => [keyOf(item), item])).values()], [posts]);
   const index = post ? ordered.findIndex(item => keyOf(item) === keyOf(post)) : -1;
   const hasPrevious = index > 0;
@@ -35,9 +34,8 @@ export default function PostViewer({ posts = [], post, loading = false, onClose,
     if (next) onNavigate(next);
   }
 
-  // Route changes can move focus away from the active slide. A dialog-scoped
-  // document listener keeps keyboard navigation working without stealing focus.
-  navigation.current = { hasPrevious, hasNext, select };
+  // Keep navigation active even when a post changes focus. The listener
+  // closes over the current slide, avoiding ref mutation during rendering.
   useEffect(() => {
     const handleKey = event => {
       if (!dialog.current?.open || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -45,15 +43,18 @@ export default function PostViewer({ posts = [], post, loading = false, onClose,
       const nestedDialog = target?.closest("dialog");
       if (nestedDialog && nestedDialog !== dialog.current) return;
       if (target?.closest("input,textarea,select,[contenteditable='true'],.bw-document-carousel,.bw-question-answers,.bw-post-comments-section")) return;
-      if (event.key === "ArrowDown" && navigation.current?.hasNext) {
-        event.preventDefault(); navigation.current.select(1);
-      } else if (event.key === "ArrowUp" && navigation.current?.hasPrevious) {
-        event.preventDefault(); navigation.current.select(-1);
+      const direction = event.key === "ArrowDown" && hasNext ? 1
+        : event.key === "ArrowUp" && hasPrevious ? -1 : 0;
+      if (!direction) return;
+      const next = ordered[index + direction];
+      if (next) {
+        event.preventDefault();
+        onNavigate(next);
       }
     };
     document.addEventListener("keydown", handleKey, true);
     return () => document.removeEventListener("keydown", handleKey, true);
-  }, []);
+  }, [hasPrevious, hasNext, ordered, index, onNavigate]);
 
   function startTouch(event) {
     if (event.touches.length !== 1 || event.target.closest("button,a,input,textarea,select,.bw-document-carousel,.bw-post-comments-section,.bw-question-answers")) {
