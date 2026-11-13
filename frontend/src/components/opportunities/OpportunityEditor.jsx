@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { OPPORTUNITY_TYPES, QUESTION_TYPES } from "../../../../shared/opportunities.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
-const fresh = () => ({ type: "JOB", title: "", description: "", location: "", workMode: "IN_PERSON", deadline: "", questions: [] });
+const fresh = () => ({ type: "JOB", title: "", description: "", location: "", workMode: "IN_PERSON", prize: "", deadline: "", questions: [] });
 export default function OpportunityEditor({ organizationId, opportunity, onSaved, onClose }) {
   const [draft, setDraft] = useState(() => opportunity ? { ...Object.fromEntries(Object.keys(fresh()).map(k => [k, opportunity[k]])), deadline: new Date(new Date(opportunity.deadline) - new Date(opportunity.deadline).getTimezoneOffset() * 60000).toISOString().slice(0, 16) } : fresh());
   const [busy, setBusy] = useState(false), [error, setError] = useState(null);
@@ -15,7 +15,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     e.preventDefault(); if (lock.current) return; lock.current = true; setBusy(true); setError(null);
     const controller = new AbortController(); request.current = controller;
     try {
-      const body = { ...draft, deadline: new Date(draft.deadline).toISOString() };
+      const body = { ...draft, prize: draft.type === "CHALLENGE" ? (draft.prize || "") : "", deadline: new Date(draft.deadline).toISOString() };
       const result = opportunity ? await api.edit(organizationId, opportunity.id, { ...body, expectedVersion: opportunity.version }, controller.signal)
         : await api.create(organizationId, { ...body, requestKey: requestKey.current }, controller.signal);
       if (!controller.signal.aborted) onSaved(result);
@@ -33,6 +33,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         <div className="bw-op-field-row"><label>Opportunity type<select value={draft.type} disabled={lockedForm} onChange={e => field("type", e.target.value)}>{Object.entries(OPPORTUNITY_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></label><label>Format<select value={draft.workMode} onChange={e => field("workMode", e.target.value)}><option value="IN_PERSON">In person</option><option value="REMOTE">Remote</option><option value="HYBRID">Hybrid</option></select></label></div>
         <label>Title<input required minLength={3} maxLength={160} value={draft.title} onChange={e => field("title", e.target.value)} placeholder="A clear title for your opportunity" /></label>
         <label>Description<textarea required rows={7} minLength={30} maxLength={12000} value={draft.description} onChange={e => field("description", e.target.value)} placeholder="Describe the opportunity, eligibility, benefits, and selection process." /></label>
+        {draft.type === "CHALLENGE" && <label>Prize (optional)<input maxLength={120} value={draft.prize || ""} onChange={e => field("prize", e.target.value)} placeholder="e.g. US$500, mentorship, or certificates" /></label>}
         <div className="bw-op-field-row"><label>Location<input required minLength={2} maxLength={180} value={draft.location} onChange={e => field("location", e.target.value)} placeholder="Monrovia, Liberia or worldwide" /></label><label>Application deadline (your local time)<input type="datetime-local" required value={draft.deadline} onChange={e => field("deadline", e.target.value)} /></label></div>
         <section className="bw-op-form-builder"><h3>Application questions</h3><p>{lockedForm ? "Questions and opportunity type are locked after first publication." : "Choose what applicants should tell you. All applications are completed on BrightWay."}</p>
           {draft.questions.map((q, i) => <fieldset key={q.id} className="bw-op-builder-question" disabled={lockedForm}><legend>Question {i + 1}</legend><label>Question text<input aria-label={`Question ${i + 1} text`} required minLength={3} maxLength={300} value={q.label} onChange={e => changeQuestion(i, { label: e.target.value })} /></label><div className="bw-op-field-row"><label>Answer type<select aria-label={`Question ${i + 1} type`} value={q.type} onChange={e => changeQuestion(i, { type: e.target.value, options: [] })}>{Object.entries(QUESTION_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label><label className="bw-op-checkbox"><input type="checkbox" checked={q.required} onChange={e => changeQuestion(i, { required: e.target.checked })} />Required</label></div>{["SINGLE_CHOICE", "MULTIPLE_CHOICE"].includes(q.type) && <label>Choices (one per line, 2–12)<textarea aria-label={`Question ${i + 1} choices`} required rows={3} value={q.options.join("\n")} onChange={e => changeQuestion(i, { options: e.target.value.split("\n") })} /></label>}<button type="button" className="bw-op-text-button" onClick={() => field("questions", draft.questions.filter((_, index) => index !== i))}>Remove question {i + 1}</button></fieldset>)}

@@ -224,7 +224,7 @@ it("Explore saves a post privately and removes it from Saved without reloading t
   await screen.findByText(body);
   await f.user.click(screen.getByRole("button", { name: "Post options" }));
   await f.user.click(screen.getByRole("menuitem", { name: "Remove from saved" }));
-  await screen.findByText("Save a post to find it here later.");
+  await screen.findByText("Save a post or challenge to find it here later.");
   expect(screen.queryByText(body)).toBeNull();
   expect(f.fetch.mock.calls.filter(([url]) => url.endsWith("/explore/posts?view=saved"))).toHaveLength(1);
 });

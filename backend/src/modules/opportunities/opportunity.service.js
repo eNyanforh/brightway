@@ -13,7 +13,7 @@ import * as input from "./opportunity.schema.js";
 const MANAGE = "organization.opportunities.manage", REVIEW = "organization.applications.review";
 const publicOrganization = { status: "ACTIVE", request: { status: "APPROVED" }, profileReadyAt: { not: null }, profilePhotoId: { not: null }, username: { not: null }, profileSetupStep: 5 };
 const organizationSelect = { id: true, name: true, username: true, profilePhotoId: true, verifiedAt: true };
-const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect } };
+const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, prize: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect } };
 const fileSelect = { id: true, questionId: true, contentType: true, size: true, createdAt: true };
 const applicationSelect = { id: true, status: true, version: true, answers: true, profileSnapshot: true, opportunitySnapshot: true, feedback: true, submittedAt: true, withdrawnAt: true, createdAt: true, opportunityId: true,
   opportunity: { select: opportunitySelect }, files: { select: fileSelect }, events: { select: { id: true, fromStatus: true, toStatus: true, feedback: true, createdAt: true }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] } };
@@ -136,20 +136,49 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
             ${q.type ? Prisma.sql`AND o."type"::text = ${q.type}` : Prisma.empty}
             ${q.q ? Prisma.sql`AND (o."title" ILIKE ${pattern} OR o."description" ILIKE ${pattern} OR o."location" ILIKE ${pattern} OR org."name" ILIKE ${pattern})` : Prisma.empty}
             ${q.following ? Prisma.sql`AND EXISTS (SELECT 1 FROM "NetworkFollow" f WHERE f."followerId" = ${actor.accountId} AND f."targetOrganizationId" = org."id" AND f."active" = true)` : Prisma.empty}
+            ${q.saved ? Prisma.sql`AND EXISTS (SELECT 1 FROM "OpportunitySave" s WHERE s."accountId" = ${actor.accountId} AND s."opportunityId" = o."id")` : Prisma.empty}
         ) SELECT c.* FROM candidates c
         ${q.cursor ? Prisma.sql`WHERE EXISTS (SELECT 1 FROM candidates a WHERE a."id" = ${q.cursor}
           AND (c.rank, c."createdAt", c."id") < (a.rank, a."createdAt", a."id"))` : Prisma.empty}
         ORDER BY c.rank DESC, c."createdAt" DESC, c."id" DESC LIMIT 21`);
       const selected = await prisma.opportunity.findMany({ where: { id: { in: rows.slice(0, 20).map(r => r.id) }, status: "PUBLISHED", deadline: { gt: now() }, organization: publicOrganization }, select: opportunitySelect });
       const byId = new Map(selected.map(r => [r.id, r]));
+      const saves = selected.length ? await prisma.opportunitySave.findMany({
+        where: { accountId: actor.accountId, opportunityId: { in: selected.map(row => row.id) } },
+        select: { opportunityId: true },
+      }) : [];
+      const savedIds = new Set(saves.map(row => row.opportunityId));
       await assertNetworkSession(prisma, actor, now);
-      return { items: rows.slice(0, 20).map(r => byId.get(r.id)).filter(Boolean), nextCursor: rows.length > 20 ? rows[19].id : null };
+      return { items: rows.slice(0, 20).map(r => byId.get(r.id)).filter(Boolean)
+        .map(row => ({ ...row, saved: savedIds.has(row.id) })), nextCursor: rows.length > 20 ? rows[19].id : null };
     },
     async detail(actor, opportunityId) {
       return ownerWork(actor, async db => {
         const row = await opportunity(db, id(opportunityId));
         const application = await db.opportunityApplication.findUnique({ where: { opportunityId_applicantId: { opportunityId: row.id, applicantId: actor.accountId } }, select: { id: true, status: true, version: true } });
-        return { opportunity: row, application };
+        const saved = await db.opportunitySave.findUnique({ where: { accountId_opportunityId: { accountId: actor.accountId, opportunityId: row.id } }, select: { accountId: true } });
+        return { opportunity: { ...row, saved: Boolean(saved) }, application };
+      });
+    },
+    async saveOpportunity(actor, opportunityId, body) {
+      const { saved } = input.parse(input.saveInput, body), oppId = id(opportunityId);
+      return ownerWork(actor, async db => {
+        const row = await db.opportunity.findFirst({
+          where: { id: oppId, type: "CHALLENGE", status: "PUBLISHED", organization: publicOrganization },
+          select: { id: true },
+        });
+        if (!row) throw unavailable();
+        const key = { accountId: actor.accountId, opportunityId: oppId };
+        if (saved) {
+          await db.opportunitySave.upsert({
+            where: { accountId_opportunityId: key },
+            create: key,
+            update: {},
+          });
+        } else {
+          await db.opportunitySave.deleteMany({ where: key });
+        }
+        return { saved };
       });
     },
     async list(actor, organizationId, query) {
@@ -212,7 +241,7 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
         if (submit && !data.shareProfile) throw fail(400, "Confirm sharing your application and professional profile with this organization.");
         const snapshot = submit ? await profileSnapshot(db, actor) : null;
         const saved = { answers: data.answers, ...(submit ? { status: "SUBMITTED", submittedAt: now(), profileSnapshot: snapshot,
-          opportunitySnapshot: { title: row.title, type: row.type, organization: row.organization.name, questions: row.questions, description: row.description, location: row.location, workMode: row.workMode, version: row.version, deadline: row.deadline.toISOString() } } : {}) };
+          opportunitySnapshot: { title: row.title, type: row.type, organization: row.organization.name, questions: row.questions, description: row.description, location: row.location, workMode: row.workMode, prize: row.prize, version: row.version, deadline: row.deadline.toISOString() } } : {}) };
         const app = previous ? await db.opportunityApplication.update({ where: { id: previous.id }, data: { ...saved, version: { increment: 1 } } })
           : await db.opportunityApplication.create({ data: { opportunityId: oppId, applicantId: actor.accountId, ...saved } });
         if (submit) await event(db, actor, { ...app, status: previous?.status || "DRAFT" }, "SUBMITTED");

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import express from "express";
 import { createOpportunityRoutes } from "../src/modules/opportunities/opportunity.routes.js";
-import { createInput, applicationInput, validateAnswers } from "../src/modules/opportunities/opportunity.schema.js";
+import { createInput, applicationInput, saveInput, validateAnswers } from "../src/modules/opportunities/opportunity.schema.js";
 import { createApplicationStorage } from "../src/modules/opportunities/opportunity.storage.js";
 import { processEvidence } from "../src/modules/credentials/evidence.process.js";
 import { PDFDocument } from "pdf-lib";
@@ -12,6 +12,14 @@ const question = (type, extra = {}) => ({ id: randomUUID(), label: "Tell us more
 const listing = () => ({ type: "JOB", title: "Data assistant", description: "Help a research team improve the quality of its data.", location: "Monrovia", workMode: "IN_PERSON", deadline: "2030-12-01T12:00:00Z", questions: [], requestKey: randomUUID() });
 test("opportunity input rejects external application methods, unknown fields and invalid questions", () => {
   assert.equal(createInput.safeParse(listing()).success, true);
+  const challenge = createInput.safeParse({ ...listing(), type: "CHALLENGE", prize: "US$1,000" });
+  assert.equal(challenge.success, true);
+  assert.equal(challenge.data.prize, "US$1,000");
+  assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", prize: "x".repeat(121) }).success, false);
+  assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", prize: null }).success, true, "legacy unset prizes are accepted");
+  assert.equal(saveInput.safeParse({ saved: true }).success, true);
+  assert.equal(saveInput.safeParse({ saved: "true" }).success, false);
+  assert.equal(saveInput.safeParse({ saved: true, accountId: randomUUID() }).success, false);
   for (const extra of [{ applicationUrl: "https://example.invalid" }, { applicationMethod: "EXTERNAL" }, { organizationId: randomUUID() }, { status: "PUBLISHED" }]) assert.equal(createInput.safeParse({ ...listing(), ...extra }).success, false);
   for (const questions of [[question("SINGLE_CHOICE")], [question("YES_NO", { options: ["Yes"] })], Array.from({ length: 6 }, () => question("FILE_UPLOAD"))]) assert.equal(createInput.safeParse({ ...listing(), questions }).success, false);
   const q = question("SHORT_ANSWER");
@@ -43,6 +51,12 @@ test("opportunity routes require personal authentication, trusted origins, no-st
     const headers = { Cookie: "brightway_session=test", "Content-Type": "application/json" };
     for (const origin of [undefined, "https://foreign.invalid"]) assert.equal((await fetch(base + "/opportunities/" + randomUUID() + "/application", { method: "PUT", headers: { ...headers, ...(origin ? { Origin: origin } : {}) }, body: "{}" })).status, 403);
     assert.equal(calls.length, 0);
+    const challengeId = randomUUID();
+    const foreignSave = await fetch(base + "/opportunities/" + challengeId + "/save", { method: "PUT", headers: { ...headers, Origin: "https://foreign.invalid" }, body: JSON.stringify({ saved: true }) });
+    assert.equal(foreignSave.status, 403);
+    const saved = await fetch(base + "/opportunities/" + challengeId + "/save", { method: "PUT", headers: { ...headers, Origin: "http://localhost:5173" }, body: JSON.stringify({ saved: true }) });
+    assert.equal(saved.status, 200);
+    assert(calls.some(([method, args]) => method === "saveOpportunity" && args[1] === challengeId && args[2].saved === true));
     const response = await fetch(base + "/opportunities", { headers });
     assert.equal(response.headers.get("Cache-Control"), "no-store");
     assert.equal(response.status, 200); assert.deepEqual(calls[0][1][0], { accountId, sessionId });
