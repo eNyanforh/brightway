@@ -92,6 +92,8 @@ test("Explore remains readable at tablet width without horizontal scrolling", as
   const launcher = explore.getByRole("group", { name: "Choose how to contribute" });
   const billboardBox = await billboard.boundingBox();
   const sidebarBox = await sidebar.boundingBox();
+  await expect(sidebar.locator(".bw-explore-section-eyebrow, .bw-explore-aside-description")).toHaveCount(0);
+  await expect(sidebar.getByText("TAKE YOUR NEXT STEP")).toHaveCount(0);
   expect(sidebarBox.y).toBeGreaterThan(billboardBox.y + billboardBox.height);
   await expect(launcher.getByRole("button", { name: "Create an Event" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth))

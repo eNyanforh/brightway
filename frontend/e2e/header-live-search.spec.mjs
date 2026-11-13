@@ -47,7 +47,10 @@ test("header search provides live matches and an accessible all-results link on 
   await page.getByRole("link", { name: /Search all for maya/ }).click();
   await expect(page).toHaveURL(/\/search\?q=maya$/);
   await expect(page.locator(".bw-directory-search-form")).toHaveCount(0);
-  await expect(page.getByRole("complementary", { name: "Search discovery sidebar" })).toBeVisible();
+  const rail = page.getByRole("complementary", { name: "Search discovery sidebar" });
+  await expect(rail).toBeVisible();
+  await expect(rail.locator(".bw-module-right-eyebrow, .bw-module-right-description")).toHaveCount(0);
+  await expect(page.locator(".bw-design-brand-wordmark")).toHaveText("BRIGHTWAY");
   expect(errors).toEqual([]);
 });
 

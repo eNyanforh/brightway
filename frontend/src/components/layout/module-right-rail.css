@@ -18,13 +18,6 @@
   border-radius: 12px;
   background: #fff;
 }
-.bw-module-right-eyebrow {
-  margin: 0 0 9px;
-  color: #5874a1;
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: .07em;
-}
 .bw-module-right-heading {
   display: flex;
   align-items: center;
@@ -46,12 +39,6 @@
   font-size: 15px;
   line-height: 1.4;
   font-weight: 740;
-}
-.bw-module-right-description {
-  margin: 11px 0 14px;
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--rail-muted);
 }
 .bw-module-right-links { display: grid; gap: 3px; }
 .bw-module-right-links a {
@@ -88,3 +75,25 @@
   .bw-module-right-card { padding: 14px; }
   .bw-module-right-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+
+/* Keep outer sidebar sections; make every inner destination a flat list row. */
+.bw-module-right-heading { margin-bottom: 10px; }
+.bw-module-right-mark {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border-radius: 0;
+  background: transparent;
+  color: #191919;
+}
+.bw-module-right-links { gap: 0; }
+.bw-module-right-links a {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rail-border);
+  border-radius: 0;
+  background: transparent;
+}
+.bw-module-right-links a:last-child { border-bottom: 0; }
+.bw-module-right-links a:hover { background: transparent; color: #191919; }
+.bw-module-right-next h2 { margin-bottom: 12px; }
