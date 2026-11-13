@@ -52,7 +52,7 @@ async function keepHeadline(user) {
   await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
 }
 function expectOldPortrait() {
-  expect(screen.getByRole("button", { name: "Open account menu" }).querySelector("img").getAttribute("src")).toBe("/api/v1/photos/approved-photo");
+  expect(screen.getByRole("link", { name: "Open personal account" }).querySelector("img").getAttribute("src")).toBe("/api/v1/photos/approved-photo");
   expect(document.querySelector(".bw-profile-photo-button img").getAttribute("src")).toBe("/api/v1/photos/approved-photo");
 }
 
@@ -109,7 +109,7 @@ it("refreshes an approved photo in both portraits while preserving unsaved text 
   await user.click(screen.getByRole("button", { name: "Refresh photo review" }));
   await screen.findByText("Your replacement photo was approved.");
   await user.click(screen.getByRole("button", { name: "Close editor and keep edits" }));
-  expect(screen.getByRole("button", { name: "Open account menu" }).querySelector("img").getAttribute("src")).toBe("/api/v1/photos/candidate-photo");
+  expect(screen.getByRole("link", { name: "Open personal account" }).querySelector("img").getAttribute("src")).toBe("/api/v1/photos/candidate-photo");
   await user.click(screen.getByRole("button", { name: "Edit introduction", exact: true }));
   expect(screen.getByLabelText("Headline", { exact: true }).value).toBe("Keep my draft");
 });

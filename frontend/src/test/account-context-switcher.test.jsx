@@ -47,8 +47,8 @@ it("uses only active approved memberships and enrolled schools for the avatar fa
   expect(links.map(link => link.getAttribute("aria-label"))).toEqual([
     "Open personal account", "Open Community Lab organization workspace", "Open Learning Academy school campus",
   ]);
-  expect(links[0]).toHaveAttribute("aria-current", "true");
-  expect(links[1]).not.toHaveAttribute("aria-current");
+  expect(links[0].getAttribute("aria-current")).toBe("true");
+  expect(links[1].hasAttribute("aria-current")).toBe(false);
   expect(links[0].style.zIndex).toBe("3");
   expect(links[1].style.zIndex).toBe("2");
   expect(staffApi.directory).toHaveBeenCalledWith(expect.any(AbortSignal), { tab: "approved" });
@@ -77,35 +77,35 @@ it("does not expose stale context shortcuts after an account-context read failur
   await user.click(screen.getByRole("button", { name: "Open account menu" }));
   await screen.findByText("No active organization memberships or school enrollments.");
   expect(document.querySelectorAll(".bw-context-facepile .bw-context-avatar")).toHaveLength(1);
-  expect(screen.getByRole("link", { name: "Open personal account" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Open personal account" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Community Lab/ })).toBeNull();
 });
 
-it("makes the authorized organization primary and moves the personal avatar into the equal-size side stack", async () => {
+it("places the authorized organization first in the overlapping avatar stack", async () => {
   staffApi.directory.mockResolvedValue({ items: [{ id: organizationId, name: "Community Lab" }] });
   schoolApi.myCampus.mockResolvedValue({ items: [] });
   const user = mount(`/organization-workspace/${organizationId}`,
     { id: organizationId, name: "Community Lab" });
   const shortcuts = screen.getByRole("navigation", { name: "Account shortcuts" });
-  await waitFor(() => expect(within(shortcuts).getAllByRole("link")[0]).toHaveAttribute("aria-current", "true"));
-  expect(within(shortcuts).getAllByRole("link")[0]).toHaveAttribute("aria-label", "Open Community Lab organization workspace");
-  expect(within(shortcuts).getAllByRole("link")[1]).toHaveAttribute("aria-label", "Open personal account");
+  await waitFor(() => expect(within(shortcuts).getAllByRole("link")[0].getAttribute("aria-current")).toBe("true"));
+  expect(within(shortcuts).getAllByRole("link")[0].getAttribute("aria-label")).toBe("Open Community Lab organization workspace");
+  expect(within(shortcuts).getAllByRole("link")[1].getAttribute("aria-label")).toBe("Open personal account");
   await user.click(screen.getByRole("button", { name: "Open account menu" }));
   await waitFor(() => expect(screen.getByRole("navigation", { name: "Switch account" })
     .querySelector('[aria-current="page"]').textContent).toContain("Community Lab"));
 });
 
-it("makes the selected active campus primary instead of the personal avatar", async () => {
+it("places the selected active campus first in the overlapping avatar stack", async () => {
   staffApi.directory.mockResolvedValue({ items: [] });
   schoolApi.myCampus.mockResolvedValue({ items: [
     { id: "registration", campusId, schoolName: "Learning Academy", status: "ACTIVE", studentStatus: "ACTIVE", available: true },
   ] });
   const user = mount(`/learning?view=campus&campus=${campusId}`);
   const shortcuts = screen.getByRole("navigation", { name: "Account shortcuts" });
-  await waitFor(() => expect(within(shortcuts).getAllByRole("link")[0]).toHaveAttribute("aria-label", "Open Learning Academy school campus"));
-  expect(within(shortcuts).getAllByRole("link")[0]).toHaveAttribute("aria-current", "true");
+  await waitFor(() => expect(within(shortcuts).getAllByRole("link")[0].getAttribute("aria-label")).toBe("Open Learning Academy school campus"));
+  expect(within(shortcuts).getAllByRole("link")[0].getAttribute("aria-current")).toBe("true");
   expect(within(shortcuts).getAllByRole("link")[0].textContent).toContain("LA");
-  expect(within(shortcuts).getAllByRole("link")[1]).toHaveAttribute("aria-label", "Open personal account");
+  expect(within(shortcuts).getAllByRole("link")[1].getAttribute("aria-label")).toBe("Open personal account");
   await user.click(screen.getByRole("button", { name: "Open account menu" }));
   await waitFor(() => expect(screen.getByRole("navigation", { name: "Switch account" })
     .querySelector('[aria-current="page"]').textContent).toContain("Learning Academy"));

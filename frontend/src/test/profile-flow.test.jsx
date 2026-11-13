@@ -333,7 +333,7 @@ it("shows the saved profile first and uses the top picture as the profile naviga
   ).toBeNull();
   const link = screen.getByRole("button", { name: "Open account menu" });
   expect(link.getAttribute("aria-expanded")).toBe("false");
-  expect(link.querySelector("img").getAttribute("src")).toBe(
+  expect(screen.getByRole("link", { name: "Open personal account" }).querySelector("img").getAttribute("src")).toBe(
     "/api/v1/photos/photo-1",
   );
   expect(
@@ -507,7 +507,7 @@ it("updates both pictures after replacement and uses its version in the next sav
   await screen.findByText("Profile picture updated.");
   expect(
     screen
-      .getByRole("button", { name: "Open account menu" })
+      .getByRole("link", { name: "Open personal account" })
       .querySelector("img")
       .getAttribute("src"),
   ).toBe("/api/v1/photos/photo-2");
@@ -560,7 +560,7 @@ it("keeps the old picture and selected file when photo storage fails", async () 
   expect(screen.getByText("Selected: me.png")).toBeTruthy();
   expect(
     screen
-      .getByRole("button", { name: "Open account menu" })
+      .getByRole("link", { name: "Open personal account" })
       .querySelector("img")
       .getAttribute("src"),
   ).toBe("/api/v1/photos/photo-1");
