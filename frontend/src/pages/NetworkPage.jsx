@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import NetworkAvatar from "../components/network/NetworkAvatar";
+import VerificationBadge from "../components/VerificationBadge";
+import NavigationIcon from "../components/layout/NavigationIcon";
 import WorkspaceIcon from "../components/workspace/WorkspaceIcon";
 const icon = name => function NetworkIcon(props) { return <WorkspaceIcon name={name} {...props} />; };
-const UserRound = icon("people"), UsersRound = icon("people"), UserPlus = icon("plus"), Shield = icon("shield"), ArrowUpRight = icon("arrow"), ArrowDownLeft = icon("mail"), Search = icon("search");
+const UsersRound = icon("people"), UserPlus = icon("plus"), Shield = icon("shield"), ArrowUpRight = icon("arrow"), ArrowDownLeft = icon("mail"), Search = icon("search");
 import { useAuth } from "../auth/useAuth";
 import { subscribeFocus } from "../auth/focus-refresh";
 import { networkApi } from "../api/network";
@@ -10,6 +13,7 @@ import "./network.css";
 const tabs = [["connections", "Connections", UsersRound], ["incoming", "Received", ArrowDownLeft], ["outgoing", "Sent", ArrowUpRight], ["blocked", "Blocked", Shield], ["following", "Following", ArrowUpRight], ["followers", "Followers", UsersRound]];
 const actions = { NONE: [["REQUEST", "Connect"]], OUTGOING: [["CANCEL", "Cancel request"]], INCOMING: [["ACCEPT", "Accept request"], ["DECLINE", "Decline request"]], CONNECTED: [["REMOVE", "Remove connection"]], BLOCKED: [["UNBLOCK", "Unblock person"]] };
 const states = { FOLLOWING: "Following", FOLLOWS_YOU: "Follows you", NONE: "Not connected", OUTGOING: "Request sent", INCOMING: "Wants to connect", CONNECTED: "Connected", BLOCKED: "Blocked by you" };
+const shortName = person => person?.fullName || person?.username || "Member";
 const denied = error => [401, 403].includes(error?.status);
 async function readTogether(reads) {
   const results = await Promise.allSettled(reads);
@@ -85,27 +89,55 @@ function NetworkPanel({ view, cursor, setCursor, history, setHistory }) {
   }
   const disabled = busy || refreshing || lookupBusy || !!error;
   return <>
-    <form className="bw-network-search" onSubmit={event => lookup(event)}>
-      <label htmlFor="network-target-kind">Look for</label><select id="network-target-kind" value={targetKind} disabled={busy || lookupBusy || refreshing} onChange={e => { setTargetKind(e.target.value); sequence.current++; contactSequence.current++; selected.current = null; setSelection(null); setContact(null); setNotice(""); }}><option value="PERSON">People</option><option value="ORGANIZATION">Organizations</option></select>
-      <label htmlFor="network-username">{targetKind === "PERSON" ? "Connect by BrightWay username" : "Organization username"}</label>
-      <div><Search size={19} aria-hidden="true" /><input id="network-username" value={username} onChange={e => setUsername(e.target.value)} autoComplete="off" maxLength={31} placeholder="e.g. emmanuel" disabled={busy} /><button disabled={busy || refreshing || lookupBusy}>{lookupBusy ? "Finding…" : targetKind === "ORGANIZATION" ? "Find organization" : "Find person"}</button></div>
-      <p>Following is separate from connecting. Only an accepted connection can unlock connections-only contact details.</p>
+    <form className="bw-network-search" onSubmit={event => lookup(event)} aria-label="Find a BrightWay account">
+      <div className="bw-network-search-heading">
+        <div><h2>Find someone</h2><p>Search BrightWay accounts by username.</p></div>
+        <Link to="/search">Discover people <NavigationIcon name="chevron-right" size={16} /></Link>
+      </div>
+      <div className="bw-network-search-fields">
+        <div className="bw-network-kind-field">
+          <label htmlFor="network-target-kind">Look for</label>
+          <select id="network-target-kind" value={targetKind} disabled={busy || lookupBusy || refreshing} onChange={e => { setTargetKind(e.target.value); sequence.current++; contactSequence.current++; selected.current = null; setSelection(null); setContact(null); setNotice(""); }}><option value="PERSON">People</option><option value="ORGANIZATION">Organizations</option></select>
+        </div>
+        <div className="bw-network-query-field">
+          <label htmlFor="network-username">{targetKind === "PERSON" ? "Connect by BrightWay username" : "Organization username"}</label>
+          <div className="bw-network-input-group">
+            <span className="bw-network-input-icon"><Search size={19} aria-hidden="true" /></span>
+            <input id="network-username" value={username} onChange={e => setUsername(e.target.value)} autoComplete="off" maxLength={31} placeholder={targetKind === "PERSON" ? "Search username" : "Organization username"} disabled={busy} />
+            <button className="bw-network-primary" disabled={busy || refreshing || lookupBusy}>{lookupBusy ? "Finding…" : targetKind === "ORGANIZATION" ? "Find organization" : "Find person"}</button>
+          </div>
+        </div>
+      </div>
+      <p className="bw-network-search-note">Following an account is different from connecting. Shared contacts require permission.</p>
     </form>
     <div className="bw-network-feedback" aria-live="polite">{notice && <p role="status">{notice}</p>}{refreshing && list && <p role="status">Refreshing your network…</p>}</div>
     {error && <div role="alert" className="bw-network-error"><p>{error.message}</p><button onClick={refresh} disabled={busy || refreshing}>Reload saved state</button><small>No action is automatically retried.</small></div>}
     <div className="bw-network-layout">
       <section className="bw-network-directory" aria-label={tabs.find(t => t[0] === view)[1]}>
-        <header><h2>{tabs.find(t => t[0] === view)[1]}</h2><button onClick={refresh} disabled={busy || refreshing || lookupBusy}>Refresh</button></header>
+        <header><div><h2>{tabs.find(t => t[0] === view)[1]}</h2>{list && <span className="bw-network-list-count">{list.items.length}{list.nextCursor ? "+" : ""} shown</span>}</div><button className="bw-network-refresh" onClick={refresh} disabled={busy || refreshing || lookupBusy}><NavigationIcon name="refresh" size={16} />Refresh</button></header>
         {!list && !error && <p role="status">Loading your network…</p>}
-        {list?.items.length === 0 && <div className="bw-network-empty"><UsersRound size={32} aria-hidden="true" /><h3>{view === "connections" ? "Build meaningful connections" : "Nothing here yet"}</h3><p>{view === "connections" ? "Find someone by username and send a connection request." : ["following", "followers"].includes(view) ? "The people and organizations in this view will appear here." : "Requests and blocked people will appear in the appropriate view."}</p></div>}
-        <ul>{list?.items.map(item => <li key={`${item.kind || "PERSON"}:${item.person.username}`}><button className="bw-network-person" disabled={busy || refreshing || lookupBusy} aria-pressed={selection?.person.username === item.person.username && (selection.kind || "PERSON") === (item.kind || "PERSON")} onClick={() => lookup(null, item.person.username, item.kind || "PERSON")}><span className="bw-network-symbol"><UserRound size={22} aria-hidden="true" /></span><span><strong>{item.person.fullName}</strong><small>@{item.person.username}{item.kind === "ORGANIZATION" ? " · Organization" : ""}</small><span>{item.available === false ? "Currently unavailable" : states[item.relationship.state]}</span></span></button></li>)}</ul>
+        {list?.items.length === 0 && <div className="bw-network-empty"><span className="bw-network-empty-icon"><UsersRound size={29} aria-hidden="true" /></span><h3>{view === "connections" ? "Grow your network" : "Nothing here yet"}</h3><p>{view === "connections" ? "Find someone by username and send a connection request." : ["following", "followers"].includes(view) ? "People and organizations you follow will appear here." : "Requests and blocked accounts will appear in their respective views."}</p>{view === "connections" && <Link to="/search">Explore people <NavigationIcon name="chevron-right" size={16} /></Link>}</div>}
+        <ul>{list?.items.map(item => <li key={`${item.kind || "PERSON"}:${item.person.username}`}><button className="bw-network-person" disabled={busy || refreshing || lookupBusy} aria-pressed={selection?.person.username === item.person.username && (selection.kind || "PERSON") === (item.kind || "PERSON")} onClick={() => lookup(null, item.person.username, item.kind || "PERSON")}>
+          <NetworkAvatar person={item.person} kind={item.kind || "PERSON"} />
+          <span className="bw-network-person-copy">
+            <span className="bw-network-person-name"><strong>{shortName(item.person)}</strong>{item.person.verified === true && <VerificationBadge kind="identity" />}{item.kind === "ORGANIZATION" && item.person.verifiedAt && <VerificationBadge kind="organization" />}</span>
+            <small>@{item.person.username}{item.kind === "ORGANIZATION" ? " · Organization" : ""}</small>
+            <span className="bw-network-person-state" data-state={item.relationship.state}>{item.available === false ? "Currently unavailable" : states[item.relationship.state]}</span>
+          </span>
+          <NavigationIcon name="chevron-right" size={18} />
+        </button></li>)}</ul>
         {(cursor || list?.nextCursor) && <footer><button disabled={!cursor || busy || refreshing} onClick={() => { const previous = history.at(-1) || null; setHistory(history.slice(0, -1)); setCursor(previous); }}>Previous</button><button disabled={!list?.nextCursor || busy || refreshing} onClick={() => { setHistory([...history, cursor]); setCursor(list.nextCursor); }}>Next</button></footer>}
       </section>
       <section className="bw-network-detail" aria-label="Connection details">
-        {!selection ? <div className="bw-network-empty"><UserPlus size={34} aria-hidden="true" /><h2>Your next connection</h2><p>Find a person or select someone from your network to see the available actions.</p></div> : <>
-          <span className="bw-network-symbol"><UserRound size={27} aria-hidden="true" /></span><h2>{selection.person.fullName}</h2><p>@{selection.person.username}</p><span className="bw-network-state">{selection.available === false ? "Currently unavailable" : selection.kind === "ORGANIZATION" ? "Organization" : states[selection.relationship.state]}</span>
-          {selection.follow && selection.relationship.state !== "BLOCKED" && <div className="bw-network-follow"><button disabled={disabled || (!selection.follow.active && selection.available === false)} onClick={() => save(selection.follow.active ? "UNFOLLOW" : "FOLLOW")}>{busy ? "Saving…" : selection.follow.active ? "Unfollow" : "Follow"}</button><p>Following does not create a connection or grant private contacts, membership or review permissions.</p></div>}
-          {selection.kind === "ORGANIZATION" ? selection.publicUrl && <a className="bw-network-public-link" href={selection.publicUrl} target="_blank" rel="noopener noreferrer" aria-label="View organization profile (opens in a new tab)">View organization profile</a> : (selection.available !== false || selection.relationship.state === "BLOCKED") && <><div className="bw-network-actions">{(actions[selection.relationship.state] || []).map(([action, label]) => <button key={action} disabled={disabled} onClick={() => choose(action)}>{busy ? "Saving…" : label}</button>)}{selection.relationship.state !== "BLOCKED" && <button className="is-secondary" disabled={disabled} onClick={() => choose("BLOCK")}>Block person</button>}</div>
+        {!selection ? <div className="bw-network-empty bw-network-detail-empty"><span className="bw-network-empty-icon"><UserPlus size={29} aria-hidden="true" /></span><h2>Make your next connection</h2><p>Select someone from the list or find a BrightWay account to get started.</p><Link to="/search">Discover people <NavigationIcon name="chevron-right" size={16} /></Link></div> : <>
+          <div className="bw-network-profile">
+            <NetworkAvatar person={selection.person} kind={selection.kind || "PERSON"} large />
+            <span className="bw-network-profile-name"><h2>{shortName(selection.person)}</h2>{selection.person.verified === true && <VerificationBadge kind="identity" />}{selection.kind === "ORGANIZATION" && selection.person.verifiedAt && <VerificationBadge kind="organization" />}</span>
+            <p>@{selection.person.username}</p>
+            <span className="bw-network-state" data-state={selection.relationship.state}>{selection.available === false ? "Currently unavailable" : selection.kind === "ORGANIZATION" ? "Organization" : states[selection.relationship.state]}</span>
+          </div>
+          {selection.follow && selection.relationship.state !== "BLOCKED" && <div className="bw-network-follow"><button className={selection.follow.active ? "bw-network-outline" : "bw-network-primary"} disabled={disabled || (!selection.follow.active && selection.available === false)} onClick={() => save(selection.follow.active ? "UNFOLLOW" : "FOLLOW")}>{busy ? "Saving…" : selection.follow.active ? "Unfollow" : "Follow"}</button><p>Following gives you updates, not access to private contact details.</p></div>}
+          {selection.kind === "ORGANIZATION" ? selection.publicUrl && <a className="bw-network-public-link" href={selection.publicUrl} target="_blank" rel="noopener noreferrer" aria-label="View organization profile (opens in a new tab)">View organization profile <NavigationIcon name="chevron-right" size={16} /></a> : (selection.available !== false || selection.relationship.state === "BLOCKED") && <><div className="bw-network-actions">{(actions[selection.relationship.state] || []).map(([action, label]) => <button className={["REQUEST", "ACCEPT"].includes(action) ? "bw-network-primary" : "bw-network-outline"} key={action} disabled={disabled} onClick={() => choose(action)}>{busy ? "Saving…" : label}</button>)}{selection.relationship.state !== "BLOCKED" && <button className="is-secondary" disabled={disabled} onClick={() => choose("BLOCK")}>Block person</button>}</div>
           {selection.relationship.state === "CONNECTED" && <Link className="bw-network-public-link" to={`/messages?to=${encodeURIComponent(selection.person.username)}`}>Message</Link>}
           {selection.relationship.state !== "BLOCKED" && <Link className="bw-network-public-link" to={`/${encodeURIComponent(selection.person.username)}`}>View profile</Link>}
           {selection.relationship.state === "BLOCKED" ? <p>Blocking ends any request or connection and hides shared contact details. Unblocking does not restore the connection.</p> : <><button disabled={disabled || contactBusy} onClick={sharedContact}>{contactBusy ? "Checking visibility…" : "View shared contact"}</button>{contact && <div className="bw-network-contact"><h3>Shared contact</h3>{Object.keys(contact).length === 0 ? <p>No contact details are shared with you.</p> : <dl>{[["email", "Email"], ["phoneNumber", "Phone"], ["whatsappNumber", "WhatsApp"]].filter(([key]) => contact[key]).map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{contact[key]}</dd></div>)}</dl>}<small>Visibility is checked by the server every time. “Only me” fields remain private.</small></div>}</>}
@@ -118,5 +150,5 @@ function NetworkPanel({ view, cursor, setCursor, history, setHistory }) {
 }
 export default function NetworkPage() {
   const { account } = useAuth(); const [view, setView] = useState("connections"), [cursor, setCursor] = useState(null), [history, setHistory] = useState([]);
-  return <section className="bw-network"><header className="bw-network-heading"><span><UsersRound size={25} aria-hidden="true" /></span><div><p>PEOPLE & CONNECTIONS</p><h1>Network</h1><p>Build professional connections on BrightWay.</p></div></header><nav className="bw-network-tabs" aria-label="Network views">{tabs.map(([key, label, Icon]) => <button key={key} aria-current={view === key ? "page" : undefined} onClick={() => { setView(key); setCursor(null); setHistory([]); }}><Icon size={18} aria-hidden="true" />{label}</button>)}</nav><NetworkPanel key={`${account.id}:${view}:${cursor || "first"}`} view={view} cursor={cursor} setCursor={setCursor} history={history} setHistory={setHistory} /></section>;
+  return <section className="bw-network"><header className="bw-network-heading"><div><h1>Network</h1><p>Your connections, requests and followed accounts in one place.</p></div><Link to="/search" className="bw-network-discover"><NavigationIcon name="search" size={18} />Discover people</Link></header><nav className="bw-network-tabs" aria-label="Network views">{tabs.map(([key, label, Icon]) => <button key={key} aria-current={view === key ? "page" : undefined} onClick={() => { setView(key); setCursor(null); setHistory([]); }}><Icon size={18} aria-hidden="true" />{label}</button>)}</nav><NetworkPanel key={`${account.id}:${view}:${cursor || "first"}`} view={view} cursor={cursor} setCursor={setCursor} history={history} setHistory={setHistory} /></section>;
 }

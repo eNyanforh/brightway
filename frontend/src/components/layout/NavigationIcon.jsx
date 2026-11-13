@@ -79,6 +79,9 @@ export default function NavigationIcon({
       shape = <><circle cx="9" cy="7" r="4" /><path d="M2 21v-3a7 7 0 0 1 11-5M15 17h7m-3-3 3 3-3 3" /></>;
       break;
 
+    case "refresh":
+      shape = <><path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7" /></>;
+      break;
     case "search":
       shape = (
         <>
