@@ -29,7 +29,7 @@ function mount(path = "/explore", actingOrganization = null) {
   </AuthContext.Provider>);
   return userEvent.setup();
 }
-afterEach(() => { cleanup(); vi.resetAllMocks(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.resetAllMocks(); });
 
 it("uses only active approved memberships and enrolled schools for the avatar facepile", async () => {
   staffApi.directory.mockResolvedValue({ items: [{ id: organizationId, name: "Community Lab", photoId: "logo-1" }] });
@@ -40,7 +40,7 @@ it("uses only active approved memberships and enrolled schools for the avatar fa
     { id: "registration-4", campusId: "waiting", schoolName: "Waiting School", status: "PRE_REGISTERED", studentStatus: "ACTIVE", available: true },
   ] });
   const user = mount();
-  await waitFor(() => expect(document.querySelectorAll(".bw-context-facepile .bw-context-avatar")).toHaveLength(2));
+  await waitFor(() => expect(document.querySelectorAll(".bw-context-facepile .bw-context-avatar")).toHaveLength(3));
   const shortcuts = screen.getByRole("navigation", { name: "Account shortcuts" });
   const links = within(shortcuts).getAllByRole("link");
   expect(links).toHaveLength(3);
@@ -52,11 +52,11 @@ it("uses only active approved memberships and enrolled schools for the avatar fa
   expect(links[0].style.zIndex).toBe("3");
   expect(links[1].style.zIndex).toBe("2");
   expect(staffApi.directory).toHaveBeenCalledWith(expect.any(AbortSignal), { tab: "approved" });
+  await user.click(within(shortcuts).getByRole("link", { name: "Open Learning Academy school campus" }));
   await user.click(screen.getByRole("button", { name: "Open account menu" }));
   const menu = within(screen.getByRole("navigation", { name: "Switch account" }));
   expect(menu.queryByText("Former School")).toBeNull();
   expect(menu.queryByText("Waiting School")).toBeNull();
-  await user.click(within(shortcuts).getByRole("link", { name: "Open Learning Academy school campus" }));
   expect(screen.getByTestId("route").textContent).toBe(`/learning?view=campus&campus=${campusId}`);
 });
 
@@ -107,8 +107,8 @@ it("makes the selected active campus primary instead of the personal avatar", as
   expect(within(shortcuts).getAllByRole("link")[0].textContent).toContain("LA");
   expect(within(shortcuts).getAllByRole("link")[1]).toHaveAttribute("aria-label", "Open personal account");
   await user.click(screen.getByRole("button", { name: "Open account menu" }));
-  expect(screen.getByRole("navigation", { name: "Switch account" })
-    .querySelector('[aria-current="page"]').textContent).toContain("Learning Academy");
+  await waitFor(() => expect(screen.getByRole("navigation", { name: "Switch account" })
+    .querySelector('[aria-current="page"]').textContent).toContain("Learning Academy"));
 });
 
 it("uses the only active campus as primary when viewing the campus tab without a campus selector", async () => {
