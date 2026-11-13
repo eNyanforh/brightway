@@ -5,7 +5,7 @@ import VerificationBadge from "../components/VerificationBadge";
 import NavigationIcon from "../components/layout/NavigationIcon";
 import WorkspaceIcon from "../components/workspace/WorkspaceIcon";
 const icon = name => function NetworkIcon(props) { return <WorkspaceIcon name={name} {...props} />; };
-const UserRound = icon("people"), UsersRound = icon("people"), UserPlus = icon("plus"), Shield = icon("shield"), ArrowUpRight = icon("arrow"), ArrowDownLeft = icon("mail"), Search = icon("search");
+const UsersRound = icon("people"), UserPlus = icon("plus"), Shield = icon("shield"), ArrowUpRight = icon("arrow"), ArrowDownLeft = icon("mail"), Search = icon("search");
 import { useAuth } from "../auth/useAuth";
 import { subscribeFocus } from "../auth/focus-refresh";
 import { networkApi } from "../api/network";
