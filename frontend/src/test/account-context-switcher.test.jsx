@@ -29,7 +29,7 @@ function mount(path = "/explore", actingOrganization = null) {
   </AuthContext.Provider>);
   return userEvent.setup();
 }
-afterEach(() => { cleanup(); vi.resetAllMocks(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.resetAllMocks(); });
 
 it("uses only active approved memberships and enrolled schools for the avatar facepile", async () => {
   staffApi.directory.mockResolvedValue({ items: [{ id: organizationId, name: "Community Lab", photoId: "logo-1" }] });
@@ -40,19 +40,23 @@ it("uses only active approved memberships and enrolled schools for the avatar fa
     { id: "registration-4", campusId: "waiting", schoolName: "Waiting School", status: "PRE_REGISTERED", studentStatus: "ACTIVE", available: true },
   ] });
   const user = mount();
-  await waitFor(() => expect(document.querySelectorAll(".bw-context-facepile .bw-context-avatar")).toHaveLength(2));
-  const avatarButton = screen.getByRole("button", { name: "Open account menu" });
-  // Context pictures stay to the left of, and never inside or on top of, the main portrait.
-  expect(avatarButton.firstElementChild.classList.contains("bw-context-facepile-wrap")).toBe(true);
-  expect(avatarButton.lastElementChild.classList.contains("bw-picture")).toBe(true);
-  expect(avatarButton.lastElementChild.querySelector(".bw-context-facepile")).toBeNull();
-  expect(avatarButton.firstElementChild.querySelector(".bw-context-avatar")).toBeTruthy();
+  await waitFor(() => expect(document.querySelectorAll(".bw-context-facepile .bw-context-avatar")).toHaveLength(3));
+  const shortcuts = screen.getByRole("navigation", { name: "Account shortcuts" });
+  const links = within(shortcuts).getAllByRole("link");
+  expect(links).toHaveLength(3);
+  expect(links.map(link => link.getAttribute("aria-label"))).toEqual([
+    "Open personal account", "Open Community Lab organization workspace", "Open Learning Academy school campus",
+  ]);
+  expect(links[0].getAttribute("aria-current")).toBe("true");
+  expect(links[1].hasAttribute("aria-current")).toBe(false);
+  expect(links[0].style.zIndex).toBe("3");
+  expect(links[1].style.zIndex).toBe("2");
   expect(staffApi.directory).toHaveBeenCalledWith(expect.any(AbortSignal), { tab: "approved" });
+  await user.click(within(shortcuts).getByRole("link", { name: "Open Learning Academy school campus" }));
   await user.click(screen.getByRole("button", { name: "Open account menu" }));
   const menu = within(screen.getByRole("navigation", { name: "Switch account" }));
   expect(menu.queryByText("Former School")).toBeNull();
   expect(menu.queryByText("Waiting School")).toBeNull();
-  await user.click(await menu.findByRole("button", { name: /Learning Academy/ }));
   expect(screen.getByTestId("route").textContent).toBe(`/learning?view=campus&campus=${campusId}`);
 });
 
@@ -60,11 +64,9 @@ it("opens an authorized organization workspace and returns to personal context",
   staffApi.directory.mockResolvedValue({ items: [{ id: organizationId, name: "Community Lab", type: "COMPANY" }] });
   schoolApi.myCampus.mockResolvedValue({ items: [] });
   const user = mount();
-  await user.click(screen.getByRole("button", { name: "Open account menu" }));
-  await user.click(await screen.findByRole("button", { name: /Community Lab/ }));
+  await user.click(await screen.findByRole("link", { name: "Open Community Lab organization workspace" }));
   expect(screen.getByTestId("route").textContent).toBe(`/organization-workspace/${organizationId}`);
-  await user.click(screen.getByRole("button", { name: "Open account menu" }));
-  await user.click(screen.getByRole("button", { name: /Personal account/ }));
+  await user.click(screen.getByRole("link", { name: "Open personal account" }));
   expect(screen.getByTestId("route").textContent).toBe("/explore");
 });
 
@@ -74,36 +76,39 @@ it("does not expose stale context shortcuts after an account-context read failur
   const user = mount();
   await user.click(screen.getByRole("button", { name: "Open account menu" }));
   await screen.findByText("No active organization memberships or school enrollments.");
-  expect(document.querySelectorAll(".bw-context-facepile .bw-context-avatar")).toHaveLength(0);
+  expect(document.querySelectorAll(".bw-context-facepile .bw-context-avatar")).toHaveLength(1);
+  expect(screen.getByRole("link", { name: "Open personal account" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: /Community Lab/ })).toBeNull();
 });
 
-it("makes the authorized organization primary and moves the personal avatar into the equal-size side stack", async () => {
+it("places the authorized organization first in the overlapping avatar stack", async () => {
   staffApi.directory.mockResolvedValue({ items: [{ id: organizationId, name: "Community Lab" }] });
   schoolApi.myCampus.mockResolvedValue({ items: [] });
   const user = mount(`/organization-workspace/${organizationId}`,
     { id: organizationId, name: "Community Lab" });
-  const avatar = screen.getByRole("button", { name: "Open account menu" });
-  expect(avatar.lastElementChild.classList.contains("bw-context-main-avatar")).toBe(true);
-  expect(avatar.firstElementChild.querySelector(".bw-context-personal-alternative")).toBeTruthy();
-  await user.click(avatar);
+  const shortcuts = screen.getByRole("navigation", { name: "Account shortcuts" });
+  await waitFor(() => expect(within(shortcuts).getAllByRole("link")[0].getAttribute("aria-current")).toBe("true"));
+  expect(within(shortcuts).getAllByRole("link")[0].getAttribute("aria-label")).toBe("Open Community Lab organization workspace");
+  expect(within(shortcuts).getAllByRole("link")[1].getAttribute("aria-label")).toBe("Open personal account");
+  await user.click(screen.getByRole("button", { name: "Open account menu" }));
   await waitFor(() => expect(screen.getByRole("navigation", { name: "Switch account" })
     .querySelector('[aria-current="page"]').textContent).toContain("Community Lab"));
 });
 
-it("makes the selected active campus primary instead of the personal avatar", async () => {
+it("places the selected active campus first in the overlapping avatar stack", async () => {
   staffApi.directory.mockResolvedValue({ items: [] });
   schoolApi.myCampus.mockResolvedValue({ items: [
     { id: "registration", campusId, schoolName: "Learning Academy", status: "ACTIVE", studentStatus: "ACTIVE", available: true },
   ] });
   const user = mount(`/learning?view=campus&campus=${campusId}`);
-  const avatar = screen.getByRole("button", { name: "Open account menu" });
-  await waitFor(() => expect(avatar.lastElementChild.classList.contains("bw-context-main-avatar")).toBe(true));
-  expect(avatar.lastElementChild.textContent).toContain("LA");
-  expect(avatar.firstElementChild.querySelector(".bw-context-personal-alternative")).toBeTruthy();
-  await user.click(avatar);
-  expect(screen.getByRole("navigation", { name: "Switch account" })
-    .querySelector('[aria-current="page"]').textContent).toContain("Learning Academy");
+  const shortcuts = screen.getByRole("navigation", { name: "Account shortcuts" });
+  await waitFor(() => expect(within(shortcuts).getAllByRole("link")[0].getAttribute("aria-label")).toBe("Open Learning Academy school campus"));
+  expect(within(shortcuts).getAllByRole("link")[0].getAttribute("aria-current")).toBe("true");
+  expect(within(shortcuts).getAllByRole("link")[0].textContent).toContain("LA");
+  expect(within(shortcuts).getAllByRole("link")[1].getAttribute("aria-label")).toBe("Open personal account");
+  await user.click(screen.getByRole("button", { name: "Open account menu" }));
+  await waitFor(() => expect(screen.getByRole("navigation", { name: "Switch account" })
+    .querySelector('[aria-current="page"]').textContent).toContain("Learning Academy"));
 });
 
 it("uses the only active campus as primary when viewing the campus tab without a campus selector", async () => {
@@ -112,6 +117,44 @@ it("uses the only active campus as primary when viewing the campus tab without a
     { id: "registration", campusId, schoolName: "Learning Academy", status: "ACTIVE", studentStatus: "ACTIVE", available: true },
   ] });
   mount("/learning?view=campus");
-  await waitFor(() => expect(screen.getByRole("button", { name: "Open account menu" })
-    .lastElementChild.classList.contains("bw-context-main-avatar")).toBe(true));
+  await waitFor(() => expect(screen.getByRole("navigation", { name: "Account shortcuts" })
+    .querySelector('[aria-current="true"]').getAttribute("aria-label")).toBe("Open Learning Academy school campus"));
 });
+
+
+it("shows all approved identities as directly clickable avatars, including beyond the first three", async () => {
+  staffApi.directory.mockResolvedValue({ items: Array.from({ length: 6 }, (_, i) => ({
+    id: `org-${i}`, name: `School ${i}`,
+  })) });
+  schoolApi.myCampus.mockResolvedValue({ items: [] });
+  const user = mount();
+  const shortcuts = screen.getByRole("navigation", { name: "Account shortcuts" });
+  await waitFor(() => expect(within(shortcuts).getAllByRole("link")).toHaveLength(7));
+  await user.click(within(shortcuts).getByRole("link", { name: "Open School 5 organization workspace" }));
+  expect(screen.getByTestId("route").textContent).toBe("/organization-workspace/org-5");
+});
+
+it("protects unsaved edits when using direct avatar navigation", async () => {
+  staffApi.directory.mockResolvedValue({ items: [{ id: organizationId, name: "Community Lab" }] });
+  schoolApi.myCampus.mockResolvedValue({ items: [] });
+  const confirm = vi.fn().mockReturnValue(false);
+  vi.stubGlobal("confirm", confirm);
+  render(<AuthContext.Provider value={{ account, logout: vi.fn() }}>
+    <MemoryRouter initialEntries={["/profile"]}>
+      <RouteWithUnsaved />
+    </MemoryRouter>
+  </AuthContext.Provider>);
+  const user = userEvent.setup();
+  const organization = await screen.findByRole("link", { name: "Open Community Lab organization workspace" });
+  await user.click(organization);
+  expect(screen.getByTestId("route").textContent).toBe("/profile");
+  expect(confirm).toHaveBeenCalledOnce();
+  confirm.mockReturnValue(true);
+  await user.click(organization);
+  expect(screen.getByTestId("route").textContent).toBe(`/organization-workspace/${organizationId}`);
+});
+function RouteWithUnsaved() {
+  const location = useLocation();
+  return <><HeaderProfileMenu hasWork={true} profileBusy={false} unsaved />
+    <output data-testid="route">{location.pathname}</output></>;
+}

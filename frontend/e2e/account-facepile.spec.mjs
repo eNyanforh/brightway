@@ -38,29 +38,31 @@ async function fixture(page) {
   });
 }
 
-async function expectSideBySide(page, primaryLabel, isMobile) {
-  const button = page.getByRole("button", { name: "Open account menu" });
-  const primary = button.locator(".bw-context-main-avatar");
-  const personal = button.locator(".bw-context-personal-alternative");
-  await expect(primary).toBeVisible();
+async function expectOverlappingActiveLeft(page, label, isMobile) {
+  const shortcuts = page.getByRole("navigation", { name: "Account shortcuts" });
+  const active = shortcuts.getByRole("link", { name: label });
+  const personal = shortcuts.getByRole("link", { name: "Open personal account" });
+  await expect(active).toBeVisible();
   await expect(personal).toBeVisible();
-  await expect(primary).toContainText(primaryLabel);
-  const main = await primary.boundingBox();
+  await expect(active).toHaveAttribute("aria-current", "true");
+  const main = await active.boundingBox();
   const aside = await personal.boundingBox();
   expect(main).toBeTruthy();
   expect(aside).toBeTruthy();
+  expect(main.width).toBe(isMobile ? 36 : 43);
   expect(Math.abs(main.width - aside.width)).toBeLessThanOrEqual(1);
   expect(Math.abs(main.height - aside.height)).toBeLessThanOrEqual(1);
-  expect(main.width).toBe(isMobile ? 33 : 43);
-  expect(aside.x + aside.width).toBeLessThan(main.x);
+  // The leading active avatar overlaps the following personal avatar.
+  expect(main.x).toBeLessThan(aside.x);
+  expect(aside.x).toBeLessThan(main.x + main.width);
   expect(Math.abs((main.y + main.height / 2) - (aside.y + aside.height / 2))).toBeLessThanOrEqual(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 }
 
-test("full-size side facepile follows active campus and workspace identity without covering the avatar", async ({ page, isMobile }) => {
+test("overlapping facepile keeps the active campus and organization on the left", async ({ page, isMobile }) => {
   await fixture(page);
   await page.goto(`/learning?view=campus&campus=${campusId}`);
-  await expectSideBySide(page, "CC", isMobile);
+  await expectOverlappingActiveLeft(page, "Open Current Campus school campus", isMobile);
   await page.goto(`/organization-workspace/${orgId}`);
-  await expectSideBySide(page, "BC", isMobile);
+  await expectOverlappingActiveLeft(page, "Open BrightWay Community School organization workspace", isMobile);
 });
