@@ -95,6 +95,60 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
     const rows = await db[model].findMany({ where: { AND: [where, boundary] }, select, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 21 });
     return { items: rows.slice(0, 20), nextCursor: rows.length > 20 ? rows[19].id : null };
   }
+  // Return only applicants who opted in to public Challenge participation.
+  // Consent to share an application with an organization never grants this access.
+  // Blocked, suspended, unverified and withdrawn applicants are never exposed.
+  async function challengeParticipantSummaries(db, viewer, opportunities) {
+    const challengeIds = [...new Set(opportunities.filter(row => row.type === "CHALLENGE").map(row => row.id))];
+    if (!challengeIds.length) return new Map();
+    const blocked = [{ leftBlocked: true }, { rightBlocked: true }];
+    const eligibleApplicant = {
+      status: "ACTIVE",
+      manualIdentityRequest: { state: "APPROVED" },
+      networkLeft: { none: { rightAccountId: viewer.accountId, OR: blocked } },
+      networkRight: { none: { leftAccountId: viewer.accountId, OR: blocked } },
+    };
+    const where = {
+      opportunityId: { in: challengeIds },
+      publicParticipant: true,
+      submittedAt: { not: null },
+      status: { in: ["SUBMITTED", "UNDER_REVIEW", "SHORTLISTED", "SELECTED"] },
+      applicant: eligibleApplicant,
+    };
+    const [counts, ...previews] = await Promise.all([
+      db.opportunityApplication.groupBy({
+        by: ["opportunityId"], where, _count: { _all: true },
+      }),
+      ...challengeIds.map(opportunityId => db.opportunityApplication.findMany({
+        where: { ...where, opportunityId },
+        orderBy: [{ submittedAt: "desc" }, { id: "desc" }],
+        take: 3,
+        select: {
+          applicant: { select: {
+            username: true,
+            person: { select: {
+              firstName: true, middleName: true, lastName: true,
+              profile: { select: { photoId: true } },
+            } },
+          } },
+        },
+      })),
+    ]);
+    const totals = new Map(counts.map(row => [row.opportunityId, row._count._all]));
+    return new Map(challengeIds.map((opportunityId, index) => [
+      opportunityId,
+      {
+        count: totals.get(opportunityId) ?? 0,
+        members: previews[index].map(({ applicant }) => ({
+          username: applicant.username,
+          name: [applicant.person.firstName, applicant.person.middleName, applicant.person.lastName].filter(Boolean).join(" "),
+          photoId: applicant.person.profile?.photoId ?? null,
+          verified: true,
+        })),
+      },
+    ]));
+  }
+
   async function profileSnapshot(db, actor) {
     // Lock the profile alongside submission; completion is decided by the backend.
     const account = await db.account.findUniqueOrThrow({ where: { id: actor.accountId }, select: { username: true, personId: true, person: { select: { firstName: true, middleName: true, lastName: true } } } });
@@ -148,16 +202,22 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
         select: { opportunityId: true },
       }) : [];
       const savedIds = new Set(saves.map(row => row.opportunityId));
+      const participantSummaries = await challengeParticipantSummaries(prisma, actor, selected);
       await assertNetworkSession(prisma, actor, now);
       return { items: rows.slice(0, 20).map(r => byId.get(r.id)).filter(Boolean)
-        .map(row => ({ ...row, saved: savedIds.has(row.id) })), nextCursor: rows.length > 20 ? rows[19].id : null };
+        .map(row => ({ ...row, saved: savedIds.has(row.id),
+          ...(row.type === "CHALLENGE" ? { participantSummary: participantSummaries.get(row.id) ?? { count: 0, members: [] } } : {}),
+        })), nextCursor: rows.length > 20 ? rows[19].id : null };
     },
     async detail(actor, opportunityId) {
       return ownerWork(actor, async db => {
         const row = await opportunity(db, id(opportunityId));
         const application = await db.opportunityApplication.findUnique({ where: { opportunityId_applicantId: { opportunityId: row.id, applicantId: actor.accountId } }, select: { id: true, status: true, version: true } });
         const saved = await db.opportunitySave.findUnique({ where: { accountId_opportunityId: { accountId: actor.accountId, opportunityId: row.id } }, select: { accountId: true } });
-        return { opportunity: { ...row, saved: Boolean(saved) }, application };
+        const participants = await challengeParticipantSummaries(db, actor, [row]);
+        return { opportunity: { ...row, saved: Boolean(saved),
+          ...(row.type === "CHALLENGE" ? { participantSummary: participants.get(row.id) ?? { count: 0, members: [] } } : {}),
+        }, application };
       });
     },
     async saveOpportunity(actor, opportunityId, body) {
@@ -240,7 +300,9 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
         const submit = data.action === "SUBMIT";
         if (submit && !data.shareProfile) throw fail(400, "Confirm sharing your application and professional profile with this organization.");
         const snapshot = submit ? await profileSnapshot(db, actor) : null;
-        const saved = { answers: data.answers, ...(submit ? { status: "SUBMITTED", submittedAt: now(), profileSnapshot: snapshot,
+        const saved = { answers: data.answers,
+          ...(submit ? { publicParticipant: row.type === "CHALLENGE" && data.publicParticipant } : {}),
+          ...(submit ? { status: "SUBMITTED", submittedAt: now(), profileSnapshot: snapshot,
           opportunitySnapshot: { title: row.title, type: row.type, organization: row.organization.name, questions: row.questions, description: row.description, location: row.location, workMode: row.workMode, prize: row.prize, version: row.version, deadline: row.deadline.toISOString() } } : {}) };
         const app = previous ? await db.opportunityApplication.update({ where: { id: previous.id }, data: { ...saved, version: { increment: 1 } } })
           : await db.opportunityApplication.create({ data: { opportunityId: oppId, applicantId: actor.accountId, ...saved } });
