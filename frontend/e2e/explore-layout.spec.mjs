@@ -155,7 +155,8 @@ test("Explore right sidebar displays photo-backed Challenge cards with prize, sp
   ]);
   expect(logoBounds.width).toBe(18);
   expect(logoBounds.x + logoBounds.width).toBeLessThanOrEqual(nameBounds.x + 1);
-  expect(Math.abs(logoBounds.y - nameBounds.y)).toBeLessThan(8);
+  // Wrapped organization names can be taller than the logo; compare vertical centers.
+  expect(Math.abs((logoBounds.y + logoBounds.height / 2) - (nameBounds.y + nameBounds.height / 2))).toBeLessThan(3);
   expect(prizeBounds.y).toBeGreaterThanOrEqual(sponsorBounds.y + sponsorBounds.height - 1);
   expect(photoBounds.x).toBeGreaterThanOrEqual(sponsorBounds.x + sponsorBounds.width - 1);
   expect(modeBounds.x).toBeGreaterThanOrEqual(priceValueBounds.x + priceValueBounds.width - 1);
