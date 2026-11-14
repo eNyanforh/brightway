@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import { CollaboratorIdentity } from "./ChallengeCollaboratorPicker";
+import "./challenge-collaborators.css";
 
 export default function ChallengeCollaborationInvites({ organizationId, disabled = false }) {
   const [open, setOpen] = useState(false);
