@@ -94,6 +94,28 @@ it("the right-rail Challenge card shows a first-party photo, publisher, topics a
   expect(within(article).getByRole("link", { name: "Challenge" }).getAttribute("href")).toBe("/opportunities?type=CHALLENGE");
 });
 
+it("challenge publishers can select a cover photo and up to three categories", async () => {
+  const saved = vi.fn();
+  const fetch = vi.fn((_url, options) => reply({ ...opp, ...JSON.parse(options.body), status: "DRAFT", version: 1 }));
+  vi.stubGlobal("fetch", fetch);
+  const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
+  await user.selectOptions(screen.getByLabelText("Opportunity type"), "CHALLENGE");
+  await user.selectOptions(screen.getByLabelText("Challenge background photo"), "SCHOOLS");
+  await user.click(screen.getByRole("checkbox", { name: "Technology" }));
+  await user.click(screen.getByRole("checkbox", { name: "Education" }));
+  await user.click(screen.getByRole("checkbox", { name: "Design" }));
+  expect(screen.getByRole("checkbox", { name: "Coding" }).disabled).toBe(true);
+  await user.type(screen.getByLabelText("Title"), "Learning Innovation Challenge");
+  await user.type(screen.getByLabelText("Description"), "Design an innovation that improves access to education.");
+  await user.type(screen.getByLabelText("Location"), "Monrovia");
+  await user.type(screen.getByLabelText("Application deadline (your local time)"), "2099-12-01T12:00");
+  await user.click(screen.getByRole("button", { name: "Save draft" }));
+  await waitFor(() => expect(saved).toHaveBeenCalled());
+  const body = JSON.parse(fetch.mock.calls[0][1].body);
+  expect(body.coverImage).toBe("SCHOOLS");
+  expect(body.topics).toEqual(["Technology", "Education", "Design"]);
+});
+
 it("application decisions appear in Notifications with All and Unread views", async () => {
   const notice = { id: qid, kind: "APPLICATION_STATUS", createdAt: "2030-01-15T12:00:00Z", readAt: null, application: { id: app.id, title: opp.title, status: "SHORTLISTED" } };
   const fetch = vi.fn((_url, opts) => reply(opts?.method === "POST" ? { updated: true } : { items: [notice], nextCursor: null })); vi.stubGlobal("fetch", fetch);
