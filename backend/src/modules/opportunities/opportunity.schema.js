@@ -37,6 +37,8 @@ export const applicationInput = z.strictObject({
   expectedVersion: version, expectedOpportunityVersion: version,
   action: z.enum(["SAVE", "SUBMIT"]),
   shareProfile: z.boolean().default(false),
+  // Separate opt-in for displaying participation on public Challenge cards.
+  publicParticipant: z.boolean().default(false),
   answers: z.record(identifier, z.union([text(5000), z.boolean(), z.array(text(150).min(1)).max(12)])).refine(v => Object.keys(v).length <= 20),
 });
 export const withdrawInput = z.strictObject({ expectedVersion: version });
