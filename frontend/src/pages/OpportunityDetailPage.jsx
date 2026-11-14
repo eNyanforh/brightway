@@ -13,7 +13,7 @@ export default function OpportunityDetailPage({ application = false }) {
 }
 function Detail({ id, applicationRoute }) {
   const [opportunity, setOpportunity] = useState(null), [app, setApp] = useState(null), [answers, setAnswers] = useState({});
-  const [error, setError] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [dirty, setDirty] = useState(false), [consent, setConsent] = useState(false), [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [error, setError] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [dirty, setDirty] = useState(false), [consent, setConsent] = useState(false), [publicParticipant, setPublicParticipant] = useState(false), [withdrawOpen, setWithdrawOpen] = useState(false);
   const current = useRef(null), lock = useRef(false);
   const load = useCallback(async () => {
     current.current?.abort(); const controller = new AbortController(); current.current = controller;
@@ -33,7 +33,9 @@ function Detail({ id, applicationRoute }) {
     catch (e) { if (!controller.signal.aborted) { setError(e); if ([401, 403, 404].includes(e.status)) setNotice(""); } }
     finally { if (!controller.signal.aborted) { lock.current = false; setBusy(false); } }
   }
-  const payload = (action, version = app?.version || 0) => ({ action, shareProfile: consent, expectedVersion: version, expectedOpportunityVersion: opportunity.version, answers: Object.fromEntries(Object.entries(answers).filter(([, v]) => v !== undefined)) });
+  const payload = (action, version = app?.version || 0) => ({ action, shareProfile: consent,
+    ...(opportunity.type === "CHALLENGE" ? { publicParticipant } : {}),
+    expectedVersion: version, expectedOpportunityVersion: opportunity.version, answers: Object.fromEntries(Object.entries(answers).filter(([, v]) => v !== undefined)) });
   async function upload(questionId, file) {
     if (file.size > 5 * 1024 * 1024) { setError(new Error("Choose a file up to 5 MiB.")); return; }
     await action(async signal => {
@@ -63,7 +65,7 @@ function Detail({ id, applicationRoute }) {
           {(editable || app) && <>
             {editable && <p>Save a draft at any time. Required questions are marked with an asterisk.</p>}
             <ApplicationQuestions questions={questions} answers={answers} files={app?.files} applicationId={app?.id} disabled={blocked} readOnly={!editable} onChange={(key, value) => { setAnswers(old => ({ ...old, [key]: value })); setDirty(true); }} onFile={upload} />
-            {editable && <><div className="bw-op-consent"><label><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} disabled={blocked} /><span>Share my answers, attachments, and a snapshot of my name, headline, location, skills, interests, and verified credentials with authorized {opportunity.organization.name} staff. My private contact details are excluded.</span></label><p>Your profile must be complete before submission. You can track the decision or withdraw here.</p></div><div className="bw-op-actions"><button className="bw-op-secondary" type="button" disabled={blocked} onClick={() => void action(signal => api.save(opportunity.id, payload("SAVE"), signal))}>Save draft</button><button className="bw-op-primary" type="button" disabled={blocked || !consent} onClick={() => void action(signal => api.save(opportunity.id, payload("SUBMIT"), signal))}>{busy ? "Saving…" : "Submit application"}</button></div></>}
+            {editable && <><div className="bw-op-consent"><label><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} disabled={blocked} /><span>Share my answers, attachments, and a snapshot of my name, headline, location, skills, interests, and verified credentials with authorized {opportunity.organization.name} staff. My private contact details are excluded.</span></label>{opportunity.type === "CHALLENGE" && <label><input type="checkbox" checked={publicParticipant} onChange={e => setPublicParticipant(e.target.checked)} disabled={blocked} /><span>Show my public name and profile photo in the Challenge participants preview after submission. Optional. My application answers and documents stay private, and withdrawing removes my public participation.</span></label>}<p>Your profile must be complete before submission. You can track the decision or withdraw here.</p></div><div className="bw-op-actions"><button className="bw-op-secondary" type="button" disabled={blocked} onClick={() => void action(signal => api.save(opportunity.id, payload("SAVE"), signal))}>Save draft</button><button className="bw-op-primary" type="button" disabled={blocked || !consent} onClick={() => void action(signal => api.save(opportunity.id, payload("SUBMIT"), signal))}>{busy ? "Saving…" : "Submit application"}</button></div></>}
           </>}
         </section>
         {app && <ApplicationHistory events={app.events} />}
