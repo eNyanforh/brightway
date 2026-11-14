@@ -160,6 +160,15 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     if (challenge && steps[step] === "Cover photo" && !draft.coverAssetId &&
         !opportunity?.backgroundAssetId && !opportunity?.titleAssetId)
       return "Upload a Challenge cover photo to continue.";
+    if (challenge && steps[step] === "Post types" && draft.postRequirements.some(item => {
+      if (item.type === "VIDEO_POST") return item.minDurationSeconds < 1 ||
+        item.maxDurationSeconds > 3600 || item.minDurationSeconds > item.maxDurationSeconds;
+      if (item.type === "CAPTION") return item.minWords < 1 ||
+        item.maxWords > 1000 || item.minWords > item.maxWords;
+      if (item.type === "PHOTO_POST") return item.minImages < 1 ||
+        item.maxImages > 4 || item.minImages > item.maxImages;
+      return item.maxPages < 1 || item.maxPages > 100;
+    })) return "Check each post type's minimum and maximum requirements.";
     if (steps[step]?.endsWith("Applications")) {
       if (!draft.deadline || !Number.isFinite(new Date(draft.deadline).getTime()) ||
           new Date(draft.deadline).getTime() <= Date.now()) return "Choose a future deadline.";
