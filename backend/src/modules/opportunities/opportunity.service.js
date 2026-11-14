@@ -15,7 +15,7 @@ const publicOrganization = { status: "ACTIVE", request: { status: "APPROVED" }, 
 const organizationSelect = { id: true, name: true, username: true, profilePhotoId: true, verifiedAt: true };
 const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, prize: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect } };
 const fileSelect = { id: true, questionId: true, contentType: true, size: true, createdAt: true };
-const applicationSelect = { id: true, status: true, version: true, answers: true, profileSnapshot: true, opportunitySnapshot: true, feedback: true, submittedAt: true, withdrawnAt: true, createdAt: true, opportunityId: true,
+const applicationSelect = { id: true, status: true, version: true, answers: true, profileSnapshot: true, opportunitySnapshot: true, feedback: true, submittedAt: true, withdrawnAt: true, publicParticipant: true, createdAt: true, opportunityId: true,
   opportunity: { select: opportunitySelect }, files: { select: fileSelect }, events: { select: { id: true, fromStatus: true, toStatus: true, feedback: true, createdAt: true }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] } };
 const conflict = () => fail(409, "This opportunity or application changed. Reload the saved version before continuing.");
 const unavailable = () => fail(404, "This opportunity or application is unavailable.");
