@@ -4,6 +4,7 @@ import { opportunitiesApi } from "../../api/opportunities";
 import OrganizationAvatar from "../profile/OrganizationAvatar";
 import VerificationBadge from "../VerificationBadge";
 import NavigationIcon from "../layout/NavigationIcon";
+import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
 import "./challenge-card.css";
 
 export default function ChallengeCard({ opportunity, onSavedChange }) {
@@ -76,6 +77,7 @@ export default function ChallengeCard({ opportunity, onSavedChange }) {
       <div className="bw-challenge-prize" aria-label="Challenge prize and participation mode">
         <strong>{opportunity.prize?.trim() || "Not listed"}</strong>
         <span className="bw-challenge-mode">{mode}</span>
+        <ChallengeParticipantFacepile summary={opportunity.participantSummary} />
       </div>
     </div>
 
