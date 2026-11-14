@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { OPPORTUNITY_TYPES, QUESTION_TYPES } from "../../../../shared/opportunities.mjs";
-import { CHALLENGE_COVER_IMAGES, CHALLENGE_TOPIC_OPTIONS, DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS } from "../../../../shared/challenges.mjs";
+import { CHALLENGE_COVER_IMAGES, CHALLENGE_TOPIC_OPTIONS, DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS, CHALLENGE_PRIZE_TYPES, CHALLENGE_MEDIA_KINDS, MAX_CHALLENGE_SPONSORS, MAX_CHALLENGE_PRIZES } from "../../../../shared/challenges.mjs";
 import { fail } from "../network/network.schema.js";
 
 export const identifier = z.uuid();
@@ -18,6 +18,15 @@ export const opportunityInput = z.strictObject({
   type: z.enum(Object.keys(OPPORTUNITY_TYPES)), title: text(160).min(3), description: text(12000).min(30),
   location: text(180).min(2), workMode: z.enum(["IN_PERSON", "REMOTE", "HYBRID"]),
   prize: text(120).nullish().transform(value => value ?? ""),
+  prizes: z.array(z.strictObject({
+    type: z.enum(Object.keys(CHALLENGE_PRIZE_TYPES)),
+    description: text(120).min(1),
+  })).max(MAX_CHALLENGE_PRIZES).default([]),
+  sponsorLogoIds: z.array(identifier).max(MAX_CHALLENGE_SPONSORS)
+    .refine(ids => new Set(ids).size === ids.length, "Sponsor logos must be unique.").default([]),
+  backgroundAssetId: identifier.nullish().transform(value => value ?? null),
+  titleAssetId: identifier.nullish().transform(value => value ?? null),
+  maxApplicants: z.number().int().min(1).max(1000000).nullish().transform(value => value ?? null),
   topics: z.array(z.enum(CHALLENGE_TOPIC_OPTIONS)).max(MAX_CHALLENGE_TOPICS)
     .refine(values => new Set(values).size === values.length).default([]),
   coverImage: z.enum(Object.keys(CHALLENGE_COVER_IMAGES)).default(DEFAULT_CHALLENGE_COVER),
@@ -25,6 +34,7 @@ export const opportunityInput = z.strictObject({
   questions: z.array(question).max(20).refine(q => new Set(q.map(v => v.id)).size === q.length)
     .refine(q => q.filter(v => v.type === "FILE_UPLOAD").length <= 5),
 });
+export const challengeAssetUploadInput = z.strictObject({ kind: z.enum(Object.keys(CHALLENGE_MEDIA_KINDS)) });
 export const saveInput = z.strictObject({ saved: z.boolean() });
 export const createInput = opportunityInput.extend({ requestKey: identifier });
 export const editInput = opportunityInput.extend({ expectedVersion: version });
