@@ -128,9 +128,10 @@ test("Explore right sidebar displays photo-backed Challenge cards with prize, sp
   await expect(photo).toHaveAttribute("src", "/images/hero/schools-720.webp");
   await expect(photo).toHaveCSS("object-fit", "cover");
   await expect.poll(async () => photo.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
-  const prizeMode = card.locator(".bw-rail-challenge-prize-mode");
-  await expect(prizeMode).toContainText("US$1,000");
-  await expect(prizeMode).toContainText("On BrightWay");
+  const prize = card.locator(".bw-rail-challenge-prize");
+  await expect(prize).toContainText("US$1,000");
+  await expect(prize).not.toContainText("Cash:");
+  await expect(card).not.toContainText("On BrightWay");
   await expect(card.getByRole("link", { name: "View Research School organization profile" })).toHaveAttribute("href", "/organizations/" + oid);
   await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
   await expect(card.getByRole("heading", { name: challenge.title })).toBeVisible();
@@ -142,14 +143,13 @@ test("Explore right sidebar displays photo-backed Challenge cards with prize, sp
   await expect(reminder).toHaveAttribute("datetime", challenge.deadline);
   await expect(reminder).toContainText(/Closes in [0-9,]+ days/);
   await expect(card.getByRole("link", { name: "Challenge", exact: true })).toHaveAttribute("href", "/opportunities?type=CHALLENGE");
-  const [sponsorBounds, prizeBounds, photoBounds, logoBounds, nameBounds, priceValueBounds, modeBounds, closingBounds, participantsBounds] = await Promise.all([
+  const [sponsorBounds, prizeBounds, photoBounds, logoBounds, nameBounds, priceValueBounds, closingBounds, participantsBounds] = await Promise.all([
     card.locator(".bw-rail-challenge-publisher").boundingBox(),
-    prizeMode.boundingBox(),
+    prize.boundingBox(),
     photo.boundingBox(),
     card.locator(".bw-rail-challenge-logo").boundingBox(),
     card.locator(".bw-rail-challenge-sponsor-name").boundingBox(),
-    prizeMode.locator("strong").boundingBox(),
-    prizeMode.locator("span").boundingBox(),
+    prize.locator("strong").boundingBox(),
     card.locator(".bw-rail-challenge-closing-row").boundingBox(),
     card.locator(".bw-challenge-participants").boundingBox(),
   ]);
@@ -159,8 +159,7 @@ test("Explore right sidebar displays photo-backed Challenge cards with prize, sp
   expect(Math.abs((logoBounds.y + logoBounds.height / 2) - (nameBounds.y + nameBounds.height / 2))).toBeLessThan(3);
   expect(prizeBounds.y).toBeGreaterThanOrEqual(sponsorBounds.y + sponsorBounds.height - 1);
   expect(photoBounds.x).toBeGreaterThanOrEqual(sponsorBounds.x + sponsorBounds.width - 1);
-  expect(modeBounds.x).toBeGreaterThanOrEqual(priceValueBounds.x + priceValueBounds.width - 1);
-  expect(Math.abs(modeBounds.y - priceValueBounds.y)).toBeLessThan(5);
+  expect(priceValueBounds.width).toBeGreaterThan(0);
   const participantGroup = card.getByRole("group", { name: "Publicly participating members" });
   await expect(participantGroup.getByRole("link")).toHaveCount(2);
   await expect(card.getByLabel("Public Challenge participants")).toContainText("2 participants");
@@ -1928,7 +1927,8 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   await expect(deadline.locator("time")).toHaveAttribute("datetime", opportunity.deadline);
   await expect(deadline.locator("time")).toHaveAttribute("title", /Deadline: /);
   await expect(prize).toContainText("US$1,000");
-  await expect(prize).toContainText("On BrightWay");
+  await expect(prize).not.toContainText("On BrightWay");
+  await expect(prize).not.toContainText("Cash:");
   const participantGroup = body.getByRole("group", { name: "Publicly participating members" });
   await expect(participantGroup.getByRole("link")).toHaveCount(3);
   await expect(participantGroup.getByRole("link", { name: "Student One participating in challenge" })).toHaveAttribute("href", "/student_a");
@@ -1939,16 +1939,14 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   await expect(body.getByRole("link", { name: "Open " + opportunity.title })).toHaveAttribute("href", "/opportunities/" + opportunityId);
   await expect(title).toHaveCSS("margin-bottom", "2px");
   await expect(prize).toHaveCSS("column-gap", "6px");
-  const [prizeAmountBounds, modeBounds, titleBounds, organizerBounds, deadlineBounds, prizeBounds, participantsBounds, coverBounds, avatarBounds, orgNameBounds] = await Promise.all([
+  const [prizeAmountBounds, titleBounds, organizerBounds, deadlineBounds, prizeBounds, participantsBounds, coverBounds, avatarBounds, orgNameBounds] = await Promise.all([
     prize.locator("strong").boundingBox(),
-    prize.locator(".bw-challenge-mode").boundingBox(),
     title.boundingBox(), organizer.boundingBox(), deadline.boundingBox(), prize.boundingBox(),
     body.locator(".bw-challenge-participants").boundingBox(), cover.boundingBox(),
     organizer.locator(".bw-challenge-organization-avatar").boundingBox(),
     organizer.locator(".bw-challenge-organization-name").boundingBox(),
   ]);
-  expect(modeBounds.x).toBeGreaterThanOrEqual(prizeAmountBounds.x + prizeAmountBounds.width - 1);
-  expect(Math.abs(modeBounds.y - prizeAmountBounds.y)).toBeLessThan(5);
+  expect(prizeAmountBounds.width).toBeGreaterThan(0);
   expect(titleBounds.y).toBeLessThan(organizerBounds.y);
   expect(organizerBounds.y - (titleBounds.y + titleBounds.height)).toBeLessThanOrEqual(4);
   expect(avatarBounds.x + avatarBounds.width).toBeLessThanOrEqual(orgNameBounds.x + 1);
@@ -1957,9 +1955,9 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   expect(participantsBounds.y).toBeGreaterThanOrEqual(deadlineBounds.y + deadlineBounds.height - 1);
   expect(coverBounds.x).toBeGreaterThanOrEqual(organizerBounds.x + organizerBounds.width - 1);
   await expect(card.locator(".bw-challenge-divider")).toHaveCount(1);
-  await expect(card.getByRole("link", { name: "Participate on BrightWay" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  await expect(card.getByRole("link", { name: "Take Part" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
   const [participateBounds, actionsBounds] = await Promise.all([
-    card.getByRole("link", { name: "Participate on BrightWay" }).boundingBox(),
+    card.getByRole("link", { name: "Take Part" }).boundingBox(),
     card.locator(".bw-challenge-secondary").boundingBox(),
   ]);
   expect(participateBounds.x + participateBounds.width).toBeLessThanOrEqual(actionsBounds.x + 1);
