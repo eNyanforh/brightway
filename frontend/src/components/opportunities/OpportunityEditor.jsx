@@ -39,7 +39,7 @@ function initialDraft(opportunity) {
 }
 function PhotoField({ label, kind, assetId, fallback, disabled, busy, onFile, onRemove }) {
   return <div className="bw-op-wizard-photo-field">
-    <div className="bw-op-wizard-photo-label"><strong>{label}</strong><span>JPEG, PNG or WebP · Up to 5 MB</span></div>
+    <div className="bw-op-wizard-photo-label"><strong>{label}</strong><span>{kind === "BACKGROUND" ? "Landscape photo, at least 700 × 240 px" : "JPEG, PNG or WebP"} · Up to 5 MB</span></div>
     <div className="bw-op-wizard-photo-row">
       <div className="bw-op-wizard-photo-thumb">
         {assetId || fallback ? <img alt={label + " preview"} src={assetId ? api.challengeAssetUrl(assetId) : fallback} /> : <NavigationIcon name="image" size={24} />}
@@ -176,7 +176,9 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         ...draft,
         location: challenge ? "BrightWay" : draft.location,
         workMode: challenge ? "REMOTE" : draft.workMode,
-        prize: challenge ? (draft.prize || "") : "",
+        // The structured prizes are canonical. Removing every prize must not
+        // silently restore a legacy reward from a previous save.
+        prize: "",
         prizes: challenge ? draft.prizes : [],
         sponsorLogoIds: challenge ? draft.sponsorLogoIds : [],
         backgroundAssetId: challenge ? draft.backgroundAssetId : null,
