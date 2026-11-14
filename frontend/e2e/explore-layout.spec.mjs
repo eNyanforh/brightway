@@ -1855,7 +1855,9 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   const prize = card.locator(".bw-challenge-prize");
   await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
   await expect(organizer.getByRole("link", { name: opportunity.organization.name, exact: true })).toHaveAttribute("href", "/organizations/" + organizationId);
-  await expect(deadline).toContainText("Deadline:");
+  await expect(deadline).toContainText(/^Closes in [0-9,]+ days$/);
+  await expect(deadline.locator("time")).toHaveAttribute("datetime", opportunity.deadline);
+  await expect(deadline.locator("time")).toHaveAttribute("title", /Deadline: /);
   await expect(prize).toContainText("US$1,000");
   await expect(prize).toContainText("Online");
   const participantGroup = prize.getByRole("group", { name: "Publicly participating members" });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
 import { opportunitiesApi } from "../../api/opportunities";
@@ -7,6 +7,7 @@ import VerificationBadge from "../VerificationBadge";
 import NavigationIcon from "../layout/NavigationIcon";
 import PostTimestamp from "../posts/PostTimestamp";
 import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
+import { challengeDeadlineReminder } from "./challenge-deadline";
 
 const EXPLORE_OPPORTUNITY_CATEGORIES = Object.freeze({
   JOB: "Jobs & Internships",
@@ -19,6 +20,11 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
   const [saved, setSaved] = useState(Boolean(opportunity.saved));
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
   const mode = opportunity.workMode === "REMOTE" ? "Online"
     : opportunity.workMode === "HYBRID" ? "Online & offline" : "Offline";
 
@@ -74,7 +80,8 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
             {Boolean(organization.verifiedAt) && <VerificationBadge kind="organization" />}
           </span>
         </div>
-        <p className="bw-challenge-deadline">Deadline: {formattedDeadline}</p>
+        <p className="bw-challenge-deadline"><time dateTime={opportunity.deadline}
+          title={"Deadline: " + formattedDeadline}>{challengeDeadlineReminder(opportunity.deadline, currentTime)}</time></p>
       </div>
       <div className="bw-challenge-prize" aria-label="Challenge prize and participation mode">
         <strong>{opportunity.prize?.trim() || "Not listed"}</strong>
