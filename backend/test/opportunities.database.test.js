@@ -58,6 +58,10 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     const sponsorLogo = await service.uploadChallengeAsset(owner.actor, org.id, { kind: "SPONSOR_LOGO" }, Buffer.from("sponsor"), "image/png");
     const background = await service.uploadChallengeAsset(owner.actor, org.id, { kind: "BACKGROUND" }, Buffer.from("background"), "image/png");
     const titleImage = await service.uploadChallengeAsset(owner.actor, org.id, { kind: "TITLE_IMAGE" }, Buffer.from("title"), "image/png");
+    const cover = await service.uploadChallengeAsset(owner.actor, org.id, { kind: "COVER" }, Buffer.from("cover"), "image/png");
+    const candidates = await service.searchCollaborators(owner.actor, org.id, { q: "Synthetic Research" });
+    assert(candidates.items.some(item => item.id === foreign.id && item.profilePhotoId));
+    assert.equal(candidates.items.some(item => item.id === org.id), false, "publishers cannot invite themselves");
     await assert.rejects(service.readChallengeAsset(applicant.actor, sponsorLogo.id), { status: 403 },
       "unpublished Challenge images are accessible only to authorized organization staff");
     await assert.rejects(service.create(otherOwner.actor, foreign.id, {
@@ -68,9 +72,25 @@ test("opportunities isolate tenants and private files, enforce completion, seria
         prize: "US$500", coverImage: "SCHOOLS", topics: ["Education", "Technology"],
         prizes: [{ type: "CASH", amount: 500, currency: "USD" }, { type: "CERTIFICATE", title: "Award certificate", issuer: "" }],
         sponsorLogoIds: [sponsorLogo.id], backgroundAssetId: background.id, titleAssetId: titleImage.id,
-        maxApplicants: 1,
+        coverAssetId: cover.id, collaboratorIds: [foreign.id], maxApplicants: 1,
       } : {}) };
       const row = await service.create(owner.actor, org.id, request);
+      if (type === "CHALLENGE") {
+        assert.equal(row.collaborators.length, 1);
+        assert.equal(row.collaborators[0].state, "PENDING");
+        const invitations = await service.collaborationInvitations(otherOwner.actor, foreign.id);
+        assert(invitations.items.some(invite => invite.opportunityId === row.id && invite.state === "PENDING"));
+        const before = await db.opportunity.findUnique({
+          where: { id: row.id }, select: { collaborators: { where: { state: "ACCEPTED" }, select: { id: true } } },
+        });
+        assert.equal(before.collaborators.length, 0, "pending co-hosts cannot appear publicly");
+        await assert.rejects(service.respondCollaboration(owner.actor, org.id, row.id, { decision: "ACCEPTED" }),
+          { status: 404 }, "host may not accept invitations on another organization’s behalf");
+        const accepted = await service.respondCollaboration(otherOwner.actor, foreign.id, row.id, { decision: "ACCEPTED" });
+        assert.equal(accepted.state, "ACCEPTED");
+        await assert.rejects(service.respondCollaboration(otherOwner.actor, foreign.id, row.id, { decision: "DECLINED" }),
+          { status: 409 }, "accepted co-hosting requires a fresh invitation to change status");
+      }
       otherListings.push(await service.setStatus(owner.actor, org.id, row.id, { expectedVersion: row.version, status: "PUBLISHED" }));
     }
     assert.deepEqual(new Set((await service.browse(applicant.actor, {})).items.filter(o => o.organizationId === org.id).map(o => o.type)), new Set(["JOB", "SCHOLARSHIP", "CHALLENGE", "EVENT"]));
@@ -87,6 +107,11 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     assert.deepEqual(publishedChallenge.sponsorLogoIds, [sponsorLogo.id]);
     assert.equal(publishedChallenge.backgroundAssetId, background.id);
     assert.equal(publishedChallenge.titleAssetId, titleImage.id);
+    assert.equal(publishedChallenge.coverAssetId, cover.id);
+    assert.equal(publishedChallenge.collaborators.length, 1);
+    assert.equal(publishedChallenge.collaborators[0].organizationId, foreign.id);
+    assert.equal(publishedChallenge.collaborators[0].state, "ACCEPTED");
+    assert.equal((await service.readChallengeAsset(applicant.actor, cover.id)).bytes.toString(), "cover");
     assert.equal((await service.readChallengeAsset(applicant.actor, sponsorLogo.id)).bytes.toString(), "sponsor");
     assert.equal((await service.browse(applicant.actor, { q: "assistant" })).items.filter(o => o.organizationId === org.id).length, 4);
     assert.equal((await service.browse(applicant.actor, { q: "%_" })).items.length, 0, "search wildcards are treated literally");
@@ -186,6 +211,7 @@ test("opportunities isolate tenants and private files, enforce completion, seria
       const ids = accounts.map(a => a.id), appIds = (await db.opportunityApplication.findMany({ where: { applicantId: { in: ids } }, select: { id: true } })).map(a => a.id);
       await db.opportunityApplicationEvent.deleteMany({ where: { applicationId: { in: appIds } } }); await db.opportunityApplicationFile.deleteMany({ where: { applicationId: { in: appIds } } }); await db.opportunityApplication.deleteMany({ where: { id: { in: appIds } } });
       await db.opportunityAsset.deleteMany({ where: { organizationId: { in: organizations } } });
+      await db.opportunityCollaborator.deleteMany({ where: { organizationId: { in: organizations } } });
       await db.opportunity.deleteMany({ where: { organizationId: { in: organizations } } }); await db.opportunityUploadBudget.deleteMany({ where: { accountId: { in: ids } } });
       await db.organizationStaffAudit.deleteMany({ where: { organizationId: { in: organizations } } }); await db.networkFollow.deleteMany({ where: { followerId: { in: ids } } });
       await clearOrganizationProfiles(db, organizations); await db.organizationMembership.deleteMany({ where: { organizationId: { in: organizations } } }); await db.organization.deleteMany({ where: { id: { in: organizations } } }); await db.organizationRequest.deleteMany({ where: { id: { in: requests } } });

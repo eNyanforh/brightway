@@ -4,6 +4,8 @@ import { organizationWorkspace } from "../../shared/organization-workspace.mjs";
 const origin = "http://127.0.0.1:4187";
 const oid = "22222222-2222-4222-8222-222222222222", id = "33333333-3333-4333-8333-333333333333", aid = "55555555-5555-4555-8555-555555555555", qid = "44444444-4444-4444-8444-444444444444";
 const organization = { id: oid, name: "Synthetic Research Institute", type: "COMPANY", offersTraining: false };
+const collaborator = { id: "99999999-9999-4999-8999-999999999999", name: "Collaborating Academy",
+  username: "collaborating_academy", profilePhotoId: "photo-partner", verifiedAt: "2026-11-01T12:00:00Z" };
 const permissions = ["organization.opportunities.manage", "organization.applications.review"];
 const base = "/organization-workspace/" + oid;
 const initialOpportunity = { id, organization, organizationId: oid, type: "JOB", title: "Community research assistant", description: "Join a research team and help improve education outcomes across communities.", location: "Monrovia, Liberia", workMode: "IN_PERSON", deadline: "2099-12-01T12:00:00Z", status: "PUBLISHED", publishedAt: "2026-11-11T12:00:00Z", version: 2, questions: [{ id: qid, type: "YES_NO", label: "Can you join our team?", required: true, options: [] }], createdAt: "2026-11-11T12:00:00Z" };
@@ -43,6 +45,10 @@ async function fixture(page) {
       return route.fulfill({ status: 200, headers: { "Content-Type": "image/webp" },
         body: Buffer.from("UklGRj4AAABXRUJQVlA4IDIAAADQAQCdASoBAAEADsD+JaQAA3AAAAAA", "base64") });
     }
+    if (path === "/api/v1" + base + "/challenge-collaborator-search")
+      return reply({ items: [collaborator] });
+    if (path === "/api/v1" + base + "/challenge-collaborations")
+      return reply({ items: [] });
     if (path === "/api/v1" + base + "/opportunities") {
       if (request.method() === "POST") { const body = request.postDataJSON(); const row = { ...body, id: "66666666-6666-4666-8666-666666666666", organization, version: 1, status: "DRAFT" }; state.drafts.push(row); return reply(row, 201); }
       return reply({ items: state.drafts, nextCursor: null });
@@ -142,7 +148,7 @@ test("organization publishing workspace filters and displays listings without mo
   expect(state.errors).toEqual([]);
 });
 
-test("organization Challenge wizard creates a native Challenge with prizes, images, sponsors, and applicant cap", async ({ page, isMobile }) => {
+test("organization Challenge wizard invites verified collaborators and uploads one cover photo", async ({ page, isMobile }) => {
   const state = await fixture(page);
   await page.goto(base + "/opportunities");
   await page.locator(".bw-op-dashboard-header").getByRole("button", { name: "+ Create opportunity" }).click();
@@ -162,14 +168,20 @@ test("organization Challenge wizard creates a native Challenge with prizes, imag
   await editor.getByLabel("Prize 2 type").selectOption("CERTIFICATE");
   await editor.getByLabel("Certificate Title").fill("Completion certificate");
   await editor.getByLabel("Issued By (optional)").fill("Research Institute");
-  const smallPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCXUAAAAASUVORK5CYII=", "base64");
-  await editor.getByLabel("Sponsors Logo").setInputFiles({ name: "sponsor.png", mimeType: "image/png", buffer: smallPng });
-  await expect.poll(() => state.assets.length).toBe(1);
+  await editor.getByLabel("Search organization collaborators").fill("Collaborating");
+  const match = editor.getByRole("button", { name: "Invite Collaborating Academy" });
+  await expect(match).toBeVisible();
+  await expect(match.getByRole("img", { name: "Verified organization" })).toBeVisible();
+  await expect(match).toContainText("@collaborating_academy");
+  await match.click();
+  await expect(editor.getByText("Invite on save")).toBeVisible();
   await editor.getByRole("button", { name: "Continue" }).click();
-  await editor.getByLabel("Background Image").setInputFiles({ name: "background.png", mimeType: "image/png", buffer: smallPng });
-  await expect.poll(() => state.assets.length).toBe(2);
-  await editor.getByLabel("Challenge Title Image").setInputFiles({ name: "title.png", mimeType: "image/png", buffer: smallPng });
-  await expect.poll(() => state.assets.length).toBe(3);
+  await expect(editor.getByLabel("Challenge Title Image")).toHaveCount(0);
+  await expect(editor.getByLabel("Background Image")).toHaveCount(0);
+  await expect(editor.getByLabel("Default background photograph")).toHaveCount(0);
+  const smallPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCXUAAAAASUVORK5CYII=", "base64");
+  await editor.getByLabel("Challenge cover photo").setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: smallPng });
+  await expect.poll(() => state.assets.length).toBe(1);
   await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
   await editor.getByLabel("Number of Applicants (maximum)").fill("25");
@@ -186,9 +198,11 @@ test("organization Challenge wizard creates a native Challenge with prizes, imag
     { type: "CASH", amount: 1000, currency: "USD" },
     { type: "CERTIFICATE", title: "Completion certificate", issuer: "Research Institute" },
   ]);
-  expect(challenge.sponsorLogoIds).toEqual([state.assets[0].id]);
-  expect(challenge.backgroundAssetId).toBe(state.assets[1].id);
-  expect(challenge.titleAssetId).toBe(state.assets[2].id);
+  expect(challenge.collaboratorIds).toEqual([collaborator.id]);
+  expect(challenge.coverAssetId).toBe(state.assets[0].id);
+  expect(challenge.sponsorLogoIds).toEqual([]);
+  expect(challenge.backgroundAssetId).toBeNull();
+  expect(challenge.titleAssetId).toBeNull();
   expect(challenge.maxApplicants).toBe(25);
   expect(challenge).not.toHaveProperty("applicationUrl");
   await noOverflow(page);

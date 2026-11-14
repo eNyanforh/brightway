@@ -21,25 +21,35 @@ test("opportunity input rejects external application methods, unknown fields and
   assert.deepEqual(challenge.data.sponsorLogoIds, []);
   assert.equal(challenge.data.backgroundAssetId, null);
   assert.equal(challenge.data.titleAssetId, null);
+  assert.equal(challenge.data.coverAssetId, null);
+  assert.deepEqual(challenge.data.collaboratorIds, []);
   assert.equal(challenge.data.maxApplicants, null);
-  const sponsor = randomUUID(), background = randomUUID(), title = randomUUID();
+  const sponsor = randomUUID(), background = randomUUID(), title = randomUUID(), cover = randomUUID(), collaborator = randomUUID();
   const structured = createInput.parse({ ...listing(), type: "CHALLENGE",
     prizes: [{ type: "CASH", description: "US$500" }, { type: "MENTORSHIP", description: "Expert mentoring" }],
-    sponsorLogoIds: [sponsor], backgroundAssetId: background, titleAssetId: title, maxApplicants: 30,
+    sponsorLogoIds: [sponsor], backgroundAssetId: background, titleAssetId: title, coverAssetId: cover,
+    collaboratorIds: [collaborator], maxApplicants: 30,
   });
   assert.equal(structured.prizes.length, 2);
   assert.deepEqual(structured.sponsorLogoIds, [sponsor]);
+  assert.equal(structured.coverAssetId, cover);
+  assert.deepEqual(structured.collaboratorIds, [collaborator]);
   assert.equal(structured.maxApplicants, 30);
   for (const invalid of [
     { maxApplicants: 0 }, { maxApplicants: -1 }, { maxApplicants: 1.3 }, { maxApplicants: 1000001 },
     { sponsorLogoIds: [sponsor, sponsor] }, { sponsorLogoIds: ["https://untrusted.invalid/logo.png"] },
     { backgroundAssetId: "https://untrusted.invalid/bg.png" },
     { titleAssetId: "data:image/png;base64,xxx" },
+    { coverAssetId: "https://example.invalid/photo.jpg" },
+    { collaboratorIds: ["https://example.invalid/org"] },
+    { collaboratorIds: [collaborator, collaborator] },
+    { collaboratorIds: Array.from({ length: 9 }, () => randomUUID()) },
     { prizes: [{ type: "UNKNOWN", description: "Gift" }] },
     { prizes: [{ type: "CASH", description: "" }] },
     { prizes: Array.from({ length: 9 }, () => ({ type: "CASH", description: "US$50" })) },
   ]) assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", ...invalid }).success, false);
   assert.equal(challengeAssetUploadInput.parse({ kind: "BACKGROUND" }).kind, "BACKGROUND");
+  assert.equal(challengeAssetUploadInput.parse({ kind: "COVER" }).kind, "COVER");
   assert.equal(challengeAssetUploadInput.safeParse({ kind: "EXTERNAL" }).success, false);
   const illustrated = createInput.parse({ ...listing(), type: "CHALLENGE",
     coverImage: "SCHOOLS", topics: ["Education", "Coding"] });
@@ -125,6 +135,24 @@ test("opportunity routes require personal authentication, trusted origins, no-st
     });
     assert.equal(uploaded.status, 201);
     assert.equal((await uploaded.json()).data.kind, "SPONSOR_LOGO");
+    const orgId = randomUUID(), inviteId = randomUUID();
+    const anonymousSearch = await fetch(base + "/organization-workspace/" + orgId + "/challenge-collaborator-search?q=Academy");
+    assert.equal(anonymousSearch.status, 401);
+    const search = await fetch(base + "/organization-workspace/" + orgId + "/challenge-collaborator-search?q=Academy", { headers });
+    assert.equal(search.status, 200);
+    assert(calls.some(([method]) => method === "searchCollaborators"));
+    const foreignDecision = await fetch(base + "/organization-workspace/" + orgId + "/challenge-collaborations/" + inviteId, {
+      method: "PUT", headers: { ...headers, Origin: "https://foreign.invalid" },
+      body: JSON.stringify({ decision: "ACCEPTED" }),
+    });
+    assert.equal(foreignDecision.status, 403);
+    const accepted = await fetch(base + "/organization-workspace/" + orgId + "/challenge-collaborations/" + inviteId, {
+      method: "PUT", headers: { ...headers, Origin: "http://localhost:5173" },
+      body: JSON.stringify({ decision: "ACCEPTED" }),
+    });
+    assert.equal(accepted.status, 200);
+    assert(calls.some(([method, args]) => method === "respondCollaboration" &&
+      args[1] === orgId && args[2] === inviteId && args[3].decision === "ACCEPTED"));
     const file = await fetch(base + `/applications/me/${randomUUID()}/files/${randomUUID()}`, { headers });
     assert.match(file.headers.get("Content-Disposition"), /^attachment;/); assert.equal(file.headers.get("X-Content-Type-Options"), "nosniff"); assert.equal(await file.text(), "private");
     assert.equal(calls.at(-1)[1].at(-1), undefined, "owner file route does not accept an organization scope from the caller");

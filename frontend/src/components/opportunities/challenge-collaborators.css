@@ -1,0 +1,198 @@
+/* BrightWay's verified-organization collaborator selection and co-host display. */
+.bw-collaborator-picker {
+  min-width: 0;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #eaecf0;
+}
+.bw-collaborator-picker h4 { margin: 0 0 7px; font-size: 16px; color: #111827; }
+.bw-collaborator-picker > label { display: grid; gap: 7px; font-size: 12px; font-weight: 650; }
+.bw-collaborator-picker input[type=search] {
+  min-height: 44px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  color: #111827;
+  background: #fff;
+  font-size: 13px;
+}
+.bw-collaborator-picker input:focus-visible,
+.bw-collaboration-invites button:focus-visible,
+.bw-collaborator-suggestions button:focus-visible {
+  outline: 3px solid #84b5ff;
+  outline-offset: 2px;
+}
+.bw-collaborator-suggestions {
+  padding: 6px;
+  margin-top: 6px;
+  border: 1px solid #eaecf0;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 4px 18px #10182812;
+}
+.bw-collaborator-suggestions p { margin: 10px; font-size: 12px; color: #667085; }
+.bw-collaborator-suggestions ul,
+.bw-collaborator-selected,
+.bw-challenge-cohosts ul,
+.bw-collaboration-invites ul { list-style: none; margin: 0; padding: 0; }
+.bw-collaborator-suggestions li + li { border-top: 1px solid #f2f4f7; }
+.bw-collaborator-suggestions button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding: 9px;
+  border: 0;
+  border-radius: 7px;
+  background: #fff;
+  color: #111827;
+  cursor: pointer;
+  text-align: left;
+}
+.bw-collaborator-suggestions button:hover { background: #eff6ff; }
+.bw-collaborator-add { flex: 0 0 auto; color: #175cd3; font-size: 12px; font-weight: 750; }
+.bw-collaborator-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.bw-collaborator-identity > img,
+.bw-collaborator-identity > span:first-child {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #f2f4f7;
+  color: #175cd3;
+}
+.bw-collaborator-identity-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.bw-collaborator-name {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 720;
+  overflow-wrap: anywhere;
+}
+.bw-collaborator-identity-text small {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 450;
+}
+.bw-collaborator-selected { display: grid; gap: 8px; margin: 12px 0; }
+.bw-collaborator-selected li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #eaecf0;
+  border-radius: 8px;
+  background: #fcfcfd;
+}
+.bw-collaborator-selected li > a { min-width: 0; flex: 1 1 auto; text-decoration: none; color: #101828; }
+.bw-collaborator-state {
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: #eff6ff;
+  color: #175cd3;
+  font-size: 10px;
+  font-weight: 700;
+}
+.bw-collaborator-selected li > button {
+  padding: 7px;
+  border: 0;
+  background: transparent;
+  color: #b42318;
+  cursor: pointer;
+  font-size: 12px;
+}
+.bw-collaborator-limit { margin: 10px 0 0; color: #667085; font-size: 11px; }
+.bw-challenge-cohosts {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 9px 0;
+  font-size: 11px;
+  color: inherit;
+}
+.bw-challenge-cohosts > span { opacity: .78; font-size: 11px; }
+.bw-challenge-cohosts ul { display: flex; gap: 5px 10px; flex-wrap: wrap; }
+.bw-challenge-cohosts a { color: inherit; text-decoration: none; }
+.bw-challenge-cohosts a:hover { text-decoration: underline; }
+.bw-challenge-cohosts .bw-collaborator-identity { gap: 5px; }
+.bw-challenge-cohosts .bw-collaborator-identity > img,
+.bw-challenge-cohosts .bw-collaborator-identity > span:first-child {
+  width: 20px;
+  height: 20px;
+  flex-basis: 20px;
+  background: #fff;
+}
+.bw-challenge-cohosts .bw-collaborator-name { font-size: 11px; }
+.bw-challenge-cohosts .bw-collaborator-identity-text small { display: none; }
+.bw-challenge-cohosts.is-compact .bw-collaborator-name { font-size: 10px; }
+.bw-challenge-cohosts.is-compact .bw-collaborator-identity > img,
+.bw-challenge-cohosts.is-compact .bw-collaborator-identity > span:first-child {
+  width: 17px;
+  height: 17px;
+  flex-basis: 17px;
+}
+.bw-collaboration-invites {
+  margin: 0 0 20px;
+  padding: 15px;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  background: #fff;
+}
+.bw-collaboration-invites-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.bw-collaboration-invites h3 { margin: 0 0 4px; color: #101828; font-size: 15px; }
+.bw-collaboration-invites p { margin: 0 0 8px; color: #667085; font-size: 12px; }
+.bw-collaboration-invites button {
+  min-height: 38px;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  border-radius: 7px;
+  padding: 7px 11px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bw-collaboration-invites button:hover { background: #f9fafb; }
+.bw-collaboration-invites ul { display: grid; gap: 10px; margin-top: 12px; }
+.bw-collaboration-invites li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-top: 1px solid #eaecf0;
+  padding: 12px 0 0;
+}
+.bw-collaboration-invites li > div:first-child { display: grid; gap: 6px; min-width: 0; }
+.bw-collaboration-invites li a { color: #175cd3; font-weight: 700; font-size: 13px; }
+.bw-collaboration-invites li small { color: #667085; }
+.bw-collaboration-invites-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.bw-collaboration-invites-actions button:first-child { color: #fff; background: #175cd3; border-color: #175cd3; }
+.bw-collaboration-invites button:disabled { cursor: not-allowed; opacity: .5; }
+.bw-op-wizard-single-cover { grid-template-columns: minmax(0, 1fr) !important; }
+.bw-op-wizard-single-cover img { max-width: 100%; }
+@media (max-width: 620px) {
+  .bw-collaboration-invites-head { align-items: flex-start; flex-direction: column; }
+  .bw-collaborator-selected li > a { flex-basis: 100%; }
+}

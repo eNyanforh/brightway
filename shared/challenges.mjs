@@ -29,8 +29,10 @@ export const CHALLENGE_MEDIA_KINDS = Object.freeze({
   SPONSOR_LOGO: "Sponsor logo",
   BACKGROUND: "Challenge background",
   TITLE_IMAGE: "Challenge title image",
+  COVER: "Challenge cover photo",
 });
 export const MAX_CHALLENGE_SPONSORS = 5;
+export const MAX_CHALLENGE_COLLABORATORS = 8;
 export const MAX_CHALLENGE_PRIZES = 8;
 
 export const CHALLENGE_PRIZE_CURRENCIES = Object.freeze({

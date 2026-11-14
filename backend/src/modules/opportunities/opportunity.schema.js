@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { OPPORTUNITY_TYPES, QUESTION_TYPES } from "../../../../shared/opportunities.mjs";
-import { CHALLENGE_COVER_IMAGES, CHALLENGE_TOPIC_OPTIONS, DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS, CHALLENGE_PRIZE_TYPES, CHALLENGE_PRIZE_CURRENCIES, CHALLENGE_MEDIA_KINDS, MAX_CHALLENGE_SPONSORS, MAX_CHALLENGE_PRIZES } from "../../../../shared/challenges.mjs";
+import { CHALLENGE_COVER_IMAGES, CHALLENGE_TOPIC_OPTIONS, DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS, CHALLENGE_PRIZE_TYPES, CHALLENGE_PRIZE_CURRENCIES, CHALLENGE_MEDIA_KINDS, MAX_CHALLENGE_SPONSORS, MAX_CHALLENGE_COLLABORATORS, MAX_CHALLENGE_PRIZES } from "../../../../shared/challenges.mjs";
 import { fail } from "../network/network.schema.js";
 
 export const identifier = z.uuid();
@@ -45,6 +45,9 @@ export const opportunityInput = z.strictObject({
     .refine(ids => new Set(ids).size === ids.length, "Sponsor logos must be unique.").default([]),
   backgroundAssetId: identifier.nullish().transform(value => value ?? null),
   titleAssetId: identifier.nullish().transform(value => value ?? null),
+  coverAssetId: identifier.nullish().transform(value => value ?? null),
+  collaboratorIds: z.array(identifier).max(MAX_CHALLENGE_COLLABORATORS)
+    .refine(ids => new Set(ids).size === ids.length, "Collaborators must be unique.").default([]),
   maxApplicants: z.number().int().min(1).max(1000000).nullish().transform(value => value ?? null),
   topics: z.array(z.enum(CHALLENGE_TOPIC_OPTIONS)).max(MAX_CHALLENGE_TOPICS)
     .refine(values => new Set(values).size === values.length).default([]),
@@ -52,6 +55,12 @@ export const opportunityInput = z.strictObject({
   deadline: z.iso.datetime({ offset: true }),
   questions: z.array(question).max(20).refine(q => new Set(q.map(v => v.id)).size === q.length)
     .refine(q => q.filter(v => v.type === "FILE_UPLOAD").length <= 5),
+});
+export const collaboratorSearchInput = z.strictObject({
+  q: z.string().trim().min(2).max(80),
+});
+export const collaboratorResponseInput = z.strictObject({
+  decision: z.enum(["ACCEPTED", "DECLINED"]),
 });
 export const challengeAssetUploadInput = z.strictObject({ kind: z.enum(Object.keys(CHALLENGE_MEDIA_KINDS)) });
 export const saveInput = z.strictObject({ saved: z.boolean() });

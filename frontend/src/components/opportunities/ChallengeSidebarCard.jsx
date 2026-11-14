@@ -6,6 +6,7 @@ import { opportunitiesApi as api } from "../../api/opportunities";
 import OrganizationAvatar from "../profile/OrganizationAvatar";
 import VerificationBadge from "../VerificationBadge";
 import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
+import ChallengeCoHosts from "./ChallengeCoHosts";
 import "./challenge-sidebar-card.css";
 
 // Cover images are local BrightWay photographs, not third-party image links.
@@ -20,7 +21,8 @@ export default function ChallengeSidebarCard({ opportunity }) {
   if (!organization) return null;
   const detail = "/opportunities/" + encodeURIComponent(opportunity.id);
   const sponsor = "/organizations/" + encodeURIComponent(organization.id);
-  const cover = opportunity.titleAssetId ? api.challengeAssetUrl(opportunity.titleAssetId)
+  const cover = opportunity.coverAssetId ? api.challengeAssetUrl(opportunity.coverAssetId)
+    : opportunity.titleAssetId ? api.challengeAssetUrl(opportunity.titleAssetId)
     : opportunity.backgroundAssetId ? api.challengeAssetUrl(opportunity.backgroundAssetId)
     : CHALLENGE_COVER_IMAGES[opportunity.coverImage] || CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER];
   const photoUrl = organization.profilePhotoId
@@ -44,6 +46,7 @@ export default function ChallengeSidebarCard({ opportunity }) {
             {Boolean(organization.verifiedAt) && <VerificationBadge kind="organization" />}
           </span>
         </div>
+        <ChallengeCoHosts collaborators={opportunity.collaborators} compact />
         <div className="bw-rail-challenge-prize" aria-label="Challenge prize">
           <strong title={prizeText}>{prizeText}</strong>
         </div>

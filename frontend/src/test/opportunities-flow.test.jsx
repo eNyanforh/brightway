@@ -116,9 +116,13 @@ it("the right-rail Challenge card shows a first-party photo, publisher, topics a
   expect(within(article).getByRole("link", { name: "Challenge" }).getAttribute("href")).toBe("/opportunities?type=CHALLENGE");
 });
 
-it("Challenge wizard supports prizes, categories, image fallback and native applicant limits", async () => {
+it("Challenge wizard supports collaborators, one cover photo, prizes and applicant limits", async () => {
   const saved = vi.fn();
-  const fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
+  const coverId = "88888888-8888-4888-8888-888888888888";
+  const fetch = vi.fn((url, opts) =>
+    url.includes("/challenge-assets")
+      ? reply({ id: coverId, kind: "COVER", size: 3000 })
+      : reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
   vi.stubGlobal("fetch", fetch);
   const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
   await user.click(screen.getByRole("radio", { name: /Challenge/ }));
@@ -141,9 +145,13 @@ it("Challenge wizard supports prizes, categories, image fallback and native appl
   await user.type(screen.getByLabelText("Prize 2 amount"), "500");
   await user.selectOptions(screen.getByLabelText("Prize 2 currency"), "LRD");
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  await user.selectOptions(screen.getByLabelText("Default background photograph"), "SCHOOLS");
-  expect(screen.getByLabelText("Background Image")).toBeTruthy();
-  expect(screen.getByLabelText("Challenge Title Image")).toBeTruthy();
+  expect(screen.queryByLabelText("Default background photograph")).toBeNull();
+  expect(screen.queryByLabelText("Background Image")).toBeNull();
+  expect(screen.queryByLabelText("Challenge Title Image")).toBeNull();
+  await user.upload(screen.getByLabelText("Challenge cover photo"),
+    new File(["synthetic cover"], "cover.png", { type: "image/png" }));
+  await waitFor(() => expect(fetch.mock.calls.some(([url]) => url.includes("/challenge-assets"))).toBe(true));
+  await waitFor(() => expect(screen.getByAltText("Challenge cover photo preview")).toBeTruthy());
   await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
   await user.type(screen.getByLabelText("Number of Applicants (maximum)"), "30");
@@ -151,8 +159,12 @@ it("Challenge wizard supports prizes, categories, image fallback and native appl
   expect(screen.getByText("Applicants")).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Save draft" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
-  const body = JSON.parse(fetch.mock.calls[0][1].body);
-  expect(body.coverImage).toBe("SCHOOLS");
+  const body = JSON.parse(fetch.mock.calls.find(([, opts]) => opts?.headers?.["Content-Type"] === "application/json")[1].body);
+  expect(body.coverAssetId).toBe(coverId);
+  expect(body.collaboratorIds).toEqual([]);
+  expect(body.sponsorLogoIds).toEqual([]);
+  expect(body.titleAssetId).toBeNull();
+  expect(body.backgroundAssetId).toBeNull();
   expect(body.topics).toEqual(["Technology", "Education", "Design"]);
   expect(body.prizes).toEqual([
     { type: "SCHOLARSHIP", coverage: "Full tuition", institution: "" },

@@ -8,6 +8,7 @@ import ApplicationQuestions from "../components/opportunities/ApplicationQuestio
 import ApplicationHistory from "../components/opportunities/ApplicationHistory";
 import { CHALLENGE_PRIZE_TYPES, challengePrizeValue } from "../../../shared/challenges.mjs";
 import { challengeDeadlineReminder } from "../components/opportunities/challenge-deadline";
+import ChallengeCoHosts from "../components/opportunities/ChallengeCoHosts";
 import "../components/opportunities/opportunity-editor-wizard.css";
 import "../components/opportunities/opportunities.css";
 export default function OpportunityDetailPage({ application = false }) {
@@ -54,10 +55,8 @@ function Detail({ id, applicationRoute }) {
   const blocked = busy || [401, 404, 409].includes(error?.status);
   const questions = app?.opportunitySnapshot?.questions || opportunity?.questions || [];
   const challenge = opportunity?.type === "CHALLENGE";
-  const challengeBackground = challenge && opportunity.backgroundAssetId
-    ? api.challengeAssetUrl(opportunity.backgroundAssetId) : null;
-  const challengeTitleImage = challenge && opportunity.titleAssetId
-    ? api.challengeAssetUrl(opportunity.titleAssetId) : null;
+  const challengeBackground = challenge && (opportunity.coverAssetId || opportunity.backgroundAssetId || opportunity.titleAssetId)
+    ? api.challengeAssetUrl(opportunity.coverAssetId || opportunity.backgroundAssetId || opportunity.titleAssetId) : null;
   return <section className="bw-op-page bw-op-detail" aria-busy={busy}>
     <Link className="bw-op-back" to="/opportunities?view=applications">← My applications</Link>
     {error && <div className="bw-op-feedback" role="alert"><p>{error.message}</p>{error.status === 403 && <p><Link to="/profile">Complete your profile</Link> · <Link to="/security">Account security</Link></p>}<button type="button" disabled={busy} onClick={() => { if (!dirty || window.confirm("Reload and discard unsaved answers?")) void load(); }}>Reload saved application</button></div>}
@@ -70,9 +69,9 @@ function Detail({ id, applicationRoute }) {
           backgroundSize: "cover", backgroundPosition: "center",
         } : undefined}>
         <p className="bw-op-eyebrow">{OPPORTUNITY_TYPES[opportunity.type].label} · {OPPORTUNITY_STATUSES[opportunity.status]}</p>
-        {challengeTitleImage && <img className="bw-op-challenge-title-art" alt="Challenge title artwork" src={challengeTitleImage} />}
-        <h1>{app?.opportunitySnapshot?.title || opportunity.title}</h1>
+         <h1>{app?.opportunitySnapshot?.title || opportunity.title}</h1>
         <OpportunityOrganization organization={opportunity.organization} inverse />
+        {challenge && <ChallengeCoHosts collaborators={opportunity.collaborators} />}
         <div className="bw-op-detail-meta">
           {!challenge && <span>{opportunity.location}</span>}
           {!challenge && <span>{opportunity.workMode.replaceAll("_", " ")}</span>}
@@ -80,10 +79,7 @@ function Detail({ id, applicationRoute }) {
           <span>Deadline: {new Date(opportunity.deadline).toLocaleString("en-GB")}</span>
           {challenge && <span>{challengeDeadlineReminder(opportunity.deadline)}</span>}
         </div>
-        {challenge && Boolean(opportunity.sponsorLogoIds?.length) && <div className="bw-op-challenge-sponsor-logos" aria-label="Challenge sponsors">
-          {opportunity.sponsorLogoIds.map((assetId, index) =>
-            <img key={assetId} src={api.challengeAssetUrl(assetId)} alt={`Sponsor logo ${index + 1}`} />)}
-        </div>}
+
       </header>
       {challenge && <section className="bw-op-surface bw-op-challenge-rewards">
         <h2>Prizes and rewards</h2>

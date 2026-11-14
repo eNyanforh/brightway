@@ -957,6 +957,7 @@ model Organization {
   admissionCycles AdmissionCycle[]
   opportunities Opportunity[]
   opportunityAssets OpportunityAsset[]
+  challengeCollaborations OpportunityCollaborator[]
   posts OrganizationPost[]
   followers NetworkFollow[]
   accessVersion Int @default(0)
@@ -1697,6 +1698,7 @@ model Opportunity {
   sponsorLogoIds String[] @default([])
   backgroundAssetId String?
   titleAssetId String?
+  coverAssetId String?
   maxApplicants Int?
   topics String[] @default([])
   coverImage String @default("STUDENTS") @db.VarChar(20)
@@ -1709,11 +1711,25 @@ model Opportunity {
   updatedAt DateTime @updatedAt
   applications OpportunityApplication[]
   assets OpportunityAsset[]
+  collaborators OpportunityCollaborator[]
   saves OpportunitySave[]
   @@unique([organizationId, authorId, requestKey])
   @@index([status, type, deadline, createdAt, id])
   @@index([organizationId, createdAt, id])
 }
+model OpportunityCollaborator {
+  id String @id @default(uuid())
+  opportunityId String
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  state String @default("PENDING") @db.VarChar(16)
+  invitedAt DateTime @default(now())
+  respondedAt DateTime?
+  @@unique([opportunityId, organizationId])
+  @@index([organizationId, state, invitedAt])
+}
+
 model OpportunityAsset {
   id String @id @default(uuid())
   organizationId String
