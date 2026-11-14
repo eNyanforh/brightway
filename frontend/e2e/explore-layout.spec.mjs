@@ -1812,7 +1812,7 @@ test("main Explore feed displays the four reference gradient categories with whi
   const categories = [
     { type: "JOB", label: "Job", heading: "Jobs & Internships", action: "Apply" },
     { type: "SCHOLARSHIP", label: "Scholarship", heading: "Scholarships", action: "Apply" },
-    { type: "CHALLENGE", label: "Challenge", heading: "Challenges & Competitions", action: "Participate" },
+    { type: "CHALLENGE", label: "Challenge", heading: "Challenge - Part take to Earn", action: "Participate" },
     { type: "EVENT", label: "Event", heading: "Events", action: "Register" },
   ];
   const opportunities = categories.map((category, index) => ({
