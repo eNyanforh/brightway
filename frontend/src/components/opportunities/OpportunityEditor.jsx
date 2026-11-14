@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { OPPORTUNITY_TYPES, QUESTION_TYPES } from "../../../../shared/opportunities.mjs";
 import { CHALLENGE_COVER_IMAGES, CHALLENGE_COVER_LABELS, CHALLENGE_TOPIC_OPTIONS, DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS } from "../../../../shared/challenges.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
+import "./challenge-sidebar-card.css";
 const fresh = () => ({ type: "JOB", title: "", description: "", location: "", workMode: "IN_PERSON", prize: "", topics: [], coverImage: DEFAULT_CHALLENGE_COVER, deadline: "", questions: [] });
 export default function OpportunityEditor({ organizationId, opportunity, onSaved, onClose }) {
   const [draft, setDraft] = useState(() => opportunity ? { ...Object.fromEntries(Object.entries(fresh()).map(([k, initial]) => [k, opportunity[k] ?? initial])), deadline: new Date(new Date(opportunity.deadline) - new Date(opportunity.deadline).getTimezoneOffset() * 60000).toISOString().slice(0, 16) } : fresh());
