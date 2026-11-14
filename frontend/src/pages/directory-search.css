@@ -1,8 +1,8 @@
 .bw-directory-search {
-  --bw-search-blue: var(--bw-primary);
-  --bw-search-ink: var(--bw-ink);
-  --bw-search-muted: var(--bw-muted);
-  --bw-search-border: var(--bw-line);
+  --bw-search-blue: #175cd3;
+  --bw-search-ink: #172b4d;
+  --bw-search-muted: #62738a;
+  --bw-search-border: #e3eaf3;
   width: 100%;
   max-width: 780px;
   margin: 0 auto;
@@ -455,7 +455,7 @@
   align-items: center;
   gap: 3px;
   margin-left: auto;
-  color: var(--bw-primary);
+  color: #175cd3;
   font-weight: 720;
   font-size: 12px;
   white-space: nowrap;
@@ -503,11 +503,11 @@
   border: 1px solid #e1e9f3;
   border-radius: 12px;
   background: #fff;
-  color: var(--bw-muted);
+  color: #60718a;
   font-size: 13px;
   line-height: 1.5;
 }
-.bw-directory-prompt svg { flex-shrink: 0; color: var(--bw-primary); }
+.bw-directory-prompt svg { flex-shrink: 0; color: #175cd3; }
 @media (max-width: 520px) {
   .bw-directory-search { padding: 0 0 30px; }
   .bw-directory-filters { margin: 0 0 12px; }

@@ -1,10 +1,10 @@
 .bw-org-page.bw-org-dashboard-page {
   max-width: 1120px;
   padding: clamp(12px, 2vw, 24px);
-  --dashboard-blue: var(--bw-primary);
-  --dashboard-ink: var(--bw-ink);
-  --dashboard-muted: var(--bw-muted);
-  --dashboard-line: var(--bw-line);
+  --dashboard-blue: #175cd3;
+  --dashboard-ink: #192e4b;
+  --dashboard-muted: #62728a;
+  --dashboard-line: #e2e9f2;
 }
 .bw-dashboard-page-heading { margin-bottom: 26px; }
 .bw-dashboard-breadcrumb { display: flex; align-items: center; gap: 9px; margin-bottom: 16px; font-size: 12px; color: var(--dashboard-muted); }

@@ -102,8 +102,6 @@ export default function AppHeader({
     navigate("/search?" + new URLSearchParams({ q }));
   }
   function suggestionLabel(item) {
-    if (item.kind === "programs") return "Program";
-    if (item.kind === "opportunities") return "Opportunity";
     if (item.kind === "people") return "Person";
     if (item.kind === "organizations") return "Organization";
     return item.kind === "questions" ? "Question" : item.kind === "events" ? "Event" : "Achievement";
@@ -127,7 +125,7 @@ export default function AppHeader({
               <NavigationIcon name="search" size={19} />
               <input ref={inputRef} name="q" type="search" autoComplete="off"
                 aria-label="Search BrightWay content and people"
-                placeholder="Search"
+                placeholder="Search BrightWay"
                 enterKeyHint="search"
                 value={searchValue} minLength={2} maxLength={80}
                 onChange={event => { setSearchDraft({ routeKey, value: event.target.value }); setSuggestions([]); }}
@@ -163,7 +161,7 @@ export default function AppHeader({
 
         <div className="bw-design-account">
           {personalSearch && !onSearchPage && (
-            <Link className="bw-design-utility bw-design-mobile-action bw-design-compact-search" to="/search" aria-label="Search BrightWay" title="Search BrightWay">
+            <Link className="bw-design-utility bw-design-mobile-action" to="/search" aria-label="Search BrightWay" title="Search BrightWay">
               <NavigationIcon name="search" />
             </Link>
           )}
@@ -177,7 +175,7 @@ export default function AppHeader({
               <NavigationIcon name="notifications" />
             </button>
           ) : (
-            <Link className="bw-design-utility bw-design-mobile-action bw-design-notifications" to="/notifications" aria-label="Notifications" title="Notifications">
+            <Link className="bw-design-utility bw-design-mobile-action" to="/notifications" aria-label="Notifications" title="Notifications">
               <NavigationIcon name="notifications" />
             </Link>
           )}

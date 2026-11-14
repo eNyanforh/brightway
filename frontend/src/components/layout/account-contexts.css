@@ -72,7 +72,7 @@
   width: 27px;
   height: 27px;
   font-size: 9px;
-  border: 1px solid var(--bw-primary);
+  border: 1px solid #175cd3;
 }
 .bw-context-chooser {
   padding: 4px 0 9px;
@@ -111,7 +111,7 @@
   height: 27px;
   border-radius: 50%;
   color: #fff;
-  background: var(--bw-primary);
+  background: #175cd3;
   font-size: 12px;
   font-weight: 750;
 }
@@ -129,7 +129,7 @@
   font-size: 10px;
   color: #000;
 }
-.bw-context-current { color: var(--bw-primary); font-size: 9px; font-weight: 700; flex-shrink: 0; }
+.bw-context-current { color: #175cd3; font-size: 9px; font-weight: 700; flex-shrink: 0; }
 .bw-context-feedback { margin: 4px 9px; padding: 5px; font-size: 10px; color: #000; line-height: 1.5; }
 @media (max-width: 700px) {
   .bw-context-avatar { font-size: 11px; }

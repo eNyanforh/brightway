@@ -1,7 +1,7 @@
 .bw-public-shell {
-  --bw-public-blue: var(--bw-primary);
+  --bw-public-blue: #175cd3;
   --bw-public-ink: #101828;
-  --bw-public-muted: var(--bw-muted);
+  --bw-public-muted: #667085;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -21,27 +21,27 @@
 .bw-public-header { background: #fff; border-bottom: 1px solid #eef0f4; }
 .bw-public-header-inner { width: min(1200px, calc(100% - 80px)); min-height: 88px; margin: auto; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .bw-public-brand { display: inline-flex; align-items: center; gap: 10px; font-size: 25px; font-weight: 800; letter-spacing: -1px; flex-shrink: 0; }
-.bw-public-brand-dot { color: var(--bw-primary); }
-.bw-public-mark { width: 37px; height: 37px; position: relative; display: grid; place-items: center; background: var(--bw-primary); color: #fff; font-size: 31px; font-weight: 800; border-radius: 10px; line-height: 1; padding-bottom: 3px; }
+.bw-public-brand-dot { color: #175cd3; }
+.bw-public-mark { width: 37px; height: 37px; position: relative; display: grid; place-items: center; background: #175cd3; color: #fff; font-size: 31px; font-weight: 800; border-radius: 10px; line-height: 1; padding-bottom: 3px; }
 .bw-public-mark > span { position: absolute; top: 2px; right: 3px; font-size: 17px; }
 .bw-public-nav { display: flex; align-items: center; gap: 28px; font-size: 13px; font-weight: 600; }
 .bw-public-nav > a { display: inline-flex; align-items: center; min-height: 44px; }
-.bw-public-nav > a:not(.bw-public-button):hover, .bw-public-nav > a[aria-current="page"]:not(.bw-public-button) { color: var(--bw-primary); }
-.bw-public-shell .bw-public-button { display: inline-flex; justify-content: center; align-items: center; gap: 14px; min-height: 44px; padding: 11px 20px; border: 1px solid transparent; border-radius: 10px; background: var(--bw-primary); color: #fff; font-size: 13px; font-weight: 650; transition: background .15s, transform .15s; }
-.bw-public-shell .bw-public-button:hover { background: var(--bw-primary-hover); transform: translateY(-1px); }
+.bw-public-nav > a:not(.bw-public-button):hover, .bw-public-nav > a[aria-current="page"]:not(.bw-public-button) { color: #175cd3; }
+.bw-public-shell .bw-public-button { display: inline-flex; justify-content: center; align-items: center; gap: 14px; min-height: 44px; padding: 11px 20px; border: 1px solid transparent; border-radius: 10px; background: #175cd3; color: #fff; font-size: 13px; font-weight: 650; transition: background .15s, transform .15s; }
+.bw-public-shell .bw-public-button:hover { background: #1849a9; transform: translateY(-1px); }
 .bw-public-shell .bw-public-button-large { min-height: 54px; padding: 15px 23px; font-size: 14px; }
-.bw-public-shell .bw-public-button-light { color: var(--bw-primary); background: #fff; }
+.bw-public-shell .bw-public-button-light { color: #175cd3; background: #fff; }
 .bw-public-shell .bw-public-button-light:hover { background: #eaf2ff; }
 .bw-join-short { display: none; }
 .bw-public-main { flex: 1; min-width: 0; outline: none; }
 .bw-public-account { padding: 48px 40px 64px; background: #f8faff; }
-.bw-public-eyebrow { font-size: 10px; font-weight: 750; letter-spacing: 1.7px; line-height: 1.6; color: var(--bw-primary); }
+.bw-public-eyebrow { font-size: 10px; font-weight: 750; letter-spacing: 1.7px; line-height: 1.6; color: #175cd3; }
 .bw-audience-nav { background: #101828; color: #fff; }
 .bw-audience-nav > div { width: min(1200px, calc(100% - 80px)); margin: auto; display: flex; gap: 32px; }
 .bw-audience-nav a { min-height: 44px; display: inline-flex; align-items: center; border-bottom: 3px solid transparent; padding: 9px 0 6px; font-size: 12px; color: #d0d5dd; }
 .bw-audience-nav a[aria-current="page"] { color: #fff; border-color: #fff; font-weight: 650; }
 .bw-audience-nav a:hover { color: #fff; }
-.bw-public-nav .bw-public-login { border: 1px solid var(--bw-primary); border-radius: 9px; padding: 9px 20px; color: var(--bw-primary); }
+.bw-public-nav .bw-public-login { border: 1px solid #175cd3; border-radius: 9px; padding: 9px 20px; color: #175cd3; }
 .bw-public-footer { background: #101828; color: #d0d5dd; }
 .bw-footer-inner { width: min(1200px, calc(100% - 80px)); margin: auto; padding: 55px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
 .bw-footer-brand > a { color: #fff; font-size: 32px; font-weight: 800; letter-spacing: -1px; }

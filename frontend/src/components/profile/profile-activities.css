@@ -72,7 +72,7 @@
   flex-wrap: wrap;
   gap: .3rem;
   min-width: 0;
-  color: var(--bw-muted);
+  color: #60718a;
   font-size: .8rem;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -89,7 +89,7 @@
   overflow-wrap: anywhere;
 }
 .bw-profile-activity-item .bw-timeline-byline a {
-  color: var(--bw-ink);
+  color: #172b4a;
   font-weight: 750;
   text-decoration: none;
 }
@@ -98,7 +98,7 @@
 .bw-profile-activity-item .bw-timeline-repost {
   grid-column: 2;
   margin: 0 0 .3rem;
-  color: var(--bw-muted);
+  color: #60718a;
   font-size: .76rem;
 }
 .bw-profile-activity-item .bw-timeline-post .bw-post-text {
@@ -148,18 +148,18 @@
   padding: .75rem .85rem;
 }
 .bw-profile-activity-item .bw-event-feed-content h3 {
-  color: var(--bw-ink);
+  color: #172b4a;
   font-size: 1rem;
   line-height: 1.4;
 }
 .bw-profile-activity-item .bw-event-feed-content p {
-  color: var(--bw-muted);
+  color: #60718a;
   font-size: .76rem;
   line-height: 1.45;
 }
 .bw-profile-activity-item .bw-question-feed-content { margin: .4rem 0 .55rem; gap: .25rem; }
 .bw-profile-activity-item .bw-question-feed-content h3 {
-  color: var(--bw-ink);
+  color: #172b4a;
   font-size: 1.02rem;
   font-weight: 720;
   line-height: 1.42;
@@ -227,7 +227,7 @@
   color: #124ba9;
 }
 .bw-profile-activity-item.bw-post-panel .bw-timeline-action[aria-pressed="true"] {
-  color: var(--bw-primary);
+  color: #175cd3;
 }
 .bw-profile-activity-item.bw-post-panel .bw-register-action {
   min-height: 39px;

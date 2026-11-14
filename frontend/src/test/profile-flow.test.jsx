@@ -830,15 +830,16 @@ it("closes expanded navigation after a destination is chosen", async () => {
   expect(network.getAttribute("aria-current")).toBe("page");
 });
 
-it("provides five mobile destinations including the central Post shortcut without another profile read", async () => {
+it("provides five mobile destinations and a floating Post shortcut without another profile read", async () => {
   const fetchMock = mount();
   await ready();
   const navigation = screen.getByRole("navigation", { name: "Mobile navigation" });
   expect([...navigation.children].map((item) => item.textContent)).toEqual([
-    "Explore", "Opportunities", "Post", "Network", "Learning",
+    "Explore", "Opportunities", "Network", "Learning", "Notifications", "Post",
   ]);
-  const postShortcut = within(navigation).getByRole("link", { name: "Create Post" });
-  expect(postShortcut.getAttribute("href")).toBe("/explore?compose=post");
+  const floatingPost = within(navigation).getByRole("link", { name: "Create Post" });
+  expect(floatingPost.getAttribute("href")).toBe("/explore?compose=post");
+  expect(floatingPost.classList.contains("bw-mobile-compose-fab")).toBe(true);
   const header = screen.getByRole("banner");
   expect(within(header).getByRole("link", { name: "Search BrightWay" }).getAttribute("href")).toBe("/search");
   expect(within(header).getByRole("link", { name: "Messages", exact: true }).getAttribute("href")).toBe("/messages");
@@ -861,6 +862,8 @@ it("places the organization invitation beneath logout in the account disclosure"
   const logout = screen.getByRole("button", { name: "Log out", exact: true });
   const invitation = screen.getByLabelText("Grow your organization");
   expect(logout.nextElementSibling).toBe(invitation);
+  expect(within(invitation).getByText("Make room for your organization.")).toBeTruthy();
+  expect(within(invitation).getByText("Bring your school, company, or community to BrightWay.")).toBeTruthy();
   expect(within(invitation).getByText("Create an organization").closest("button").disabled).toBe(false);
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/profile/me"))).toHaveLength(1);
 });

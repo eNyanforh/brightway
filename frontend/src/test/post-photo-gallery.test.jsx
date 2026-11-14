@@ -18,9 +18,8 @@ it("keeps pairs side by side and waits for every photo before framing a collage"
     Object.defineProperties(image, { naturalWidth: { value: width, configurable: true }, naturalHeight: { value: height, configurable: true } });
     fireEvent.load(image);
   }
-  const reserved = screen.getByRole("group", { name: "Post photos" }).style.aspectRatio;
   load(0, 800, 1200);
-  expect(screen.getByRole("group", { name: "Post photos" }).style.aspectRatio).toBe(reserved);
+  expect(screen.getByRole("group", { name: "Post photos" }).style.aspectRatio).toMatch(/^0\.8(?: \/ 1)?$/);
   rerender(<PostPhotoGallery images={images.slice(0, 2)} />);
   load(0, 1600, 800);
   load(1, 800, 1200);
