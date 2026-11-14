@@ -77,7 +77,7 @@
 .bw-explore-right .bw-rail-challenge-sponsor-name .bw-verification-badge { color: #fff; }
 .bw-explore-right .bw-rail-challenge-sponsor-name a,
 .bw-explore-right .bw-rail-challenge-card h3 a { color: #fff; text-decoration: none; }
-.bw-explore-right .bw-rail-challenge-prize-mode {
+.bw-explore-right .bw-rail-challenge-prize {
   display: flex;
   align-items: baseline;
   flex-wrap: nowrap;
@@ -85,7 +85,7 @@
   min-width: 0;
   text-align: left;
 }
-.bw-explore-right .bw-rail-challenge-prize-mode strong {
+.bw-explore-right .bw-rail-challenge-prize strong {
   display: block;
   flex: 0 1 auto;
   min-width: 0;
@@ -97,7 +97,7 @@
   font-weight: 800;
   line-height: 1.3;
 }
-.bw-explore-right .bw-rail-challenge-prize-mode > span {
+.bw-explore-right .bw-rail-challenge-prize > span {
   flex: 0 0 auto;
   color: #dbe4f2;
   font-size: 10px;
