@@ -3,9 +3,10 @@ import { OPPORTUNITY_TYPES, QUESTION_TYPES } from "../../../../shared/opportunit
 import {
   CHALLENGE_COVER_IMAGES, CHALLENGE_COVER_LABELS, CHALLENGE_TOPIC_OPTIONS,
   DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS, CHALLENGE_PRIZE_TYPES,
-  MAX_CHALLENGE_SPONSORS, MAX_CHALLENGE_PRIZES,
+  MAX_CHALLENGE_SPONSORS, MAX_CHALLENGE_PRIZES, newChallengePrize, challengePrizeValue,
 } from "../../../../shared/challenges.mjs";
 import NavigationIcon from "../layout/NavigationIcon";
+import ChallengePrizeFields from "./ChallengePrizeFields";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./challenge-sidebar-card.css";
 import "./opportunity-editor-wizard.css";
@@ -285,20 +286,11 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
                 <div className="bw-op-wizard-prize-heading"><strong>Prize {index + 1}</strong>
                   <button type="button" className="bw-op-text-button"
                     onClick={() => field("prizes", draft.prizes.filter((_, i) => i !== index))}>Remove prize</button></div>
-                <div className="bw-op-field-row">
-                  <label>Prize Type<select value={prize.type}
-                    onChange={e => field("prizes", draft.prizes.map((row, i) =>
-                      i === index ? { ...row, type: e.target.value } : row))}>
-                    {Object.entries(CHALLENGE_PRIZE_TYPES).map(([key, label]) =>
-                      <option value={key} key={key}>{label}</option>)}</select></label>
-                  <label>Prize details<input required maxLength={120} value={prize.description}
-                    onChange={e => field("prizes", draft.prizes.map((row, i) =>
-                      i === index ? { ...row, description: e.target.value } : row))}
-                    placeholder="Amount, quantity or award details" /></label>
-                </div>
+                <ChallengePrizeFields prize={prize} index={index}
+                  onChange={value => field("prizes", draft.prizes.map((row, i) => i === index ? value : row))} />
               </div>)}
               <button type="button" className="bw-op-secondary" disabled={draft.prizes.length >= MAX_CHALLENGE_PRIZES}
-                onClick={() => field("prizes", [...draft.prizes, { type: "CASH", description: "" }])}>
+                onClick={() => field("prizes", [...draft.prizes, newChallengePrize("CASH")])}>
                 + {draft.prizes.length ? "Add another prize" : "Add Prize"}</button>
               <div className="bw-op-wizard-sponsors">
                 <h4>Sponsors Logo</h4>
@@ -371,7 +363,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
                 {challenge && draft.topics.length > 0 && <p><strong>Categories:</strong> {draft.topics.join(", ")}</p>}
                 {challenge && <div><strong>Prizes</strong>{draft.prizes.length
                   ? <ul>{draft.prizes.map((item, i) =>
-                    <li key={i}>{CHALLENGE_PRIZE_TYPES[item.type]}: {item.description}</li>)}</ul>
+                    <li key={i}>{CHALLENGE_PRIZE_TYPES[item.type]}: {challengePrizeValue(item)}</li>)}</ul>
                   : <p>To be announced</p>}</div>}
                 {challenge && draft.sponsorLogoIds.length > 0 && <div>
                   <strong>Sponsor logos</strong>
@@ -381,8 +373,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
                 <dl><div><dt>Deadline</dt><dd>{new Date(draft.deadline).toLocaleString("en-GB")}</dd></div>
                   {challenge ? <>
                     <div><dt>Applicants</dt><dd>{draft.maxApplicants === null ? "Unlimited" : draft.maxApplicants}</dd></div>
-                    <div><dt>Where to participate</dt><dd>On BrightWay only</dd></div>
-                  </> : <>
+                   </> : <>
                     <div><dt>Location</dt><dd>{draft.location}</dd></div>
                     <div><dt>Format</dt><dd>{draft.workMode.replaceAll("_", " ")}</dd></div>
                   </>}

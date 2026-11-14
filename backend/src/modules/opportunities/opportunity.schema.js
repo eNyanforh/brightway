@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { OPPORTUNITY_TYPES, QUESTION_TYPES } from "../../../../shared/opportunities.mjs";
-import { CHALLENGE_COVER_IMAGES, CHALLENGE_TOPIC_OPTIONS, DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS, CHALLENGE_PRIZE_TYPES, CHALLENGE_MEDIA_KINDS, MAX_CHALLENGE_SPONSORS, MAX_CHALLENGE_PRIZES } from "../../../../shared/challenges.mjs";
+import { CHALLENGE_COVER_IMAGES, CHALLENGE_TOPIC_OPTIONS, DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS, CHALLENGE_PRIZE_TYPES, CHALLENGE_PRIZE_CURRENCIES, CHALLENGE_MEDIA_KINDS, MAX_CHALLENGE_SPONSORS, MAX_CHALLENGE_PRIZES } from "../../../../shared/challenges.mjs";
 import { fail } from "../network/network.schema.js";
 
 export const identifier = z.uuid();
@@ -14,14 +14,33 @@ const question = z.strictObject({
   if (choice ? q.options.length < 2 || new Set(q.options).size !== q.options.length : q.options.length !== 0)
     ctx.addIssue({ code: "custom", message: "Choice questions need 2–12 different options; other questions have no options." });
 });
+// Structured prizes use different required fields for each award category.
+// The legacy {type, description} shape remains accepted so existing drafts
+// and published Challenges can still be edited without losing their rewards.
+const typedPrize = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("CASH"), amount: z.number().positive().max(1000000000),
+    currency: z.enum(Object.keys(CHALLENGE_PRIZE_CURRENCIES)) }),
+  z.strictObject({ type: z.literal("SCHOLARSHIP"), coverage: text(120).min(2),
+    institution: text(120).default("") }),
+  z.strictObject({ type: z.literal("CERTIFICATE"), title: text(120).min(2),
+    issuer: text(120).default("") }),
+  z.strictObject({ type: z.literal("MENTORSHIP"), focus: text(120).min(2),
+    sessions: z.number().int().min(1).max(1000) }),
+  z.strictObject({ type: z.literal("EQUIPMENT"), item: text(120).min(2),
+    quantity: z.number().int().min(1).max(100000) }),
+  z.strictObject({ type: z.literal("INTERNSHIP"), role: text(120).min(2),
+    duration: text(80).min(2) }),
+  z.strictObject({ type: z.literal("OTHER"), title: text(120).min(2),
+    details: text(120).min(2) }),
+]);
+const legacyPrize = z.strictObject({
+  type: z.enum(Object.keys(CHALLENGE_PRIZE_TYPES)), description: text(120).min(1),
+});
 export const opportunityInput = z.strictObject({
   type: z.enum(Object.keys(OPPORTUNITY_TYPES)), title: text(160).min(3), description: text(12000).min(30),
   location: text(180).min(2), workMode: z.enum(["IN_PERSON", "REMOTE", "HYBRID"]),
   prize: text(120).nullish().transform(value => value ?? ""),
-  prizes: z.array(z.strictObject({
-    type: z.enum(Object.keys(CHALLENGE_PRIZE_TYPES)),
-    description: text(120).min(1),
-  })).max(MAX_CHALLENGE_PRIZES).default([]),
+  prizes: z.array(z.union([typedPrize, legacyPrize])).max(MAX_CHALLENGE_PRIZES).default([]),
   sponsorLogoIds: z.array(identifier).max(MAX_CHALLENGE_SPONSORS)
     .refine(ids => new Set(ids).size === ids.length, "Sponsor logos must be unique.").default([]),
   backgroundAssetId: identifier.nullish().transform(value => value ?? null),

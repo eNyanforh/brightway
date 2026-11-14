@@ -156,11 +156,12 @@ test("organization Challenge wizard creates a native Challenge with prizes, imag
   await expect(editor.getByLabel("Format")).toHaveCount(0);
   await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByRole("button", { name: "+ Add Prize" }).click();
-  await editor.getByLabel("Prize Type").selectOption("CASH");
-  await editor.getByLabel("Prize details").fill("US$1,000");
+  await editor.getByLabel("Prize 1 amount").fill("1000");
+  await editor.getByLabel("Prize 1 currency").selectOption("USD");
   await editor.getByRole("button", { name: "+ Add another prize" }).click();
-  await editor.getByLabel("Prize Type").nth(1).selectOption("CERTIFICATE");
-  await editor.getByLabel("Prize details").nth(1).fill("Completion certificate");
+  await editor.getByLabel("Prize 2 type").selectOption("CERTIFICATE");
+  await editor.getByLabel("Certificate Title").fill("Completion certificate");
+  await editor.getByLabel("Issued By (optional)").fill("Research Institute");
   const smallPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCXUAAAAASUVORK5CYII=", "base64");
   await editor.getByLabel("Sponsors Logo").setInputFiles({ name: "sponsor.png", mimeType: "image/png", buffer: smallPng });
   await expect.poll(() => state.assets.length).toBe(1);
@@ -173,7 +174,7 @@ test("organization Challenge wizard creates a native Challenge with prizes, imag
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
   await editor.getByLabel("Number of Applicants (maximum)").fill("25");
   await editor.getByRole("button", { name: "Continue" }).click();
-  await expect(editor.getByText("On BrightWay only")).toBeVisible();
+  await expect(editor.getByText("On BrightWay only")).toHaveCount(0);
   await editor.getByRole("button", { name: "Save draft" }).click();
   await expect(editor).toHaveCount(0);
   expect(state.drafts).toHaveLength(1);
@@ -182,8 +183,8 @@ test("organization Challenge wizard creates a native Challenge with prizes, imag
   expect(challenge.location).toBe("BrightWay");
   expect(challenge.workMode).toBe("REMOTE");
   expect(challenge.prizes).toEqual([
-    { type: "CASH", description: "US$1,000" },
-    { type: "CERTIFICATE", description: "Completion certificate" },
+    { type: "CASH", amount: 1000, currency: "USD" },
+    { type: "CERTIFICATE", title: "Completion certificate", issuer: "Research Institute" },
   ]);
   expect(challenge.sponsorLogoIds).toEqual([state.assets[0].id]);
   expect(challenge.backgroundAssetId).toBe(state.assets[1].id);

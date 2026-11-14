@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER } from "../../../../shared/challenges.mjs";
+import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER, challengeCardPrize } from "../../../../shared/challenges.mjs";
 import { challengeDeadlineReminder } from "./challenge-deadline";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import OrganizationAvatar from "../profile/OrganizationAvatar";
@@ -26,7 +26,7 @@ export default function ChallengeSidebarCard({ opportunity }) {
   const photoUrl = organization.profilePhotoId
     ? `/api/v1/organizations/${encodeURIComponent(organization.id)}/photo/${encodeURIComponent(organization.profilePhotoId)}`
     : null;
-  const mode = "On BrightWay";
+  const prizeText = challengeCardPrize(opportunity);
   const topics = (Array.isArray(opportunity.topics) ? opportunity.topics : []).slice(0, 3);
   const deadline = new Date(opportunity.deadline);
   const formatted = Number.isNaN(deadline.getTime()) ? "Unavailable" :
@@ -44,9 +44,8 @@ export default function ChallengeSidebarCard({ opportunity }) {
             {Boolean(organization.verifiedAt) && <VerificationBadge kind="organization" />}
           </span>
         </div>
-        <div className="bw-rail-challenge-prize-mode" aria-label="Challenge prize and participation mode">
-          <strong title={opportunity.prize?.trim() || "To be announced"}>{opportunity.prize?.trim() || "To be announced"}</strong>
-          <span>{mode}</span>
+        <div className="bw-rail-challenge-prize" aria-label="Challenge prize">
+          <strong title={prizeText}>{prizeText}</strong>
         </div>
         <h3><Link to={detail}>{opportunity.title}</Link></h3>
         <ul className="bw-rail-challenge-topics" aria-label="Challenge categories">

@@ -6,7 +6,7 @@ import { OPPORTUNITY_TYPES, APPLICATION_STATUSES, OPPORTUNITY_STATUSES } from ".
 import OpportunityOrganization from "../components/opportunities/OpportunityOrganization";
 import ApplicationQuestions from "../components/opportunities/ApplicationQuestions";
 import ApplicationHistory from "../components/opportunities/ApplicationHistory";
-import { CHALLENGE_PRIZE_TYPES } from "../../../shared/challenges.mjs";
+import { CHALLENGE_PRIZE_TYPES, challengePrizeValue } from "../../../shared/challenges.mjs";
 import { challengeDeadlineReminder } from "../components/opportunities/challenge-deadline";
 import "../components/opportunities/opportunity-editor-wizard.css";
 import "../components/opportunities/opportunities.css";
@@ -74,7 +74,7 @@ function Detail({ id, applicationRoute }) {
         <h1>{app?.opportunitySnapshot?.title || opportunity.title}</h1>
         <OpportunityOrganization organization={opportunity.organization} inverse />
         <div className="bw-op-detail-meta">
-          <span>{challenge ? "Hosted on BrightWay" : opportunity.location}</span>
+          {!challenge && <span>{opportunity.location}</span>}
           {!challenge && <span>{opportunity.workMode.replaceAll("_", " ")}</span>}
           {challenge && opportunity.maxApplicants && <span>Maximum {opportunity.maxApplicants.toLocaleString()} applicants</span>}
           <span>Deadline: {new Date(opportunity.deadline).toLocaleString("en-GB")}</span>
@@ -89,7 +89,7 @@ function Detail({ id, applicationRoute }) {
         <h2>Prizes and rewards</h2>
         {Array.isArray(opportunity.prizes) && opportunity.prizes.length
           ? <ul>{opportunity.prizes.map((item, index) =>
-            <li key={index}><strong>{CHALLENGE_PRIZE_TYPES[item.type] || "Prize"}</strong> — {item.description}</li>)}</ul>
+            <li key={index}><strong>{CHALLENGE_PRIZE_TYPES[item.type] || "Prize"}</strong> — {challengePrizeValue(item)}</li>)}</ul>
           : <p>{opportunity.prize || "Prizes will be announced by the organizer."}</p>}
         <p>Applications and participation take place on BrightWay. No offline or external submissions.</p>
       </section>}
