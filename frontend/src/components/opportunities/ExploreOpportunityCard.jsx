@@ -8,6 +8,7 @@ import NavigationIcon from "../layout/NavigationIcon";
 import PostTimestamp from "../posts/PostTimestamp";
 import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
 import { challengeDeadlineReminder } from "./challenge-deadline";
+import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER } from "../../../../shared/challenges.mjs";
 
 const EXPLORE_OPPORTUNITY_CATEGORIES = Object.freeze({
   JOB: "Jobs & Internships",
@@ -27,6 +28,7 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
   }, []);
   const mode = opportunity.workMode === "REMOTE" ? "Online"
     : opportunity.workMode === "HYBRID" ? "Online & offline" : "Offline";
+  const cover = CHALLENGE_COVER_IMAGES[opportunity.coverImage] || CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER];
 
   async function toggleSaved() {
     if (saving) return;
@@ -69,25 +71,28 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
 
   return <div className="bw-timeline-opportunity-card bw-challenge-card">
     <div className="bw-challenge-overview">
-      <Link className="bw-challenge-organization-avatar" to={profile} aria-label={"View " + organization.name + " profile"}>
-        <OrganizationAvatar organization={{ ...organization, photoUrl }} icon="briefcase" />
-      </Link>
       <div className="bw-challenge-primary">
         <h3 className="bw-challenge-title"><Link to={detail}>{opportunity.title}</Link></h3>
         <div className="bw-challenge-organization">
+          <Link className="bw-challenge-organization-avatar" to={profile} aria-label={"View " + organization.name + " profile"}>
+            <OrganizationAvatar organization={{ ...organization, photoUrl }} icon="briefcase" />
+          </Link>
           <span className="bw-challenge-organization-name">
             <Link to={profile}>{organization.name}</Link>
             {Boolean(organization.verifiedAt) && <VerificationBadge kind="organization" />}
           </span>
         </div>
+        <div className="bw-challenge-prize" aria-label="Challenge prize and participation mode">
+          <strong title={opportunity.prize?.trim() || "Not listed"}>{opportunity.prize?.trim() || "Not listed"}</strong>
+          <span className="bw-challenge-mode">{mode}</span>
+        </div>
         <p className="bw-challenge-deadline"><time dateTime={opportunity.deadline}
           title={"Deadline: " + formattedDeadline}>{challengeDeadlineReminder(opportunity.deadline, currentTime)}</time></p>
-      </div>
-      <div className="bw-challenge-prize" aria-label="Challenge prize and participation mode">
-        <strong>{opportunity.prize?.trim() || "Not listed"}</strong>
-        <span className="bw-challenge-mode">{mode}</span>
         <ChallengeParticipantFacepile summary={opportunity.participantSummary} />
       </div>
+      <Link className="bw-challenge-cover-link" to={detail} aria-label={"Open " + opportunity.title}>
+        <img className="bw-challenge-cover-photo" src={cover} alt="" loading="lazy" />
+      </Link>
     </div>
 
     <div className="bw-challenge-divider" role="separator" aria-hidden="true" />

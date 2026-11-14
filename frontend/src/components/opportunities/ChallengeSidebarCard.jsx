@@ -4,6 +4,7 @@ import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER } from "../../../../sha
 import { challengeDeadlineReminder } from "./challenge-deadline";
 import OrganizationAvatar from "../profile/OrganizationAvatar";
 import VerificationBadge from "../VerificationBadge";
+import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
 import "./challenge-sidebar-card.css";
 
 // Cover images are local BrightWay photographs, not third-party image links.
@@ -22,15 +23,15 @@ export default function ChallengeSidebarCard({ opportunity }) {
   const photoUrl = organization.profilePhotoId
     ? `/api/v1/organizations/${encodeURIComponent(organization.id)}/photo/${encodeURIComponent(organization.profilePhotoId)}`
     : null;
+  const mode = opportunity.workMode === "REMOTE" ? "Online"
+    : opportunity.workMode === "HYBRID" ? "Online & offline" : "Offline";
   const topics = (Array.isArray(opportunity.topics) ? opportunity.topics : []).slice(0, 3);
   const deadline = new Date(opportunity.deadline);
   const formatted = Number.isNaN(deadline.getTime()) ? "Unavailable" :
     deadline.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
   return <article className="bw-rail-challenge-card" aria-label={"Challenge: " + opportunity.title}>
-    <img className="bw-rail-challenge-photo" src={cover} alt="" loading="lazy" />
-    <div className="bw-rail-challenge-content">
-      <div className="bw-rail-challenge-prize"><span>Prize</span><strong>{opportunity.prize?.trim() || "To be announced"}</strong></div>
+    <div className="bw-rail-challenge-upper">
       <div className="bw-rail-challenge-details">
         <div className="bw-rail-challenge-publisher">
           <Link className="bw-rail-challenge-logo" to={sponsor} aria-label={"View " + organization.name + " organization profile"}>
@@ -41,6 +42,10 @@ export default function ChallengeSidebarCard({ opportunity }) {
             {Boolean(organization.verifiedAt) && <VerificationBadge kind="organization" />}
           </span>
         </div>
+        <div className="bw-rail-challenge-prize-mode" aria-label="Challenge prize and participation mode">
+          <strong title={opportunity.prize?.trim() || "To be announced"}>{opportunity.prize?.trim() || "To be announced"}</strong>
+          <span>{mode}</span>
+        </div>
         <h3><Link to={detail}>{opportunity.title}</Link></h3>
         <ul className="bw-rail-challenge-topics" aria-label="Challenge categories">
           {topics.length
@@ -48,12 +53,18 @@ export default function ChallengeSidebarCard({ opportunity }) {
             : <li className="bw-rail-challenge-topic-empty">Categories not listed</li>}
         </ul>
       </div>
+      <img className="bw-rail-challenge-photo" src={cover} alt="" loading="lazy" />
+    </div>
+    <div className="bw-rail-challenge-content">
       <Link className="bw-rail-challenge-cta" to={detail}>Take Part</Link>
       <footer className="bw-rail-challenge-footer">
-        <time dateTime={opportunity.deadline} title={"Deadline: " + formatted}>
-          {challengeDeadlineReminder(opportunity.deadline, currentTime)}
-        </time>
-        <Link to="/opportunities?type=CHALLENGE" className="bw-rail-challenge-tag">Challenge</Link>
+        <div className="bw-rail-challenge-closing-row">
+          <time dateTime={opportunity.deadline} title={"Deadline: " + formatted}>
+            {challengeDeadlineReminder(opportunity.deadline, currentTime)}
+          </time>
+          <Link to="/opportunities?type=CHALLENGE" className="bw-rail-challenge-tag">Challenge</Link>
+        </div>
+        <ChallengeParticipantFacepile summary={opportunity.participantSummary} />
       </footer>
     </div>
   </article>;

@@ -1159,3 +1159,111 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+
+/* Revised Challenge overview: small publisher logo inline with name; prize and
+   mode together beneath it, closing reminder above the participant facepile.
+   The photographic cover is a dedicated right-hand image rather than an avatar. */
+.bw-explore .bw-challenge-overview {
+  grid-template-columns: minmax(0, 1fr) clamp(86px, 26%, 146px);
+  align-items: stretch;
+  gap: 12px;
+}
+.bw-explore .bw-challenge-primary {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+}
+.bw-explore .bw-challenge-organization {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.bw-explore .bw-challenge-organization-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+.bw-explore .bw-challenge-organization-avatar > img,
+.bw-explore .bw-challenge-organization-avatar > span {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+.bw-explore .bw-challenge-organization-name {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.3;
+}
+.bw-explore .bw-challenge-prize {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding-top: 5px;
+  text-align: left;
+}
+.bw-explore .bw-challenge-prize > strong {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.bw-explore .bw-challenge-mode {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.bw-explore .bw-challenge-deadline { padding-top: 5px; }
+.bw-explore .bw-challenge-primary .bw-challenge-participants {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 5px;
+}
+.bw-explore .bw-challenge-primary .bw-challenge-participant-facepile {
+  justify-content: flex-start;
+}
+.bw-explore .bw-challenge-primary .bw-challenge-participant-count {
+  text-align: left;
+}
+.bw-explore .bw-challenge-cover-link {
+  display: block;
+  min-width: 0;
+  min-height: 122px;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+}
+.bw-explore .bw-challenge-cover-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.bw-explore .bw-challenge-cover-link:focus-visible {
+  outline: 3px solid #84b5ff;
+  outline-offset: 2px;
+}
+@media (max-width: 700px) {
+  .bw-explore .bw-challenge-overview {
+    grid-template-columns: minmax(0, 1fr) minmax(78px, 30%);
+    gap: 8px;
+  }
+  .bw-explore .bw-challenge-cover-link { min-height: 112px; }
+  .bw-explore .bw-challenge-prize > strong { font-size: 12px; }
+  .bw-explore .bw-challenge-mode { font-size: 10px; }
+  .bw-explore .bw-challenge-organization-name { font-size: 11px; }
+}
