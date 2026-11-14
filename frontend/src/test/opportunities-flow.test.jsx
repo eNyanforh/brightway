@@ -116,7 +116,7 @@ it("the right-rail Challenge card shows a first-party photo, publisher, topics a
   expect(within(article).getByRole("link", { name: "Challenge" }).getAttribute("href")).toBe("/opportunities?type=CHALLENGE");
 });
 
-it("Challenge wizard supports collaborators, one cover photo, prizes and applicant limits", async () => {
+it("Challenge wizard supports collaborators, cover, multiple post types and no applicant limit", async () => {
   const saved = vi.fn();
   const coverId = "88888888-8888-4888-8888-888888888888";
   const fetch = vi.fn((url, opts) =>
@@ -153,10 +153,16 @@ it("Challenge wizard supports collaborators, one cover photo, prizes and applica
   await waitFor(() => expect(fetch.mock.calls.some(([url]) => url.includes("/challenge-assets"))).toBe(true));
   await waitFor(() => expect(screen.getByAltText("Challenge cover photo preview")).toBeTruthy());
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
-  await user.type(screen.getByLabelText("Number of Applicants (maximum)"), "30");
+  await user.click(screen.getByRole("button", { name: "+ Add post type" }));
+  expect(screen.getByRole("combobox", { name: "Post type 1" }).value).toBe("VIDEO_POST");
+  await user.click(screen.getByRole("button", { name: "+ Add post type" }));
+  await user.selectOptions(screen.getByRole("combobox", { name: "Post type 2" }), "CAPTION");
+  expect(screen.getByRole("spinbutton", { name: "Post type 2 Maximum words" })).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  expect(screen.getByText("Applicants")).toBeTruthy();
+  expect(screen.queryByLabelText("Number of Applicants (maximum)")).toBeNull();
+  await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByText("Required post types")).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Save draft" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
   const body = JSON.parse(fetch.mock.calls.find(([, opts]) => opts?.headers?.["Content-Type"] === "application/json")[1].body);
@@ -170,7 +176,9 @@ it("Challenge wizard supports collaborators, one cover photo, prizes and applica
     { type: "SCHOLARSHIP", coverage: "Full tuition", institution: "" },
     { type: "CASH", amount: 500, currency: "LRD" },
   ]);
-  expect(body.maxApplicants).toBe(30);
+  expect(body).not.toHaveProperty("maxApplicants");
+  expect(body.postRequirements).toHaveLength(2);
+  expect(body.postRequirements.map(row => row.type)).toEqual(["VIDEO_POST", "CAPTION"]);
   expect(body.workMode).toBe("REMOTE");
   expect(body.location).toBe("BrightWay");
   expect(body).not.toHaveProperty("applicationUrl");
