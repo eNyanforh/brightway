@@ -26,7 +26,7 @@ async function fixture(page) {
     if (path === "/api/v1/opportunities/" + id) return reply({ opportunity: state.opportunity, application: state.application && { id: aid } });
     if (path === "/api/v1/opportunities/" + id + "/application") {
       const body = request.postDataJSON();
-      state.application = { id: aid, opportunity: state.opportunity, status: body.action === "SUBMIT" ? "SUBMITTED" : "DRAFT", version: (state.application?.version || 0) + 1, answers: body.answers, files: [], events: [], createdAt: "2026-11-11T12:00:00Z", ...(body.action === "SUBMIT" ? { submittedAt: "2026-11-11T12:00:00Z", profileSnapshot: { name: "Synthetic Applicant", headline: "Data analyst", location: {}, skills: ["Data"], interests: ["Education"], credentials: [] }, opportunitySnapshot: { title: state.opportunity.title, organization: organization.name, questions: state.opportunity.questions }, events: [{ id: "submitted", toStatus: "SUBMITTED", createdAt: "2026-11-11T12:00:00Z" }] } : {}) };
+      state.application = { id: aid, opportunity: state.opportunity, status: body.action === "SUBMIT" ? "SUBMITTED" : "DRAFT", publicParticipant: body.action === "SUBMIT" && body.publicParticipant === true, version: (state.application?.version || 0) + 1, answers: body.answers, files: [], events: [], createdAt: "2026-11-11T12:00:00Z", ...(body.action === "SUBMIT" ? { submittedAt: "2026-11-11T12:00:00Z", profileSnapshot: { name: "Synthetic Applicant", headline: "Data analyst", location: {}, skills: ["Data"], interests: ["Education"], credentials: [] }, opportunitySnapshot: { title: state.opportunity.title, organization: organization.name, questions: state.opportunity.questions }, events: [{ id: "submitted", toStatus: "SUBMITTED", createdAt: "2026-11-11T12:00:00Z" }] } : {}) };
       return reply(state.application);
     }
     if (path === "/api/v1/applications/me") return reply({ items: state.application ? [state.application] : [], nextCursor: null });
@@ -63,6 +63,30 @@ test("members discover four opportunity types, save and submit an application, a
   await page.getByRole("button", { name: "Withdraw application", exact: true }).click(); await page.getByRole("button", { name: "Confirm withdrawal" }).click();
   await expect(page.locator(".bw-op-section-title")).toContainText("Withdrawn"); await noOverflow(page); expect(state.errors).toEqual([]);
 });
+test("challenge participant facepile requires separate optional public consent", async ({ page }) => {
+  const state = await fixture(page);
+  state.opportunity = { ...state.opportunity, type: "CHALLENGE", title: "Student innovation challenge", prize: "US$1,000" };
+  await page.goto("/opportunities/" + id);
+  await page.getByLabel("Can you join our team?").selectOption("false");
+  const publicConsent = page.getByRole("checkbox", { name: /Show my public name and profile photo/ });
+  await expect(publicConsent).not.toBeChecked();
+  await page.getByRole("checkbox", { name: /Share my answers, attachments/ }).check();
+  await page.getByRole("button", { name: "Submit application" }).click();
+  await expect(page.getByRole("heading", { name: "Application timeline" })).toBeVisible();
+  expect(state.application.publicParticipant).toBe(false);
+
+  // A separate member may choose public identity, but this must never be
+  // inferred merely from submitting or sharing with organization staff.
+  state.application = null;
+  await page.reload();
+  await page.getByLabel("Can you join our team?").selectOption("false");
+  await page.getByRole("checkbox", { name: /Share my answers, attachments/ }).check();
+  await page.getByRole("checkbox", { name: /Show my public name and profile photo/ }).check();
+  await page.getByRole("button", { name: "Submit application" }).click();
+  await expect(page.getByRole("heading", { name: "Application timeline" })).toBeVisible();
+  expect(state.application.publicParticipant).toBe(true);
+});
+
 test("organization publishers create and publish a form, and reviewers send an applicant decision", async ({ page }, testInfo) => {
   const state = await fixture(page);
   state.application = { id: aid, opportunity: state.opportunity, status: "SUBMITTED", version: 1, answers: { [qid]: false }, files: [], events: [], submittedAt: "2026-11-11T12:00:00Z", profileSnapshot: { name: "Synthetic Applicant", headline: "Data analyst", location: {}, skills: ["Data"], interests: ["Education"], credentials: [] }, opportunitySnapshot: { title: state.opportunity.title, organization: organization.name, questions: state.opportunity.questions } };
