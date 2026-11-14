@@ -1,12 +1,13 @@
 import { postMediaUrl } from "../../api/organization-posts";
 import DocumentCarousel from "./DocumentCarousel";
 import PostPhotoGallery from "./PostPhotoGallery";
+import PostPhotoStage from "./PostPhotoStage";
 
 const humanBytes = size => size >= 1024 * 1024
   ? (size / (1024 * 1024)).toFixed(1) + " MB"
   : Math.max(1, Math.ceil(size / 1024)) + " KB";
 
-export default function PostMedia({ media, immersive = false, onOpen }) {
+export default function PostMedia({ media, immersive = false, onOpen, photoIndex = 0, onSelectPhoto }) {
   if (!Array.isArray(media) || !media.length) return null;
   const images = media.filter(file => file.kind === "IMAGE");
   const video = media.find(file => file.kind === "VIDEO");
@@ -17,7 +18,9 @@ export default function PostMedia({ media, immersive = false, onOpen }) {
     && !window.navigator?.connection?.saveData;
   return (
     <div className="bw-post-media" aria-label="Post attachments">
-      {images.length > 0 && <PostPhotoGallery images={images} onOpen={onOpen} />}
+      {images.length > 0 && (immersive
+        ? <PostPhotoStage images={images} index={photoIndex} onSelect={onSelectPhoto} />
+        : <PostPhotoGallery images={images} onOpen={onOpen} />)}
       {video && (
         <figure className="bw-post-video">
           <video controls playsInline preload="metadata" autoPlay={autoplay} muted={immersive} loop={immersive}

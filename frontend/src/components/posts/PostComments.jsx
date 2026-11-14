@@ -1,9 +1,9 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import NavigationIcon from "../layout/NavigationIcon";
 import { organizationPostsApi as api } from "../../api/organization-posts";
 import DiscussionAuthor from "./DiscussionAuthor";
 
-export default function PostComments({ source, postId, children, showComment = true, primaryAction = null, commentCount = null, engagementPreview = null, onEngagementChange }) {
+export default function PostComments({ source, postId, children, inline = false, showComment = true, primaryAction = null, commentCount = null, engagementPreview = null, onEngagementChange }) {
   const regionId = useId();
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(null);
@@ -15,9 +15,12 @@ export default function PostComments({ source, postId, children, showComment = t
   const requestKey = useRef(null);
   const input = useRef(null);
 
-  useEffect(() => () => active.current?.abort(), []);
+  useEffect(() => () => {
+    active.current?.abort();
+    active.current = null;
+  }, []);
 
-  async function run(operation, receive) {
+  const run = useCallback(async (operation, receive) => {
     if (active.current) return;
     const controller = new AbortController();
     active.current = controller;
@@ -33,20 +36,33 @@ export default function PostComments({ source, postId, children, showComment = t
         setError(failure.message);
       }
     } finally {
-      if (!signal.aborted) setPending(false);
-      active.current = null;
+      if (active.current === controller) {
+        active.current = null;
+        if (!signal.aborted) setPending(false);
+      }
     }
-  }
+  }, []);
 
-  function load(cursor) {
+  const load = useCallback(cursor => {
     void run(signal => api.comments(source, postId, cursor, signal), data => {
       setPage(previous => cursor && previous
         ? { ...data, items: [...previous.items, ...data.items] }
         : data);
     });
-  }
+  }, [source, postId, run]);
+
+  useEffect(() => {
+    if (!inline || !showComment) return;
+    let mounted = true;
+    queueMicrotask(() => { if (mounted) load(); });
+    return () => { mounted = false; };
+  }, [inline, showComment, load]);
 
   function toggle() {
+    if (inline) {
+      input.current?.focus();
+      return;
+    }
     setExpanded(!expanded);
     if (!expanded) {
       setPage(null);
@@ -62,7 +78,7 @@ export default function PostComments({ source, postId, children, showComment = t
     void run(signal => api.addComment(source, postId, draft, signal), ({ comment }) => {
       setPage(previous => ({
         ...previous,
-        items: [comment, ...previous.items.filter(item => item.id !== comment.id)],
+        items: [comment, ...(previous?.items ?? []).filter(item => item.id !== comment.id)],
       }));
       requestKey.current = null;
       setBody("");
@@ -87,7 +103,7 @@ export default function PostComments({ source, postId, children, showComment = t
         <div className={"bw-post-secondary-actions" + (!primaryAction && !engagementPreview ? " bw-post-secondary-actions--default" : "")}>
           {showComment && (
             <button type="button" className="bw-timeline-action" aria-label="Comments" title="Comments"
-              aria-expanded={expanded} aria-controls={regionId} disabled={pending} onClick={toggle}>
+              aria-expanded={inline ? undefined : expanded} aria-controls={regionId} disabled={pending} onClick={toggle}>
               <NavigationIcon name="reply" size={19} />
               {Number.isInteger(commentCount) && <span className="bw-action-count" aria-label={commentCount + " comments"}>{commentCount.toLocaleString()}</span>}
             </button>
@@ -97,8 +113,8 @@ export default function PostComments({ source, postId, children, showComment = t
       </div>
       {showComment && (
         <section id={regionId} className="bw-post-comments-section bw-discussion-panel"
-          hidden={!expanded} aria-label="Post comments" aria-busy={pending}>
-          <header className="bw-discussion-panel-header">
+          hidden={!inline && !expanded} aria-label="Post comments" aria-busy={pending}>
+          {!inline && <header className="bw-discussion-panel-header">
             <div className="bw-discussion-panel-heading">
               <span className="bw-discussion-panel-icon"><NavigationIcon name="reply" size={19} /></span>
               <div>
@@ -108,34 +124,36 @@ export default function PostComments({ source, postId, children, showComment = t
             </div>
             <button type="button" className="bw-discussion-close" aria-label="Close comments"
               disabled={pending} onClick={toggle}>×</button>
-          </header>
+          </header>}
           {error && <p className="bw-post-error" role="alert">{error}</p>}
           {!page && pending && <p role="status" className="bw-discussion-status">Loading comments…</p>}
           {!page && error && <button type="button" className="bw-discussion-retry" onClick={() => load()}>Retry comments</button>}
+          {(inline || page) && (
+            <form className={"bw-discussion-composer bw-post-comment-form" + (inline ? " bw-viewer-comment-form" : "")} onSubmit={publish}>
+              <label htmlFor={regionId + "-body"}>Write a comment</label>
+              <textarea ref={input} id={regionId + "-body"} rows={inline ? 1 : 3} maxLength={1000}
+                placeholder={inline ? "Add a comment…" : "Share a thoughtful comment…"}
+                value={body} disabled={pending}
+                onChange={event => { requestKey.current = null; setBody(event.target.value); }} />
+              <div className="bw-discussion-composer-footer">
+                <span className="bw-discussion-character-count">{body.length} / 1,000</span>
+                <button type="submit" className="bw-discussion-submit" aria-label={inline ? "Post comment" : undefined} title={inline ? "Post comment" : undefined} disabled={!body.trim() || pending}>
+                  <NavigationIcon name={inline ? "share" : "reply"} size={inline ? 20 : 16} />
+                  {!inline && (pending ? "Posting…" : "Post comment")}
+                </button>
+              </div>
+            </form>
+          )}
           {page && (
             <>
-              <form className="bw-discussion-composer bw-post-comment-form" onSubmit={publish}>
-                <label htmlFor={regionId + "-body"}>Write a comment</label>
-                <textarea ref={input} id={regionId + "-body"} rows={3} maxLength={1000}
-                  placeholder="Share a thoughtful comment…"
-                  value={body} disabled={pending}
-                  onChange={event => { requestKey.current = null; setBody(event.target.value); }} />
-                <div className="bw-discussion-composer-footer">
-                  <span className="bw-discussion-character-count">{body.length} / 1,000</span>
-                  <button type="submit" className="bw-discussion-submit" disabled={!body.trim() || pending}>
-                    <NavigationIcon name="reply" size={16} />
-                    {pending ? "Posting…" : "Post comment"}
-                  </button>
-                </div>
-              </form>
-              <div className="bw-discussion-toolbar">
+              {(!inline || page.items.length > 0) && <div className="bw-discussion-toolbar">
                 <div className="bw-discussion-toolbar-title">
                   <strong>Conversation</strong>
                   <span className="bw-discussion-count">{page.items.length}</span>
                 </div>
                 {page.nextCursor && <span className="bw-discussion-pagination-label">More comments available</span>}
-              </div>
-              {page.items.length === 0 ? (
+              </div>}
+              {page.items.length === 0 ? (!inline &&
                 <div className="bw-discussion-empty">
                   <span className="bw-discussion-empty-icon"><NavigationIcon name="reply" size={22} /></span>
                   <strong>Start the conversation</strong>

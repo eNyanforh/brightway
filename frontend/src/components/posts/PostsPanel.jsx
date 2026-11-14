@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { organizationPostsApi as api, memberPhotoUrl } from "../../api/organization-posts";
 import { organizationPictureUrl } from "../../api/organization-profile";
 import { opportunitiesApi } from "../../api/opportunities";
@@ -133,7 +133,7 @@ function PostStory({ post, timeline = false, showMedia = true, onOpenMedia, answ
   );
 }
 
-export function PostCard({ post, timeline, immersive = false, onOpen, busy, onWithdraw, onEdit, onLike, onSave, onRepost, onRegister, canManageEvent = false, canManage = false, trackViews = true }) {
+export function PostCard({ post, timeline, immersive = false, photoIndex = 0, onSelectPhoto, onOpen, busy, onWithdraw, onEdit, onLike, onSave, onRepost, onRegister, canManageEvent = false, canManage = false, trackViews = true }) {
   const session = useContext(AuthContext);
   const navigate = useNavigate();
   const isQuestionPublisher = post.type === "QUESTION" && Boolean(session?.account?.username)
@@ -227,6 +227,7 @@ export function PostCard({ post, timeline, immersive = false, onOpen, busy, onWi
     const url = new URL("/explore", window.location.origin);
     url.searchParams.set("post", post.id);
     url.searchParams.set("source", source);
+    if (immersive && photoIndex > 0) url.searchParams.set("photo", String(photoIndex + 1));
     return url.toString();
   }
 
@@ -327,11 +328,22 @@ export function PostCard({ post, timeline, immersive = false, onOpen, busy, onWi
      </>
   );
 
-  function openPost() {
-    // Keep the originating card focused so closing the dialog returns to it.
-    cardRef.current?.focus({ preventScroll: true });
-    if (onOpen) onOpen(post);
-    else navigate(viewerPath);
+  function openPost(index) {
+    // Native dialogs restore focus to the tile or to the card used for keyboard entry.
+    if (!Number.isInteger(index)) cardRef.current?.focus({ preventScroll: true });
+    if (onOpen) {
+      if (Number.isInteger(index)) onOpen(post, index);
+      else onOpen(post);
+    } else {
+      const activity = cardRef.current?.closest("#profile-activity, #public-profile-activity");
+      if (activity) {
+        const returnUrl = new URL(window.location.href);
+        returnUrl.hash = activity.id;
+        window.history.replaceState(window.history.state, "", returnUrl);
+      }
+      const photo = Number.isInteger(index) ? "&photo=" + (index + 1) : "";
+      navigate(viewerPath + photo, { state: { fromPostCard: true } });
+    }
   }
 
   const openingProps = {
@@ -387,12 +399,13 @@ export function PostCard({ post, timeline, immersive = false, onOpen, busy, onWi
 
   if (immersive) {
     const hasMedia = Array.isArray(displayPost.media) && displayPost.media.length > 0;
+    const hasPhotos = hasMedia && displayPost.media.some(file => file.kind === "IMAGE");
     return (
       <article className="bw-immersive-post bw-post-panel" data-post-type={type}
-        data-has-media={hasMedia ? "true" : "false"} ref={cardRef}
+        data-has-media={hasMedia ? "true" : "false"} data-has-photos={Boolean(hasPhotos)} ref={cardRef}
         aria-label={(publisher.name || "BrightWay member") + " post"}>
         <div className="bw-immersive-post-stage">
-          {hasMedia && <PostMedia media={displayPost.media} immersive />}
+          {hasMedia && <PostMedia media={displayPost.media} immersive photoIndex={photoIndex} onSelectPhoto={onSelectPhoto} />}
         </div>
         <div className="bw-immersive-post-bottom">
           <PostManageMenu post={post} busy={busy} canManage={canManage}
@@ -416,21 +429,21 @@ export function PostCard({ post, timeline, immersive = false, onOpen, busy, onWi
           {reviewBanner}
           <PostStory post={displayPost} timeline showMedia={false}
             answerCount={answerCount} answerParticipants={answerParticipants} />
+          {!heldForReview && <div className="bw-immersive-post-rail" aria-label="Post actions">
+            <PostComments postId={post.id} source={source} inline
+              commentCount={post.commentCount} showComment={type !== "QUESTION"}
+              primaryAction={primaryAction}
+              onEngagementChange={() => setEngagementRevision(current => current + 1)}>
+              {controls}
+            </PostComments>
+          </div>}
+          {!heldForReview && <div className="bw-immersive-post-trays">
+            {extras}
+            {canManageEvent && post.eventDetails?.requiresApproval === true && (
+              <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
+            )}
+          </div>}
         </div>
-        {!heldForReview && <div className="bw-immersive-post-rail" aria-label="Post actions">
-          <PostComments postId={post.id} source={source}
-            commentCount={post.commentCount} showComment={type !== "QUESTION"}
-            primaryAction={primaryAction}
-            onEngagementChange={() => setEngagementRevision(current => current + 1)}>
-            {controls}
-          </PostComments>
-        </div>}
-        {!heldForReview && <div className="bw-immersive-post-trays">
-          {extras}
-          {canManageEvent && post.eventDetails?.requiresApproval === true && (
-            <EventRequestReview eventId={post.id} onReviewed={setReviewSummary} />
-          )}
-        </div>}
       </article>
     );
   }
@@ -520,7 +533,7 @@ export function PostCard({ post, timeline, immersive = false, onOpen, busy, onWi
 export default function PostsPanel({ organization, personal = false, view = "for-you", disabled = false, timeline = false, composerAccount, composerPhotoId, showInlineComposer = true, composePostOnOpen = false, onComposeRequestFinished }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const openedInFeed = useRef(false);
+  const location = useLocation();
   const viewerSource = searchParams.get("source");
   const viewerId = searchParams.get("post");
   const viewerOpen = Boolean(viewerId && ["member", "organization"].includes(viewerSource));
@@ -818,31 +831,32 @@ export default function PostsPanel({ organization, personal = false, view = "for
     items => items.filter(item => item.id !== id));
   }
 
-  function viewerParams(post) {
+  function viewerParams(post, imageIndex) {
     const next = new URLSearchParams(searchParams);
     next.set("source", postSource(post));
     next.set("post", post.id);
+    if (Number.isInteger(imageIndex) && imageIndex >= 0) next.set("photo", String(imageIndex + 1));
+    else next.delete("photo");
     return next;
   }
 
-  function openViewer(post) {
-    openedInFeed.current = true;
-    setSearchParams(viewerParams(post));
+  function openViewer(post, imageIndex) {
+    setSearchParams(viewerParams(post, imageIndex), { state: { ...location.state, fromPostCard: true } });
   }
 
-  function navigateViewer(post) {
-    setSearchParams(viewerParams(post), { replace: true });
+  function navigateViewer(post, imageIndex) {
+    setSearchParams(viewerParams(post, imageIndex), { replace: true, state: location.state });
   }
 
   function closeViewer() {
-    if (openedInFeed.current) {
-      openedInFeed.current = false;
+    if (location.state?.fromPostCard) {
       navigate(-1);
       return;
     }
     const next = new URLSearchParams(searchParams);
     next.delete("post");
     next.delete("source");
+    next.delete("photo");
     setSearchParams(next, { replace: true });
   }
 
@@ -870,6 +884,10 @@ export default function PostsPanel({ organization, personal = false, view = "for
   const viewerPost = viewerOpen
     ? viewerItems.find(item => item.id === viewerId && postSource(item) === viewerSource)
     : null;
+  const photoCount = viewerPost?.media?.filter(file => file.kind === "IMAGE").length ?? 0;
+  const requestedPhoto = Number(searchParams.get("photo"));
+  const photoIndex = Number.isSafeInteger(requestedPhoto) && requestedPhoto >= 1 && requestedPhoto <= photoCount
+    ? requestedPhoto - 1 : 0;
   const viewerControls = selected => ({
     canManage: Boolean(organization || personal || (selected.member && selected.member.username === composerAccount?.username)),
     canManageEvent: Boolean(selected.member && (personal || selected.member.username === composerAccount?.username)),
@@ -947,8 +965,9 @@ export default function PostsPanel({ organization, personal = false, view = "for
       {hasOlderActivity && <button type="button" disabled={pending || disabled || opportunityLoading} onClick={loadOlderActivity}>{showOpportunities ? "Load older activity" : "Load older posts"}</button>}
       {viewerOpen && <PostViewer posts={viewerItems} post={viewerPost} loading={!page && !error}
         onClose={closeViewer} onNavigate={navigateViewer}
+        photoIndex={photoIndex} photoCount={photoCount} onSelectPhoto={index => navigateViewer(viewerPost, index)}
         renderPost={selected => <PostCard key={postKey(selected)} post={selected}
-          timeline immersive {...viewerControls(selected)} />} />}
+          timeline immersive photoIndex={photoIndex} onSelectPhoto={index => navigateViewer(selected, index)} {...viewerControls(selected)} />} />}
     </section>
   );
 }

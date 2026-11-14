@@ -5,9 +5,9 @@ import "./post-viewer.css";
 
 const keyOf = item => (item.organization ? "organization" : "member") + ":" + item.id;
 const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-const gestureControls = "a,input,textarea,select,video,[contenteditable='true'],.bw-document-carousel,.bw-post-comments-section,.bw-question-answers,.bw-immersive-post-bottom";
+const gestureControls = "a,input,textarea,select,video,[contenteditable='true'],.bw-document-carousel,.bw-post-comments-section,.bw-question-answers,.bw-immersive-post-bottom,[data-zoomed='true']";
 
-export default function PostViewer({ posts = [], post, loading = false, onClose, onNavigate, renderPost }) {
+export default function PostViewer({ posts = [], post, loading = false, onClose, onNavigate, photoCount = 0, photoIndex = 0, onSelectPhoto, renderPost }) {
   const dialog = useRef(null);
   const slide = useRef(null);
   const closeButton = useRef(null);
@@ -75,6 +75,14 @@ export default function PostViewer({ posts = [], post, loading = false, onClose,
       const nestedDialog = target?.closest("dialog");
       if (nestedDialog && nestedDialog !== dialog.current) return;
       if (target?.closest(gestureControls + ",[role='dialog'],[role='menu']")) return;
+      if (photoCount > 1 && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+        const nextPhoto = photoIndex + (event.key === "ArrowRight" ? 1 : -1);
+        if (nextPhoto >= 0 && nextPhoto < photoCount) {
+          event.preventDefault();
+          onSelectPhoto(nextPhoto);
+        }
+        return;
+      }
       const step = event.key === "ArrowDown" && hasNext ? 1
         : event.key === "ArrowUp" && hasPrevious ? -1 : 0;
       if (!step) return;
@@ -83,7 +91,7 @@ export default function PostViewer({ posts = [], post, loading = false, onClose,
     };
     document.addEventListener("keydown", handleKey, true);
     return () => document.removeEventListener("keydown", handleKey, true);
-  }, [hasPrevious, hasNext, select]);
+  }, [hasPrevious, hasNext, select, photoCount, photoIndex, onSelectPhoto]);
 
   function startTouch(event) {
     const button = event.target.closest("button");
@@ -130,8 +138,13 @@ export default function PostViewer({ posts = [], post, loading = false, onClose,
   }
 
   return createPortal(
-    <dialog ref={dialog} className="bw-post-viewer" aria-label="Post viewer"
-      onClick={event => { if (event.target === event.currentTarget) onClose(); }}
+    <dialog ref={dialog} className="bw-post-viewer" data-photo-post={photoCount > 0} aria-label="Post viewer"
+      onClick={event => {
+        if (event.target !== event.currentTarget) return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right ||
+          event.clientY < bounds.top || event.clientY > bounds.bottom) onClose();
+      }}
       onCancel={event => { event.preventDefault(); onClose(); }}>
       <header className="bw-post-viewer-heading">
         <strong>Post</strong>
@@ -153,7 +166,7 @@ export default function PostViewer({ posts = [], post, loading = false, onClose,
         )}
       </section>
       <nav className="bw-post-viewer-navigation" aria-label="Browse posts">
-        <span className="bw-post-viewer-hint" aria-hidden="true">Swipe up or use the arrows</span>
+        <span className="bw-post-viewer-hint" aria-hidden="true">Browse posts</span>
         <button type="button" aria-label="Previous post" title="Previous post"
           disabled={!hasPrevious} onClick={() => void select(-1)}>
           <NavigationIcon name="chevron-left" size={20} />

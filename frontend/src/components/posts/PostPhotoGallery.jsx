@@ -160,7 +160,7 @@ export default function PostPhotoGallery({ images, onRemove, onOpen, disabled = 
         {images.map((file, index) => <div className="bw-photo-gallery-tile" key={file.id}>
           <button type="button" className="bw-photo-gallery-open"
             aria-label={"Open photo " + (index + 1) + " of " + images.length + ": " + file.name}
-            onClick={() => onOpen ? onOpen() : setViewing(index)}>
+            onClick={() => onOpen ? onOpen(index) : setViewing(index)}>
             <Photo file={file} onLoaded={value => setMeasurements(current => current[file.id] === value
               ? current : { ...current, [file.id]: value })} />
             <span className="bw-photo-gallery-expand" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5" /></svg></span>

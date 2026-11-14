@@ -784,3 +784,37 @@ test("public member cover and identity details align without a generic BrightWay
   expect(Math.max(...lines.x) - Math.min(...lines.x)).toBeLessThanOrEqual(2);
   expect(lines.gaps.every(gap => gap >= -1 && gap <= 14)).toBe(true);
 });
+
+test("opening a profile photo selects it in the post and Close returns to Activity", async ({ page }) => {
+  await fixture(page);
+  const post = {
+    id: "a1111111-1111-4111-8111-111111111111", type: "ACHIEVEMENT",
+    body: "Our community survey team.", createdAt: "2026-11-09T09:00:00Z",
+    member: { username: "synthetic", name: "Synthetic Member", verified: true },
+    media: [
+      { id: "activity-photo-1", kind: "IMAGE", name: "fieldwork.webp", size: 100 },
+      { id: "activity-photo-2", kind: "IMAGE", name: "team.webp", size: 100 },
+    ],
+  };
+  const reply = (route, data) => route.fulfill({ json: { success: true, data } });
+  await page.route("**/api/v1/posts/me", route => reply(route, { items: [post], nextCursor: null, access: {} }));
+  await page.route("**/api/v1/explore/posts?**", route => reply(route, { items: [], nextCursor: null }));
+  await page.route("**/api/v1/explore/posts/member/" + post.id, route => reply(route, { post }));
+  await page.route("**/api/v1/explore/posts/member/" + post.id + "/comments", route => reply(route, { items: [], nextCursor: null }));
+  await page.route("**/api/v1/posts/media/activity-photo-*", route => route.fulfill({
+    contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260"><rect width="200" height="260" fill="blue"/></svg>'
+  }));
+  await page.goto("/profile");
+  await page.getByRole("tab", { name: "Activity", exact: true }).click();
+  const tile = page.getByRole("button", { name: "Open photo 2 of 2: team.webp" });
+  await tile.click();
+  const viewer = page.getByRole("dialog", { name: "Post viewer" });
+  await expect(viewer.getByRole("img", { name: "team.webp" })).toBeVisible();
+  await expect(viewer.getByRole("textbox", {name: "Write a comment"})).toBeVisible();
+  await viewer.getByRole("button", { name: "Previous photo" }).click();
+  await expect(viewer.getByRole("img", { name: "fieldwork.webp" })).toBeVisible();
+  await viewer.getByRole("button", { name: "Close post viewer" }).click();
+  await expect(page).toHaveURL(/\/profile#profile-activity$/);
+  await expect(page.getByRole("tab", { name: "Activity", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(tile).toBeVisible();
+});

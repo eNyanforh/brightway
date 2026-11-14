@@ -33,7 +33,7 @@ function PersonAvatar({ username, photoId }) {
 
 function PublishedPerson({ username }) {
   const [result, setResult] = useState(null);
-  const [activeTab, setActiveTab] = useState("about");
+  const [activeTab, setActiveTab] = useState(() => window.location.hash === "#public-profile-activity" ? "activities" : "about");
 
   useEffect(() => {
     const controller = new AbortController();
