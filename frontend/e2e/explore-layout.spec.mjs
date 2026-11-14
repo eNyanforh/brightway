@@ -36,7 +36,7 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
     const url = new URL(request.url());
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();
-    if (/^\/api\/v1\/organizations\/[^/]+\/photo\/[^/]+$/.test(url.pathname)) return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9ySN6FcAAAAASUVORK5CYII=", "base64") });
+    if (/^\/api\/v1\/organizations\/[^/]+\/photo\/[^/]+$/.test(url.pathname) || /^\/api\/v1\/explore\/members\/[^/]+\/photo\/[^/]+$/.test(url.pathname)) return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9ySN6FcAAAAASUVORK5CYII=", "base64") });
     const reply = (data, status = 200) => route.fulfill({ status, json: { success: true, data } });
     if (/^\/api\/v1\/explore\/posts\/(member|organization)\/[^/]+\/view$/.test(url.pathname)) return reply({ views: 1 });
     // Shared links read one server-authorized post rather than assuming it is in the first feed page.
@@ -1805,6 +1805,11 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
     id: opportunityId, type: "CHALLENGE", title: "Build a Community Learning App",
     description: "Design a useful student learning experience.", location: "Monrovia",
     workMode: "REMOTE", prize: "US$1,000", saved: false, status: "PUBLISHED",
+    participantSummary: { count: 3, members: [
+      { username: "student_a", name: "Student One", photoId: "photo-a", verified: true },
+      { username: "student_b", name: "Student Two", photoId: null, verified: true },
+      { username: "student_c", name: "Student Three", photoId: "photo-c", verified: true },
+    ] },
     deadline: "2099-01-01T12:00:00Z", publishedAt: "2026-11-13T12:00:00Z",
     createdAt: "2026-11-12T12:00:00Z", organization: {
       id: organizationId, name: "Community Research Institute",
@@ -1853,6 +1858,15 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   await expect(deadline).toContainText("Deadline:");
   await expect(prize).toContainText("US$1,000");
   await expect(prize).toContainText("Online");
+  const participantGroup = prize.getByRole("group", { name: "Publicly participating members" });
+  await expect(participantGroup.getByRole("link")).toHaveCount(3);
+  await expect(participantGroup.getByRole("link", { name: "Student One participating in challenge" })).toHaveAttribute("href", "/student_a");
+  await expect(prize.getByLabel("Public Challenge participants")).toContainText("3 participants");
+  const [modePosition, participantsPosition] = await Promise.all([
+    prize.locator(".bw-challenge-mode").boundingBox(),
+    prize.locator(".bw-challenge-participants").boundingBox(),
+  ]);
+  expect(participantsPosition.y).toBeGreaterThanOrEqual(modePosition.y + modePosition.height);
   await expect(title).toHaveCSS("margin-bottom", "2px");
   await expect(prize).toHaveCSS("row-gap", "1px");
   const [prizeAmountBounds, modeBounds] = await Promise.all([
@@ -1883,6 +1897,10 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   await page.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "Saved" }).click();
   await expect(feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" })).toBeVisible();
   await page.reload();
+  // Explore resets its selected feed on a page reload; explicitly reopen
+  // Saved to verify persistence and immediate removal in that view.
+  await page.getByRole("navigation", { name: "Explore feed" })
+    .getByRole("button", { name: "Saved", exact: true }).click();
   const savedCard = feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" });
   await expect(savedCard.getByRole("button", { name: "Unsave challenge" })).toBeVisible();
   await savedCard.getByRole("button", { name: "Unsave challenge" }).click();

@@ -98,6 +98,33 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     await db.mfaFactor.update({ where: { accountId: owner.id }, data: { version: 1 } });
     const ownApp = await service.saveApplication(owner.actor, otherListings[0].id, payload(otherListings[0]));
     await assert.rejects(service.decide(owner.actor, org.id, ownApp.id, { expectedVersion: ownApp.version, status: "SELECTED" }), { status: 403 });
+
+    // Participation is not inferred from applications or saved challenges.
+    // Applicants need separate opt-in and public identity approval.
+    const challenge = otherListings.find(row => row.type === "CHALLENGE");
+    const challengeSummary = async () => {
+      const result = await service.browse(applicant.actor, { type: "CHALLENGE" });
+      return result.items.find(row => row.id === challenge.id).participantSummary;
+    };
+    assert.deepEqual(await challengeSummary(), { count: 0, members: [] });
+    let publicApp = await service.saveApplication(owner.actor, challenge.id, {
+      ...payload(challenge), publicParticipant: true,
+    });
+    assert.equal(publicApp.publicParticipant, true, "separate public opt-in is persisted");
+    assert.deepEqual(await challengeSummary(), { count: 0, members: [] }, "unverified identity is not exposed");
+    await db.manualIdentityRequest.create({ data: {
+      accountId: owner.id, state: "APPROVED", currentAttemptId: randomUUID(),
+      initialSubmittedAt: now(), targetAt: now(), windowStart: now(), calendarVersion: "synthetic",
+    } });
+    const visible = await challengeSummary();
+    assert.equal(visible.count, 1);
+    assert.equal(visible.members.length, 1);
+    assert.equal(visible.members[0].username, owner.username);
+    assert.equal(visible.members[0].verified, true);
+    assert.equal("email" in visible.members[0], false, "private application fields never reach the feed");
+    publicApp = await service.withdraw(owner.actor, publicApp.id, { expectedVersion: publicApp.version });
+    assert.equal(publicApp.status, "WITHDRAWN");
+    assert.deepEqual(await challengeSummary(), { count: 0, members: [] }, "withdrawn applicants disappear immediately");
     const paused = await service.setStatus(owner.actor, org.id, opp.id, { expectedVersion: opp.version, status: "PAUSED" });
     const { requestKey: ignored, ...editableBody } = body; void ignored;
     const edited = await service.edit(owner.actor, org.id, paused.id, { ...editableBody, expectedVersion: paused.version, description: "Updated description for future applicants at our organization." });
@@ -121,7 +148,7 @@ test("opportunities isolate tenants and private files, enforce completion, seria
       await db.opportunity.deleteMany({ where: { organizationId: { in: organizations } } }); await db.opportunityUploadBudget.deleteMany({ where: { accountId: { in: ids } } });
       await db.organizationStaffAudit.deleteMany({ where: { organizationId: { in: organizations } } }); await db.networkFollow.deleteMany({ where: { followerId: { in: ids } } });
       await clearOrganizationProfiles(db, organizations); await db.organizationMembership.deleteMany({ where: { organizationId: { in: organizations } } }); await db.organization.deleteMany({ where: { id: { in: organizations } } }); await db.organizationRequest.deleteMany({ where: { id: { in: requests } } });
-      await db.profile.deleteMany({ where: { personId: { in: accounts.map(a => a.personId) } } }); await db.photoAsset.deleteMany({ where: { id: { in: photos } } }); await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } }); await db.account.deleteMany({ where: { id: { in: ids } } }); await db.person.deleteMany({ where: { id: { in: accounts.map(a => a.personId) } } });
+      await db.profile.deleteMany({ where: { personId: { in: accounts.map(a => a.personId) } } }); await db.photoAsset.deleteMany({ where: { id: { in: photos } } }); await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } }); await db.manualIdentityRequest.deleteMany({ where: { accountId: { in: ids } } }); await db.account.deleteMany({ where: { id: { in: ids } } }); await db.person.deleteMany({ where: { id: { in: accounts.map(a => a.personId) } } });
     } finally { await db.$disconnect(); }
   }
 });

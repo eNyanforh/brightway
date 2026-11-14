@@ -17,6 +17,10 @@ test("opportunity input rejects external application methods, unknown fields and
   assert.equal(challenge.data.prize, "US$1,000");
   assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", prize: "x".repeat(121) }).success, false);
   assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", prize: null }).success, true, "legacy unset prizes are accepted");
+  const submitted = { expectedVersion: 0, expectedOpportunityVersion: 1, action: "SUBMIT", shareProfile: true, answers: {} };
+  assert.equal(applicationInput.parse(submitted).publicParticipant, false, "public profile display is opt-in");
+  assert.equal(applicationInput.parse({ ...submitted, publicParticipant: true }).publicParticipant, true);
+  assert.equal(applicationInput.safeParse({ ...submitted, publicParticipant: "true" }).success, false);
   assert.equal(saveInput.safeParse({ saved: true }).success, true);
   assert.equal(saveInput.safeParse({ saved: "true" }).success, false);
   assert.equal(saveInput.safeParse({ saved: true, accountId: randomUUID() }).success, false);

@@ -6,6 +6,7 @@ import OrganizationAvatar from "../profile/OrganizationAvatar";
 import VerificationBadge from "../VerificationBadge";
 import NavigationIcon from "../layout/NavigationIcon";
 import PostTimestamp from "../posts/PostTimestamp";
+import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
 
 const EXPLORE_OPPORTUNITY_CATEGORIES = Object.freeze({
   JOB: "Jobs & Internships",
@@ -78,6 +79,7 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
       <div className="bw-challenge-prize" aria-label="Challenge prize and participation mode">
         <strong>{opportunity.prize?.trim() || "Not listed"}</strong>
         <span className="bw-challenge-mode">{mode}</span>
+        <ChallengeParticipantFacepile summary={opportunity.participantSummary} />
       </div>
     </div>
 

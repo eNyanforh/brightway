@@ -1110,3 +1110,52 @@
   .bw-explore .bw-challenge-secondary button span,
   .bw-explore .bw-challenge-secondary a span { display: none; }
 }
+
+
+/* Opted-in Challenge applicants appear below Online / Offline. Preserve the
+   current compact card layout and private-by-default participation. */
+.bw-explore .bw-challenge-participants {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  min-width: 0;
+  padding-top: 7px;
+}
+.bw-explore .bw-challenge-participant-facepile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.bw-explore .bw-challenge-participant-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 27px;
+  width: 27px;
+  height: 27px;
+  margin-left: -6px;
+  overflow: hidden;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #eaf1fd;
+  color: #3167a9;
+  text-decoration: none;
+  box-shadow: 0 1px 3px #15345a19;
+}
+.bw-explore .bw-challenge-participant-avatar:first-child { margin-left: 0; }
+.bw-explore .bw-challenge-participant-avatar:nth-child(even) { background: #e9f4ef; color: #267360; }
+.bw-explore .bw-challenge-participant-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.bw-explore .bw-challenge-participant-avatar:hover,
+.bw-explore .bw-challenge-participant-avatar:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid #175cd3;
+  outline-offset: 1px;
+}
+.bw-explore .bw-challenge-participant-count {
+  color: #667085;
+  font-size: 10px;
+  line-height: 1.3;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
