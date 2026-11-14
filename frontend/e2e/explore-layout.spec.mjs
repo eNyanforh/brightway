@@ -1889,7 +1889,9 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   ]);
   expect(participateBounds.x + participateBounds.width).toBeLessThanOrEqual(actionsBounds.x + 1);
   await expect(card.getByRole("button", { name: "Share challenge" })).toBeVisible();
-  await expect(card.getByRole("link", { name: "View challenge" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  // Challenge actions are only Share and Save; the title and Participate CTA still open detail.
+  await expect(card.getByRole("link", { name: "View challenge" })).toHaveCount(0);
+  await expect(card.locator(".bw-challenge-secondary").locator("button")).toHaveCount(2);
   const save = card.getByRole("button", { name: "Save challenge" });
   await expect(save).toHaveAttribute("aria-pressed", "false");
   await save.click();
