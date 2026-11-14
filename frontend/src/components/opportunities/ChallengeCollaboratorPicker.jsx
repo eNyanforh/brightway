@@ -6,7 +6,7 @@ import OrganizationAvatar from "../profile/OrganizationAvatar";
 import VerificationBadge from "../VerificationBadge";
 import "./challenge-collaborators.css";
 
-export function collaboratorPhotoUrl(organization) {
+function collaboratorPhotoUrl(organization) {
   return organization?.profilePhotoId
     ? `/api/v1/organizations/${encodeURIComponent(organization.id)}/photo/${encodeURIComponent(organization.profilePhotoId)}`
     : null;
