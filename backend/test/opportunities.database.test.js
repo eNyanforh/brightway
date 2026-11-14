@@ -66,7 +66,7 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     for (const type of ["SCHOLARSHIP", "CHALLENGE", "EVENT"]) {
       const request = { ...listing(type), ...(type === "CHALLENGE" ? {
         prize: "US$500", coverImage: "SCHOOLS", topics: ["Education", "Technology"],
-        prizes: [{ type: "CASH", description: "US$500" }, { type: "CERTIFICATE", description: "Award certificate" }],
+        prizes: [{ type: "CASH", amount: 500, currency: "USD" }, { type: "CERTIFICATE", title: "Award certificate", issuer: "" }],
         sponsorLogoIds: [sponsorLogo.id], backgroundAssetId: background.id, titleAssetId: titleImage.id,
         maxApplicants: 1,
       } : {}) };
@@ -80,7 +80,7 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     assert.deepEqual(publishedChallenge.topics, ["Education", "Technology"]);
     assert.equal(publishedChallenge.coverImage, "SCHOOLS");
     assert.deepEqual(publishedChallenge.prizes.map(p => p.type), ["CASH", "CERTIFICATE"]);
-    assert.equal(publishedChallenge.prize, "Cash: US$500 · Certificate: Award certificate");
+    assert.equal(publishedChallenge.prize, "USD 500 · Award certificate");
     assert.equal(publishedChallenge.maxApplicants, 1);
     assert.equal(publishedChallenge.location, "BrightWay");
     assert.equal(publishedChallenge.workMode, "REMOTE");
