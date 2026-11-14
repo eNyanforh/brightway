@@ -1,0 +1,23 @@
+.bw-challenge-post-types { display: grid; gap: 14px; min-width: 0; }
+.bw-challenge-post-types .bw-op-wizard-help { margin: 0 0 4px; }
+.bw-challenge-post-type { min-width: 0; margin: 0; padding: 17px; border: 1px solid #e4e7ec; border-radius: 10px; background: #fafbfc; }
+.bw-challenge-post-type legend { font-size: 12px; font-weight: 800; padding: 0 7px; color: #344054; }
+.bw-challenge-post-type-head { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 10px; }
+.bw-challenge-post-type-head > label { flex: 1; max-width: 360px; }
+.bw-challenge-post-type .bw-op-field-row { min-width: 0; gap: 12px; }
+.bw-challenge-post-type .bw-op-field-row label { margin-bottom: 14px; }
+.bw-challenge-post-type .bw-op-field-row small { grid-column: 1/-1; color: #667085; }
+.bw-challenge-post-type .bw-challenge-post-summary { display: block; margin-top: 6px; color: #175cd3; font-size: 12px; }
+.bw-challenge-post-hint { font-size: 12px; line-height: 1.55; color: #667085; }
+.bw-challenge-post-empty { padding: 24px; background: #f9fafb; color: #667085; border: 1px dashed #d0d5dd; border-radius: 9px; font-size: 13px; }
+.bw-challenge-post-types > button { justify-self: start; }
+.bw-challenge-submission { border: 1px solid #e4e7ec; border-radius: 11px; padding: 18px; margin: 20px 0; background: #fff; }
+.bw-challenge-submission > h3 { margin: 0 0 8px; font-size: 18px; }
+.bw-challenge-submission > p { color: #667085; font-size: 13px; line-height: 1.55; }
+.bw-challenge-submit-item { margin: 22px 0; padding: 16px; min-width: 0; border: 1px solid #e4e7ec; border-radius: 9px; }
+.bw-challenge-submit-item legend { font-weight: 750; padding: 0 7px; font-size: 13px; }
+.bw-challenge-submit-item p { font-size: 12px; color: #475467; }
+.bw-challenge-submit-item label { display: grid; gap: 9px; font-size: 13px; font-weight: 650; }
+.bw-challenge-submit-item label small { font-size: 11px; color: #667085; font-weight: 400; }
+.bw-challenge-submit-item > small { color: #475467; font-size: 12px; }
+@media (max-width: 620px) { .bw-challenge-post-type { padding: 12px; } .bw-challenge-submission { padding: 12px; } }
