@@ -96,9 +96,6 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
           aria-pressed={saved} disabled={saving} onClick={() => void toggleSaved()}>
           <NavigationIcon name="bookmark" size={18} active={saved} /><span>{saved ? "Saved" : "Save"}</span>
         </button>
-        <Link to={detail} aria-label="View challenge" title="View challenge">
-          <NavigationIcon name="expand" size={18} /><span>View</span>
-        </Link>
       </div>
     </div>
     {feedback && <p className="bw-challenge-feedback" role="status">{feedback}</p>}
