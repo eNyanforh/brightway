@@ -192,7 +192,7 @@ export default function OrganizationOpportunities({ organization, disabled = fal
         <span className="bw-op-dashboard-empty-icon"><NavigationIcon name="opportunities" size={26} /></span>
         <h3>No opportunities yet</h3>
         <p>Create your first listing to start receiving applications on BrightWay.</p>
-        <button type="button" className="bw-op-primary" disabled={blocked} onClick={() => setEditor({ new: true })}>+ Create opportunity</button>
+        <button type="button" className="bw-op-primary" disabled={blocked} onClick={() => setEditor({ new: true })}>Create your first listing</button>
       </div> : visible.length === 0 ? <div className="bw-op-dashboard-empty">
         <h3>No matching listings</h3><p>Try another search, type, or status.</p>
         {hasFilters && <button type="button" className="bw-op-secondary" onClick={clearFilters}>Clear filters</button>}
