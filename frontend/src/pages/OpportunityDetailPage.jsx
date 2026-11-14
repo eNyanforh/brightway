@@ -9,6 +9,7 @@ import ApplicationHistory from "../components/opportunities/ApplicationHistory";
 import { CHALLENGE_PRIZE_TYPES, challengePrizeValue } from "../../../shared/challenges.mjs";
 import { challengeDeadlineReminder } from "../components/opportunities/challenge-deadline";
 import ChallengeCoHosts from "../components/opportunities/ChallengeCoHosts";
+import ChallengeApplicationPosts from "../components/opportunities/ChallengeApplicationPosts";
 import "../components/opportunities/opportunity-editor-wizard.css";
 import "../components/opportunities/opportunities.css";
 export default function OpportunityDetailPage({ application = false }) {
@@ -54,6 +55,7 @@ function Detail({ id, applicationRoute }) {
   const editable = open && (!app || app.status === "DRAFT");
   const blocked = busy || [401, 404, 409].includes(error?.status);
   const questions = app?.opportunitySnapshot?.questions || opportunity?.questions || [];
+  const postRequirements = app?.opportunitySnapshot?.postRequirements || opportunity?.postRequirements || [];
   const challenge = opportunity?.type === "CHALLENGE";
   const challengeBackground = challenge && (opportunity.coverAssetId || opportunity.backgroundAssetId || opportunity.titleAssetId)
     ? api.challengeAssetUrl(opportunity.coverAssetId || opportunity.backgroundAssetId || opportunity.titleAssetId) : null;
@@ -75,7 +77,6 @@ function Detail({ id, applicationRoute }) {
         <div className="bw-op-detail-meta">
           {!challenge && <span>{opportunity.location}</span>}
           {!challenge && <span>{opportunity.workMode.replaceAll("_", " ")}</span>}
-          {challenge && opportunity.maxApplicants && <span>Maximum {opportunity.maxApplicants.toLocaleString()} applicants</span>}
           <span>Deadline: {new Date(opportunity.deadline).toLocaleString("en-GB")}</span>
           {challenge && <span>{challengeDeadlineReminder(opportunity.deadline)}</span>}
         </div>
@@ -96,6 +97,8 @@ function Detail({ id, applicationRoute }) {
           {!editable && app?.feedback && <div className="bw-op-feedback"><h3>Update from the organization</h3><p>{app.feedback}</p></div>}
           {(editable || app) && <>
             {editable && <p>Save a draft at any time. Required questions are marked with an asterisk.</p>}
+            <ChallengeApplicationPosts requirements={postRequirements} answers={answers} readOnly={!editable}
+              disabled={blocked} onChange={(key, value) => { setAnswers(old => ({ ...old, [key]: value })); setDirty(true); }} />
             <ApplicationQuestions questions={questions} answers={answers} files={app?.files} applicationId={app?.id} disabled={blocked} readOnly={!editable} onChange={(key, value) => { setAnswers(old => ({ ...old, [key]: value })); setDirty(true); }} onFile={upload} />
             {editable && <><div className="bw-op-consent"><label><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} disabled={blocked} /><span>Share my answers, attachments, and a snapshot of my name, headline, location, skills, interests, and verified credentials with authorized {opportunity.organization.name} staff. My private contact details are excluded.</span></label>{opportunity.type === "CHALLENGE" && <label><input type="checkbox" checked={publicParticipant} onChange={e => setPublicParticipant(e.target.checked)} disabled={blocked} /><span>Show my public name and profile photo in the Challenge participants preview after submission. Optional. My application answers and documents stay private, and withdrawing removes my public participation.</span></label>}<p>Your profile must be complete before submission. You can track the decision or withdraw here.</p></div><div className="bw-op-actions"><button className="bw-op-secondary" type="button" disabled={blocked} onClick={() => void action(signal => api.save(opportunity.id, payload("SAVE"), signal))}>Save draft</button><button className="bw-op-primary" type="button" disabled={blocked || !consent} onClick={() => void action(signal => api.save(opportunity.id, payload("SUBMIT"), signal))}>{busy ? "Saving…" : "Submit application"}</button></div></>}
           </>}
