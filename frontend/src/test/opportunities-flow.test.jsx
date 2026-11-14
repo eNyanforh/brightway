@@ -101,7 +101,8 @@ it("the right-rail Challenge card shows a first-party photo, publisher, topics a
   const article = screen.getByRole("article", { name: "Challenge: Research assistant" });
   expect(article.querySelector(".bw-rail-challenge-photo").getAttribute("src")).toBe("/images/hero/schools-720.webp");
   expect(within(article).getByText("US$1,000")).toBeTruthy();
-  expect(article.querySelector(".bw-rail-challenge-prize-mode").textContent).toContain("On BrightWay");
+  expect(article.querySelector(".bw-rail-challenge-prize").textContent).toBe("US$1,000");
+  expect(article.textContent).not.toContain("On BrightWay");
   expect(article.querySelector(".bw-rail-challenge-logo")).toBeTruthy();
   expect(article.querySelector(".bw-challenge-participants").textContent).toContain("1 participant");
   const closing = article.querySelector(".bw-rail-challenge-closing-row");
@@ -132,12 +133,13 @@ it("Challenge wizard supports prizes, categories, image fallback and native appl
   expect(screen.queryByLabelText("Location")).toBeNull();
   await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.click(screen.getByRole("button", { name: "+ Add Prize" }));
-  await user.selectOptions(screen.getByLabelText("Prize Type"), "SCHOLARSHIP");
-  await user.type(screen.getByLabelText("Prize details"), "Full tuition");
+  await user.selectOptions(screen.getByLabelText("Prize 1 type"), "SCHOLARSHIP");
+  expect(screen.queryByLabelText("Prize 1 amount")).toBeNull();
+  await user.type(screen.getByLabelText("Scholarship Coverage"), "Full tuition");
   await user.click(screen.getByRole("button", { name: "+ Add another prize" }));
-  expect(screen.getAllByLabelText("Prize Type")).toHaveLength(2);
-  await user.selectOptions(screen.getAllByLabelText("Prize Type")[1], "CASH");
-  await user.type(screen.getAllByLabelText("Prize details")[1], "US$500");
+  expect(screen.getByLabelText("Prize 2 type").value).toBe("CASH");
+  await user.type(screen.getByLabelText("Prize 2 amount"), "500");
+  await user.selectOptions(screen.getByLabelText("Prize 2 currency"), "LRD");
   await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.selectOptions(screen.getByLabelText("Default background photograph"), "SCHOOLS");
   expect(screen.getByLabelText("Background Image")).toBeTruthy();
@@ -146,15 +148,15 @@ it("Challenge wizard supports prizes, categories, image fallback and native appl
   await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
   await user.type(screen.getByLabelText("Number of Applicants (maximum)"), "30");
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  expect(screen.getByText("On BrightWay only")).toBeTruthy();
+  expect(screen.getByText("Applicants")).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Save draft" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
   const body = JSON.parse(fetch.mock.calls[0][1].body);
   expect(body.coverImage).toBe("SCHOOLS");
   expect(body.topics).toEqual(["Technology", "Education", "Design"]);
   expect(body.prizes).toEqual([
-    { type: "SCHOLARSHIP", description: "Full tuition" },
-    { type: "CASH", description: "US$500" },
+    { type: "SCHOLARSHIP", coverage: "Full tuition", institution: "" },
+    { type: "CASH", amount: 500, currency: "LRD" },
   ]);
   expect(body.maxApplicants).toBe(30);
   expect(body.workMode).toBe("REMOTE");
