@@ -23,20 +23,20 @@ test("opportunity input rejects external application methods, unknown fields and
   assert.equal(challenge.data.titleAssetId, null);
   assert.equal(challenge.data.coverAssetId, null);
   assert.deepEqual(challenge.data.collaboratorIds, []);
-  assert.equal(challenge.data.maxApplicants, null);
+  assert.deepEqual(challenge.data.postRequirements, []);
   const sponsor = randomUUID(), background = randomUUID(), title = randomUUID(), cover = randomUUID(), collaborator = randomUUID();
   const structured = createInput.parse({ ...listing(), type: "CHALLENGE",
     prizes: [{ type: "CASH", description: "US$500" }, { type: "MENTORSHIP", description: "Expert mentoring" }],
     sponsorLogoIds: [sponsor], backgroundAssetId: background, titleAssetId: title, coverAssetId: cover,
-    collaboratorIds: [collaborator], maxApplicants: 30,
+    collaboratorIds: [collaborator], postRequirements: [],
   });
   assert.equal(structured.prizes.length, 2);
   assert.deepEqual(structured.sponsorLogoIds, [sponsor]);
   assert.equal(structured.coverAssetId, cover);
   assert.deepEqual(structured.collaboratorIds, [collaborator]);
-  assert.equal(structured.maxApplicants, 30);
+  assert.deepEqual(structured.postRequirements, []);
   for (const invalid of [
-    { maxApplicants: 0 }, { maxApplicants: -1 }, { maxApplicants: 1.3 }, { maxApplicants: 1000001 },
+    { maxApplicants: 25 },
     { sponsorLogoIds: [sponsor, sponsor] }, { sponsorLogoIds: ["https://untrusted.invalid/logo.png"] },
     { backgroundAssetId: "https://untrusted.invalid/bg.png" },
     { titleAssetId: "data:image/png;base64,xxx" },
