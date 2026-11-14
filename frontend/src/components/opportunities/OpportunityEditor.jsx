@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { OPPORTUNITY_TYPES, QUESTION_TYPES } from "../../../../shared/opportunities.mjs";
 import {
-  CHALLENGE_COVER_IMAGES, CHALLENGE_COVER_LABELS, CHALLENGE_TOPIC_OPTIONS,
-  DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS, CHALLENGE_PRIZE_TYPES,
-  MAX_CHALLENGE_SPONSORS, MAX_CHALLENGE_PRIZES, newChallengePrize, challengePrizeValue,
+  CHALLENGE_TOPIC_OPTIONS, MAX_CHALLENGE_TOPICS, CHALLENGE_PRIZE_TYPES,
+  MAX_CHALLENGE_PRIZES, newChallengePrize, challengePrizeValue,
 } from "../../../../shared/challenges.mjs";
 import NavigationIcon from "../layout/NavigationIcon";
 import ChallengePrizeFields from "./ChallengePrizeFields";
+import ChallengeCollaboratorPicker from "./ChallengeCollaboratorPicker";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./challenge-sidebar-card.css";
 import "./opportunity-editor-wizard.css";
@@ -19,9 +19,9 @@ const choices = [
 ];
 const blank = () => ({
   type: "", title: "", description: "", location: "", workMode: "IN_PERSON",
-  prize: "", prizes: [], sponsorLogoIds: [], backgroundAssetId: null,
-  titleAssetId: null, maxApplicants: null, topics: [],
-  coverImage: DEFAULT_CHALLENGE_COVER, deadline: "", questions: [],
+  prize: "", prizes: [], collaboratorIds: [], sponsorLogoIds: [], backgroundAssetId: null,
+  titleAssetId: null, coverAssetId: null, maxApplicants: null, topics: [],
+  deadline: "", questions: [],
 });
 const toLocal = date => {
   const value = new Date(date);
@@ -36,14 +36,17 @@ function initialDraft(opportunity) {
   if (opportunity.type === "CHALLENGE" && !initial.prizes.length && opportunity.prize) {
     initial.prizes = [{ type: "OTHER", description: opportunity.prize }];
   }
-  return { ...initial, deadline: toLocal(opportunity.deadline) };
+  return { ...initial,
+    collaboratorIds: (opportunity.collaborators || []).map(item => item.organizationId),
+    deadline: toLocal(opportunity.deadline),
+  };
 }
-function PhotoField({ label, kind, assetId, fallback, disabled, busy, onFile, onRemove }) {
+function PhotoField({ label, kind, assetId, disabled, busy, onFile, onRemove }) {
   return <div className="bw-op-wizard-photo-field">
-    <div className="bw-op-wizard-photo-label"><strong>{label}</strong><span>{kind === "BACKGROUND" ? "Landscape photo, at least 700 × 240 px" : "JPEG, PNG or WebP"} · Up to 5 MB</span></div>
+    <div className="bw-op-wizard-photo-label"><strong>{label}</strong><span>Landscape JPEG, PNG or WebP · At least 700 × 240 px · Up to 5 MB</span></div>
     <div className="bw-op-wizard-photo-row">
       <div className="bw-op-wizard-photo-thumb">
-        {assetId || fallback ? <img alt={label + " preview"} src={assetId ? api.challengeAssetUrl(assetId) : fallback} /> : <NavigationIcon name="image" size={24} />}
+        {assetId ? <img alt={label + " preview"} src={api.challengeAssetUrl(assetId)} /> : <NavigationIcon name="image" size={24} />}
       </div>
       <div className="bw-op-wizard-photo-controls">
         <label className="bw-op-wizard-upload">
@@ -94,6 +97,10 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
 
 export default function OpportunityEditor({ organizationId, opportunity, onSaved, onClose }) {
   const [draft, setDraft] = useState(() => initialDraft(opportunity));
+  const [collaborators, setCollaborators] = useState(() =>
+    (opportunity?.collaborators || []).map(item => ({
+      organizationId: item.organizationId, organization: item.organization, state: item.state,
+    })));
   const [step, setStep] = useState(0), [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(""), [error, setError] = useState(null);
   const requestKey = useRef(crypto.randomUUID()), request = useRef(null);
@@ -101,7 +108,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const lockedForm = Boolean(opportunity?.publishedAt);
   const challenge = draft.type === "CHALLENGE";
   const steps = challenge
-    ? ["Opportunity type", "Challenge details", "Prizes & sponsors", "Images", "Applications", "Review"]
+    ? ["Opportunity type", "Challenge details", "Prizes & collaborators", "Cover photo", "Applications", "Review"]
     : ["Opportunity type", "Opportunity details", "Applications", "Review"];
   const last = steps.length - 1;
 
@@ -140,15 +147,16 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     try {
       const asset = await api.uploadChallengeAsset(organizationId, kind, file, controller.signal);
       if (!controller.signal.aborted) {
-        setDraft(old => kind === "SPONSOR_LOGO"
-          ? { ...old, sponsorLogoIds: [...old.sponsorLogoIds, asset.id] }
-          : { ...old, [kind === "BACKGROUND" ? "backgroundAssetId" : "titleAssetId"]: asset.id });
+        setDraft(old => ({ ...old, coverAssetId: asset.id }));
       }
     } catch (cause) { if (!controller.signal.aborted) setError(cause); }
     finally { if (!controller.signal.aborted) setUploading(""); }
   }
   function validateStep() {
     if (step === 0 && !draft.type) return "Choose which opportunity you want to offer.";
+    if (challenge && steps[step] === "Cover photo" && !draft.coverAssetId &&
+        !opportunity?.backgroundAssetId && !opportunity?.titleAssetId)
+      return "Upload a Challenge cover photo to continue.";
     if (steps[step]?.endsWith("Applications")) {
       if (!draft.deadline || !Number.isFinite(new Date(draft.deadline).getTime()) ||
           new Date(draft.deadline).getTime() <= Date.now()) return "Choose a future deadline.";
@@ -181,9 +189,11 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         // silently restore a legacy reward from a previous save.
         prize: "",
         prizes: challenge ? draft.prizes : [],
+        collaboratorIds: challenge ? draft.collaboratorIds : [],
         sponsorLogoIds: challenge ? draft.sponsorLogoIds : [],
         backgroundAssetId: challenge ? draft.backgroundAssetId : null,
         titleAssetId: challenge ? draft.titleAssetId : null,
+        coverAssetId: challenge ? draft.coverAssetId : null,
         maxApplicants: challenge ? draft.maxApplicants : null,
         deadline: new Date(draft.deadline).toISOString(),
       };
@@ -198,8 +208,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const stepName = steps[step];
   const selectedType = OPPORTUNITY_TYPES[draft.type];
   const imageUrl = id => id ? api.challengeAssetUrl(id) : null;
-  const fallbackCover = CHALLENGE_COVER_IMAGES[draft.coverImage] ||
-    CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER];
+
   const locked = busy || Boolean(uploading) || error?.status === 409 ||
     [401, 403, 404].includes(error?.status);
 
@@ -280,8 +289,8 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
               </>}
             </>}
 
-            {challenge && stepName === "Prizes & sponsors" && <>
-              <p className="bw-op-wizard-help">Add the rewards participants can win and logos of supporting sponsors.</p>
+            {challenge && stepName === "Prizes & collaborators" && <>
+              <p className="bw-op-wizard-help">Add rewards and invite other BrightWay organizations to co-host this challenge.</p>
               {draft.prizes.map((prize, index) => <div className="bw-op-wizard-prize" key={index}>
                 <div className="bw-op-wizard-prize-heading"><strong>Prize {index + 1}</strong>
                   <button type="button" className="bw-op-text-button"
@@ -292,43 +301,18 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
               <button type="button" className="bw-op-secondary" disabled={draft.prizes.length >= MAX_CHALLENGE_PRIZES}
                 onClick={() => field("prizes", [...draft.prizes, newChallengePrize("CASH")])}>
                 + {draft.prizes.length ? "Add another prize" : "Add Prize"}</button>
-              <div className="bw-op-wizard-sponsors">
-                <h4>Sponsors Logo</h4>
-                <p className="bw-op-wizard-help">The publishing organization logo is always shown automatically. Add up to {MAX_CHALLENGE_SPONSORS} additional sponsor logos.</p>
-                <div className="bw-op-wizard-sponsor-grid">
-                  {draft.sponsorLogoIds.map((assetId, index) => <div key={assetId} className="bw-op-wizard-sponsor">
-                    <img alt={`Sponsor logo ${index + 1}`} src={imageUrl(assetId)} />
-                    <button type="button" disabled={Boolean(uploading)}
-                      aria-label={`Remove sponsor logo ${index + 1}`}
-                      onClick={() => field("sponsorLogoIds", draft.sponsorLogoIds.filter(value => value !== assetId))}>×</button>
-                  </div>)}
-                </div>
-                {draft.sponsorLogoIds.length < MAX_CHALLENGE_SPONSORS && <label className="bw-op-wizard-upload">
-                  {uploading === "SPONSOR_LOGO" ? "Uploading…" : "+ Add sponsor logo"}
-                  <input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Sponsors Logo"
-                    disabled={Boolean(uploading)} onChange={e => {
-                      const file = e.target.files?.[0]; e.target.value = "";
-                      if (file) void upload("SPONSOR_LOGO", file);
-                    }} />
-                </label>}
-              </div>
+              <ChallengeCollaboratorPicker organizationId={organizationId} selected={collaborators}
+                disabled={busy || Boolean(uploading)}
+                onChange={next => {
+                  setCollaborators(next);
+                  field("collaboratorIds", next.map(item => item.organizationId));
+                }} />
             </>}
-
-            {challenge && stepName === "Images" && <>
-              <p className="bw-op-wizard-help">Upload original images for your Challenge. BrightWay provides a local default until you choose your own.</p>
-              <PhotoField label="Background Image" kind="BACKGROUND"
-                assetId={draft.backgroundAssetId} fallback={fallbackCover}
-                disabled={locked} busy={uploading === "BACKGROUND"} onFile={upload}
-                onRemove={() => field("backgroundAssetId", null)} />
-              {!draft.backgroundAssetId && <label>Default background photograph
-                <select value={draft.coverImage} onChange={e => field("coverImage", e.target.value)}>
-                  {Object.entries(CHALLENGE_COVER_LABELS).map(([key, name]) =>
-                    <option key={key} value={key}>{name}</option>)}
-                </select></label>}
-              <PhotoField label="Challenge Title Image" kind="TITLE_IMAGE"
-                assetId={draft.titleAssetId} fallback={draft.backgroundAssetId ? imageUrl(draft.backgroundAssetId) : fallbackCover}
-                disabled={locked} busy={uploading === "TITLE_IMAGE"} onFile={upload}
-                onRemove={() => field("titleAssetId", null)} />
+            {challenge && stepName === "Cover photo" && <>
+              <p className="bw-op-wizard-help">Upload one original cover photo for the Challenge. No suggested or stock photos are shown.</p>
+              <PhotoField label="Challenge cover photo" kind="COVER" assetId={draft.coverAssetId}
+                disabled={locked} busy={uploading === "COVER"} onFile={upload}
+                onRemove={() => field("coverAssetId", null)} />
             </>}
 
             {stepName === "Applications" && <>
@@ -351,12 +335,8 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
             {stepName === "Review" && <>
               <p className="bw-op-wizard-help">Review your listing before saving a draft. You can publish it from the Opportunities dashboard.</p>
               <div className="bw-op-wizard-review">
-                {challenge && <div className="bw-op-wizard-review-images">
-                  <img alt="Challenge background preview"
-                    src={draft.backgroundAssetId ? imageUrl(draft.backgroundAssetId) : fallbackCover} />
-                  <img alt="Challenge title image preview"
-                    src={draft.titleAssetId ? imageUrl(draft.titleAssetId) :
-                      draft.backgroundAssetId ? imageUrl(draft.backgroundAssetId) : fallbackCover} />
+                {challenge && draft.coverAssetId && <div className="bw-op-wizard-review-images bw-op-wizard-single-cover">
+                  <img alt="Challenge cover preview" src={imageUrl(draft.coverAssetId)} />
                 </div>}
                 <span className="bw-op-wizard-review-type">{selectedType?.label}</span>
                 <h4>{draft.title}</h4><p>{draft.description}</p>
@@ -365,10 +345,11 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
                   ? <ul>{draft.prizes.map((item, i) =>
                     <li key={i}>{CHALLENGE_PRIZE_TYPES[item.type]}: {challengePrizeValue(item)}</li>)}</ul>
                   : <p>To be announced</p>}</div>}
-                {challenge && draft.sponsorLogoIds.length > 0 && <div>
-                  <strong>Sponsor logos</strong>
-                  <div className="bw-op-wizard-sponsor-grid">{draft.sponsorLogoIds.map((assetId, i) =>
-                    <img key={assetId} alt={`Sponsor logo ${i + 1}`} src={imageUrl(assetId)} />)}</div>
+                {challenge && collaborators.length > 0 && <div>
+                  <strong>Collaboration invitations</strong>
+                  <ul>{collaborators.map(row => <li key={row.organizationId}>{row.organization.name}
+                    {" — "}{row.state === "ACCEPTED" ? "Accepted" : row.state === "PENDING" ? "Pending acceptance" : "Invited on save"}
+                  </li>)}</ul>
                 </div>}
                 <dl><div><dt>Deadline</dt><dd>{new Date(draft.deadline).toLocaleString("en-GB")}</dd></div>
                   {challenge ? <>
