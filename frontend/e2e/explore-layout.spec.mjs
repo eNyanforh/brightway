@@ -1840,7 +1840,7 @@ test("main Explore feed displays the four reference gradient categories with whi
     await expect(card.getByRole("link", { name: "See all" })).toHaveAttribute("href", "/opportunities?type=" + category.type);
     await expect(card.locator(".bw-timeline-opportunity-card")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
-    await expect(card.getByRole("link", { name: category.action + " on BrightWay" }))
+    await expect(card.getByRole("link", { name: category.type === "CHALLENGE" ? "Take Part" : category.action + " on BrightWay" }))
       .toHaveAttribute("href", /\/opportunities\/66666666-/);
     const background = await card.evaluate(element => getComputedStyle(element).backgroundImage);
     expect(background).toContain("linear-gradient");
