@@ -87,6 +87,50 @@ test("challenge participant facepile requires separate optional public consent",
   expect(state.application.publicParticipant).toBe(true);
 });
 
+test("organization publishing workspace filters and displays listings without mobile overflow", async ({ page, isMobile }) => {
+  const state = await fixture(page);
+  const draft = { ...initialOpportunity, id: "66666666-6666-4666-8666-666666666667",
+    title: "Community learning challenge", type: "CHALLENGE", workMode: "REMOTE",
+    status: "DRAFT", version: 1, publishedAt: null, createdAt: "2026-11-14T12:00:00Z" };
+  const published = { ...initialOpportunity, id: "66666666-6666-4666-8666-666666666668",
+    title: "Research assistant position", status: "PUBLISHED", createdAt: "2026-11-13T12:00:00Z" };
+  state.drafts.push(draft, published);
+  await page.goto(base + "/opportunities");
+
+  const workspace = page.locator(".bw-op-dashboard");
+  await expect(workspace.getByRole("heading", { name: "Opportunities" })).toBeVisible();
+  const metrics = workspace.getByLabel("Loaded opportunity summary");
+  await expect(metrics).toContainText("Listings loaded");
+  await expect(metrics).toContainText("Published");
+  await expect(workspace.getByRole("article")).toHaveCount(2);
+  const challenge = workspace.getByRole("article", { name: draft.title });
+  await expect(challenge.getByRole("button", { name: "Edit" })).toBeVisible();
+  await expect(challenge.getByRole("button", { name: "Publish" })).toBeVisible();
+  await expect(challenge.getByRole("link", { name: "View listing" })).toHaveCount(0);
+  const live = workspace.getByRole("article", { name: published.title });
+  await expect(live.getByRole("link", { name: "View listing" }))
+    .toHaveAttribute("href", "/opportunities/" + published.id);
+  await expect(live.getByRole("button", { name: "Pause" })).toBeVisible();
+
+  await workspace.getByRole("button", { name: /Drafts/ }).click();
+  await expect(workspace.getByRole("article")).toHaveCount(1);
+  await workspace.getByRole("button", { name: /^All/ }).click();
+  await workspace.getByRole("combobox", { name: "Filter opportunity type" }).selectOption("CHALLENGE");
+  await expect(workspace.getByRole("article")).toHaveCount(1);
+  await workspace.getByRole("combobox", { name: "Filter opportunity type" }).selectOption("ALL");
+  await workspace.getByRole("searchbox", { name: "Search opportunities" }).fill("assistant");
+  await expect(workspace.getByRole("article")).toHaveCount(1);
+  await workspace.getByRole("searchbox", { name: "Search opportunities" }).fill("");
+  await expect(workspace.getByRole("article")).toHaveCount(2);
+
+  const create = workspace.getByRole("button", { name: "+ Create opportunity" });
+  const bounds = await create.boundingBox();
+  expect(bounds.height).toBeGreaterThanOrEqual(44);
+  if (isMobile) await expect(create).toBeVisible();
+  await noOverflow(page);
+  expect(state.errors).toEqual([]);
+});
+
 test("organization publishers create and publish a form, and reviewers send an applicant decision", async ({ page }, testInfo) => {
   const state = await fixture(page);
   state.application = { id: aid, opportunity: state.opportunity, status: "SUBMITTED", version: 1, answers: { [qid]: false }, files: [], events: [], submittedAt: "2026-11-11T12:00:00Z", profileSnapshot: { name: "Synthetic Applicant", headline: "Data analyst", location: {}, skills: ["Data"], interests: ["Education"], credentials: [] }, opportunitySnapshot: { title: state.opportunity.title, organization: organization.name, questions: state.opportunity.questions } };
