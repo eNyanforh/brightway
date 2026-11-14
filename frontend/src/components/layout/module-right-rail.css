@@ -1,6 +1,6 @@
 .bw-module-right {
-  --rail-ink: #172b4a;
-  --rail-muted: #60718a;
+  --rail-ink: var(--bw-ink);
+  --rail-muted: var(--bw-muted);
   --rail-border: #dfe7f1;
   display: grid;
   align-content: start;
@@ -31,7 +31,7 @@
   place-items: center;
   border-radius: 9px;
   background: #edf4ff;
-  color: #175cd3;
+  color: var(--bw-primary);
 }
 .bw-module-right-card h2 {
   margin: 0;
@@ -53,19 +53,19 @@
   font-weight: 620;
   text-decoration: none;
 }
-.bw-module-right-links a:hover { background: #eff5ff; color: #175cd3; }
+.bw-module-right-links a:hover { background: #eff5ff; color: var(--bw-primary); }
 .bw-module-right-links a svg:last-child { margin-left: auto; color: #8b99ad; }
 .bw-module-right-action {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #175cd3;
+  color: var(--bw-primary);
   text-decoration: none;
   font-size: 12px;
   font-weight: 720;
 }
 .bw-module-right-action:hover { text-decoration: underline; }
-.bw-module-right a:focus-visible { outline: 3px solid #175cd3; outline-offset: 3px; }
+.bw-module-right a:focus-visible { outline: 3px solid var(--bw-primary); outline-offset: 3px; }
 @media (max-width: 1240px) {
   .bw-module-right { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

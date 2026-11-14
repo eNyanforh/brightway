@@ -69,16 +69,6 @@ export default function AppSidebar({ id, open, onNavigate, hasWork = false }) {
       {!hasWork && <><div className="bw-design-sidebar-divider" />
 
       <section className="bw-design-sidebar-organization">
-        <span className="bw-design-sidebar-eyebrow">
-          GROW TOGETHER
-        </span>
-
-        <h3>Make room for your organization.</h3>
-
-        <p>
-          Bring your school, company, or community to BrightWay.
-        </p>
-
         <NavLink
           className="bw-design-create-org"
           type="button"
@@ -92,9 +82,6 @@ export default function AppSidebar({ id, open, onNavigate, hasWork = false }) {
         </NavLink>
       </section></>}
 
-      <p className="bw-design-sidebar-footer">
-        Empower. Learn. Network. Earn.
-      </p>
     </aside>
   );
 }

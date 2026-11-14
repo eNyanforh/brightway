@@ -14,7 +14,7 @@ export default function PurposefulPostChooser({ onSelect, onCancel, disabled }) 
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     element.showModal();
-    return () => { element.close(); document.body.style.overflow = previous; document.querySelector(".bw-mobile-compose-fab")?.focus(); };
+    return () => { element.close(); document.body.style.overflow = previous; document.querySelector("[data-compose-shortcut]")?.focus(); };
   }, []);
   return createPortal(<dialog className="bw-purposeful-chooser" ref={dialog} aria-label="Create a post"
     onCancel={event => { event.preventDefault(); onCancel(); }}

@@ -1,10 +1,10 @@
-.bw-explore-posts { max-width: 48rem; margin: 0 auto; padding: clamp(.75rem, 3vw, 2rem); color: #102449; }
+.bw-explore-posts { max-width: 48rem; margin: 0 auto; padding: clamp(.75rem, 3vw, 2rem); color: var(--bw-ink); }
 .bw-explore-heading h1 { font-size: clamp(1.9rem, 5vw, 2.7rem); margin: .15rem 0 .4rem; }
 .bw-explore-heading p { margin: .3rem 0; }
 .bw-explore-heading p:first-child { font-weight: 750; font-size: .75rem; letter-spacing: .1em; color: #2153b6; }
 .bw-post-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem; }
 .bw-post-panel { display: grid; gap: .85rem; max-width: 48rem; min-width: 0; }
-.bw-post-card { border: 1px solid #dce5f4; background: white; border-radius: .85rem; padding: clamp(.8rem, 3vw, 1.25rem); min-width: 0; color: #102449; }
+.bw-post-card { border: 1px solid #dce5f4; background: white; border-radius: .85rem; padding: clamp(.8rem, 3vw, 1.25rem); min-width: 0; color: var(--bw-ink); }
 .bw-post-card header { display: flex; align-items: center; gap: .75rem; }
 .bw-post-card header a { color: #164794; font-weight: 700; }
 .bw-post-card header p { color: #465978; margin: .2rem 0 0; font-size: .8rem; }
@@ -163,7 +163,7 @@
 }
 
 .bw-post-quick-action[data-post-type="POST"], .bw-post-editor-heading[data-post-type="POST"] {
-  --post-accent: #175cd3; --post-tint: #edf4ff;
+  --post-accent: var(--bw-primary); --post-tint: #edf4ff;
 }
 .bw-post-quick-action[data-post-type="ACHIEVEMENT"], .bw-post-editor-heading[data-post-type="ACHIEVEMENT"] {
   --post-accent: #905a0a; --post-tint: #fff2db;
@@ -291,7 +291,7 @@
 .bw-post-topic-entry input::placeholder { color: #536471; }
 .bw-post-topic-entry input[aria-invalid="true"] { border-color: #b42318; }
 .bw-post-topic-entry input:focus-visible, .bw-post-topic-editor button:focus-visible {
-  outline: 2px solid #175cd3;
+  outline: 2px solid var(--bw-primary);
   outline-offset: 2px;
 }
 .bw-post-panel .bw-post-topic-entry button { padding: .4rem .65rem; font-size: .82rem; }
@@ -766,7 +766,7 @@
 }
 .bw-standard-post-composer .bw-achievement-topic-icon {
   background: #edf4ff;
-  color: #175cd3;
+  color: var(--bw-primary);
 }
 .bw-standard-post-composer .bw-achievement-topic-head p {
   color: #000;
@@ -775,7 +775,7 @@
   padding-top: .75rem;
 }
 .bw-post-panel .bw-standard-post-composer .bw-personal-composer-submit {
-  background: #175cd3;
+  background: var(--bw-primary);
   color: #fff;
   border-radius: 10px;
 }
@@ -1361,9 +1361,9 @@
   min-height: 36px;
   min-width: 116px;
   padding: .43rem .78rem;
-  border: 1px solid #175cd3;
+  border: 1px solid var(--bw-primary);
   border-radius: 999px;
-  background: #175cd3;
+  background: var(--bw-primary);
   color: #fff;
   font-size: .78rem;
   font-weight: 750;
@@ -1932,7 +1932,7 @@
   border: 2px solid #fff;
   border-radius: 50%;
   background: #edf4ff;
-  box-shadow: 0 0 0 1px #175cd3;
+  box-shadow: 0 0 0 1px var(--bw-primary);
   color: #000;
   text-decoration: none;
   font-size: .65rem;
@@ -1950,7 +1950,7 @@
 .bw-post-engagement-avatar:hover,
 .bw-post-engagement-avatar:focus-visible {
   z-index: 1;
-  outline: 2px solid #175cd3;
+  outline: 2px solid var(--bw-primary);
   outline-offset: 1px;
 }
 .bw-post-panel .bw-timeline-actions--engagement .bw-post-secondary-actions {
@@ -2106,4 +2106,21 @@
     scrollbar-width: none;
   }
   .bw-post-panel .bw-timeline-actions--split .bw-post-secondary-actions::-webkit-scrollbar { display: none; }
+}
+
+.bw-feed-loading {
+  display:grid;
+  gap:var(--bw-space-3);
+  min-height:140px;
+  align-content:center;
+  padding:var(--bw-space-4);
+  background:var(--bw-surface);
+  color:var(--bw-muted);
+  font-size:var(--bw-caption);
+}
+.bw-feed-loading i {
+  width:min(72%,32rem);
+  height:8px;
+  border-radius:4px;
+  background:var(--bw-line);
 }

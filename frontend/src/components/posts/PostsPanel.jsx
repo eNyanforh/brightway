@@ -916,7 +916,7 @@ export default function PostsPanel({ organization, personal = false, view = "for
         <Link to="/posts">View status in My Posts</Link>
       </div>}
       {error && <p className="bw-post-error" role="alert">{error.message}{inlineComposer && error.status === 403 && <> <Link to="/profile">Open your profile</Link></>}</p>}
-      {!page && !error && <p role="status">Loading posts…</p>}
+      {!page && !error && <div className="bw-feed-loading" role="status"><span>Loading posts…</span><i aria-hidden="true" /></div>}
       <div className={timeline ? "bw-timeline-refresh" : "bw-post-actions"}>
         <button type="button" disabled={pending || disabled} onClick={() => { void load(); if (showOpportunities) void loadOpportunities(); }}>{timeline ? "Refresh feed" : "Refresh posts"}</button>
       </div>

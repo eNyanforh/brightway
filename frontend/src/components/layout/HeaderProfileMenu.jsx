@@ -236,16 +236,6 @@ export default function HeaderProfileMenu({
           </Action>
 
           {!hasWork && <MobileOrganization aria-label="Grow your organization">
-            <span className="organization-eyebrow">
-              GROW TOGETHER
-            </span>
-
-            <h3>Make room for your organization.</h3>
-
-            <p>
-              Bring your school, company, or community to BrightWay.
-            </p>
-
             <button
               type="button"
               disabled={busy || profileBusy}
@@ -290,7 +280,7 @@ const Wrapper = styled.div`
   min-width: 0;
   gap: 4px;
   @media (max-width: 700px) {
-    --bw-header-avatar-size: 36px;
+    --bw-header-avatar-size: 44px;
     --bw-header-avatar-overlap: 12px;
     gap: 1px;
   }
@@ -445,7 +435,7 @@ const MobileOrganization = styled.section`
 
       border: 1px solid #185ac3;
       border-radius: 12px;
-      background: linear-gradient(115deg, #175cd3, #3479e7);
+      background: var(--bw-primary);
       color: #fff;
 
       font: inherit;
