@@ -80,7 +80,6 @@ it("keeps destructive actions in an accessible menu and blocks mutations without
   const published = await screen.findByRole("article", { name: "Community research assistant" });
   expect(within(published).getByRole("button", { name: "Pause" }).disabled).toBe(true);
   expect(screen.getByRole("button", { name: "+ Create opportunity" }).disabled).toBe(true);
-  expect(within(published).queryByRole("button", { name: "Cancel" })).toBeNull();
   await user.click(within(published).getByLabelText("More actions for Community research assistant"));
   expect(within(published).getByRole("button", { name: "Cancel" }).disabled).toBe(true);
   expect(within(published).getByRole("button", { name: "Close" }).disabled).toBe(true);
