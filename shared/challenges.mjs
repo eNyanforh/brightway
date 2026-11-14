@@ -85,5 +85,5 @@ export function challengeCardPrize(opportunity) {
   const summary = (opportunity?.prize || "").trim();
   if (!summary) return "To be announced";
   const first = summary.split(" · ")[0];
-  return first.replace(/^(Cash|Scholarship|Certificate|Mentorship|Equipment or tools|Internship|Other):\\s*/i, "");
+  return first.replace(/^(Cash|Scholarship|Certificate|Mentorship|Equipment or tools|Internship|Other):\s*/i, "");
 }
