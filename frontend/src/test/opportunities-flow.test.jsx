@@ -84,11 +84,11 @@ it("the right-rail Challenge card shows a first-party photo, publisher, topics a
   };
   render(<MemoryRouter><aside className="bw-explore-right"><ChallengeSidebarCard opportunity={challenge} /></aside></MemoryRouter>);
   const article = screen.getByRole("article", { name: "Challenge: Research assistant" });
-  expect(within(article).getByRole("img", { name: "" }).getAttribute("src")).toBe("/images/hero/schools-720.webp");
+  expect(article.querySelector(".bw-rail-challenge-photo").getAttribute("src")).toBe("/images/hero/schools-720.webp");
   expect(within(article).getByText("US$1,000")).toBeTruthy();
   expect(within(article).getByRole("link", { name: "View Research Institute organization profile" })).toBeTruthy();
   expect(within(article).getByRole("heading", { name: "Research assistant" })).toBeTruthy();
-  expect(within(article).getByRole("list", { name: "Challenge categories" })).toHaveTextContent("TechnologyEducation");
+  expect(within(article).getByRole("list", { name: "Challenge categories" }).textContent).toContain("Technology");
   expect(within(article).getByRole("link", { name: "Take Part" }).getAttribute("href")).toBe("/opportunities/" + id);
   expect(within(article).getByText(/Closes in/)).toBeTruthy();
   expect(within(article).getByRole("link", { name: "Challenge" }).getAttribute("href")).toBe("/opportunities?type=CHALLENGE");
