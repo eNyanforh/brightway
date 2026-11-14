@@ -148,7 +148,7 @@ test("organization publishing workspace filters and displays listings without mo
   expect(state.errors).toEqual([]);
 });
 
-test("organization Challenge wizard invites verified collaborators and uploads one cover photo", async ({ page, isMobile }) => {
+test("organization Challenge wizard supports collaborator, cover, multiple post types and unlimited participants", async ({ page, isMobile }) => {
   const state = await fixture(page);
   await page.goto(base + "/opportunities");
   await page.locator(".bw-op-dashboard-header").getByRole("button", { name: "+ Create opportunity" }).click();
@@ -183,8 +183,16 @@ test("organization Challenge wizard invites verified collaborators and uploads o
   await editor.getByLabel("Challenge cover photo").setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: smallPng });
   await expect.poll(() => state.assets.length).toBe(1);
   await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByRole("heading", { name: "Post types" })).toBeVisible();
+  await editor.getByRole("button", { name: "+ Add post type" }).click();
+  await editor.getByRole("combobox", { name: "Post type 1" }).selectOption("VIDEO_POST");
+  await editor.getByRole("spinbutton", { name: "Post type 1 Maximum duration" }).fill("60");
+  await editor.getByRole("button", { name: "+ Add post type" }).click();
+  await editor.getByRole("combobox", { name: "Post type 2" }).selectOption("CAPTION");
+  await editor.getByRole("spinbutton", { name: "Post type 2 Maximum words" }).fill("100");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByLabel("Number of Applicants (maximum)")).toHaveCount(0);
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
-  await editor.getByLabel("Number of Applicants (maximum)").fill("25");
   await editor.getByRole("button", { name: "Continue" }).click();
   await expect(editor.getByText("On BrightWay only")).toHaveCount(0);
   await editor.getByRole("button", { name: "Save draft" }).click();
@@ -203,7 +211,10 @@ test("organization Challenge wizard invites verified collaborators and uploads o
   expect(challenge.sponsorLogoIds).toEqual([]);
   expect(challenge.backgroundAssetId).toBeNull();
   expect(challenge.titleAssetId).toBeNull();
-  expect(challenge.maxApplicants).toBe(25);
+  expect(challenge).not.toHaveProperty("maxApplicants");
+  expect(challenge.postRequirements.map(row => row.type)).toEqual(["VIDEO_POST", "CAPTION"]);
+  expect(challenge.postRequirements[0].maxDurationSeconds).toBe(60);
+  expect(challenge.postRequirements[1].maxWords).toBe(100);
   expect(challenge).not.toHaveProperty("applicationUrl");
   await noOverflow(page);
   expect(state.errors).toEqual([]);
