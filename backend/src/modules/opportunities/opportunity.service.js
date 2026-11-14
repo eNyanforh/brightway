@@ -267,7 +267,8 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
     const posts = await db.memberPost.findMany({
       where: { id: { in: ids }, authorId: actor.accountId, withdrawnAt: null,
         moderationStatus: "PUBLISHED" },
-      select: { id: true, media: { select: { kind: true, pageCount: true } } },
+      select: { id: true, media: { where: { discardedAt: null },
+        select: { kind: true, pageCount: true } } },
     });
     const byId = new Map(posts.map(post => [post.id, post]));
     for (const requirement of required) {
@@ -494,8 +495,9 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         const row = await opportunity(db, opportunityId, orgId);
         if (row.version !== expectedVersion) throw conflict();
         if (!["DRAFT", "PAUSED"].includes(row.status)) throw fail(409, "Pause this opportunity before editing it.");
-        if (row.publishedAt && (!isDeepStrictEqual(row.questions, data.questions) || row.type !== data.type))
-          throw fail(409, "The type and application questions are locked after first publication.");
+        if (row.publishedAt && (!isDeepStrictEqual(row.questions, data.questions) ||
+            !isDeepStrictEqual(row.postRequirements, data.postRequirements) || row.type !== data.type))
+          throw fail(409, "The type, post requirements, and application questions are locked after first publication.");
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
         const { collaboratorIds, ...persisted } = data;
         await bindChallengeAssets(db, actor, orgId, row.id, data);
