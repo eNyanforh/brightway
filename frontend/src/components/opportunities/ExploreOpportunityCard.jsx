@@ -26,9 +26,10 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
     const interval = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
     return () => window.clearInterval(interval);
   }, []);
-  const mode = opportunity.workMode === "REMOTE" ? "Online"
-    : opportunity.workMode === "HYBRID" ? "Online & offline" : "Offline";
-  const cover = CHALLENGE_COVER_IMAGES[opportunity.coverImage] || CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER];
+  const mode = "On BrightWay";
+  const cover = opportunity.titleAssetId ? opportunitiesApi.challengeAssetUrl(opportunity.titleAssetId)
+    : opportunity.backgroundAssetId ? opportunitiesApi.challengeAssetUrl(opportunity.backgroundAssetId)
+    : CHALLENGE_COVER_IMAGES[opportunity.coverImage] || CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER];
 
   async function toggleSaved() {
     if (saving) return;
