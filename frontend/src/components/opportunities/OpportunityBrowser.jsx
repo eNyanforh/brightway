@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import { useAuth } from "../../auth/useAuth";
 import OpportunityCard from "./OpportunityCard";
+import ChallengeSidebarCard from "./ChallengeSidebarCard";
 export default function OpportunityBrowser({ q = "", type = "", following = false, compact = false }) {
   const { account } = useAuth();
   const [attempt, setAttempt] = useState(0);
@@ -26,8 +27,12 @@ function Browser({ q, type, following, compact, onRetry }) {
   return <section className="bw-op-results" aria-label="Opportunity results">
     {error && <p role="alert">{error.message} <button type="button" onClick={onRetry}>Reload opportunities</button></p>}
     {!page && !error && <p role="status">Finding opportunities…</p>}
-    {page?.items.length === 0 && <div className="bw-op-empty"><h2>No opportunities found</h2><p>Try another search or check back for new listings from verified organizations.</p></div>}
-    {page?.items.length > 0 && <div className={"bw-op-grid" + (compact ? " bw-op-grid-compact" : "")}>{(compact ? page.items.slice(0, 2) : page.items).map(o => <OpportunityCard key={o.id} opportunity={o} />)}</div>}
+    {page?.items.length === 0 && <div className="bw-op-empty"><h2>{type === "CHALLENGE" ? "No open challenges" : "No opportunities found"}</h2><p>{type === "CHALLENGE" ? "New challenges will appear here when verified publishers announce them." : "Try another search or check back for new listings from verified organizations."}</p></div>}
+    {page?.items.length > 0 && <div className={compact && type === "CHALLENGE" ? "bw-rail-challenge-list" : "bw-op-grid" + (compact ? " bw-op-grid-compact" : "")}>
+      {(compact ? page.items.slice(0, 2) : page.items).map(o => compact && type === "CHALLENGE"
+        ? <ChallengeSidebarCard key={o.id} opportunity={o} />
+        : <OpportunityCard key={o.id} opportunity={o} />)}
+    </div>}
     {!compact && page?.nextCursor && <button className="bw-op-secondary" type="button" disabled={busy} onClick={() => void more()}>{busy ? "Loading…" : "More opportunities"}</button>}
   </section>;
 }
