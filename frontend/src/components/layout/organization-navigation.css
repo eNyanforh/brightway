@@ -2,9 +2,9 @@
 
 @media(max-width:700px){.bw-app-shell .bw-design-navigation-toggle{display:none}}
 
-.bw-org-campus-promo{margin-top:0}.bw-org-campus-promo .bw-design-create-org{box-sizing:border-box;text-decoration:none}.bw-org-campus-promo .bw-design-create-org[aria-current=page]{outline:2px solid #175cd3;outline-offset:3px}.bw-org-campus-promo small{display:block;margin-top:10px;color:#647087;font-size:11px;line-height:1.6}
+.bw-org-campus-promo{margin-top:0}.bw-org-campus-promo .bw-design-create-org{box-sizing:border-box;text-decoration:none}.bw-org-campus-promo .bw-design-create-org[aria-current=page]{outline:2px solid var(--bw-primary);outline-offset:3px}.bw-org-campus-promo small{display:block;margin-top:10px;color:#647087;font-size:11px;line-height:1.6}
 
-.bw-org-planned-nav{margin-top:17px;padding-top:15px;border-top:1px solid #e3eaf3}
+.bw-org-planned-nav{margin-top:17px;padding-top:15px;border-top:1px solid var(--bw-line)}
 .bw-org-planned-heading{margin:0 12px 5px;color:#64748b;font-size:10px;font-weight:650;letter-spacing:.08em;text-transform:uppercase}
 .bw-org-planned-nav button:disabled{gap:8px;padding:11px 8px;min-width:0;font-size:13px;color:#647087;cursor:default}
 .bw-org-planned-label{flex:1;min-width:0;overflow-wrap:anywhere}

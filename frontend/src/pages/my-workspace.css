@@ -1,5 +1,5 @@
 /* My Workspace and its create/edit journey. All overrides are scoped. */
-.bw-work-page,.bw-work-form-page,.bw-work-dialog{--work-brand:#175cd3;--work-ink:#182b49;--work-muted:#64748b;--work-border:#e5eaf2;--work-radius:18px}
+.bw-work-page,.bw-work-form-page,.bw-work-dialog{--work-brand:var(--bw-primary);--work-ink:#182b49;--work-muted:#64748b;--work-border:#e5eaf2;--work-radius:18px}
 .bw-work-page{max-width:1120px;padding:32px clamp(18px,3vw,40px) 28px;color:var(--work-ink)}
 .bw-work-page svg,.bw-work-form-page svg,.bw-work-dialog svg{flex-shrink:0;vertical-align:middle}
 .bw-work-page .bw-work-title{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:0 0 30px;padding:4px 0 0}
@@ -14,13 +14,13 @@
 .bw-work-page .bw-work-toolbar{display:flex;align-items:center;gap:16px;padding:24px 26px;border-bottom:1px solid #edf0f5}
 .bw-work-page .bw-work-search{position:relative;display:flex;align-items:center;flex:1;min-width:0;margin:0;color:#8090a7}
 .bw-work-search>svg{position:absolute;left:14px;pointer-events:none}
-.bw-work-page .bw-work-search input{width:100%;min-height:45px;padding:12px 42px;background:#f8fafc;border:1px solid #e3e9f2;border-radius:9px;box-shadow:none;font-size:13px;color:var(--work-ink);line-height:1.4}
+.bw-work-page .bw-work-search input{width:100%;min-height:45px;padding:12px 42px;background:var(--bw-subtle);border:1px solid #e3e9f2;border-radius:9px;box-shadow:none;font-size:13px;color:var(--work-ink);line-height:1.4}
 .bw-work-search input::placeholder{color:#64748b;opacity:1}
 .bw-work-search input::-webkit-search-cancel-button{appearance:none}
 .bw-work-page .bw-work-search-clear{position:absolute;right:7px;display:flex;align-items:center;justify-content:center;width:32px;min-width:32px;height:32px;padding:0;background:transparent;color:#64748b;border:0;border-radius:6px}
 .bw-work-page .bw-work-search-clear:hover{background:#e9eef7}
 .bw-work-page .bw-work-refresh-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 13px;border:1px solid #e1e7ef;border-radius:9px;background:#fff;color:#52647e;font-size:12px;font-weight:600}
-.bw-work-page .bw-work-refresh-button:hover{background:#f8fafc;border-color:#b8c8df}
+.bw-work-page .bw-work-refresh-button:hover{background:var(--bw-subtle);border-color:#b8c8df}
 .bw-work-page .bw-work-tabs{display:flex;gap:28px;margin:0;padding:0 26px;min-height:67px;overflow-x:auto;border-bottom:1px solid var(--work-border)}
 .bw-work-page .bw-work-tabs button{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:none;min-height:67px;padding:0 2px;border:0;border-radius:0;background:transparent;color:#66758d;font-size:13px;font-weight:550;white-space:nowrap}
 .bw-work-page .bw-work-tabs button:hover{color:var(--work-brand)}
@@ -77,7 +77,7 @@
 .bw-work-detail-label,.bw-work-decision>span{display:block;margin:0 0 8px;color:#64748b;font-size:10px;font-weight:600}
 .bw-work-permissions{list-style:none;margin:0;padding:0;display:flex;gap:6px;flex-wrap:wrap}
 .bw-work-permissions li{padding:5px 9px;border:1px solid #e4e9f3;border-radius:6px;background:#f6f8fc;color:#586c89;font-size:11px;line-height:1.6}
-.bw-work-decision p{margin:0;padding:12px 14px;border-left:2px solid #dce5f3;background:#f8fafc;color:#61738c;font-size:12px;line-height:1.7}
+.bw-work-decision p{margin:0;padding:12px 14px;border-left:2px solid #dce5f3;background:var(--bw-subtle);color:#61738c;font-size:12px;line-height:1.7}
 .bw-work-page .bw-work-empty{display:flex;align-items:center;flex-direction:column;text-align:center;padding:40px 24px 48px;margin:16px 26px 26px;background:#fbfcfe;border:1px dashed #dce4f0;border-radius:12px}
 .bw-work-empty-art{display:flex;align-items:center;justify-content:center;width:86px;height:86px;background:radial-gradient(circle,#eaf1ff 0,#f2f6ff 67%,transparent 68%);color:#6488bc;margin:0 0 15px}
 .bw-work-empty h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.025em}
@@ -96,8 +96,8 @@
 .bw-work-pagination{display:flex;align-items:center;justify-content:center;gap:15px;padding:0 26px 26px}.bw-work-pagination>span{font-size:11px;color:#64748b}
 .bw-work-page-note{display:flex;align-items:center;justify-content:center;gap:7px;text-align:center;margin:22px 12px 0;color:#64748b;font-size:10px;line-height:1.7}
 .bw-work-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
-.bw-work-page :focus-visible,.bw-work-dialog :focus-visible,.bw-work-form-page :focus-visible{outline:3px solid #175cd3;outline-offset:3px}
-.bw-work-page input:focus-visible{outline:2px solid #175cd3;outline-offset:1px;background:#fff}
+.bw-work-page :focus-visible,.bw-work-dialog :focus-visible,.bw-work-form-page :focus-visible{outline:3px solid var(--bw-primary);outline-offset:3px}
+.bw-work-page input:focus-visible{outline:2px solid var(--bw-primary);outline-offset:1px;background:#fff}
 .bw-work-page .bw-work-spinning{animation:workspace-spin 1s linear infinite}
 .bw-work-dialog{box-sizing:border-box;width:460px;max-width:calc(100vw - 32px);padding:28px;border:1px solid var(--work-border);border-radius:20px;box-shadow:0 30px 90px #142b4933;color:var(--work-ink);font:inherit}
 .bw-work-dialog::backdrop{background:#142b4980;backdrop-filter:blur(3px)}

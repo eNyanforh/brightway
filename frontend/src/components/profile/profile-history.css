@@ -264,7 +264,7 @@ img.bw-history-record-icon {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  accent-color: #175cd3;
+  accent-color: var(--bw-primary);
 }
 @media (pointer: coarse) {
   .bw-history-checkbox { min-height: 44px; }

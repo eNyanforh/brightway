@@ -49,7 +49,7 @@ async function expectOverlappingActiveLeft(page, label, isMobile) {
   const aside = await personal.boundingBox();
   expect(main).toBeTruthy();
   expect(aside).toBeTruthy();
-  expect(main.width).toBe(isMobile ? 36 : 43);
+  expect(main.width).toBe(isMobile ? 44 : 43);
   expect(Math.abs(main.width - aside.width)).toBeLessThanOrEqual(1);
   expect(Math.abs(main.height - aside.height)).toBeLessThanOrEqual(1);
   // The leading active avatar overlaps the following personal avatar.

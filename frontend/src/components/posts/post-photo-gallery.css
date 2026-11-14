@@ -34,7 +34,7 @@
 .bw-photo-gallery-open:hover .bw-photo-gallery-expand, .bw-photo-gallery-open:focus-visible .bw-photo-gallery-expand { opacity: 1; }
 .bw-photo-gallery .bw-photo-gallery-remove {
   display: grid; place-items: center; position: absolute; top: 8px; right: 8px;
-  width: 36px; height: 36px; padding: 0; border: 1px solid #ffffff70; border-radius: 50%;
+  width: 44px; height: 44px; padding: 0; border: 1px solid #ffffff70; border-radius: 50%;
   color: #fff; background: #000b; cursor: pointer; box-shadow: 0 1px 5px #0002;
 }
 .bw-photo-gallery .bw-photo-gallery-remove:hover:enabled { background: #111; }

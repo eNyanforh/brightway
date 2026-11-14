@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
+import ChallengeCard from "./ChallengeCard";
 import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityOrganization from "./OpportunityOrganization";
 import "./opportunities.css";
 export default function OpportunityCard({ opportunity: o }) {
   const type = OPPORTUNITY_TYPES[o.type];
+  if (o.type === "CHALLENGE") return <article className="bw-op-card"><ChallengeCard opportunity={o} /></article>;
   return <article className={`bw-op-card bw-op-${o.type.toLowerCase()}`}>
     <div className="bw-op-card-cover"><span><NavigationIcon name={type.icon} size={22} />{type.label}</span><span className="bw-op-card-mode">{o.workMode === "REMOTE" ? "Remote" : o.workMode === "HYBRID" ? "Hybrid" : "In person"}</span></div>
     <div className="bw-op-card-body">
