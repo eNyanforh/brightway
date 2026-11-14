@@ -98,7 +98,7 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
     <div className="bw-challenge-divider" role="separator" aria-hidden="true" />
     <div className="bw-challenge-actions">
       <Link className="bw-timeline-opportunity-cta bw-challenge-participate" to={detail}>
-        Participate on BrightWay
+        Take Part
       </Link>
       <div className="bw-challenge-secondary">
         <button type="button" aria-label="Share challenge" title="Share challenge" onClick={() => void share()}>
