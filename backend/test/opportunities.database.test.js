@@ -201,6 +201,31 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     assert.equal(publicApp.status, "WITHDRAWN");
     assert.deepEqual(await challengeSummary(), { count: 0, members: [] }, "withdrawn applicants disappear immediately");
     assert.deepEqual(await challengeSummary(), { count: 0, members: [] }, "participants remain private by default");
+    const videoRule = { id: randomUUID(), type: "VIDEO_POST", minDurationSeconds: 15, maxDurationSeconds: 120 };
+    const videoDraft = await service.create(owner.actor, org.id, {
+      ...listing("CHALLENGE"), postRequirements: [videoRule],
+    });
+    const videoChallenge = await service.setStatus(owner.actor, org.id, videoDraft.id, {
+      expectedVersion: videoDraft.version, status: "PUBLISHED",
+    });
+    const videoPost = await db.memberPost.create({ data: {
+      authorId: applicant.id, requestKey: randomUUID(), type: "ACHIEVEMENT",
+      body: "A synthetic Challenge demonstration video", moderationStatus: "PUBLISHED",
+    } });
+    await db.postMedia.create({ data: {
+      ownerId: applicant.id, postId: videoPost.id, kind: "VIDEO",
+      name: "original-video.mp4", contentType: "video/mp4",
+      size: 128, storageKey: "synthetic-video/" + randomUUID(),
+    } });
+    await assert.rejects(service.saveApplication(applicant.actor, videoChallenge.id,
+      payload(videoChallenge, { [videoRule.id]: randomUUID() })), { status: 400 },
+    "only the applicant's existing published video post is permitted");
+    const videoApp = await service.saveApplication(applicant.actor, videoChallenge.id,
+      payload(videoChallenge, { [videoRule.id]: videoPost.id }));
+    assert.equal(videoApp.status, "SUBMITTED");
+    assert.equal(videoApp.answers[videoRule.id], videoPost.id);
+    assert.deepEqual(videoApp.opportunitySnapshot.postRequirements, [videoRule]);
+
     const paused = await service.setStatus(owner.actor, org.id, opp.id, { expectedVersion: opp.version, status: "PAUSED" });
     const { requestKey: ignored, ...editableBody } = body; void ignored;
     const edited = await service.edit(owner.actor, org.id, paused.id, { ...editableBody, expectedVersion: paused.version, description: "Updated description for future applicants at our organization." });
@@ -220,6 +245,8 @@ test("opportunities isolate tenants and private files, enforce completion, seria
   } finally {
     try {
       const ids = accounts.map(a => a.id), appIds = (await db.opportunityApplication.findMany({ where: { applicantId: { in: ids } }, select: { id: true } })).map(a => a.id);
+      await db.postMedia.deleteMany({ where: { ownerId: { in: ids } } });
+      await db.memberPost.deleteMany({ where: { authorId: { in: ids } } });
       await db.opportunityApplicationEvent.deleteMany({ where: { applicationId: { in: appIds } } }); await db.opportunityApplicationFile.deleteMany({ where: { applicationId: { in: appIds } } }); await db.opportunityApplication.deleteMany({ where: { id: { in: appIds } } });
       await db.opportunityAsset.deleteMany({ where: { organizationId: { in: organizations } } });
       await db.opportunityCollaborator.deleteMany({ where: { organizationId: { in: organizations } } });
