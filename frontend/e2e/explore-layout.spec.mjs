@@ -36,7 +36,9 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
     const url = new URL(request.url());
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();
-    if (/^\/api\/v1\/organizations\/[^/]+\/photo\/[^/]+$/.test(url.pathname)) return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9ySN6FcAAAAASUVORK5CYII=", "base64") });
+    if (/^\/api\/v1\/organizations\/[^/]+\/photo\/[^/]+$/.test(url.pathname) ||
+      /^\/api\/v1\/explore\/members\/[^/]+\/photo\/[^/]+$/.test(url.pathname))
+      return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9ySN6FcAAAAASUVORK5CYII=", "base64") });
     const reply = (data, status = 200) => route.fulfill({ status, json: { success: true, data } });
     if (/^\/api\/v1\/explore\/posts\/(member|organization)\/[^/]+\/view$/.test(url.pathname)) return reply({ views: 1 });
     // Shared links read one server-authorized post rather than assuming it is in the first feed page.
