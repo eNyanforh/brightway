@@ -47,6 +47,12 @@ export function createOpportunityRoutes({ opportunities, sessions, clientUrl, no
   router.get("/applications/me/:applicationId/files/:fileId", read, download(false));
   const path = "/organization-workspace/:organizationId";
   router.get(path + "/opportunities", read, respond((r, a) => opportunities.list(a, r.params.organizationId, r.query)));
+  router.get(path + "/challenge-collaborator-search", read,
+    respond((r, a) => opportunities.searchCollaborators(a, r.params.organizationId, r.query)));
+  router.get(path + "/challenge-collaborations", read,
+    respond((r, a) => opportunities.collaborationInvitations(a, r.params.organizationId)));
+  router.put(path + "/challenge-collaborations/:opportunityId", write,
+    respond((r, a) => opportunities.respondCollaboration(a, r.params.organizationId, r.params.opportunityId, r.body)));
   router.post(path + "/opportunities", write, respond((r, a) => opportunities.create(a, r.params.organizationId, r.body), 201));
   router.post(path + "/challenge-assets", write,
     raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: "5mb" }),
