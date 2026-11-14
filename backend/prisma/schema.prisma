@@ -65,6 +65,7 @@ model Account {
   admissionApplications AdmissionApplication[]
   admissionEvents AdmissionApplicationEvent[]
   opportunityListings Opportunity[]
+  opportunityAssets OpportunityAsset[]
   opportunityApplications OpportunityApplication[]
   savedOpportunities OpportunitySave[]
   applicationEvents OpportunityApplicationEvent[]
@@ -955,6 +956,7 @@ model Organization {
   programs Program[]
   admissionCycles AdmissionCycle[]
   opportunities Opportunity[]
+  opportunityAssets OpportunityAsset[]
   posts OrganizationPost[]
   followers NetworkFollow[]
   accessVersion Int @default(0)
@@ -1691,6 +1693,11 @@ model Opportunity {
   location String @db.VarChar(180)
   workMode String @db.VarChar(16)
   prize String? @db.VarChar(120)
+  prizes Json @default("[]")
+  sponsorLogoIds String[] @default([])
+  backgroundAssetId String?
+  titleAssetId String?
+  maxApplicants Int?
   topics String[] @default([])
   coverImage String @default("STUDENTS") @db.VarChar(20)
   deadline DateTime
@@ -1701,10 +1708,27 @@ model Opportunity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   applications OpportunityApplication[]
+  assets OpportunityAsset[]
   saves OpportunitySave[]
   @@unique([organizationId, authorId, requestKey])
   @@index([status, type, deadline, createdAt, id])
   @@index([organizationId, createdAt, id])
+}
+model OpportunityAsset {
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  uploaderId String
+  uploader Account @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+  opportunityId String?
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  kind String @db.VarChar(24)
+  storageKey String @unique
+  size Int
+  createdAt DateTime @default(now())
+  @@index([organizationId, createdAt, id])
+  @@index([opportunityId, kind])
+  @@index([uploaderId, createdAt])
 }
 model OpportunitySave {
   accountId String
