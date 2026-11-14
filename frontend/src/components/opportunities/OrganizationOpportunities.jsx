@@ -125,7 +125,7 @@ export default function OrganizationOpportunities({ organization, disabled = fal
     </nav>
     <header className="bw-op-workspace-heading bw-op-dashboard-header">
       <div>
-        <h2 id="bw-op-dashboard-title">Opportunities</h2>
+        <h1 id="bw-op-dashboard-title">Opportunities</h1>
         <p>Publish and manage jobs, scholarships, challenges, and events.</p>
       </div>
       <button className="bw-op-primary bw-op-dashboard-create" type="button" disabled={blocked}
