@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { CollaboratorIdentity } from "./ChallengeCollaboratorPicker";
+import "./challenge-collaborators.css";
 export default function ChallengeCoHosts({ collaborators, compact = false }) {
   const accepted = (Array.isArray(collaborators) ? collaborators : [])
     .filter(item => item.state === "ACCEPTED" && item.organization);
