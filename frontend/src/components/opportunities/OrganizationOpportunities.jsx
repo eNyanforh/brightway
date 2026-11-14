@@ -4,6 +4,7 @@ import { opportunitiesApi as api } from "../../api/opportunities";
 import { OPPORTUNITY_TYPES, OPPORTUNITY_STATUSES } from "../../../../shared/opportunities.mjs";
 import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityEditor from "./OpportunityEditor";
+import ChallengeCollaborationInvites from "./ChallengeCollaborationInvites";
 import "./opportunities.css";
 import "./organization-opportunities.css";
 
@@ -132,6 +133,7 @@ export default function OrganizationOpportunities({ organization, disabled = fal
         onClick={() => setEditor({ new: true })}><NavigationIcon name="post" size={18} />+ Create opportunity</button>
     </header>
 
+    <ChallengeCollaborationInvites organizationId={organization.id} disabled={disabled} />
     {error && <div className="bw-op-feedback bw-op-dashboard-feedback" role="alert">
       <p>{error.message}</p><div><Link to="/security">Account security</Link>
         <button type="button" disabled={busy || disabled} onClick={() => void load()}>Reload opportunities</button></div>

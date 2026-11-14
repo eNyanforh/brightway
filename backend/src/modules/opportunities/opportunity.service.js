@@ -15,7 +15,10 @@ import { challengePrizeValue } from "../../../../shared/challenges.mjs";
 const MANAGE = "organization.opportunities.manage", REVIEW = "organization.applications.review";
 const publicOrganization = { status: "ACTIVE", request: { status: "APPROVED" }, profileReadyAt: { not: null }, profilePhotoId: { not: null }, username: { not: null }, profileSetupStep: 5 };
 const organizationSelect = { id: true, name: true, username: true, profilePhotoId: true, verifiedAt: true };
-const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, prize: true, prizes: true, sponsorLogoIds: true, backgroundAssetId: true, titleAssetId: true, maxApplicants: true, topics: true, coverImage: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect } };
+const collaboratorSelect = { organizationId: true, state: true, organization: { select: organizationSelect } };
+const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, prize: true, prizes: true, sponsorLogoIds: true, backgroundAssetId: true, titleAssetId: true, coverAssetId: true, maxApplicants: true, topics: true, coverImage: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect },
+  collaborators: { where: { state: "ACCEPTED", organization: publicOrganization }, select: collaboratorSelect } };
+const managedOpportunitySelect = { ...opportunitySelect, collaborators: { select: collaboratorSelect } };
 const fileSelect = { id: true, questionId: true, contentType: true, size: true, createdAt: true };
 const applicationSelect = { id: true, status: true, version: true, answers: true, profileSnapshot: true, opportunitySnapshot: true, feedback: true, submittedAt: true, withdrawnAt: true, publicParticipant: true, createdAt: true, opportunityId: true,
   opportunity: { select: opportunitySelect }, files: { select: fileSelect }, events: { select: { id: true, fromStatus: true, toStatus: true, feedback: true, createdAt: true }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] } };
@@ -67,7 +70,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
     });
   }
   async function opportunity(db, opportunityId, organizationId) {
-    const row = await db.opportunity.findFirst({ where: { id: opportunityId, ...(organizationId ? { organizationId } : { status: { notIn: ["DRAFT", "REMOVED"] }, organization: publicOrganization }) }, select: opportunitySelect });
+    const row = await db.opportunity.findFirst({ where: { id: opportunityId, ...(organizationId ? { organizationId } : { status: { notIn: ["DRAFT", "REMOVED"] }, organization: publicOrganization }) }, select: organizationId ? managedOpportunitySelect : opportunitySelect });
     if (!row) throw unavailable();
     return row;
   }
@@ -156,7 +159,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
   function prepareOpportunity(data) {
     if (data.type !== "CHALLENGE") return {
       ...data, prizes: [], sponsorLogoIds: [], backgroundAssetId: null,
-      titleAssetId: null, maxApplicants: null,
+      titleAssetId: null, coverAssetId: null, collaboratorIds: [], maxApplicants: null,
     };
     const displayPrize = data.prizes.length
       ? data.prizes.map(challengePrizeValue).join(" · ").slice(0, 120)
@@ -169,6 +172,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
       ...data.sponsorLogoIds.map(assetId => ({ assetId, kind: "SPONSOR_LOGO" })),
       ...(data.backgroundAssetId ? [{ assetId: data.backgroundAssetId, kind: "BACKGROUND" }] : []),
       ...(data.titleAssetId ? [{ assetId: data.titleAssetId, kind: "TITLE_IMAGE" }] : []),
+      ...(data.coverAssetId ? [{ assetId: data.coverAssetId, kind: "COVER" }] : []),
     ];
   }
   async function bindChallengeAssets(db, actor, orgId, oppId, data) {
@@ -196,11 +200,36 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
       if (result.count !== pending.length) throw conflict();
     }
   }
+  async function syncCollaborators(db, ownerOrganizationId, opportunityId, collaboratorIds) {
+    if (collaboratorIds.includes(ownerOrganizationId))
+      throw fail(400, "The publishing organization is already a host.");
+    if (collaboratorIds.length) {
+      const matches = await db.organization.findMany({
+        where: { id: { in: collaboratorIds }, ...publicOrganization },
+        select: { id: true },
+      });
+      if (matches.length !== collaboratorIds.length)
+        throw fail(400, "Choose active, verified BrightWay organizations as collaborators.");
+    }
+    await db.opportunityCollaborator.deleteMany({
+      where: { opportunityId, organizationId: { notIn: collaboratorIds } },
+    });
+    const existing = await db.opportunityCollaborator.findMany({
+      where: { opportunityId }, select: { organizationId: true },
+    });
+    const present = new Set(existing.map(item => item.organizationId));
+    const pending = collaboratorIds.filter(organizationId => !present.has(organizationId));
+    if (pending.length) await db.opportunityCollaborator.createMany({
+      data: pending.map(organizationId => ({
+        id: randomUUID(), opportunityId, organizationId, state: "PENDING", invitedAt: now(),
+      })),
+    });
+  }
   async function authorizedChallengeAsset(actor, assetId) {
     const asset = await prisma.opportunityAsset.findUnique({
       where: { id: id(assetId) },
       include: { opportunity: { select: {
-        id: true, status: true, backgroundAssetId: true, titleAssetId: true,
+        id: true, status: true, backgroundAssetId: true, titleAssetId: true, coverAssetId: true,
         sponsorLogoIds: true, organization: { select: {
           status: true, profileReadyAt: true, profilePhotoId: true, username: true,
           profileSetupStep: true, request: { select: { status: true } },
@@ -210,7 +239,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
     if (!asset) throw unavailable();
     const row = asset.opportunity;
     const publicImage = row?.status === "PUBLISHED" &&
-      (row.backgroundAssetId === asset.id || row.titleAssetId === asset.id ||
+      (row.coverAssetId === asset.id || row.backgroundAssetId === asset.id || row.titleAssetId === asset.id ||
         row.sponsorLogoIds.includes(asset.id)) &&
       row.organization?.status === "ACTIVE" &&
       row.organization?.request?.status === "APPROVED" &&
@@ -251,6 +280,51 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
     return app;
   }
   return {
+    async searchCollaborators(actor, organizationId, query) {
+      const { q } = input.parse(input.collaboratorSearchInput, query);
+      return organizationWork(actor, organizationId, MANAGE, async (db, ownId) => {
+        const term = q.replace(/^@/u, "").trim();
+        if (term.length < 2) throw fail(400, "Enter at least two letters of an organization name or username.");
+        const rows = await db.organization.findMany({
+          where: { id: { not: ownId }, ...publicOrganization,
+            OR: [{ name: { contains: term, mode: "insensitive" } },
+              { username: { contains: term, mode: "insensitive" } }] },
+          select: organizationSelect, orderBy: [{ name: "asc" }, { id: "asc" }], take: 10,
+        });
+        return { items: rows };
+      });
+    },
+    async collaborationInvitations(actor, organizationId) {
+      return organizationWork(actor, organizationId, MANAGE, async (db, orgId) => ({
+        items: await db.opportunityCollaborator.findMany({
+          where: { organizationId: orgId, state: { in: ["PENDING", "ACCEPTED"] },
+            opportunity: { type: "CHALLENGE", status: { notIn: ["CANCELLED", "REMOVED"] } } },
+          orderBy: [{ invitedAt: "desc" }, { id: "desc" }], take: 40,
+          select: { opportunityId: true, state: true, invitedAt: true,
+            opportunity: { select: { id: true, title: true, status: true,
+              organization: { select: organizationSelect } } } },
+        }),
+      }));
+    },
+    async respondCollaboration(actor, organizationId, opportunityId, body) {
+      const { decision } = input.parse(input.collaboratorResponseInput, body);
+      return organizationWork(actor, organizationId, MANAGE, async (db, orgId) => {
+        const oppId = id(opportunityId);
+        await lockOpportunity(db, oppId);
+        const invitation = await db.opportunityCollaborator.findUnique({
+          where: { opportunityId_organizationId: { opportunityId: oppId, organizationId: orgId } },
+          select: { id: true, state: true, opportunity: { select: { type: true, status: true } } },
+        });
+        if (!invitation || invitation.opportunity.type !== "CHALLENGE" ||
+            ["CANCELLED", "REMOVED"].includes(invitation.opportunity.status)) throw unavailable();
+        if (invitation.state !== "PENDING") throw conflict();
+        await db.opportunityCollaborator.update({
+          where: { id: invitation.id }, data: { state: decision, respondedAt: now() },
+        });
+        await audit(db, actor, orgId, "CHALLENGE_COLLABORATION_" + decision, invitation.id);
+        return { opportunityId: oppId, state: decision };
+      });
+    },
     async uploadChallengeAsset(actor, organizationId, query, bytes, contentType) {
       const { kind } = input.parse(input.challengeAssetUploadInput, query);
       if (!["image/png", "image/jpeg", "image/webp"].includes(contentType))
@@ -266,7 +340,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         if (uploads >= 30) throw fail(429, "Your daily Challenge image upload limit has been reached.");
       });
       imageStorage.check();
-      const image = kind === "BACKGROUND"
+      const image = ["BACKGROUND", "COVER"].includes(kind)
         ? await processBackground(bytes, contentType)
         : await processImage(bytes, contentType);
       const key = `challenges/${orgId}/${randomUUID()}`;
@@ -364,7 +438,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
     },
     async list(actor, organizationId, query) {
       const q = input.parse(input.listInput, query);
-      return organizationWork(actor, organizationId, MANAGE, (db, orgId) => page(db, "opportunity", { organizationId: orgId }, q.cursor, opportunitySelect));
+      return organizationWork(actor, organizationId, MANAGE, (db, orgId) => page(db, "opportunity", { organizationId: orgId }, q.cursor, managedOpportunitySelect));
     },
     async create(actor, organizationId, body) {
       const { requestKey, ...parsed } = input.parse(input.createInput, body);
@@ -374,10 +448,12 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         const prior = await db.opportunity.findUnique({ where: { organizationId_authorId_requestKey: { organizationId: orgId, authorId: actor.accountId, requestKey } } });
         if (prior) { if (prior.inputHash !== hash) throw conflict(); return opportunity(db, prior.id, orgId); }
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
-        const row = await db.opportunity.create({ data: { ...data, deadline: new Date(data.deadline), organizationId: orgId, authorId: actor.accountId, requestKey, inputHash: hash }, select: opportunitySelect });
+        const { collaboratorIds, ...persisted } = data;
+        const row = await db.opportunity.create({ data: { ...persisted, deadline: new Date(data.deadline), organizationId: orgId, authorId: actor.accountId, requestKey, inputHash: hash }, select: { id: true } });
         await bindChallengeAssets(db, actor, orgId, row.id, data);
+        await syncCollaborators(db, orgId, row.id, collaboratorIds);
         await audit(db, actor, orgId, "OPPORTUNITY_CREATED", row.id);
-        return row;
+        return opportunity(db, row.id, orgId);
       });
     },
     async edit(actor, organizationId, opportunityId, body) {
@@ -391,8 +467,10 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         if (row.publishedAt && (!isDeepStrictEqual(row.questions, data.questions) || row.type !== data.type))
           throw fail(409, "The type and application questions are locked after first publication.");
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
+        const { collaboratorIds, ...persisted } = data;
         await bindChallengeAssets(db, actor, orgId, row.id, data);
-        await db.opportunity.update({ where: { id: row.id }, data: { ...data, deadline: new Date(data.deadline), version: { increment: 1 } } });
+        await syncCollaborators(db, orgId, row.id, collaboratorIds);
+        await db.opportunity.update({ where: { id: row.id }, data: { ...persisted, deadline: new Date(data.deadline), version: { increment: 1 } } });
         await audit(db, actor, orgId, "OPPORTUNITY_EDITED", row.id);
         return opportunity(db, row.id, orgId);
       });

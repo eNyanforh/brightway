@@ -33,6 +33,13 @@ export const opportunitiesApi = {
   uploadChallengeAsset: (id, kind, file, signal) =>
     request(org(id) + "/challenge-assets" + query({ kind }), { method: "POST", file, signal }),
   challengeAssetUrl: id => base + "/opportunities/challenge-assets/" + encodeURIComponent(id),
+  collaboratorSearch: (organizationId, q, signal) =>
+    request(org(organizationId) + "/challenge-collaborator-search" + query({ q }), { signal }),
+  collaboratorInvitations: (organizationId, signal) =>
+    request(org(organizationId) + "/challenge-collaborations", { signal }),
+  respondCollaboration: (organizationId, opportunityId, decision, signal) =>
+    request(org(organizationId) + "/challenge-collaborations/" + encodeURIComponent(opportunityId),
+      { method: "PUT", body: { decision }, signal }),
   edit: (id, opportunityId, body, signal) => request(org(id) + "/opportunities/" + encodeURIComponent(opportunityId), { method: "PATCH", body, signal }),
   status: (id, opportunityId, body, signal) => request(org(id) + "/opportunities/" + encodeURIComponent(opportunityId) + "/status", { method: "PUT", body, signal }),
   reviews: (id, params, signal) => list(org(id) + "/applications" + query(params), signal),
