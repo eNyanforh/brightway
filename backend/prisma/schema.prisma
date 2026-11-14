@@ -1737,7 +1737,7 @@ model OpportunityApplication {
   @@unique([opportunityId, applicantId])
   @@index([applicantId, createdAt, id])
   @@index([opportunityId, status, createdAt, id])
-  @@index([opportunityId, publicParticipant, submittedAt, id])
+  @@index([opportunityId, publicParticipant, submittedAt, id], map: "opp_app_public_participant_idx")
 }
 model OpportunityApplicationFile {
   id String @id @default(uuid())
