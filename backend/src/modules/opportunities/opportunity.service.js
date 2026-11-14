@@ -275,7 +275,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         return await organizationWork(actor, orgId, MANAGE, async db => {
           return db.opportunityAsset.create({
             data: { organizationId: orgId, uploaderId: actor.accountId,
-              kind, storageKey: key, size: image.bytes.length },
+              kind, storageKey: key, size: image.bytes.length, createdAt: now() },
             select: { id: true, kind: true, size: true },
           });
         });
