@@ -53,7 +53,7 @@ export default function ExplorePage() {
       </div>
 
       <aside className="bw-explore-right" aria-label="Explore sidebar">
-        <section className="bw-explore-aside-card"><h2>Open opportunities</h2><Suspense fallback={<p role="status">Loading opportunities…</p>}><OpportunityBrowser key={`${account.id}:${view}`} compact following={view === "following"} /></Suspense><Link className="bw-explore-aside-link" to="/opportunities">Browse opportunities →</Link></section>
+        <section className="bw-explore-aside-card bw-explore-challenges"><h2>Challenges</h2><Suspense fallback={<p role="status">Loading challenges…</p>}><OpportunityBrowser key={`${account.id}:${view}`} type="CHALLENGE" compact following={view === "following"} /></Suspense><Link className="bw-explore-aside-link" to="/opportunities?type=CHALLENGE">Browse challenges →</Link></section>
         <section className="bw-explore-aside-card">
           <div className="bw-explore-aside-title-row">
             <span className="bw-explore-aside-icon"><NavigationIcon name="network" size={20} /></span>

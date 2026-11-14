@@ -3,9 +3,14 @@ import { Link, useParams } from "react-router-dom";
 import { opportunitiesApi as api } from "../api/opportunities";
 import { useAuth } from "../auth/useAuth";
 import { OPPORTUNITY_TYPES, APPLICATION_STATUSES, OPPORTUNITY_STATUSES } from "../../../shared/opportunities.mjs";
-import VerificationBadge from "../components/VerificationBadge";
+import OpportunityOrganization from "../components/opportunities/OpportunityOrganization";
 import ApplicationQuestions from "../components/opportunities/ApplicationQuestions";
 import ApplicationHistory from "../components/opportunities/ApplicationHistory";
+import { CHALLENGE_PRIZE_TYPES, challengePrizeValue } from "../../../shared/challenges.mjs";
+import { challengeDeadlineReminder } from "../components/opportunities/challenge-deadline";
+import ChallengeCoHosts from "../components/opportunities/ChallengeCoHosts";
+import ChallengeApplicationPosts from "../components/opportunities/ChallengeApplicationPosts";
+import "../components/opportunities/opportunity-editor-wizard.css";
 import "../components/opportunities/opportunities.css";
 export default function OpportunityDetailPage({ application = false }) {
   const { id } = useParams(), { account } = useAuth();
@@ -13,7 +18,7 @@ export default function OpportunityDetailPage({ application = false }) {
 }
 function Detail({ id, applicationRoute }) {
   const [opportunity, setOpportunity] = useState(null), [app, setApp] = useState(null), [answers, setAnswers] = useState({});
-  const [error, setError] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [dirty, setDirty] = useState(false), [consent, setConsent] = useState(false), [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [error, setError] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false), [dirty, setDirty] = useState(false), [consent, setConsent] = useState(false), [publicParticipant, setPublicParticipant] = useState(false), [withdrawOpen, setWithdrawOpen] = useState(false);
   const current = useRef(null), lock = useRef(false);
   const load = useCallback(async () => {
     current.current?.abort(); const controller = new AbortController(); current.current = controller;
@@ -33,7 +38,9 @@ function Detail({ id, applicationRoute }) {
     catch (e) { if (!controller.signal.aborted) { setError(e); if ([401, 403, 404].includes(e.status)) setNotice(""); } }
     finally { if (!controller.signal.aborted) { lock.current = false; setBusy(false); } }
   }
-  const payload = (action, version = app?.version || 0) => ({ action, shareProfile: consent, expectedVersion: version, expectedOpportunityVersion: opportunity.version, answers: Object.fromEntries(Object.entries(answers).filter(([, v]) => v !== undefined)) });
+  const payload = (action, version = app?.version || 0) => ({ action, shareProfile: consent,
+    ...(opportunity.type === "CHALLENGE" ? { publicParticipant } : {}),
+    expectedVersion: version, expectedOpportunityVersion: opportunity.version, answers: Object.fromEntries(Object.entries(answers).filter(([, v]) => v !== undefined)) });
   async function upload(questionId, file) {
     if (file.size > 5 * 1024 * 1024) { setError(new Error("Choose a file up to 5 MiB.")); return; }
     await action(async signal => {
@@ -48,13 +55,41 @@ function Detail({ id, applicationRoute }) {
   const editable = open && (!app || app.status === "DRAFT");
   const blocked = busy || [401, 404, 409].includes(error?.status);
   const questions = app?.opportunitySnapshot?.questions || opportunity?.questions || [];
+  const postRequirements = app?.opportunitySnapshot?.postRequirements || opportunity?.postRequirements || [];
+  const challenge = opportunity?.type === "CHALLENGE";
+  const challengeBackground = challenge && (opportunity.coverAssetId || opportunity.backgroundAssetId || opportunity.titleAssetId)
+    ? api.challengeAssetUrl(opportunity.coverAssetId || opportunity.backgroundAssetId || opportunity.titleAssetId) : null;
   return <section className="bw-op-page bw-op-detail" aria-busy={busy}>
     <Link className="bw-op-back" to="/opportunities?view=applications">← My applications</Link>
     {error && <div className="bw-op-feedback" role="alert"><p>{error.message}</p>{error.status === 403 && <p><Link to="/profile">Complete your profile</Link> · <Link to="/security">Account security</Link></p>}<button type="button" disabled={busy} onClick={() => { if (!dirty || window.confirm("Reload and discard unsaved answers?")) void load(); }}>Reload saved application</button></div>}
     {notice && <p className="bw-op-success" role="status">{notice}</p>}
     {!opportunity && !error && <p role="status">Opening opportunity…</p>}
     {opportunity && <>
-      <header className={`bw-op-detail-header bw-op-${opportunity.type.toLowerCase()}`}><p className="bw-op-eyebrow">{OPPORTUNITY_TYPES[opportunity.type].label} · {OPPORTUNITY_STATUSES[opportunity.status]}</p><h1>{app?.opportunitySnapshot?.title || opportunity.title}</h1><p>{opportunity.organization.name} <VerificationBadge kind="organization" /></p><div className="bw-op-detail-meta"><span>{opportunity.location}</span><span>{opportunity.workMode.replaceAll("_", " ")}</span><span>Deadline: {new Date(opportunity.deadline).toLocaleString("en-GB")}</span></div></header>
+      <header className={`bw-op-detail-header bw-op-${opportunity.type.toLowerCase()}`}
+        style={challengeBackground ? {
+          backgroundImage: `linear-gradient(90deg, rgba(10,20,37,.94), rgba(10,20,37,.60)), url("${challengeBackground}")`,
+          backgroundSize: "cover", backgroundPosition: "center",
+        } : undefined}>
+        <p className="bw-op-eyebrow">{OPPORTUNITY_TYPES[opportunity.type].label} · {OPPORTUNITY_STATUSES[opportunity.status]}</p>
+         <h1>{app?.opportunitySnapshot?.title || opportunity.title}</h1>
+        <OpportunityOrganization organization={opportunity.organization} inverse />
+        {challenge && <ChallengeCoHosts collaborators={opportunity.collaborators} />}
+        <div className="bw-op-detail-meta">
+          {!challenge && <span>{opportunity.location}</span>}
+          {!challenge && <span>{opportunity.workMode.replaceAll("_", " ")}</span>}
+          <span>Deadline: {new Date(opportunity.deadline).toLocaleString("en-GB")}</span>
+          {challenge && <span>{challengeDeadlineReminder(opportunity.deadline)}</span>}
+        </div>
+
+      </header>
+      {challenge && <section className="bw-op-surface bw-op-challenge-rewards">
+        <h2>Prizes and rewards</h2>
+        {Array.isArray(opportunity.prizes) && opportunity.prizes.length
+          ? <ul>{opportunity.prizes.map((item, index) =>
+            <li key={index}><strong>{CHALLENGE_PRIZE_TYPES[item.type] || "Prize"}</strong> — {challengePrizeValue(item)}</li>)}</ul>
+          : <p>{opportunity.prize || "Prizes will be announced by the organizer."}</p>}
+        <p>Applications and participation take place on BrightWay. No offline or external submissions.</p>
+      </section>}
       <div className="bw-op-detail-layout"><div>
         <section className="bw-op-surface"><h2>About this opportunity</h2><p className="bw-op-description">{app?.opportunitySnapshot?.description || opportunity.description}</p></section>
         <section className="bw-op-surface"><div className="bw-op-section-title"><h2>{editable ? "Your application" : "Application details"}</h2>{app && <span className={`bw-op-status bw-op-status-${app.status.toLowerCase()}`}>{APPLICATION_STATUSES[app.status]}</span>}</div>
@@ -62,8 +97,10 @@ function Detail({ id, applicationRoute }) {
           {!editable && app?.feedback && <div className="bw-op-feedback"><h3>Update from the organization</h3><p>{app.feedback}</p></div>}
           {(editable || app) && <>
             {editable && <p>Save a draft at any time. Required questions are marked with an asterisk.</p>}
+            <ChallengeApplicationPosts requirements={postRequirements} answers={answers} readOnly={!editable}
+              disabled={blocked} onChange={(key, value) => { setAnswers(old => ({ ...old, [key]: value })); setDirty(true); }} />
             <ApplicationQuestions questions={questions} answers={answers} files={app?.files} applicationId={app?.id} disabled={blocked} readOnly={!editable} onChange={(key, value) => { setAnswers(old => ({ ...old, [key]: value })); setDirty(true); }} onFile={upload} />
-            {editable && <><div className="bw-op-consent"><label><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} disabled={blocked} /><span>Share my answers, attachments, and a snapshot of my name, headline, location, skills, interests, and verified credentials with authorized {opportunity.organization.name} staff. My private contact details are excluded.</span></label><p>Your profile must be complete before submission. You can track the decision or withdraw here.</p></div><div className="bw-op-actions"><button className="bw-op-secondary" type="button" disabled={blocked} onClick={() => void action(signal => api.save(opportunity.id, payload("SAVE"), signal))}>Save draft</button><button className="bw-op-primary" type="button" disabled={blocked || !consent} onClick={() => void action(signal => api.save(opportunity.id, payload("SUBMIT"), signal))}>{busy ? "Saving…" : "Submit application"}</button></div></>}
+            {editable && <><div className="bw-op-consent"><label><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} disabled={blocked} /><span>Share my answers, attachments, and a snapshot of my name, headline, location, skills, interests, and verified credentials with authorized {opportunity.organization.name} staff. My private contact details are excluded.</span></label>{opportunity.type === "CHALLENGE" && <label><input type="checkbox" checked={publicParticipant} onChange={e => setPublicParticipant(e.target.checked)} disabled={blocked} /><span>Show my public name and profile photo in the Challenge participants preview after submission. Optional. My application answers and documents stay private, and withdrawing removes my public participation.</span></label>}<p>Your profile must be complete before submission. You can track the decision or withdraw here.</p></div><div className="bw-op-actions"><button className="bw-op-secondary" type="button" disabled={blocked} onClick={() => void action(signal => api.save(opportunity.id, payload("SAVE"), signal))}>Save draft</button><button className="bw-op-primary" type="button" disabled={blocked || !consent} onClick={() => void action(signal => api.save(opportunity.id, payload("SUBMIT"), signal))}>{busy ? "Saving…" : "Submit application"}</button></div></>}
           </>}
         </section>
         {app && <ApplicationHistory events={app.events} />}

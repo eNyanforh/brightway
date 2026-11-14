@@ -89,7 +89,9 @@ const verification = createSignupEmailService({ prisma });
 router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const mfa = createMfaService({ prisma });
 const sessions = createSessionService({ prisma, mfa });
-router.use(createOpportunityRoutes({ opportunities: createOpportunityService({ prisma, storage: createApplicationStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
+router.use(createOpportunityRoutes({ opportunities: createOpportunityService({
+  prisma, storage: createApplicationStorage(), imageStorage: createPostMediaStorage(),
+}), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createLearningRoutes({ learning: createLearningService({ prisma, storage: createApplicationStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createCampusRoutes({ campus: createCampusService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const tvet = createTvetService({ prisma });

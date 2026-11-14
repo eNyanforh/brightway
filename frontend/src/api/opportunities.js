@@ -21,6 +21,7 @@ async function list(path, signal) {
 export const opportunitiesApi = {
   browse: (params, signal) => list("/opportunities" + query(params), signal),
   detail: (id, signal) => request("/opportunities/" + encodeURIComponent(id), { signal }),
+  setSaved: (id, saved, signal) => request("/opportunities/" + encodeURIComponent(id) + "/save", { method: "PUT", body: { saved }, signal }),
   mine: (cursor, signal) => list("/applications/me" + query({ cursor }), signal),
   application: (id, signal) => request(app(id), { signal }),
   save: (id, body, signal) => request("/opportunities/" + encodeURIComponent(id) + "/application", { method: "PUT", body, signal }),
@@ -29,6 +30,16 @@ export const opportunitiesApi = {
   filesUrl: (applicationId, fileId, organizationId) => base + (organizationId ? org(organizationId) + "/applications/" + encodeURIComponent(applicationId) : app(applicationId)) + "/files/" + encodeURIComponent(fileId),
   list: (id, cursor, signal) => list(org(id) + "/opportunities" + query({ cursor }), signal),
   create: (id, body, signal) => request(org(id) + "/opportunities", { method: "POST", body, signal }),
+  uploadChallengeAsset: (id, kind, file, signal) =>
+    request(org(id) + "/challenge-assets" + query({ kind }), { method: "POST", file, signal }),
+  challengeAssetUrl: id => base + "/opportunities/challenge-assets/" + encodeURIComponent(id),
+  collaboratorSearch: (organizationId, q, signal) =>
+    request(org(organizationId) + "/challenge-collaborator-search" + query({ q }), { signal }),
+  collaboratorInvitations: (organizationId, signal) =>
+    request(org(organizationId) + "/challenge-collaborations", { signal }),
+  respondCollaboration: (organizationId, opportunityId, decision, signal) =>
+    request(org(organizationId) + "/challenge-collaborations/" + encodeURIComponent(opportunityId),
+      { method: "PUT", body: { decision }, signal }),
   edit: (id, opportunityId, body, signal) => request(org(id) + "/opportunities/" + encodeURIComponent(opportunityId), { method: "PATCH", body, signal }),
   status: (id, opportunityId, body, signal) => request(org(id) + "/opportunities/" + encodeURIComponent(opportunityId) + "/status", { method: "PUT", body, signal }),
   reviews: (id, params, signal) => list(org(id) + "/applications" + query(params), signal),

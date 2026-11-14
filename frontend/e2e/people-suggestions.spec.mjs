@@ -33,7 +33,7 @@ test("Explore loads people suggestions only when opened", async ({ page }) => {
     }
   });
   await page.goto("/explore");
-  await expect(page.getByText("Posts from verified people and organizations will appear here.")).toBeVisible();
+  await expect(page.getByText("Posts and opportunities from verified people and organizations will appear here.")).toBeVisible();
   const toggle = page.getByText("Suggested people", { exact: true });
   await expect(toggle).toBeVisible();
   expect(reads).toBe(0);

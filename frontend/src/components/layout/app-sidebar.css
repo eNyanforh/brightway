@@ -39,7 +39,7 @@
 
 .bw-design-sidebar-nav a,
 .bw-design-sidebar-nav button {
-  color: #647087;
+  color: #111111;
   background: transparent;
   border: 0;
   border-radius: 10px;
@@ -58,7 +58,8 @@
   background: #eaf0fa;
 }
 
-.bw-design-sidebar-nav a[aria-current="page"] {
+.bw-design-sidebar-nav a[aria-current="page"],
+.bw-design-sidebar-nav a.bw-design-sidebar-active {
   color: #175cd3;
   background: #e5eefc;
   font-weight: 700;
@@ -71,6 +72,7 @@
 }
 
 .bw-design-sidebar-nav button:disabled {
+  color: #647087;
   opacity: 1;
   cursor: not-allowed;
 }

@@ -10,7 +10,7 @@ export function createFollowingService({ prisma, now = () => new Date() }) {
   const authority = (db, actor) => assertNetworkSession(db, actor, now);
   const keyFor = (kind, followerId, targetId) => kind === "PERSON" ? { followerId_targetAccountId: { followerId, targetAccountId: targetId } } : { followerId_targetOrganizationId: { followerId, targetOrganizationId: targetId } };
   async function resolve(db, kind, username) {
-    const row = kind === "PERSON" ? await db.account.findUnique({ where: { username }, select: { id: true, username: true, status: true, person: { select: { firstName: true, middleName: true, lastName: true } } } }) : await db.organization.findUnique({ where: { username }, select: { id: true, name: true, username: true, status: true, request: { select: { status: true } } } });
+    const row = kind === "PERSON" ? await db.account.findUnique({ where: { username }, select: { id: true, username: true, status: true, person: { select: { firstName: true, middleName: true, lastName: true, profile: { select: { photoId: true } } } } } }) : await db.organization.findUnique({ where: { username }, select: { id: true, name: true, username: true, status: true, profilePhotoId: true, verifiedAt: true, request: { select: { status: true } } } });
     if (!row) throw fail(404, "This person or organization is unavailable.");
     return { ...row, available: row.status === "ACTIVE" && (kind === "PERSON" || row.request.status === "APPROVED") };
   }
@@ -29,7 +29,7 @@ export function createFollowingService({ prisma, now = () => new Date() }) {
       unblocked(relationship);
       if (!target.available && !row?.active) throw fail(404, "This person or organization is unavailable.");
       await authority(prisma, actor);
-      return { kind, person: { username: target.username, fullName: !target.available ? kind === "PERSON" ? "Unavailable account" : "Unavailable organization" : kind === "PERSON" ? fullName(target.person) : target.name }, available: target.available,
+      return { kind, person: { username: target.username, fullName: !target.available ? kind === "PERSON" ? "Unavailable account" : "Unavailable organization" : kind === "PERSON" ? fullName(target.person) : target.name, ...(kind === "PERSON" ? { photoId: target.person.profile?.photoId ?? null } : { organizationId: target.id, profilePhotoId: target.profilePhotoId, verifiedAt: target.verifiedAt }) }, available: target.available,
         relationship: kind === "PERSON" ? relationshipView(relationship, actor.accountId) : { state: "NONE", version: 0 },
         follow: { active: row?.active === true, version: row?.version || 0, targetRef: followRef(kind, target.id) },
         ...(kind === "ORGANIZATION" && target.available ? { publicUrl: `/organizations/${target.id}` } : {}) };
@@ -70,10 +70,11 @@ export function createFollowingService({ prisma, now = () => new Date() }) {
       const boundary = cursor ? Prisma.sql`AND (f."updatedAt" < ${new Date(cursor.at)} OR (f."updatedAt" = ${new Date(cursor.at)} AND f."id" < ${cursor.id}))` : Prisma.empty;
       const rows = await prisma.$queryRaw(Prisma.sql`
         SELECT f."id", f."updatedAt", d."username", d."status"::text AS "status", p."firstName", p."middleName", p."lastName",
-          o."id" AS "organizationId", o."username" AS "organizationUsername", o."name" AS "organizationName", o."status"::text AS "organizationStatus", r."status"::text AS "requestStatus"
+          o."id" AS "organizationId", o."username" AS "organizationUsername", o."name" AS "organizationName", o."status"::text AS "organizationStatus", o."profilePhotoId" AS "organizationPhotoId", o."verifiedAt" AS "organizationVerifiedAt", profile."photoId" AS "photoId", r."status"::text AS "requestStatus"
         FROM "NetworkFollow" f
         LEFT JOIN "Account" d ON d."id" = CASE WHEN ${following} THEN f."targetAccountId" ELSE f."followerId" END
         LEFT JOIN "Person" p ON p."id" = d."personId"
+        LEFT JOIN "Profile" profile ON profile."personId" = p."id"
         LEFT JOIN "Organization" o ON o."id" = f."targetOrganizationId"
         LEFT JOIN "OrganizationRequest" r ON r."id" = o."requestId"
         WHERE f."active" = true AND ${scope}
@@ -83,7 +84,7 @@ export function createFollowingService({ prisma, now = () => new Date() }) {
       await authority(prisma, actor);
       const items = rows.slice(0, 20).map(row => {
         const kind = row.organizationId ? "ORGANIZATION" : "PERSON", available = row.organizationId ? row.organizationStatus === "ACTIVE" && row.requestStatus === "APPROVED" : row.status === "ACTIVE";
-        return { kind, person: { username: row.organizationId ? row.organizationUsername : row.username, fullName: !available ? kind === "PERSON" ? "Unavailable account" : "Unavailable organization" : row.organizationId ? row.organizationName : fullName(row) }, available, relationship: { state: following ? "FOLLOWING" : "FOLLOWS_YOU", version: 0 }, updatedAt: row.updatedAt };
+        return { kind, person: { username: row.organizationId ? row.organizationUsername : row.username, fullName: !available ? kind === "PERSON" ? "Unavailable account" : "Unavailable organization" : row.organizationId ? row.organizationName : fullName(row), ...(kind === "PERSON" ? { photoId: row.photoId ?? null } : { organizationId: row.organizationId, profilePhotoId: row.organizationPhotoId, verifiedAt: row.organizationVerifiedAt }) }, available, relationship: { state: following ? "FOLLOWING" : "FOLLOWS_YOU", version: 0 }, updatedAt: row.updatedAt };
       });
       const last = rows[19]; return { view: query.view, items, nextCursor: rows.length > 20 ? Buffer.from(JSON.stringify({ owner: actor.accountId, view: query.view, at: last.updatedAt.toISOString(), id: last.id })).toString("base64url") : null };
     },

@@ -65,7 +65,9 @@ model Account {
   admissionApplications AdmissionApplication[]
   admissionEvents AdmissionApplicationEvent[]
   opportunityListings Opportunity[]
+  opportunityAssets OpportunityAsset[]
   opportunityApplications OpportunityApplication[]
+  savedOpportunities OpportunitySave[]
   applicationEvents OpportunityApplicationEvent[]
   profileVisitsReceived ProfileVisit[] @relation("ProfileVisitOwner")
   profileVisitsMade ProfileVisit[] @relation("ProfileVisitViewer")
@@ -954,6 +956,8 @@ model Organization {
   programs Program[]
   admissionCycles AdmissionCycle[]
   opportunities Opportunity[]
+  opportunityAssets OpportunityAsset[]
+  challengeCollaborations OpportunityCollaborator[]
   posts OrganizationPost[]
   followers NetworkFollow[]
   accessVersion Int @default(0)
@@ -1689,6 +1693,16 @@ model Opportunity {
   description String @db.VarChar(12000)
   location String @db.VarChar(180)
   workMode String @db.VarChar(16)
+  prize String? @db.VarChar(120)
+  prizes Json @default("[]")
+  postRequirements Json @default("[]")
+  sponsorLogoIds String[] @default([])
+  backgroundAssetId String?
+  titleAssetId String?
+  coverAssetId String?
+  maxApplicants Int?
+  topics String[] @default([])
+  coverImage String @default("STUDENTS") @db.VarChar(20)
   deadline DateTime
   questions Json
   version Int @default(1)
@@ -1697,9 +1711,50 @@ model Opportunity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   applications OpportunityApplication[]
+  assets OpportunityAsset[]
+  collaborators OpportunityCollaborator[]
+  saves OpportunitySave[]
   @@unique([organizationId, authorId, requestKey])
   @@index([status, type, deadline, createdAt, id])
   @@index([organizationId, createdAt, id])
+}
+model OpportunityCollaborator {
+  id String @id @default(uuid())
+  opportunityId String
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  state String @default("PENDING") @db.VarChar(16)
+  invitedAt DateTime @default(now())
+  respondedAt DateTime?
+  @@unique([opportunityId, organizationId])
+  @@index([organizationId, state, invitedAt])
+}
+
+model OpportunityAsset {
+  id String @id @default(uuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  uploaderId String
+  uploader Account @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+  opportunityId String?
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  kind String @db.VarChar(24)
+  storageKey String @unique
+  size Int
+  createdAt DateTime @default(now())
+  @@index([organizationId, createdAt, id])
+  @@index([opportunityId, kind])
+  @@index([uploaderId, createdAt])
+}
+model OpportunitySave {
+  accountId String
+  opportunityId String
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@id([accountId, opportunityId])
+  @@index([opportunityId])
 }
 model OpportunityApplication {
   id String @id @default(uuid())
@@ -1716,6 +1771,8 @@ model OpportunityApplication {
   feedback String @default("") @db.VarChar(1000)
   submittedAt DateTime?
   withdrawnAt DateTime?
+  // Opt-in public identity for Challenge participant previews. Private by default.
+  publicParticipant Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   files OpportunityApplicationFile[]
@@ -1723,6 +1780,7 @@ model OpportunityApplication {
   @@unique([opportunityId, applicantId])
   @@index([applicantId, createdAt, id])
   @@index([opportunityId, status, createdAt, id])
+  @@index([opportunityId, publicParticipant, submittedAt, id], map: "opp_app_public_participant_idx")
 }
 model OpportunityApplicationFile {
   id String @id @default(uuid())

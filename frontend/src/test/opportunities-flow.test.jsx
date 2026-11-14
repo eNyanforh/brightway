@@ -5,8 +5,10 @@ import { expect, it, vi } from "vitest";
 import { AuthContext } from "../auth/auth-context";
 import OpportunityDetailPage from "../pages/OpportunityDetailPage";
 import OpportunitiesPage from "../pages/OpportunitiesPage";
+import OpportunityCard from "../components/opportunities/OpportunityCard";
 import OrganizationApplications from "../components/opportunities/OrganizationApplications";
 import OpportunityEditor from "../components/opportunities/OpportunityEditor";
+import ChallengeSidebarCard from "../components/opportunities/ChallengeSidebarCard";
 import NotificationsPage from "../pages/NotificationsPage";
 const id = "33333333-3333-4333-8333-333333333333", qid = "44444444-4444-4444-8444-444444444444";
 const org = { id: "22222222-2222-4222-8222-222222222222", name: "Research Institute" };
@@ -28,11 +30,24 @@ it("applicants preserve a false answer and drafts across failures, then explicit
   fail = false; await user.click(screen.getByRole("button", { name: "Submit application" }));
   await screen.findByRole("heading", { name: "Application timeline" }); expect(screen.queryByRole("button", { name: "Submit application" })).toBeNull();
 });
+it("opportunity publisher shows avatar and name and only a verified badge for approved organizations", () => {
+  const verified = { ...opp, organization: { ...org, profilePhotoId: "published-photo", verifiedAt: "2026-11-01T00:00:00Z" } };
+  const { rerender } = render(<MemoryRouter><OpportunityCard opportunity={verified} /></MemoryRouter>);
+  const photo = screen.getByRole("img", { name: "Research Institute profile picture" });
+  expect(photo.getAttribute("src")).toBe("/api/v1/organizations/" + org.id + "/photo/published-photo");
+  expect(screen.getByRole("link", { name: "Research Institute" }).getAttribute("href")).toBe("/organizations/" + org.id);
+  expect(screen.getByRole("img", { name: "Verified organization" })).toBeTruthy();
+  rerender(<MemoryRouter><OpportunityCard opportunity={{ ...verified, organization: { ...verified.organization, verifiedAt: null } }} /></MemoryRouter>);
+  expect(screen.queryByRole("img", { name: "Verified organization" })).toBeNull();
+});
 it("opportunity discovery exposes four filters and uses live on-platform links", async () => {
   const fetch = vi.fn(() => reply({ items: [opp], nextCursor: null })); vi.stubGlobal("fetch", fetch);
   const user = mount(<OpportunitiesPage />, "/opportunities");
   await screen.findByRole("link", { name: "Research assistant" });
   expect(screen.getByRole("link", { name: /Apply/ }).getAttribute("href")).toBe("/opportunities/" + id);
+  expect(screen.queryByText("YOUR NEXT STEP")).toBeNull();
+  expect(screen.getByRole("heading", { name: "Opportunities that move you forward." })).toBeTruthy();
+  expect(screen.getByText("Find work, fund your education, take on a challenge, or join an event. Apply right here on BrightWay.").classList.contains("bw-op-intro")).toBe(true);
   const filters = screen.getByRole("navigation", { name: "Opportunity types" });
   await user.click(within(filters).getByRole("button", { name: "Scholarships" }));
   await waitFor(() => expect(fetch.mock.calls.at(-1)[0]).toContain("type=SCHOLARSHIP"));
@@ -53,15 +68,122 @@ it("reviewers keep feedback after a conflict and clear private applications when
   denied = true; await user.click(screen.getByRole("button", { name: "Reload application queue" })); await screen.findByText("Organization access revoked");
   expect(screen.queryByText("Synthetic Applicant")).toBeNull();
 });
-it("the publisher builds questions and saves a draft with no external application option", async () => {
-  const saved = vi.fn(), fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 })); vi.stubGlobal("fetch", fetch);
+it("the publisher uses type selection and the step-by-step form to save a BrightWay draft", async () => {
+  const saved = vi.fn();
+  const fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
+  vi.stubGlobal("fetch", fetch);
   const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
-  await user.type(screen.getByLabelText("Title"), "Data internship"); await user.type(screen.getByLabelText("Description"), "Learn research and data quality skills with our team."); await user.type(screen.getByLabelText("Location"), "Monrovia");
-  await user.type(screen.getByLabelText("Application deadline (your local time)"), "2099-12-01T12:00");
-  await user.click(screen.getByRole("button", { name: "+ Add question" })); await user.type(screen.getByLabelText("Question 1 text"), "Tell us about your experience");
-  await user.click(screen.getByRole("button", { name: "Save draft" })); await waitFor(() => expect(saved).toHaveBeenCalled());
-  const body = JSON.parse(fetch.mock.calls[0][1].body); expect(body.questions[0]).toMatchObject({ label: "Tell us about your experience", type: "SHORT_ANSWER", required: true }); expect(body).not.toHaveProperty("applicationUrl");
+  expect(screen.getByRole("heading", { name: "What opportunity do you want to offer?" })).toBeTruthy();
+  await user.click(screen.getByRole("radio", { name: /Job/ }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Title", { exact: true }), "Data internship");
+  await user.type(screen.getByLabelText("Description", { exact: true }), "Learn research and data quality skills with our team.");
+  await user.type(screen.getByLabelText("Location"), "Monrovia");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
+  await user.click(screen.getByRole("button", { name: "+ Add question" }));
+  await user.type(screen.getByLabelText("Question 1 text"), "Tell us about your experience");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("heading", { name: "Review" })).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Save draft" }));
+  await waitFor(() => expect(saved).toHaveBeenCalled());
+  const body = JSON.parse(fetch.mock.calls[0][1].body);
+  expect(body.questions[0]).toMatchObject({ label: "Tell us about your experience", type: "SHORT_ANSWER", required: true });
+  expect(body).not.toHaveProperty("applicationUrl");
 });
+it("the right-rail Challenge card shows a first-party photo, publisher, topics and Take Part", () => {
+  const challenge = {
+    ...opp, type: "CHALLENGE", prize: "US$1,000", topics: ["Technology", "Education"], coverImage: "SCHOOLS",
+    participantSummary: { count: 1, members: [{ username: "student_a", name: "Student One", photoId: null, verified: true }] },
+    organization: { ...org, profilePhotoId: "publisher-photo", verifiedAt: "2026-11-01T00:00:00Z" },
+  };
+  render(<MemoryRouter><aside className="bw-explore-right"><ChallengeSidebarCard opportunity={challenge} /></aside></MemoryRouter>);
+  const article = screen.getByRole("article", { name: "Challenge: Research assistant" });
+  expect(article.querySelector(".bw-rail-challenge-photo").getAttribute("src")).toBe("/images/hero/schools-720.webp");
+  expect(within(article).getByText("US$1,000")).toBeTruthy();
+  expect(article.querySelector(".bw-rail-challenge-prize").textContent).toBe("US$1,000");
+  expect(article.textContent).not.toContain("On BrightWay");
+  expect(article.querySelector(".bw-rail-challenge-logo")).toBeTruthy();
+  expect(article.querySelector(".bw-challenge-participants").textContent).toContain("1 participant");
+  const closing = article.querySelector(".bw-rail-challenge-closing-row");
+  const participants = article.querySelector(".bw-challenge-participants");
+  expect(closing.compareDocumentPosition(participants) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(within(article).getByRole("link", { name: "View Research Institute organization profile" })).toBeTruthy();
+  expect(within(article).getByRole("heading", { name: "Research assistant" })).toBeTruthy();
+  expect(within(article).getByRole("list", { name: "Challenge categories" }).textContent).toContain("Technology");
+  expect(within(article).getByRole("link", { name: "Take Part" }).getAttribute("href")).toBe("/opportunities/" + id);
+  expect(within(article).getByText(/Closes in/)).toBeTruthy();
+  expect(within(article).getByRole("link", { name: "Challenge" }).getAttribute("href")).toBe("/opportunities?type=CHALLENGE");
+});
+
+it("Challenge wizard supports collaborators, cover, multiple post types and no applicant limit", async () => {
+  const saved = vi.fn();
+  const coverId = "88888888-8888-4888-8888-888888888888";
+  const fetch = vi.fn((url, opts) =>
+    url.includes("/challenge-assets")
+      ? reply({ id: coverId, kind: "COVER", size: 3000 })
+      : reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
+  vi.stubGlobal("fetch", fetch);
+  const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
+  await user.click(screen.getByRole("radio", { name: /Challenge/ }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.click(screen.getByRole("checkbox", { name: "Technology" }));
+  await user.click(screen.getByRole("checkbox", { name: "Education" }));
+  await user.click(screen.getByRole("checkbox", { name: "Design" }));
+  expect(screen.getByRole("checkbox", { name: "Coding" }).disabled).toBe(true);
+  await user.type(screen.getByLabelText("Challenge Title"), "Learning Innovation Challenge");
+  await user.type(screen.getByLabelText("Description"), "Design an innovation that improves access to education.");
+  expect(screen.queryByLabelText("Format")).toBeNull();
+  expect(screen.queryByLabelText("Location")).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.click(screen.getByRole("button", { name: "+ Add Prize" }));
+  await user.selectOptions(screen.getByLabelText("Prize 1 type"), "SCHOLARSHIP");
+  expect(screen.queryByLabelText("Prize 1 amount")).toBeNull();
+  await user.type(screen.getByLabelText("Scholarship Coverage"), "Full tuition");
+  await user.click(screen.getByRole("button", { name: "+ Add another prize" }));
+  expect(screen.getByLabelText("Prize 2 type").value).toBe("CASH");
+  await user.type(screen.getByLabelText("Prize 2 amount"), "500");
+  await user.selectOptions(screen.getByLabelText("Prize 2 currency"), "LRD");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.queryByLabelText("Default background photograph")).toBeNull();
+  expect(screen.queryByLabelText("Background Image")).toBeNull();
+  expect(screen.queryByLabelText("Challenge Title Image")).toBeNull();
+  await user.upload(screen.getByLabelText("Challenge cover photo"),
+    new File(["synthetic cover"], "cover.png", { type: "image/png" }));
+  await waitFor(() => expect(fetch.mock.calls.some(([url]) => url.includes("/challenge-assets"))).toBe(true));
+  await waitFor(() => expect(screen.getByAltText("Challenge cover photo preview")).toBeTruthy());
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.click(screen.getByRole("button", { name: "+ Add post type" }));
+  expect(screen.getByRole("combobox", { name: "Post type 1" }).value).toBe("VIDEO_POST");
+  await user.click(screen.getByRole("button", { name: "+ Add post type" }));
+  await user.selectOptions(screen.getByRole("combobox", { name: "Post type 2" }), "CAPTION");
+  expect(screen.getByRole("spinbutton", { name: "Post type 2 Maximum words" })).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.queryByLabelText("Number of Applicants (maximum)")).toBeNull();
+  await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByText("Required post types")).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Save draft" }));
+  await waitFor(() => expect(saved).toHaveBeenCalled());
+  const body = JSON.parse(fetch.mock.calls.find(([, opts]) => opts?.headers?.["Content-Type"] === "application/json")[1].body);
+  expect(body.coverAssetId).toBe(coverId);
+  expect(body.collaboratorIds).toEqual([]);
+  expect(body.sponsorLogoIds).toEqual([]);
+  expect(body.titleAssetId).toBeNull();
+  expect(body.backgroundAssetId).toBeNull();
+  expect(body.topics).toEqual(["Technology", "Education", "Design"]);
+  expect(body.prizes).toEqual([
+    { type: "SCHOLARSHIP", coverage: "Full tuition", institution: "" },
+    { type: "CASH", amount: 500, currency: "LRD" },
+  ]);
+  expect(body).not.toHaveProperty("maxApplicants");
+  expect(body.postRequirements).toHaveLength(2);
+  expect(body.postRequirements.map(row => row.type)).toEqual(["VIDEO_POST", "CAPTION"]);
+  expect(body.workMode).toBe("REMOTE");
+  expect(body.location).toBe("BrightWay");
+  expect(body).not.toHaveProperty("applicationUrl");
+});
+
 it("application decisions appear in Notifications with All and Unread views", async () => {
   const notice = { id: qid, kind: "APPLICATION_STATUS", createdAt: "2030-01-15T12:00:00Z", readAt: null, application: { id: app.id, title: opp.title, status: "SHORTLISTED" } };
   const fetch = vi.fn((_url, opts) => reply(opts?.method === "POST" ? { updated: true } : { items: [notice], nextCursor: null })); vi.stubGlobal("fetch", fetch);

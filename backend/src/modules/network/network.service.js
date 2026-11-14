@@ -6,8 +6,8 @@ import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { projectContact } from "../profile/profile-contact.js";
 import { fail, parse, usernameSchema, networkActionSchema, networkQuerySchema, networkCursorSchema, relationshipView } from "./network.schema.js";
-const personSelect = { id: true, username: true, status: true, person: { select: { firstName: true, middleName: true, lastName: true } } };
-const personView = row => ({ username: row.username, fullName: [row.person.firstName, row.person.middleName, row.person.lastName].filter(Boolean).join(" ") });
+const personSelect = { id: true, username: true, status: true, person: { select: { firstName: true, middleName: true, lastName: true, profile: { select: { photoId: true } } } } };
+const personView = row => ({ username: row.username, fullName: [row.person.firstName, row.person.middleName, row.person.lastName].filter(Boolean).join(" "), photoId: row.person.profile?.photoId ?? null });
 const digest = value => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 export function createNetworkService({ prisma, now = () => new Date() }) {
   const authority = (db, actor) => assertNetworkSession(db, actor, now);

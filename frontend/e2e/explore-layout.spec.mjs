@@ -26,15 +26,17 @@ const formats = [
 // specialized presentation cards and type-specific actions.
 const specializedFormats = formats;
 
-async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED", submittedNotice = null) {
+async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED", submittedNotice = null, opportunities = []) {
   const writes = [];
   const publishedPosts = [];
+  const savedOpportunities = new Set(opportunities.filter(item => item.saved).map(item => item.id));
   await page.route("**/*", async route => {
     const background = backgroundMessaging(route); if (background) return background;
     const request = route.request();
     const url = new URL(request.url());
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();
+    if (/^\/api\/v1\/organizations\/[^/]+\/photo\/[^/]+$/.test(url.pathname) || /^\/api\/v1\/explore\/members\/[^/]+\/photo\/[^/]+$/.test(url.pathname)) return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9ySN6FcAAAAASUVORK5CYII=", "base64") });
     const reply = (data, status = 200) => route.fulfill({ status, json: { success: true, data } });
     if (/^\/api\/v1\/explore\/posts\/(member|organization)\/[^/]+\/view$/.test(url.pathname)) return reply({ views: 1 });
     // Shared links read one server-authorized post rather than assuming it is in the first feed page.
@@ -46,13 +48,24 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
     if (request.method() === "GET" && /^\/api\/v1\/explore\/posts\/(member|organization)\/[^/]+\/comments$/.test(url.pathname)) {
       return reply({ items: [], nextCursor: null });
     }
+    if (/^\/api\/v1\/opportunities\/[^/]+\/save$/.test(url.pathname) && request.method() === "PUT") {
+      const opportunityId = url.pathname.split("/")[4];
+      const saved = request.postDataJSON().saved;
+      if (saved) savedOpportunities.add(opportunityId);
+      else savedOpportunities.delete(opportunityId);
+      return reply({ saved });
+    }
     switch (url.pathname) {
       case "/api/v1/auth/me": return reply({ account });
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
       case "/api/v1/work/access": return reply({ hasWork: false });
       case "/api/v1/explore/posts": return reply({ items: [...publishedPosts, ...posts], nextCursor: null });
-      case "/api/v1/learning/discover":
-      case "/api/v1/opportunities": return reply({ items: [], nextCursor: null });
+      case "/api/v1/learning/discover": return reply({ items: [], nextCursor: null });
+      case "/api/v1/opportunities": return reply({ items: opportunities
+        .filter(item => (url.searchParams.get("type") === null || url.searchParams.get("type") === item.type) &&
+          (url.searchParams.get("following") !== "true" || item.followed) &&
+          (url.searchParams.get("saved") !== "true" || savedOpportunities.has(item.id)))
+        .map(item => ({ ...item, saved: savedOpportunities.has(item.id) })), nextCursor: null });
       case "/api/v1/posts/me": {
         const draft = request.postDataJSON();
         writes.push(draft);
@@ -90,6 +103,73 @@ async function documentFixture() {
   return Buffer.from(await pdf.save());
 }
 
+
+test("Explore right sidebar displays photo-backed Challenge cards with prize, sponsor, topic, CTA and days left", async ({ page, isMobile }) => {
+  const cid = "77777777-7777-4777-8777-777777777777";
+  const oid = "55555555-5555-4555-8555-555555555555";
+  const challenge = {
+    id: cid, type: "CHALLENGE", title: "Community Innovation Challenge",
+    description: "Build tools that help students learn together.", prize: "US$1,000",
+    topics: ["Technology", "Education"], coverImage: "SCHOOLS",
+    participantSummary: { count: 2, members: [
+      { username: "student_a", name: "Student One", photoId: "photo-a", verified: true },
+      { username: "student_b", name: "Student Two", photoId: null, verified: true },
+    ] },
+    workMode: "REMOTE", location: "Monrovia, Liberia", status: "PUBLISHED",
+    createdAt: "2026-11-10T12:00:00Z", publishedAt: "2026-11-13T12:00:00Z",
+    deadline: "2099-01-01T12:00:00Z",
+    organization: { id: oid, name: "Research School", profilePhotoId: "logo-photo", verifiedAt: "2026-11-01T12:00:00Z" },
+  };
+  await fixture(page, [], "PUBLISHED", null, [challenge, { ...challenge, id: "88888888-8888-4888-8888-888888888888", type: "JOB" }]);
+  await page.goto("/explore");
+  const sidebar = page.getByRole("complementary", { name: "Explore sidebar" });
+  await expect(sidebar.getByRole("heading", { name: "Challenges" })).toBeVisible();
+  const card = sidebar.getByRole("article", { name: "Challenge: Community Innovation Challenge" });
+  await expect(card).toBeVisible();
+  await expect(sidebar.getByRole("article")).toHaveCount(1);
+  const photo = card.locator(".bw-rail-challenge-photo");
+  await expect(photo).toHaveAttribute("src", "/images/hero/schools-720.webp");
+  await expect(photo).toHaveCSS("object-fit", "cover");
+  await expect.poll(async () => photo.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
+  const prize = card.locator(".bw-rail-challenge-prize");
+  await expect(prize).toContainText("US$1,000");
+  await expect(prize).not.toContainText("Cash:");
+  await expect(card).not.toContainText("On BrightWay");
+  await expect(card.getByRole("link", { name: "View Research School organization profile" })).toHaveAttribute("href", "/organizations/" + oid);
+  await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
+  await expect(card.getByRole("heading", { name: challenge.title })).toBeVisible();
+  const topics = card.getByRole("list", { name: "Challenge categories" });
+  await expect(topics).toContainText("Technology");
+  await expect(topics).toContainText("Education");
+  await expect(card.getByRole("link", { name: "Take Part" })).toHaveAttribute("href", "/opportunities/" + cid);
+  const reminder = card.locator("time");
+  await expect(reminder).toHaveAttribute("datetime", challenge.deadline);
+  await expect(reminder).toContainText(/Closes in [0-9,]+ days/);
+  await expect(card.getByRole("link", { name: "Challenge", exact: true })).toHaveAttribute("href", "/opportunities?type=CHALLENGE");
+  const [sponsorBounds, prizeBounds, photoBounds, logoBounds, nameBounds, priceValueBounds, closingBounds, participantsBounds] = await Promise.all([
+    card.locator(".bw-rail-challenge-publisher").boundingBox(),
+    prize.boundingBox(),
+    photo.boundingBox(),
+    card.locator(".bw-rail-challenge-logo").boundingBox(),
+    card.locator(".bw-rail-challenge-sponsor-name").boundingBox(),
+    prize.locator("strong").boundingBox(),
+    card.locator(".bw-rail-challenge-closing-row").boundingBox(),
+    card.locator(".bw-challenge-participants").boundingBox(),
+  ]);
+  expect(logoBounds.width).toBe(18);
+  expect(logoBounds.x + logoBounds.width).toBeLessThanOrEqual(nameBounds.x + 1);
+  // Wrapped organization names can be taller than the logo; compare vertical centers.
+  expect(Math.abs((logoBounds.y + logoBounds.height / 2) - (nameBounds.y + nameBounds.height / 2))).toBeLessThan(3);
+  expect(prizeBounds.y).toBeGreaterThanOrEqual(sponsorBounds.y + sponsorBounds.height - 1);
+  expect(photoBounds.x).toBeGreaterThanOrEqual(sponsorBounds.x + sponsorBounds.width - 1);
+  expect(priceValueBounds.width).toBeGreaterThan(0);
+  const participantGroup = card.getByRole("group", { name: "Publicly participating members" });
+  await expect(participantGroup.getByRole("link")).toHaveCount(2);
+  await expect(card.getByLabel("Public Challenge participants")).toContainText("2 participants");
+  expect(participantsBounds.y).toBeGreaterThanOrEqual(closingBounds.y + closingBounds.height - 1);
+  if (isMobile) await expect(sidebar).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
 
 test("Explore remains readable at tablet width without horizontal scrolling", async ({ page }) => {
   await fixture(page);
@@ -1536,6 +1616,14 @@ test("mobile shell keeps search in one row and opens a contained account drawer"
   await page.goto("/explore");
   const header = page.locator(".bw-design-header");
   const accountButton = header.getByRole("button", { name: "Open account menu" });
+  await expect(page).toHaveTitle("Brightway - Learn, Network and Earn");
+  await expect(accountButton.locator("svg path")).toHaveAttribute("d", "M4 7h16M4 12h16M4 17h16");
+  await expect(accountButton.locator("svg")).toHaveAttribute("width", "32");
+  const menuSize = await accountButton.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  });
+  expect(menuSize).toEqual({ width: 44, height: 44 });
   const search = header.getByRole("searchbox", { name: "Search BrightWay content and people" });
   const messages = header.getByRole("link", { name: "Messages", exact: true });
   for (const width of [320, 390, 700]) {
@@ -1733,4 +1821,207 @@ test("viewer keeps long captions readable and owner edit dialogs accessible", as
   await expect(viewer).toBeVisible();
   expect(await viewer.locator(".bw-post-viewer-slide").evaluate(el => el.getAnimations().length)).toBe(0);
   await testInfo.attach(isMobile ? "Mobile reading view" : "Desktop reading view", { body: await page.screenshot(), contentType: "image/png" });
+});
+
+test("published opportunities join the main Explore feed and remain separate from post viewer actions", async ({ page }) => {
+  const organizationId = "55555555-5555-4555-8555-555555555555";
+  const opportunityId = "66666666-6666-4666-8666-666666666666";
+  const listing = { id: opportunityId, type: "JOB", title: "Research assistant opportunity",
+    description: "Join a research team and build professional skills.", location: "Monrovia",
+    workMode: "IN_PERSON", publishedAt: "2026-11-13T12:00:00Z", createdAt: "2026-11-12T12:00:00Z",
+    status: "PUBLISHED", deadline: "2099-01-01T12:00:00Z", followed: false,
+    organization: { id: organizationId, name: "Community Research Institute", verifiedAt: "2026-11-01T12:00:00Z", profilePhotoId: "org-photo-1" } };
+  await fixture(page, [fixturePost], "PUBLISHED", null, [listing]);
+  await page.goto("/explore");
+  const feed = page.getByRole("region", { name: "Explore posts" });
+  const card = feed.getByRole("article", { name: "Job opportunity: Research assistant opportunity" });
+  await expect(card).toBeVisible();
+  await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
+  await expect(card.getByRole("img", { name: "Community Research Institute profile picture" })).toHaveAttribute("src", /\/api\/v1\/organizations\//);
+  await expect(card.locator(".bw-post-publisher-name").getByRole("link", { name: "Community Research Institute" })).toHaveAttribute("href", "/organizations/" + organizationId);
+  await expect(card.getByRole("link", { name: "Research assistant opportunity" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  await expect(card.getByRole("link", { name: "Apply on BrightWay" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  await expect(card.getByRole("button", { name: "Post options" })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Like" })).toHaveCount(0);
+  await page.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "Saved" }).click();
+  await expect(feed.getByRole("article", { name: "Job opportunity: Research assistant opportunity" })).toHaveCount(0);
+  await page.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "Following" }).click();
+  await expect(feed.getByRole("article", { name: "Job opportunity: Research assistant opportunity" })).toHaveCount(0);
+});
+
+test("main Explore feed displays the four reference gradient categories with white opportunity cards", async ({ page }) => {
+  const organizationId = "55555555-5555-4555-8555-555555555555";
+  const categories = [
+    { type: "JOB", label: "Job", heading: "Jobs & Internships", action: "Apply" },
+    { type: "SCHOLARSHIP", label: "Scholarship", heading: "Scholarships", action: "Apply" },
+    { type: "CHALLENGE", label: "Challenge", heading: "Challenge - Part take to Earn", action: "Participate" },
+    { type: "EVENT", label: "Event", heading: "Events", action: "Register" },
+  ];
+  const opportunities = categories.map((category, index) => ({
+    id: "66666666-6666-4666-8666-66666666666" + index,
+    type: category.type,
+    title: category.heading + " listing",
+    description: "A verified opportunity for BrightWay members.",
+    location: "Monrovia",
+    workMode: "IN_PERSON",
+    publishedAt: "2026-11-13T12:00:00Z",
+    createdAt: "2026-11-12T12:00:00Z",
+    status: "PUBLISHED",
+    deadline: "2099-01-01T12:00:00Z",
+    organization: { id: organizationId, name: "Community Research Institute", verifiedAt: "2026-11-01T12:00:00Z", profilePhotoId: "org-photo-1" },
+  }));
+  await fixture(page, [], "PUBLISHED", null, opportunities);
+  await page.goto("/explore");
+
+  const feed = page.getByRole("region", { name: "Explore posts" });
+  const gradients = [];
+  for (const category of categories) {
+    const card = feed.getByRole("article", { name: category.label + " opportunity: " + category.heading + " listing" });
+    await expect(card).toBeVisible();
+    await expect(card.locator(".bw-timeline-opportunity-category")).toContainText(category.heading);
+    await expect(card.getByRole("link", { name: "See all" })).toHaveAttribute("href", "/opportunities?type=" + category.type);
+    await expect(card.locator(".bw-timeline-opportunity-card")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
+    await expect(card.getByRole("link", { name: category.type === "CHALLENGE" ? "Take Part" : category.action + " on BrightWay" }))
+      .toHaveAttribute("href", /\/opportunities\/66666666-/);
+    const background = await card.evaluate(element => getComputedStyle(element).backgroundImage);
+    expect(background).toContain("linear-gradient");
+    gradients.push(background);
+  }
+  expect(new Set(gradients).size).toBe(4);
+  await expect(feed.getByText("Grants & Funding")).toHaveCount(0);
+});
+
+test("desktop avatar menu uses a large circular hover target", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Hover styling is checked on desktop; mobile target size is covered separately.");
+  await fixture(page);
+  await page.goto("/explore");
+  const menu = page.locator(".bw-design-header").getByRole("button", { name: "Open account menu" });
+  const dimensions = await menu.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  });
+  expect(dimensions).toEqual({ width: 44, height: 44 });
+  await expect(menu.locator("svg")).toHaveAttribute("width", "32");
+  await menu.hover();
+  await expect(menu).toHaveCSS("background-color", "rgb(240, 241, 242)");
+  await expect(menu).toHaveCSS("border-radius", "50%");
+});
+
+test("Challenge Explore card prioritizes title, verified organizer, deadline, prize and mode, with working save", async ({ page, isMobile }) => {
+  const opportunityId = "77777777-7777-4777-8777-777777777777";
+  const organizationId = "55555555-5555-4555-8555-555555555555";
+  const opportunity = {
+    id: opportunityId, type: "CHALLENGE", title: "Build a Community Learning App",
+    description: "Design a useful student learning experience.", location: "Monrovia",
+    workMode: "REMOTE", prize: "US$1,000", saved: false, status: "PUBLISHED",
+    participantSummary: { count: 3, members: [
+      { username: "student_a", name: "Student One", photoId: "photo-a", verified: true },
+      { username: "student_b", name: "Student Two", photoId: null, verified: true },
+      { username: "student_c", name: "Student Three", photoId: "photo-c", verified: true },
+    ] },
+    deadline: "2099-01-01T12:00:00Z", publishedAt: "2026-11-13T12:00:00Z",
+    createdAt: "2026-11-12T12:00:00Z", organization: {
+      id: organizationId, name: "Community Research Institute",
+      profilePhotoId: "org-photo-1", verifiedAt: "2026-11-01T12:00:00Z",
+    },
+  };
+  await fixture(page, [], "PUBLISHED", null, [opportunity]);
+  await page.goto("/explore");
+
+  const feed = page.getByRole("region", { name: "Explore posts" });
+  const card = feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" });
+  await expect(card).toBeVisible();
+  // Brightway.me's actual reference wraps the white compact card in a
+  // 16px-padded gradient category container; it has no full-height cover.
+  const heading = card.locator(".bw-timeline-opportunity-category");
+  const body = card.locator(".bw-challenge-card");
+  const shell = await card.evaluate(element => {
+    const style = getComputedStyle(element);
+    return { padding: style.paddingTop, background: style.backgroundImage };
+  });
+  expect(shell.padding).toBe(isMobile ? "12px" : "16px");
+  expect(shell.background).toContain("linear-gradient");
+  await expect(body).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  expect(await body.evaluate(element => getComputedStyle(element).paddingTop))
+    .toBe(isMobile ? "12px" : "16px");
+  expect(await heading.evaluate(element => getComputedStyle(element).minHeight)).toBe("0px");
+  const avatarWidth = await card.locator(".bw-challenge-organization-avatar")
+    .evaluate(element => element.getBoundingClientRect().width);
+  expect(avatarWidth).toBe(18);
+  const innerElementsWithTopMargins = await body.locator("*").evaluateAll(elements =>
+    elements.filter(element =>
+      !element.classList.contains("bw-challenge-divider") &&
+      getComputedStyle(element).marginTop !== "0px")
+      .map(element => ({ tag: element.tagName, className: element.getAttribute("class"),
+        marginTop: getComputedStyle(element).marginTop })));
+  expect(innerElementsWithTopMargins).toEqual([]);
+  const dividerMargin = await card.locator(".bw-challenge-divider")
+    .evaluate(element => getComputedStyle(element).marginTop);
+  expect(dividerMargin).toBe("16px");
+  const title = card.getByRole("heading", { name: opportunity.title });
+  const organizer = card.locator(".bw-challenge-organization");
+  const deadline = card.locator(".bw-challenge-deadline");
+  const prize = card.locator(".bw-challenge-prize");
+  await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
+  await expect(organizer.getByRole("link", { name: opportunity.organization.name, exact: true })).toHaveAttribute("href", "/organizations/" + organizationId);
+  await expect(deadline).toContainText(/^Closes in [0-9,]+ days$/);
+  await expect(deadline.locator("time")).toHaveAttribute("datetime", opportunity.deadline);
+  await expect(deadline.locator("time")).toHaveAttribute("title", /Deadline: /);
+  await expect(prize).toContainText("US$1,000");
+  await expect(prize).not.toContainText("On BrightWay");
+  await expect(prize).not.toContainText("Cash:");
+  const participantGroup = body.getByRole("group", { name: "Publicly participating members" });
+  await expect(participantGroup.getByRole("link")).toHaveCount(3);
+  await expect(participantGroup.getByRole("link", { name: "Student One participating in challenge" })).toHaveAttribute("href", "/student_a");
+  await expect(body.getByLabel("Public Challenge participants")).toContainText("3 participants");
+  const cover = body.locator(".bw-challenge-cover-photo");
+  await expect(cover).toHaveAttribute("src", "/images/hero/individuals-720.webp");
+  await expect(cover).toHaveCSS("object-fit", "cover");
+  await expect(body.getByRole("link", { name: "Open " + opportunity.title })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  await expect(title).toHaveCSS("margin-bottom", "2px");
+  await expect(prize).toHaveCSS("column-gap", "6px");
+  const [prizeAmountBounds, titleBounds, organizerBounds, deadlineBounds, prizeBounds, participantsBounds, coverBounds, avatarBounds, orgNameBounds] = await Promise.all([
+    prize.locator("strong").boundingBox(),
+    title.boundingBox(), organizer.boundingBox(), deadline.boundingBox(), prize.boundingBox(),
+    body.locator(".bw-challenge-participants").boundingBox(), cover.boundingBox(),
+    organizer.locator(".bw-challenge-organization-avatar").boundingBox(),
+    organizer.locator(".bw-challenge-organization-name").boundingBox(),
+  ]);
+  expect(prizeAmountBounds.width).toBeGreaterThan(0);
+  expect(titleBounds.y).toBeLessThan(organizerBounds.y);
+  expect(organizerBounds.y - (titleBounds.y + titleBounds.height)).toBeLessThanOrEqual(4);
+  expect(avatarBounds.x + avatarBounds.width).toBeLessThanOrEqual(orgNameBounds.x + 1);
+  expect(prizeBounds.y).toBeGreaterThanOrEqual(organizerBounds.y + organizerBounds.height - 1);
+  expect(deadlineBounds.y).toBeGreaterThanOrEqual(prizeBounds.y + prizeBounds.height - 1);
+  expect(participantsBounds.y).toBeGreaterThanOrEqual(deadlineBounds.y + deadlineBounds.height - 1);
+  expect(coverBounds.x).toBeGreaterThanOrEqual(organizerBounds.x + organizerBounds.width - 1);
+  await expect(card.locator(".bw-challenge-divider")).toHaveCount(1);
+  await expect(card.getByRole("link", { name: "Take Part" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  const [participateBounds, actionsBounds] = await Promise.all([
+    card.getByRole("link", { name: "Take Part" }).boundingBox(),
+    card.locator(".bw-challenge-secondary").boundingBox(),
+  ]);
+  expect(participateBounds.x + participateBounds.width).toBeLessThanOrEqual(actionsBounds.x + 1);
+  await expect(card.getByRole("button", { name: "Share challenge" })).toBeVisible();
+  // Challenge actions are only Share and Save; the title and Participate CTA still open detail.
+  await expect(card.getByRole("link", { name: "View challenge" })).toHaveCount(0);
+  await expect(card.locator(".bw-challenge-secondary").locator("button")).toHaveCount(2);
+  const save = card.getByRole("button", { name: "Save challenge" });
+  await expect(save).toHaveAttribute("aria-pressed", "false");
+  await save.click();
+  await expect(card.getByRole("button", { name: "Unsave challenge" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "Saved" }).click();
+  await expect(feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" })).toBeVisible();
+  await page.reload();
+  // Explore resets its selected feed on a page reload; explicitly reopen
+  // Saved to verify persistence and immediate removal in that view.
+  await page.getByRole("navigation", { name: "Explore feed" })
+    .getByRole("button", { name: "Saved", exact: true }).click();
+  const savedCard = feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" });
+  await expect(savedCard.getByRole("button", { name: "Unsave challenge" })).toBeVisible();
+  await savedCard.getByRole("button", { name: "Unsave challenge" }).click();
+  await expect(savedCard).toHaveCount(0);
+  const root = page.locator("html");
+  expect(await root.evaluate(element => element.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });

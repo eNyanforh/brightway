@@ -95,3 +95,28 @@ test("blocking clears follows and unblocking never restores them; Followers is a
   await page.getByRole("button", { name: "Followers", exact: true }).click(); await expect(page.getByText("Nothing here yet", { exact: true })).toBeVisible(); await expect(page.getByRole("button", { name: /Grace Johnson/ })).toHaveCount(0);
   expect(state.followWrites).toHaveLength(0); await layout(page); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });
+
+test("Network uses BrightWay's compact responsive cards with real identity slots and accessible actions", async ({ page, isMobile }) => {
+  await fixture(page);
+  await page.goto("/network");
+  await expect(page.getByRole("heading", { name: "Network", exact: true })).toBeVisible();
+  await expect(page.getByText("PEOPLE & CONNECTIONS")).toHaveCount(0);
+  const tabs = page.getByRole("navigation", { name: "Network views" });
+  await expect(tabs.getByRole("button", { name: "Connections", exact: true })).toHaveAttribute("aria-current", "page");
+  const targets = await tabs.locator("button").evaluateAll(buttons => buttons.map(button => Math.round(button.getBoundingClientRect().height)));
+  expect(Math.min(...targets)).toBeGreaterThanOrEqual(44);
+  await page.getByLabel("Connect by BrightWay username").fill("grace");
+  await page.getByRole("button", { name: "Find person", exact: true }).click();
+  const detail = page.getByRole("region", { name: "Connection details" });
+  await expect(detail.locator(".bw-network-avatar-large")).toBeVisible();
+  await expect(detail.getByRole("heading", { name: "Grace Johnson" })).toBeVisible();
+  await expect(detail.getByRole("button", { name: "Connect", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Discover people" }).first()).toHaveAttribute("href", "/search");
+  await layout(page);
+  const ctaHeight = await detail.getByRole("button", { name: "Connect" }).evaluate(el => el.getBoundingClientRect().height);
+  expect(ctaHeight).toBeGreaterThanOrEqual(44);
+  if (isMobile) {
+    await expect(page.locator(".bw-network-layout")).toHaveCSS("grid-template-columns", /\d+px/);
+    await expect(page.locator(".bw-network-search-note")).toBeHidden();
+  }
+});
