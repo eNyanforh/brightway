@@ -16,7 +16,7 @@ const MANAGE = "organization.opportunities.manage", REVIEW = "organization.appli
 const publicOrganization = { status: "ACTIVE", request: { status: "APPROVED" }, profileReadyAt: { not: null }, profilePhotoId: { not: null }, username: { not: null }, profileSetupStep: 5 };
 const organizationSelect = { id: true, name: true, username: true, profilePhotoId: true, verifiedAt: true };
 const collaboratorSelect = { organizationId: true, state: true, organization: { select: organizationSelect } };
-const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, prize: true, prizes: true, sponsorLogoIds: true, backgroundAssetId: true, titleAssetId: true, coverAssetId: true, maxApplicants: true, topics: true, coverImage: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect },
+const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, prize: true, prizes: true, postRequirements: true, sponsorLogoIds: true, backgroundAssetId: true, titleAssetId: true, coverAssetId: true, topics: true, coverImage: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect },
   collaborators: { where: { state: "ACCEPTED", organization: publicOrganization }, select: collaboratorSelect } };
 const managedOpportunitySelect = { ...opportunitySelect, collaborators: { select: collaboratorSelect } };
 const fileSelect = { id: true, questionId: true, contentType: true, size: true, createdAt: true };
@@ -159,12 +159,12 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
   function prepareOpportunity(data) {
     if (data.type !== "CHALLENGE") return {
       ...data, prizes: [], sponsorLogoIds: [], backgroundAssetId: null,
-      titleAssetId: null, coverAssetId: null, collaboratorIds: [], maxApplicants: null,
+      titleAssetId: null, coverAssetId: null, collaboratorIds: [], postRequirements: [], maxApplicants: null,
     };
     const displayPrize = data.prizes.length
       ? data.prizes.map(challengePrizeValue).join(" · ").slice(0, 120)
       : data.prize;
-    return { ...data, location: "BrightWay", workMode: "REMOTE", prize: displayPrize };
+    return { ...data, maxApplicants: null, location: "BrightWay", workMode: "REMOTE", prize: displayPrize };
   }
   function selectedAssets(data) {
     if (data.type !== "CHALLENGE") return [];
@@ -256,6 +256,36 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
       if (!valid) throw unavailable();
     });
     return asset;
+  }
+  // Members submit their existing first-party BrightWay posts. Check ownership
+  // and published media inside the same transaction as the application.
+  // Duration is an organizer review criterion until reliable video metadata is stored.
+  async function validatePublishedChallengePosts(db, actor, requirements, answers) {
+    const required = requirements.filter(item => item.type !== "CAPTION");
+    if (!required.length) return;
+    const ids = [...new Set(required.map(item => answers[item.id]))];
+    const posts = await db.memberPost.findMany({
+      where: { id: { in: ids }, authorId: actor.accountId, withdrawnAt: null,
+        moderationStatus: "PUBLISHED" },
+      select: { id: true, media: { select: { kind: true, pageCount: true } } },
+    });
+    const byId = new Map(posts.map(post => [post.id, post]));
+    for (const requirement of required) {
+      const post = byId.get(answers[requirement.id]);
+      if (!post) throw fail(400, "Select your own published BrightWay post for the Challenge.");
+      const kind = requirement.type === "VIDEO_POST" ? "VIDEO"
+        : requirement.type === "PHOTO_POST" ? "IMAGE" : "DOCUMENT";
+      const attachments = post.media.filter(file => file.kind === kind);
+      if (!attachments.length)
+        throw fail(400, `Your ${requirement.type === "VIDEO_POST" ? "video" :
+          requirement.type === "PHOTO_POST" ? "photo" : "PDF"} submission needs matching media.`);
+      if (requirement.type === "PHOTO_POST" &&
+          (attachments.length < requirement.minImages || attachments.length > requirement.maxImages))
+        throw fail(400, "The photo count does not meet the Challenge requirements.");
+      if (requirement.type === "DOCUMENT_POST" &&
+          attachments.some(file => !file.pageCount || file.pageCount > requirement.maxPages))
+        throw fail(400, "The PDF has more pages than the Challenge permits.");
+    }
   }
   async function profileSnapshot(db, actor) {
     // Lock the profile alongside submission; completion is decided by the backend.
@@ -499,21 +529,17 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         if (row.version !== data.expectedOpportunityVersion) throw conflict();
         const previous = await db.opportunityApplication.findUnique({ where: { opportunityId_applicantId: { opportunityId: oppId, applicantId: actor.accountId } }, include: { files: true } });
         if ((previous?.version || 0) !== data.expectedVersion || (previous && previous.status !== "DRAFT")) throw conflict();
-        input.validateAnswers(row.questions, data.answers, previous?.files || [], data.action === "SUBMIT");
+        input.validateAnswers(row.questions, data.answers, previous?.files || [], data.action === "SUBMIT",
+          row.type === "CHALLENGE" ? row.postRequirements : []);
         const submit = data.action === "SUBMIT";
         if (submit && !data.shareProfile) throw fail(400, "Confirm sharing your application and professional profile with this organization.");
-        if (submit && row.type === "CHALLENGE" && row.maxApplicants !== null) {
-          const taken = await db.opportunityApplication.count({ where: {
-            opportunityId: row.id, submittedAt: { not: null },
-            status: { in: ["SUBMITTED", "UNDER_REVIEW", "SHORTLISTED", "SELECTED", "NOT_SELECTED"] },
-          } });
-          if (taken >= row.maxApplicants) throw fail(409, "This Challenge has reached its application limit.");
-        }
+        if (submit && row.type === "CHALLENGE")
+          await validatePublishedChallengePosts(db, actor, row.postRequirements, data.answers);
         const snapshot = submit ? await profileSnapshot(db, actor) : null;
         const saved = { answers: data.answers,
           ...(submit ? { publicParticipant: row.type === "CHALLENGE" && data.publicParticipant } : {}),
           ...(submit ? { status: "SUBMITTED", submittedAt: now(), profileSnapshot: snapshot,
-          opportunitySnapshot: { title: row.title, type: row.type, organization: row.organization.name, questions: row.questions, description: row.description, location: row.location, workMode: row.workMode, prize: row.prize, prizes: row.prizes, maxApplicants: row.maxApplicants, version: row.version, deadline: row.deadline.toISOString() } } : {}) };
+          opportunitySnapshot: { title: row.title, type: row.type, organization: row.organization.name, questions: row.questions, description: row.description, location: row.location, workMode: row.workMode, prize: row.prize, prizes: row.prizes, postRequirements: row.postRequirements, version: row.version, deadline: row.deadline.toISOString() } } : {}) };
         const app = previous ? await db.opportunityApplication.update({ where: { id: previous.id }, data: { ...saved, version: { increment: 1 } } })
           : await db.opportunityApplication.create({ data: { opportunityId: oppId, applicantId: actor.accountId, ...saved } });
         if (submit) await event(db, actor, { ...app, status: previous?.status || "DRAFT" }, "SUBMITTED");
