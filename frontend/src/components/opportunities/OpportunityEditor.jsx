@@ -37,6 +37,7 @@ function initialDraft(opportunity) {
     initial.prizes = [{ type: "OTHER", description: opportunity.prize }];
   }
   return { ...initial,
+    ...(opportunity.coverImage ? { coverImage: opportunity.coverImage } : {}),
     collaboratorIds: (opportunity.collaborators || []).map(item => item.organizationId),
     deadline: toLocal(opportunity.deadline),
   };
