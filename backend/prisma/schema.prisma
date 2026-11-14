@@ -1691,6 +1691,8 @@ model Opportunity {
   location String @db.VarChar(180)
   workMode String @db.VarChar(16)
   prize String? @db.VarChar(120)
+  topics String[] @default([])
+  coverImage String @default("STUDENTS") @db.VarChar(20)
   deadline DateTime
   questions Json
   version Int @default(1)
