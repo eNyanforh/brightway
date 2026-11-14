@@ -1695,6 +1695,7 @@ model Opportunity {
   workMode String @db.VarChar(16)
   prize String? @db.VarChar(120)
   prizes Json @default("[]")
+  postRequirements Json @default("[]")
   sponsorLogoIds String[] @default([])
   backgroundAssetId String?
   titleAssetId String?
