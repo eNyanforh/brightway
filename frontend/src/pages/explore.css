@@ -1267,3 +1267,170 @@
   .bw-explore .bw-challenge-mode { font-size: 10px; }
   .bw-explore .bw-challenge-organization-name { font-size: 11px; }
 }
+
+
+/* 2026 Explore modernization: BrightWay black/white editorial system. */
+.bw-explore {
+  --explore-ink: #111;
+  --explore-muted: #68707c;
+  --explore-blue: #0a66c2;
+  --explore-blue-hover: #084f96;
+  --explore-border: #e4e7eb;
+  --explore-soft: #f5f6f7;
+  --explore-surface: #fff;
+  grid-template-columns: minmax(0, 1fr) minmax(276px, 300px);
+  gap: 24px;
+  max-width: 1180px;
+}
+.bw-explore-main { gap: 16px; }
+.bw-explore-right { gap: 0; top: 86px; border: 1px solid var(--explore-border); border-radius: 16px; background: #fff; overflow: hidden; }
+
+/* A confident, neutral spotlight keeps BrightWay's feed from looking like a template. */
+.bw-explore .bw-explore-billboard {
+  border: 0;
+  border-radius: 16px;
+  background: #111;
+  box-shadow: 0 12px 30px rgba(0,0,0,.08);
+}
+.bw-explore .bw-billboard-slide,
+.bw-explore .bw-billboard-winners,
+.bw-explore .bw-billboard-campus {
+  min-height: 202px;
+  padding: 1.5rem 1.65rem;
+  background: linear-gradient(122deg,#0c0c0c 0%,#1b1b1b 62%,#252525 100%);
+}
+.bw-explore .bw-billboard-label { color: #b8c0ca; font-size: .65rem; letter-spacing: .12em; }
+.bw-explore .bw-billboard-copy h2 { max-width: 20ch; font-size: clamp(1.55rem,2.8vw,2.15rem); font-weight: 780; letter-spacing: -.045em; }
+.bw-explore .bw-billboard-description { color: #d5d8dc; font-size: .82rem; }
+.bw-explore .bw-billboard-cta {
+  min-height: 38px;
+  padding: .48rem .82rem;
+  border-color: #fff;
+  border-radius: 999px;
+  color: #111;
+}
+.bw-explore .bw-billboard-cta:hover { background: #ececec; }
+.bw-explore .bw-billboard-art {
+  width: min(100%,118px);
+  border: 1px solid #ffffff24;
+  border-radius: 50%;
+  background: #ffffff0d;
+  color: #fff;
+}
+.bw-explore .bw-billboard-controls { min-height: 44px; background: #0b0b0b; border-top-color: #ffffff14; }
+.bw-explore .bw-billboard-dots span { background: #686868; }
+.bw-explore .bw-billboard-dots button[aria-pressed="true"] span { background: #fff; }
+
+/* Feed navigation remains visible during long sessions without adding page chrome. */
+.bw-explore .bw-explore-filters {
+  position: sticky;
+  top: 76px;
+  z-index: 22;
+  margin: 0 0 12px;
+  border: 1px solid var(--explore-border);
+  border-radius: 14px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 5px 18px rgba(16,24,40,.045);
+  backdrop-filter: blur(14px);
+}
+.bw-explore .bw-explore-filters button { min-height: 50px; color: #717780; font-size: .84rem; font-weight: 650; }
+.bw-explore .bw-explore-filters button:hover { background: #f6f7f8; color: #111; }
+.bw-explore .bw-explore-filters button[aria-pressed="true"] { color: #111; font-weight: 800; }
+.bw-explore .bw-explore-filters button[aria-pressed="true"] span::after { height: 3px; background: #111; }
+
+/* Purposeful contribution is one composed surface, not a row of colored widgets. */
+.bw-explore .bw-personal-composer {
+  padding: .72rem .8rem;
+  border-color: var(--explore-border);
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgba(16,24,40,.035);
+}
+.bw-explore .bw-post-quick-actions { gap: .35rem; }
+.bw-explore .bw-post-panel .bw-post-quick-action {
+  min-height: 50px;
+  border-color: transparent;
+  border-radius: 10px;
+  background: #f6f7f8;
+  color: #25282d;
+}
+.bw-explore .bw-post-panel .bw-post-quick-action:hover:enabled,
+.bw-explore .bw-post-panel .bw-post-quick-action[aria-expanded="true"] {
+  border-color: #d8dce1;
+  background: #eceef0;
+}
+
+/* Posts are calmer and content-led; interaction feedback stays subtle. */
+.bw-explore .bw-timeline-panel { gap: 12px; }
+.bw-explore .bw-timeline-post {
+  padding: 1rem 1rem .72rem;
+  border-color: var(--explore-border);
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(16,24,40,.025);
+}
+.bw-explore .bw-timeline-post:hover { border-color: #ccd1d7; box-shadow: 0 8px 24px rgba(16,24,40,.055); }
+.bw-explore .bw-timeline-avatar { background: #f0f1f2; color: #333; }
+.bw-explore .bw-timeline-byline { color: #717780; }
+.bw-explore .bw-timeline-byline a { color: #111; }
+.bw-explore .bw-timeline-post .bw-post-text { color: #262a30; }
+.bw-explore .bw-timeline-panel .bw-timeline-action { color: #656c75; border-radius: 999px; }
+.bw-explore .bw-timeline-panel .bw-timeline-action:hover { background: #f0f1f2; color: #111; }
+.bw-explore .bw-post-manage .bw-post-options-trigger:hover,
+.bw-explore .bw-post-manage .bw-post-options-trigger[aria-expanded="true"] { background: #f0f1f2; color: #111; }
+
+/* The desktop rail reads as one compact editorial module rather than stacked cards. */
+.bw-explore-right .bw-explore-aside-card {
+  padding: 18px;
+  border: 0;
+  border-bottom: 1px solid var(--explore-border);
+  border-radius: 0;
+  background: #fff;
+}
+.bw-explore-right .bw-explore-aside-card:last-child { border-bottom: 0; }
+.bw-explore-right .bw-explore-aside-card h2 { color: #111; font-size: .92rem; font-weight: 800; }
+.bw-explore-aside-icon,.bw-explore-journey-icon { background: #f0f1f2; color: #222; }
+.bw-explore .bw-suggestions { border-color: #e3e6e9; background: #fafafa; }
+.bw-explore .bw-suggestions summary { color: #2f343a; }
+.bw-explore-aside-link { color: #0a5aa9; }
+.bw-explore-right :is(.bw-learn-card,.bw-opportunity-card,.bw-rail-challenge-card) { box-shadow: none; }
+
+/* Tablet keeps useful discovery modules below the feed in a clean two-column row. */
+@media (max-width:1180px) {
+  .bw-explore { grid-template-columns: minmax(0,1fr); max-width: 780px; }
+  .bw-explore-right { position: static; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); border-radius: 14px; }
+  .bw-explore-right .bw-explore-aside-card:nth-child(odd) { border-right: 1px solid var(--explore-border); }
+  .bw-explore-right .bw-explore-aside-card:nth-last-child(-n+2) { border-bottom: 0; }
+}
+
+/* Mobile remains immersive: sticky feed tabs, flat stories and edge-to-edge media. */
+@media (max-width:700px) {
+  .bw-explore { --explore-border:#e7e7e7; background:#fff; }
+  .bw-app-shell:has(.bw-explore) { background:#fff; }
+  .bw-explore .bw-explore-filters {
+    top: var(--bw-mobile-header-height,56px);
+    margin: 0;
+    border: 0;
+    border-bottom: 1px solid #e5e5e5;
+    border-radius: 0;
+    box-shadow: 0 3px 10px rgba(0,0,0,.035);
+  }
+  .bw-explore .bw-explore-filters button { min-height: 48px; font-size: 14px; }
+  .bw-explore .bw-timeline-panel { background:#fff; }
+  .bw-explore .bw-timeline-post,
+  .bw-explore .bw-timeline-post:hover {
+    /* Preserve the full-bleed mobile geometry and flat media cards. */
+    padding: 16px 12px 8px;
+    border-radius: 0;
+    box-shadow: none;
+    border-bottom: 8px solid #f3f3f3;
+    background: #fff;
+  }
+  .bw-explore .bw-timeline-avatar { background:#f1f1f1; color:#333; }
+  .bw-explore-right { grid-template-columns:1fr; border:0; border-top:8px solid #f3f3f3; border-radius:0; }
+  .bw-explore-right .bw-explore-aside-card,
+  .bw-explore-right .bw-explore-aside-card:nth-child(odd) { padding:20px 16px; border-right:0; border-bottom:1px solid #e7e7e7; }
+  .bw-explore-right .bw-explore-aside-card:last-child { border-bottom:0; }
+  .bw-explore-mobile-post-notice { margin:10px 12px; border-color:#d7dce2; background:#f5f6f7; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .bw-explore .bw-explore-filters,.bw-explore .bw-timeline-post { scroll-behavior:auto; }
+}
