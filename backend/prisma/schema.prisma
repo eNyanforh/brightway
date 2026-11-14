@@ -1728,6 +1728,8 @@ model OpportunityApplication {
   feedback String @default("") @db.VarChar(1000)
   submittedAt DateTime?
   withdrawnAt DateTime?
+  // Opt-in public identity for Challenge participant previews. Private by default.
+  publicParticipant Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   files OpportunityApplicationFile[]
@@ -1735,6 +1737,7 @@ model OpportunityApplication {
   @@unique([opportunityId, applicantId])
   @@index([applicantId, createdAt, id])
   @@index([opportunityId, status, createdAt, id])
+  @@index([opportunityId, publicParticipant, submittedAt, id])
 }
 model OpportunityApplicationFile {
   id String @id @default(uuid())
