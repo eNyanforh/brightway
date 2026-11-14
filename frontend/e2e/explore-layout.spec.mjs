@@ -132,7 +132,7 @@ test("Explore right sidebar displays photo-backed Challenge cards with prize, sp
   await expect(topics).toContainText("Technology");
   await expect(topics).toContainText("Education");
   await expect(card.getByRole("link", { name: "Take Part" })).toHaveAttribute("href", "/opportunities/" + cid);
-  const reminder = card.getByRole("time");
+  const reminder = card.locator("time");
   await expect(reminder).toHaveAttribute("datetime", challenge.deadline);
   await expect(reminder).toContainText(/Closes in [0-9,]+ days/);
   await expect(card.getByRole("link", { name: "Challenge", exact: true })).toHaveAttribute("href", "/opportunities?type=CHALLENGE");
