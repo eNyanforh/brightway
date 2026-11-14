@@ -371,3 +371,25 @@
   .bw-op-detail .bw-op-challenge-title-art { width: 40%; max-height: 125px; }
   .bw-op-detail .bw-op-challenge-sponsor-logos img { width: 42px; height: 42px; }
 }
+
+/* Each reward has dedicated inputs rather than a generic text field. */
+.bw-op-wizard-overlay .bw-op-wizard-prize-fields {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+.bw-op-wizard-overlay .bw-op-wizard-prize-fields > label {
+  max-width: 340px;
+  margin-bottom: 12px;
+}
+.bw-op-wizard-overlay .bw-op-wizard-prize-fields .bw-op-field-row {
+  align-items: start;
+  gap: 12px;
+}
+.bw-op-wizard-overlay .bw-op-wizard-prize-fields input[type="number"] {
+  font-variant-numeric: tabular-nums;
+}
+.bw-op-wizard-overlay .bw-op-wizard-prize-fields .bw-op-text-button {
+  justify-self: start;
+  margin: 0 0 14px;
+}
