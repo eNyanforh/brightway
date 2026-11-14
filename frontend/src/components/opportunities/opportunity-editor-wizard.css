@@ -337,3 +337,37 @@
 @media (prefers-reduced-motion: reduce) {
   .bw-op-wizard-overlay * { scroll-behavior: auto; }
 }
+
+/* Published Challenge presentation: distinct background and title artwork. */
+.bw-op-detail .bw-op-challenge-title-art {
+  float: right;
+  width: min(34%, 230px);
+  max-height: 165px;
+  margin: 0 0 14px 18px;
+  border-radius: 9px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,.25);
+}
+.bw-op-detail .bw-op-challenge-sponsor-logos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+.bw-op-detail .bw-op-challenge-sponsor-logos img {
+  display: block;
+  width: 50px;
+  height: 50px;
+  padding: 5px;
+  background: white;
+  object-fit: contain;
+  border: 1px solid rgba(255,255,255,.5);
+  border-radius: 8px;
+}
+.bw-op-detail .bw-op-challenge-rewards ul { margin: 10px 0; padding-left: 22px; }
+.bw-op-detail .bw-op-challenge-rewards li { margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
+.bw-op-detail .bw-op-challenge-rewards p { font-size: 13px; color: #475467; }
+@media (max-width: 620px) {
+  .bw-op-detail .bw-op-challenge-title-art { width: 40%; max-height: 125px; }
+  .bw-op-detail .bw-op-challenge-sponsor-logos img { width: 42px; height: 42px; }
+}
