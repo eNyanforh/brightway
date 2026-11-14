@@ -15,3 +15,20 @@ export const CHALLENGE_COVER_LABELS = Object.freeze({
 export const DEFAULT_CHALLENGE_COVER = "STUDENTS";
 export const CHALLENGE_TOPIC_OPTIONS = POST_SUBJECT_CATEGORIES;
 export const MAX_CHALLENGE_TOPICS = 3;
+
+export const CHALLENGE_PRIZE_TYPES = Object.freeze({
+  CASH: "Cash",
+  SCHOLARSHIP: "Scholarship",
+  CERTIFICATE: "Certificate",
+  MENTORSHIP: "Mentorship",
+  EQUIPMENT: "Equipment or tools",
+  INTERNSHIP: "Internship",
+  OTHER: "Other",
+});
+export const CHALLENGE_MEDIA_KINDS = Object.freeze({
+  SPONSOR_LOGO: "Sponsor logo",
+  BACKGROUND: "Challenge background",
+  TITLE_IMAGE: "Challenge title image",
+});
+export const MAX_CHALLENGE_SPONSORS = 5;
+export const MAX_CHALLENGE_PRIZES = 8;

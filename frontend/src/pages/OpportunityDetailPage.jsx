@@ -6,6 +6,9 @@ import { OPPORTUNITY_TYPES, APPLICATION_STATUSES, OPPORTUNITY_STATUSES } from ".
 import OpportunityOrganization from "../components/opportunities/OpportunityOrganization";
 import ApplicationQuestions from "../components/opportunities/ApplicationQuestions";
 import ApplicationHistory from "../components/opportunities/ApplicationHistory";
+import { CHALLENGE_PRIZE_TYPES } from "../../../shared/challenges.mjs";
+import { challengeDeadlineReminder } from "../components/opportunities/challenge-deadline";
+import "../components/opportunities/opportunity-editor-wizard.css";
 import "../components/opportunities/opportunities.css";
 export default function OpportunityDetailPage({ application = false }) {
   const { id } = useParams(), { account } = useAuth();
@@ -50,13 +53,46 @@ function Detail({ id, applicationRoute }) {
   const editable = open && (!app || app.status === "DRAFT");
   const blocked = busy || [401, 404, 409].includes(error?.status);
   const questions = app?.opportunitySnapshot?.questions || opportunity?.questions || [];
+  const challenge = opportunity?.type === "CHALLENGE";
+  const challengeBackground = challenge && opportunity.backgroundAssetId
+    ? api.challengeAssetUrl(opportunity.backgroundAssetId) : null;
+  const challengeTitleImage = challenge && opportunity.titleAssetId
+    ? api.challengeAssetUrl(opportunity.titleAssetId) : null;
   return <section className="bw-op-page bw-op-detail" aria-busy={busy}>
     <Link className="bw-op-back" to="/opportunities?view=applications">← My applications</Link>
     {error && <div className="bw-op-feedback" role="alert"><p>{error.message}</p>{error.status === 403 && <p><Link to="/profile">Complete your profile</Link> · <Link to="/security">Account security</Link></p>}<button type="button" disabled={busy} onClick={() => { if (!dirty || window.confirm("Reload and discard unsaved answers?")) void load(); }}>Reload saved application</button></div>}
     {notice && <p className="bw-op-success" role="status">{notice}</p>}
     {!opportunity && !error && <p role="status">Opening opportunity…</p>}
     {opportunity && <>
-      <header className={`bw-op-detail-header bw-op-${opportunity.type.toLowerCase()}`}><p className="bw-op-eyebrow">{OPPORTUNITY_TYPES[opportunity.type].label} · {OPPORTUNITY_STATUSES[opportunity.status]}</p><h1>{app?.opportunitySnapshot?.title || opportunity.title}</h1><OpportunityOrganization organization={opportunity.organization} inverse /><div className="bw-op-detail-meta"><span>{opportunity.location}</span><span>{opportunity.workMode.replaceAll("_", " ")}</span>{opportunity.type === "CHALLENGE" && opportunity.prize && <span>Prize: {opportunity.prize}</span>}<span>Deadline: {new Date(opportunity.deadline).toLocaleString("en-GB")}</span></div></header>
+      <header className={`bw-op-detail-header bw-op-${opportunity.type.toLowerCase()}`}
+        style={challengeBackground ? {
+          backgroundImage: `linear-gradient(90deg, rgba(10,20,37,.94), rgba(10,20,37,.60)), url("${challengeBackground}")`,
+          backgroundSize: "cover", backgroundPosition: "center",
+        } : undefined}>
+        <p className="bw-op-eyebrow">{OPPORTUNITY_TYPES[opportunity.type].label} · {OPPORTUNITY_STATUSES[opportunity.status]}</p>
+        {challengeTitleImage && <img className="bw-op-challenge-title-art" alt="Challenge title artwork" src={challengeTitleImage} />}
+        <h1>{app?.opportunitySnapshot?.title || opportunity.title}</h1>
+        <OpportunityOrganization organization={opportunity.organization} inverse />
+        <div className="bw-op-detail-meta">
+          <span>{challenge ? "Hosted on BrightWay" : opportunity.location}</span>
+          {!challenge && <span>{opportunity.workMode.replaceAll("_", " ")}</span>}
+          {challenge && opportunity.maxApplicants && <span>Maximum {opportunity.maxApplicants.toLocaleString()} applicants</span>}
+          <span>Deadline: {new Date(opportunity.deadline).toLocaleString("en-GB")}</span>
+          {challenge && <span>{challengeDeadlineReminder(opportunity.deadline)}</span>}
+        </div>
+        {challenge && Boolean(opportunity.sponsorLogoIds?.length) && <div className="bw-op-challenge-sponsor-logos" aria-label="Challenge sponsors">
+          {opportunity.sponsorLogoIds.map((assetId, index) =>
+            <img key={assetId} src={api.challengeAssetUrl(assetId)} alt={`Sponsor logo ${index + 1}`} />)}
+        </div>}
+      </header>
+      {challenge && <section className="bw-op-surface bw-op-challenge-rewards">
+        <h2>Prizes and rewards</h2>
+        {Array.isArray(opportunity.prizes) && opportunity.prizes.length
+          ? <ul>{opportunity.prizes.map((item, index) =>
+            <li key={index}><strong>{CHALLENGE_PRIZE_TYPES[item.type] || "Prize"}</strong> — {item.description}</li>)}</ul>
+          : <p>{opportunity.prize || "Prizes will be announced by the organizer."}</p>}
+        <p>Applications and participation take place on BrightWay. No offline or external submissions.</p>
+      </section>}
       <div className="bw-op-detail-layout"><div>
         <section className="bw-op-surface"><h2>About this opportunity</h2><p className="bw-op-description">{app?.opportunitySnapshot?.description || opportunity.description}</p></section>
         <section className="bw-op-surface"><div className="bw-op-section-title"><h2>{editable ? "Your application" : "Application details"}</h2>{app && <span className={`bw-op-status bw-op-status-${app.status.toLowerCase()}`}>{APPLICATION_STATUSES[app.status]}</span>}</div>

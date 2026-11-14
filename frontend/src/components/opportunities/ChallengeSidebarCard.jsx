@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER } from "../../../../shared/challenges.mjs";
 import { challengeDeadlineReminder } from "./challenge-deadline";
+import { opportunitiesApi as api } from "../../api/opportunities";
 import OrganizationAvatar from "../profile/OrganizationAvatar";
 import VerificationBadge from "../VerificationBadge";
 import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
@@ -19,12 +20,13 @@ export default function ChallengeSidebarCard({ opportunity }) {
   if (!organization) return null;
   const detail = "/opportunities/" + encodeURIComponent(opportunity.id);
   const sponsor = "/organizations/" + encodeURIComponent(organization.id);
-  const cover = CHALLENGE_COVER_IMAGES[opportunity.coverImage] || CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER];
+  const cover = opportunity.titleAssetId ? api.challengeAssetUrl(opportunity.titleAssetId)
+    : opportunity.backgroundAssetId ? api.challengeAssetUrl(opportunity.backgroundAssetId)
+    : CHALLENGE_COVER_IMAGES[opportunity.coverImage] || CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER];
   const photoUrl = organization.profilePhotoId
     ? `/api/v1/organizations/${encodeURIComponent(organization.id)}/photo/${encodeURIComponent(organization.profilePhotoId)}`
     : null;
-  const mode = opportunity.workMode === "REMOTE" ? "Online"
-    : opportunity.workMode === "HYBRID" ? "Online & offline" : "Offline";
+  const mode = "On BrightWay";
   const topics = (Array.isArray(opportunity.topics) ? opportunity.topics : []).slice(0, 3);
   const deadline = new Date(opportunity.deadline);
   const formatted = Number.isNaN(deadline.getTime()) ? "Unavailable" :

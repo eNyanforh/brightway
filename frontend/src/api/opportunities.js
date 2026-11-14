@@ -30,6 +30,9 @@ export const opportunitiesApi = {
   filesUrl: (applicationId, fileId, organizationId) => base + (organizationId ? org(organizationId) + "/applications/" + encodeURIComponent(applicationId) : app(applicationId)) + "/files/" + encodeURIComponent(fileId),
   list: (id, cursor, signal) => list(org(id) + "/opportunities" + query({ cursor }), signal),
   create: (id, body, signal) => request(org(id) + "/opportunities", { method: "POST", body, signal }),
+  uploadChallengeAsset: (id, kind, file, signal) =>
+    request(org(id) + "/challenge-assets" + query({ kind }), { method: "POST", file, signal }),
+  challengeAssetUrl: id => base + "/opportunities/challenge-assets/" + encodeURIComponent(id),
   edit: (id, opportunityId, body, signal) => request(org(id) + "/opportunities/" + encodeURIComponent(opportunityId), { method: "PATCH", body, signal }),
   status: (id, opportunityId, body, signal) => request(org(id) + "/opportunities/" + encodeURIComponent(opportunityId) + "/status", { method: "PUT", body, signal }),
   reviews: (id, params, signal) => list(org(id) + "/applications" + query(params), signal),

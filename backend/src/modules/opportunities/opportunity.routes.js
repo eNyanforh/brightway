@@ -18,6 +18,14 @@ export function createOpportunityRoutes({ opportunities, sessions, clientUrl, no
     try { res.status(status).json({ success: true, data: await work(req, actor(req)) }); }
     catch (error) { next(error.status ? error : fail(503, "Opportunities are temporarily unavailable. Try again shortly.")); }
   };
+  const challengeImage = async (req, res, next) => {
+    try {
+      const { bytes, contentType } = await opportunities.readChallengeAsset(actor(req), req.params.assetId);
+      res.set({ "Content-Type": contentType, "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'" })
+        .send(bytes);
+    } catch (error) { next(error.status ? error : fail(503, "Challenge image is temporarily unavailable.")); }
+  };
   const download = organization => async (req, res, next) => {
     try {
       const file = await opportunities.readFile(actor(req), req.params.applicationId, req.params.fileId, organization ? req.params.organizationId : undefined);
@@ -27,6 +35,7 @@ export function createOpportunityRoutes({ opportunities, sessions, clientUrl, no
   };
   router.get("/opportunities", read, respond((r, a) => opportunities.browse(a, r.query)));
   router.get("/opportunities/:id", read, respond((r, a) => opportunities.detail(a, r.params.id)));
+  router.get("/opportunities/challenge-assets/:assetId", read, challengeImage);
   router.put("/opportunities/:id/save", write, respond((r, a) => opportunities.saveOpportunity(a, r.params.id, r.body)));
   router.put("/opportunities/:id/application", write, respond((r, a) => opportunities.saveApplication(a, r.params.id, r.body)));
   router.get("/applications/me", read, respond((r, a) => opportunities.myApplications(a, r.query)));
@@ -39,6 +48,9 @@ export function createOpportunityRoutes({ opportunities, sessions, clientUrl, no
   const path = "/organization-workspace/:organizationId";
   router.get(path + "/opportunities", read, respond((r, a) => opportunities.list(a, r.params.organizationId, r.query)));
   router.post(path + "/opportunities", write, respond((r, a) => opportunities.create(a, r.params.organizationId, r.body), 201));
+  router.post(path + "/challenge-assets", write,
+    raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: "5mb" }),
+    respond((r, a) => opportunities.uploadChallengeAsset(a, r.params.organizationId, r.query, r.body, r.get("Content-Type")), 201));
   router.patch(path + "/opportunities/:id", write, respond((r, a) => opportunities.edit(a, r.params.organizationId, r.params.id, r.body)));
   router.put(path + "/opportunities/:id/status", write, respond((r, a) => opportunities.setStatus(a, r.params.organizationId, r.params.id, r.body)));
   router.get(path + "/applications", read, respond((r, a) => opportunities.reviewList(a, r.params.organizationId, r.query)));

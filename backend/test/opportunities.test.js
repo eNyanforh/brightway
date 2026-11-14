@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import express from "express";
 import { createOpportunityRoutes } from "../src/modules/opportunities/opportunity.routes.js";
-import { createInput, applicationInput, saveInput, validateAnswers } from "../src/modules/opportunities/opportunity.schema.js";
+import { createInput, applicationInput, saveInput, challengeAssetUploadInput, validateAnswers } from "../src/modules/opportunities/opportunity.schema.js";
 import { createApplicationStorage } from "../src/modules/opportunities/opportunity.storage.js";
 import { processEvidence } from "../src/modules/credentials/evidence.process.js";
 import { PDFDocument } from "pdf-lib";
@@ -17,6 +17,30 @@ test("opportunity input rejects external application methods, unknown fields and
   assert.equal(challenge.data.prize, "US$1,000");
   assert.deepEqual(challenge.data.topics, []);
   assert.equal(challenge.data.coverImage, "STUDENTS");
+  assert.deepEqual(challenge.data.prizes, []);
+  assert.deepEqual(challenge.data.sponsorLogoIds, []);
+  assert.equal(challenge.data.backgroundAssetId, null);
+  assert.equal(challenge.data.titleAssetId, null);
+  assert.equal(challenge.data.maxApplicants, null);
+  const sponsor = randomUUID(), background = randomUUID(), title = randomUUID();
+  const structured = createInput.parse({ ...listing(), type: "CHALLENGE",
+    prizes: [{ type: "CASH", description: "US$500" }, { type: "MENTORSHIP", description: "Expert mentoring" }],
+    sponsorLogoIds: [sponsor], backgroundAssetId: background, titleAssetId: title, maxApplicants: 30,
+  });
+  assert.equal(structured.prizes.length, 2);
+  assert.deepEqual(structured.sponsorLogoIds, [sponsor]);
+  assert.equal(structured.maxApplicants, 30);
+  for (const invalid of [
+    { maxApplicants: 0 }, { maxApplicants: -1 }, { maxApplicants: 1.3 }, { maxApplicants: 1000001 },
+    { sponsorLogoIds: [sponsor, sponsor] }, { sponsorLogoIds: ["https://untrusted.invalid/logo.png"] },
+    { backgroundAssetId: "https://untrusted.invalid/bg.png" },
+    { titleAssetId: "data:image/png;base64,xxx" },
+    { prizes: [{ type: "UNKNOWN", description: "Gift" }] },
+    { prizes: [{ type: "CASH", description: "" }] },
+    { prizes: Array.from({ length: 9 }, () => ({ type: "CASH", description: "US$50" })) },
+  ]) assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", ...invalid }).success, false);
+  assert.equal(challengeAssetUploadInput.parse({ kind: "BACKGROUND" }).kind, "BACKGROUND");
+  assert.equal(challengeAssetUploadInput.safeParse({ kind: "EXTERNAL" }).success, false);
   const illustrated = createInput.parse({ ...listing(), type: "CHALLENGE",
     coverImage: "SCHOOLS", topics: ["Education", "Coding"] });
   assert.deepEqual(illustrated.topics, ["Education", "Coding"]);
@@ -54,7 +78,13 @@ test("application storage never falls back to photo or identity buckets and vali
 });
 test("opportunity routes require personal authentication, trusted origins, no-store and private file downloads", async () => {
   const accountId = randomUUID(), sessionId = randomUUID(), calls = [];
-  const opportunities = new Proxy({}, { get: (_target, method) => async (...args) => { calls.push([method, args]); return method === "readFile" ? { bytes: Buffer.from("private"), contentType: "application/pdf" } : { items: [] }; } });
+  const opportunities = new Proxy({}, { get: (_target, method) => async (...args) => {
+    calls.push([method, args]);
+    if (method === "readFile") return { bytes: Buffer.from("private"), contentType: "application/pdf" };
+    if (method === "readChallengeAsset") return { bytes: Buffer.from("synthetic-image"), contentType: "image/webp" };
+    if (method === "uploadChallengeAsset") return { id: randomUUID(), kind: args[2].kind, size: args[3].length };
+    return { items: [] };
+  } });
   const app = express(); app.use(express.json());
   app.use(createOpportunityRoutes({ opportunities, nodeEnv: "test", clientUrl: "http://localhost:5173", sessions: { authenticate: async token => { if (token !== "test") throw Object.assign(Error("Sign in"), { status: 401 }); return { account: { id: accountId }, sessionId }; } } }));
   app.use((e, _req, res, _next) => res.status(e.status || 500).json({ message: e.message }));
@@ -74,6 +104,27 @@ test("opportunity routes require personal authentication, trusted origins, no-st
     const response = await fetch(base + "/opportunities", { headers });
     assert.equal(response.headers.get("Cache-Control"), "no-store");
     assert.equal(response.status, 200); assert.deepEqual(calls[0][1][0], { accountId, sessionId });
+    const imageId = randomUUID();
+    const anonymousImage = await fetch(base + "/opportunities/challenge-assets/" + imageId);
+    assert.equal(anonymousImage.status, 401);
+    const image = await fetch(base + "/opportunities/challenge-assets/" + imageId, { headers });
+    assert.equal(image.status, 200);
+    assert.equal(image.headers.get("Content-Type"), "image/webp");
+    assert.equal(image.headers.get("X-Content-Type-Options"), "nosniff");
+    assert.equal(await image.text(), "synthetic-image");
+    const foreignImage = await fetch(base + "/organization-workspace/" + randomUUID() +
+      "/challenge-assets?kind=SPONSOR_LOGO", {
+      method: "POST", headers: { Cookie: "brightway_session=test", Origin: "https://foreign.invalid",
+        "Content-Type": "image/png" }, body: Buffer.from("test-image"),
+    });
+    assert.equal(foreignImage.status, 403);
+    const uploaded = await fetch(base + "/organization-workspace/" + randomUUID() +
+      "/challenge-assets?kind=SPONSOR_LOGO", {
+      method: "POST", headers: { Cookie: "brightway_session=test", Origin: "http://localhost:5173",
+        "Content-Type": "image/png" }, body: Buffer.from("test-image"),
+    });
+    assert.equal(uploaded.status, 201);
+    assert.equal((await uploaded.json()).data.kind, "SPONSOR_LOGO");
     const file = await fetch(base + `/applications/me/${randomUUID()}/files/${randomUUID()}`, { headers });
     assert.match(file.headers.get("Content-Disposition"), /^attachment;/); assert.equal(file.headers.get("X-Content-Type-Options"), "nosniff"); assert.equal(await file.text(), "private");
     assert.equal(calls.at(-1)[1].at(-1), undefined, "owner file route does not accept an organization scope from the caller");

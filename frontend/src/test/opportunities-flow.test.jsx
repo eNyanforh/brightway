@@ -68,14 +68,28 @@ it("reviewers keep feedback after a conflict and clear private applications when
   denied = true; await user.click(screen.getByRole("button", { name: "Reload application queue" })); await screen.findByText("Organization access revoked");
   expect(screen.queryByText("Synthetic Applicant")).toBeNull();
 });
-it("the publisher builds questions and saves a draft with no external application option", async () => {
-  const saved = vi.fn(), fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 })); vi.stubGlobal("fetch", fetch);
+it("the publisher uses type selection and the step-by-step form to save a BrightWay draft", async () => {
+  const saved = vi.fn();
+  const fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
+  vi.stubGlobal("fetch", fetch);
   const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
-  await user.type(screen.getByLabelText("Title"), "Data internship"); await user.type(screen.getByLabelText("Description"), "Learn research and data quality skills with our team."); await user.type(screen.getByLabelText("Location"), "Monrovia");
-  await user.type(screen.getByLabelText("Application deadline (your local time)"), "2099-12-01T12:00");
-  await user.click(screen.getByRole("button", { name: "+ Add question" })); await user.type(screen.getByLabelText("Question 1 text"), "Tell us about your experience");
-  await user.click(screen.getByRole("button", { name: "Save draft" })); await waitFor(() => expect(saved).toHaveBeenCalled());
-  const body = JSON.parse(fetch.mock.calls[0][1].body); expect(body.questions[0]).toMatchObject({ label: "Tell us about your experience", type: "SHORT_ANSWER", required: true }); expect(body).not.toHaveProperty("applicationUrl");
+  expect(screen.getByRole("heading", { name: "What opportunity do you want to offer?" })).toBeTruthy();
+  await user.click(screen.getByRole("radio", { name: /Job/ }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Title", { exact: true }), "Data internship");
+  await user.type(screen.getByLabelText("Description", { exact: true }), "Learn research and data quality skills with our team.");
+  await user.type(screen.getByLabelText("Location"), "Monrovia");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
+  await user.click(screen.getByRole("button", { name: "+ Add question" }));
+  await user.type(screen.getByLabelText("Question 1 text"), "Tell us about your experience");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("heading", { name: "Review" })).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Save draft" }));
+  await waitFor(() => expect(saved).toHaveBeenCalled());
+  const body = JSON.parse(fetch.mock.calls[0][1].body);
+  expect(body.questions[0]).toMatchObject({ label: "Tell us about your experience", type: "SHORT_ANSWER", required: true });
+  expect(body).not.toHaveProperty("applicationUrl");
 });
 it("the right-rail Challenge card shows a first-party photo, publisher, topics and Take Part", () => {
   const challenge = {
@@ -87,7 +101,7 @@ it("the right-rail Challenge card shows a first-party photo, publisher, topics a
   const article = screen.getByRole("article", { name: "Challenge: Research assistant" });
   expect(article.querySelector(".bw-rail-challenge-photo").getAttribute("src")).toBe("/images/hero/schools-720.webp");
   expect(within(article).getByText("US$1,000")).toBeTruthy();
-  expect(article.querySelector(".bw-rail-challenge-prize-mode").textContent).toContain("Offline");
+  expect(article.querySelector(".bw-rail-challenge-prize-mode").textContent).toContain("On BrightWay");
   expect(article.querySelector(".bw-rail-challenge-logo")).toBeTruthy();
   expect(article.querySelector(".bw-challenge-participants").textContent).toContain("1 participant");
   const closing = article.querySelector(".bw-rail-challenge-closing-row");
@@ -101,26 +115,51 @@ it("the right-rail Challenge card shows a first-party photo, publisher, topics a
   expect(within(article).getByRole("link", { name: "Challenge" }).getAttribute("href")).toBe("/opportunities?type=CHALLENGE");
 });
 
-it("challenge publishers can select a cover photo and up to three categories", async () => {
+it("Challenge wizard supports prizes, categories, image fallback and native applicant limits", async () => {
   const saved = vi.fn();
-  const fetch = vi.fn((_url, options) => reply({ ...opp, ...JSON.parse(options.body), status: "DRAFT", version: 1 }));
+  const fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
   vi.stubGlobal("fetch", fetch);
   const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
-  await user.selectOptions(screen.getByLabelText("Opportunity type"), "CHALLENGE");
-  await user.selectOptions(screen.getByLabelText("Challenge background photo"), "SCHOOLS");
+  await user.click(screen.getByRole("radio", { name: /Challenge/ }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.click(screen.getByRole("checkbox", { name: "Technology" }));
   await user.click(screen.getByRole("checkbox", { name: "Education" }));
   await user.click(screen.getByRole("checkbox", { name: "Design" }));
   expect(screen.getByRole("checkbox", { name: "Coding" }).disabled).toBe(true);
-  await user.type(screen.getByLabelText("Title"), "Learning Innovation Challenge");
+  await user.type(screen.getByLabelText("Challenge Title"), "Learning Innovation Challenge");
   await user.type(screen.getByLabelText("Description"), "Design an innovation that improves access to education.");
-  await user.type(screen.getByLabelText("Location"), "Monrovia");
-  await user.type(screen.getByLabelText("Application deadline (your local time)"), "2099-12-01T12:00");
+  expect(screen.queryByLabelText("Format")).toBeNull();
+  expect(screen.queryByLabelText("Location")).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.click(screen.getByRole("button", { name: "+ Add Prize" }));
+  await user.selectOptions(screen.getByLabelText("Prize Type"), "SCHOLARSHIP");
+  await user.type(screen.getByLabelText("Prize details"), "Full tuition");
+  await user.click(screen.getByRole("button", { name: "+ Add another prize" }));
+  expect(screen.getAllByLabelText("Prize Type")).toHaveLength(2);
+  await user.selectOptions(screen.getAllByLabelText("Prize Type")[1], "CASH");
+  await user.type(screen.getAllByLabelText("Prize details")[1], "US$500");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.selectOptions(screen.getByLabelText("Default background photograph"), "SCHOOLS");
+  expect(screen.getByLabelText("Background Image")).toBeTruthy();
+  expect(screen.getByLabelText("Challenge Title Image")).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
+  await user.type(screen.getByLabelText("Number of Applicants (maximum)"), "30");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByText("On BrightWay only")).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Save draft" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
   const body = JSON.parse(fetch.mock.calls[0][1].body);
   expect(body.coverImage).toBe("SCHOOLS");
   expect(body.topics).toEqual(["Technology", "Education", "Design"]);
+  expect(body.prizes).toEqual([
+    { type: "SCHOLARSHIP", description: "Full tuition" },
+    { type: "CASH", description: "US$500" },
+  ]);
+  expect(body.maxApplicants).toBe(30);
+  expect(body.workMode).toBe("REMOTE");
+  expect(body.location).toBe("BrightWay");
+  expect(body).not.toHaveProperty("applicationUrl");
 });
 
 it("application decisions appear in Notifications with All and Unread views", async () => {

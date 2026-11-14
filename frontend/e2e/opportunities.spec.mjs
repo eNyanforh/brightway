@@ -8,7 +8,7 @@ const permissions = ["organization.opportunities.manage", "organization.applicat
 const base = "/organization-workspace/" + oid;
 const initialOpportunity = { id, organization, organizationId: oid, type: "JOB", title: "Community research assistant", description: "Join a research team and help improve education outcomes across communities.", location: "Monrovia, Liberia", workMode: "IN_PERSON", deadline: "2099-12-01T12:00:00Z", status: "PUBLISHED", publishedAt: "2026-11-11T12:00:00Z", version: 2, questions: [{ id: qid, type: "YES_NO", label: "Can you join our team?", required: true, options: [] }], createdAt: "2026-11-11T12:00:00Z" };
 async function fixture(page) {
-  const state = { opportunity: structuredClone(initialOpportunity), application: null, drafts: [], errors: [], calls: [] };
+  const state = { opportunity: structuredClone(initialOpportunity), application: null, drafts: [], assets: [], errors: [], calls: [] };
   page.on("pageerror", e => state.errors.push(e.message));
   await page.route("**/*", async route => {
     // Background channels are independent of this journey; SSE behavior has its own HTTP test.
@@ -32,6 +32,17 @@ async function fixture(page) {
     if (path === "/api/v1/applications/me") return reply({ items: state.application ? [state.application] : [], nextCursor: null });
     if (path === "/api/v1/applications/me/" + aid) return reply(state.application);
     if (path === "/api/v1/applications/me/" + aid + "/withdraw") { state.application.status = "WITHDRAWN"; return reply(state.application); }
+    if (path === "/api/v1" + base + "/challenge-assets") {
+      const num = state.assets.length + 1;
+      const asset = { id: `88888888-8888-4888-8888-${String(num).padStart(12,"0")}`,
+        kind: url.searchParams.get("kind"), size: request.postDataBuffer()?.length || 1000 };
+      state.assets.push(asset);
+      return reply(asset, 201);
+    }
+    if (path.startsWith("/api/v1/opportunities/challenge-assets/")) {
+      return route.fulfill({ status: 200, headers: { "Content-Type": "image/webp" },
+        body: Buffer.from("UklGRj4AAABXRUJQVlA4IDIAAADQAQCdASoBAAEADsD+JaQAA3AAAAAA", "base64") });
+    }
     if (path === "/api/v1" + base + "/opportunities") {
       if (request.method() === "POST") { const body = request.postDataJSON(); const row = { ...body, id: "66666666-6666-4666-8666-666666666666", organization, version: 1, status: "DRAFT" }; state.drafts.push(row); return reply(row, 201); }
       return reply({ items: state.drafts, nextCursor: null });
@@ -131,16 +142,77 @@ test("organization publishing workspace filters and displays listings without mo
   expect(state.errors).toEqual([]);
 });
 
+test("organization Challenge wizard creates a native Challenge with prizes, images, sponsors, and applicant cap", async ({ page, isMobile }) => {
+  const state = await fixture(page);
+  await page.goto(base + "/opportunities");
+  await page.locator(".bw-op-dashboard-header").getByRole("button", { name: "+ Create opportunity" }).click();
+  const editor = page.getByRole("dialog", { name: "Create an opportunity" });
+  await expect(editor.getByRole("heading", { name: "What opportunity do you want to offer?" })).toBeVisible();
+  await editor.getByRole("radio", { name: /Challenge/ }).click();
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByLabel("Challenge Title").fill("Innovation on BrightWay");
+  await editor.getByLabel("Description").fill("Create a learning tool, upload your work on BrightWay, and win awards.");
+  await editor.getByRole("checkbox", { name: "Technology" }).check();
+  await expect(editor.getByLabel("Format")).toHaveCount(0);
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByRole("button", { name: "+ Add Prize" }).click();
+  await editor.getByLabel("Prize Type").selectOption("CASH");
+  await editor.getByLabel("Prize details").fill("US$1,000");
+  await editor.getByRole("button", { name: "+ Add another prize" }).click();
+  await editor.getByLabel("Prize Type").nth(1).selectOption("CERTIFICATE");
+  await editor.getByLabel("Prize details").nth(1).fill("Completion certificate");
+  const smallPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCXUAAAAASUVORK5CYII=", "base64");
+  await editor.getByLabel("Sponsors Logo").setInputFiles({ name: "sponsor.png", mimeType: "image/png", buffer: smallPng });
+  await expect.poll(() => state.assets.length).toBe(1);
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByLabel("Background Image").setInputFiles({ name: "background.png", mimeType: "image/png", buffer: smallPng });
+  await expect.poll(() => state.assets.length).toBe(2);
+  await editor.getByLabel("Challenge Title Image").setInputFiles({ name: "title.png", mimeType: "image/png", buffer: smallPng });
+  await expect.poll(() => state.assets.length).toBe(3);
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
+  await editor.getByLabel("Number of Applicants (maximum)").fill("25");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByText("On BrightWay only")).toBeVisible();
+  await editor.getByRole("button", { name: "Save draft" }).click();
+  await expect(editor).toHaveCount(0);
+  expect(state.drafts).toHaveLength(1);
+  const challenge = state.drafts[0];
+  expect(challenge.type).toBe("CHALLENGE");
+  expect(challenge.location).toBe("BrightWay");
+  expect(challenge.workMode).toBe("REMOTE");
+  expect(challenge.prizes).toEqual([
+    { type: "CASH", description: "US$1,000" },
+    { type: "CERTIFICATE", description: "Completion certificate" },
+  ]);
+  expect(challenge.sponsorLogoIds).toEqual([state.assets[0].id]);
+  expect(challenge.backgroundAssetId).toBe(state.assets[1].id);
+  expect(challenge.titleAssetId).toBe(state.assets[2].id);
+  expect(challenge.maxApplicants).toBe(25);
+  expect(challenge).not.toHaveProperty("applicationUrl");
+  await noOverflow(page);
+  expect(state.errors).toEqual([]);
+  if (isMobile) await expect(page.locator(".bw-op-dashboard")).toBeVisible();
+});
+
 test("organization publishers create and publish a form, and reviewers send an applicant decision", async ({ page }, testInfo) => {
   const state = await fixture(page);
   state.application = { id: aid, opportunity: state.opportunity, status: "SUBMITTED", version: 1, answers: { [qid]: false }, files: [], events: [], submittedAt: "2026-11-11T12:00:00Z", profileSnapshot: { name: "Synthetic Applicant", headline: "Data analyst", location: {}, skills: ["Data"], interests: ["Education"], credentials: [] }, opportunitySnapshot: { title: state.opportunity.title, organization: organization.name, questions: state.opportunity.questions } };
   await page.goto(base + "/opportunities");
   await page.getByRole("button", { name: "+ Create opportunity" }).click();
   const editor = page.getByRole("dialog");
-  await editor.getByLabel("Title", { exact: true }).fill("Data internship"); await editor.getByLabel("Description", { exact: true }).fill("Build skills in field research, data quality, and community engagement.");
-  await editor.getByLabel("Location", { exact: true }).fill("Monrovia"); await editor.getByLabel("Application deadline (your local time)").fill("2099-12-01T12:00");
-  await editor.getByRole("button", { name: "+ Add question" }).click(); await editor.getByLabel("Question 1 text").fill("Why would you like to join?");
-  await editor.getByRole("button", { name: "Save draft", exact: true }).click(); await expect(editor).toHaveCount(0);
+  await editor.getByRole("radio", { name: /Job/ }).click();
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByLabel("Title", { exact: true }).fill("Data internship");
+  await editor.getByLabel("Description", { exact: true }).fill("Build skills in field research, data quality, and community engagement.");
+  await editor.getByLabel("Location", { exact: true }).fill("Monrovia");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
+  await editor.getByRole("button", { name: "+ Add question" }).click();
+  await editor.getByLabel("Question 1 text").fill("Why would you like to join?");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByRole("button", { name: "Save draft", exact: true }).click();
+  await expect(editor).toHaveCount(0);
   page.once("dialog", d => d.accept()); await page.getByRole("button", { name: "Publish", exact: true }).click(); await expect(page.locator(".bw-op-managed-card")).toContainText("Published");
   await noOverflow(page); await page.goto(base + "/applications");
   await page.getByRole("button", { name: /Synthetic Applicant/ }).click();
