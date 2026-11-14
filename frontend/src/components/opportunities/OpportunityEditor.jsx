@@ -7,6 +7,8 @@ import {
 import NavigationIcon from "../layout/NavigationIcon";
 import ChallengePrizeFields from "./ChallengePrizeFields";
 import ChallengeCollaboratorPicker from "./ChallengeCollaboratorPicker";
+import ChallengePostTypes from "./ChallengePostTypes";
+import { CHALLENGE_POST_TYPES, describeChallengePostType } from "../../../../shared/challenge-submissions.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./challenge-sidebar-card.css";
 import "./opportunity-editor-wizard.css";
@@ -20,7 +22,7 @@ const choices = [
 const blank = () => ({
   type: "", title: "", description: "", location: "", workMode: "IN_PERSON",
   prize: "", prizes: [], collaboratorIds: [], sponsorLogoIds: [], backgroundAssetId: null,
-  titleAssetId: null, coverAssetId: null, maxApplicants: null, topics: [],
+  titleAssetId: null, coverAssetId: null, postRequirements: [], topics: [],
   deadline: "", questions: [],
 });
 const toLocal = date => {
@@ -109,7 +111,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const lockedForm = Boolean(opportunity?.publishedAt);
   const challenge = draft.type === "CHALLENGE";
   const steps = challenge
-    ? ["Opportunity type", "Challenge details", "Prizes & collaborators", "Cover photo", "Applications", "Review"]
+    ? ["Opportunity type", "Challenge details", "Prizes & collaborators", "Cover photo", "Post types", "Applications", "Review"]
     : ["Opportunity type", "Opportunity details", "Applications", "Review"];
   const last = steps.length - 1;
 
@@ -190,12 +192,12 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         // silently restore a legacy reward from a previous save.
         prize: "",
         prizes: challenge ? draft.prizes : [],
+        postRequirements: challenge ? draft.postRequirements : [],
         collaboratorIds: challenge ? draft.collaboratorIds : [],
         sponsorLogoIds: challenge ? draft.sponsorLogoIds : [],
         backgroundAssetId: challenge ? draft.backgroundAssetId : null,
         titleAssetId: challenge ? draft.titleAssetId : null,
         coverAssetId: challenge ? draft.coverAssetId : null,
-        maxApplicants: challenge ? draft.maxApplicants : null,
         deadline: new Date(draft.deadline).toISOString(),
       };
       const saved = opportunity
@@ -316,17 +318,13 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
                 onRemove={() => field("coverAssetId", null)} />
             </>}
 
+            {challenge && stepName === "Post types" && <ChallengePostTypes
+              requirements={draft.postRequirements} onChange={value => field("postRequirements", value)}
+              disabled={locked} locked={lockedForm} />}
+
             {stepName === "Applications" && <>
-              <div className="bw-op-field-row">
-                <label>Deadline (your local time)<input required type="datetime-local" value={draft.deadline}
-                  onChange={e => field("deadline", e.target.value)} /></label>
-                {challenge ? <label>Number of Applicants (maximum)
-                  <input type="number" min={1} max={1000000} step={1} value={draft.maxApplicants ?? ""}
-                    placeholder="Leave empty for unlimited" onChange={e => field("maxApplicants",
-                      e.target.value === "" ? null : Number(e.target.value))} />
-                </label> : <div />}
-              </div>
-              {challenge && <p className="bw-op-wizard-help">The applicant limit is enforced on BrightWay. If left empty, submissions are unlimited until the deadline.</p>}
+              <label>Deadline (your local time)<input required type="datetime-local" value={draft.deadline}
+                onChange={e => field("deadline", e.target.value)} /></label>
               <QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
                 lockedForm={lockedForm} busy={busy} />
               {challenge && <p className="bw-op-wizard-native"><NavigationIcon name="security" size={18} />
@@ -346,6 +344,12 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
                   ? <ul>{draft.prizes.map((item, i) =>
                     <li key={i}>{CHALLENGE_PRIZE_TYPES[item.type]}: {challengePrizeValue(item)}</li>)}</ul>
                   : <p>To be announced</p>}</div>}
+                {challenge && draft.postRequirements.length > 0 && <div>
+                  <strong>Required post types</strong>
+                  <ul>{draft.postRequirements.map(item => <li key={item.id}>
+                    {CHALLENGE_POST_TYPES[item.type]} — {describeChallengePostType(item)}
+                  </li>)}</ul>
+                </div>}
                 {challenge && collaborators.length > 0 && <div>
                   <strong>Collaboration invitations</strong>
                   <ul>{collaborators.map(row => <li key={row.organizationId}>{row.organization.name}
@@ -353,9 +357,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
                   </li>)}</ul>
                 </div>}
                 <dl><div><dt>Deadline</dt><dd>{new Date(draft.deadline).toLocaleString("en-GB")}</dd></div>
-                  {challenge ? <>
-                    <div><dt>Applicants</dt><dd>{draft.maxApplicants === null ? "Unlimited" : draft.maxApplicants}</dd></div>
-                   </> : <>
+                  {!challenge && <>
                     <div><dt>Location</dt><dd>{draft.location}</dd></div>
                     <div><dt>Format</dt><dd>{draft.workMode.replaceAll("_", " ")}</dd></div>
                   </>}
