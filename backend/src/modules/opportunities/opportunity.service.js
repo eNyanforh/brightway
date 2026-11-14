@@ -10,7 +10,7 @@ import { processEvidence } from "../credentials/evidence.process.js";
 import { fail } from "../network/network.schema.js";
 import * as input from "./opportunity.schema.js";
 import { processPhoto, processCoverPhoto } from "../photos/photo.image.js";
-import { CHALLENGE_PRIZE_TYPES } from "../../../../shared/challenges.mjs";
+import { challengePrizeValue } from "../../../../shared/challenges.mjs";
 
 const MANAGE = "organization.opportunities.manage", REVIEW = "organization.applications.review";
 const publicOrganization = { status: "ACTIVE", request: { status: "APPROVED" }, profileReadyAt: { not: null }, profilePhotoId: { not: null }, username: { not: null }, profileSetupStep: 5 };
@@ -159,7 +159,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
       titleAssetId: null, maxApplicants: null,
     };
     const displayPrize = data.prizes.length
-      ? data.prizes.map(item => `${CHALLENGE_PRIZE_TYPES[item.type]}: ${item.description}`).join(" · ").slice(0, 120)
+      ? data.prizes.map(challengePrizeValue).join(" · ").slice(0, 120)
       : data.prize;
     return { ...data, location: "BrightWay", workMode: "REMOTE", prize: displayPrize };
   }
