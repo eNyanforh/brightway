@@ -36,7 +36,12 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     return seedOrganizationProfile(db, org.id, now());
   }
   const listing = (type, questions = []) => ({ type, title: "Research assistant " + type, description: "Help our team improve community education and research outcomes.", location: "Monrovia, Liberia", workMode: "IN_PERSON", deadline: "2030-02-01T12:00:00Z", questions, requestKey: randomUUID() });
-  const payload = (opp, answers = {}, expectedVersion = 0, action = "SUBMIT") => ({ action, shareProfile: action === "SUBMIT", expectedOpportunityVersion: opp.version, expectedVersion, answers });
+  const payload = (opp, answers = {}, expectedVersion = 0, action = "SUBMIT") => ({
+    action, shareProfile: action === "SUBMIT", expectedOpportunityVersion: opp.version, expectedVersion,
+    answers: { ...Object.fromEntries((opp.postRequirements || [])
+      .filter(item => item.type === "CAPTION").map(item => [item.id, "Learning innovation caption"])),
+      ...answers },
+  });
   const question = (type, required = true) => ({ id: randomUUID(), label: `Your ${type} response`, type, required, options: type === "MULTIPLE_CHOICE" ? ["Coding", "Writing"] : [] });
   try {
     const owner = await person("owner", true), reviewer = await person("reviewer"), applicant = await person("applicant", true), outsider = await person("outsider"), otherOwner = await person("foreign", true);
@@ -55,6 +60,7 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     await assert.rejects(service.list(otherOwner.actor, org.id, {}), { status: 403 });
     let opp = await service.setStatus(owner.actor, org.id, draft.id, { expectedVersion: draft.version, status: "PUBLISHED" });
     const otherListings = [];
+    const captionId = randomUUID();
     const sponsorLogo = await service.uploadChallengeAsset(owner.actor, org.id, { kind: "SPONSOR_LOGO" }, Buffer.from("sponsor"), "image/png");
     const background = await service.uploadChallengeAsset(owner.actor, org.id, { kind: "BACKGROUND" }, Buffer.from("background"), "image/png");
     const titleImage = await service.uploadChallengeAsset(owner.actor, org.id, { kind: "TITLE_IMAGE" }, Buffer.from("title"), "image/png");
@@ -72,7 +78,8 @@ test("opportunities isolate tenants and private files, enforce completion, seria
         prize: "US$500", coverImage: "SCHOOLS", topics: ["Education", "Technology"],
         prizes: [{ type: "CASH", amount: 500, currency: "USD" }, { type: "CERTIFICATE", title: "Award certificate", issuer: "" }],
         sponsorLogoIds: [sponsorLogo.id], backgroundAssetId: background.id, titleAssetId: titleImage.id,
-        coverAssetId: cover.id, collaboratorIds: [foreign.id], maxApplicants: 1,
+        coverAssetId: cover.id, collaboratorIds: [foreign.id],
+        postRequirements: [{ id: captionId, type: "CAPTION", minWords: 2, maxWords: 10 }],
       } : {}) };
       const row = await service.create(owner.actor, org.id, request);
       if (type === "CHALLENGE") {
@@ -101,7 +108,8 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     assert.equal(publishedChallenge.coverImage, "SCHOOLS");
     assert.deepEqual(publishedChallenge.prizes.map(p => p.type), ["CASH", "CERTIFICATE"]);
     assert.equal(publishedChallenge.prize, "USD 500 · Award certificate");
-    assert.equal(publishedChallenge.maxApplicants, 1);
+    assert.equal("maxApplicants" in publishedChallenge, false, "applicant limits are not exposed");
+    assert.equal(publishedChallenge.postRequirements[0].type, "CAPTION");
     assert.equal(publishedChallenge.location, "BrightWay");
     assert.equal(publishedChallenge.workMode, "REMOTE");
     assert.deepEqual(publishedChallenge.sponsorLogoIds, [sponsorLogo.id]);
@@ -171,8 +179,13 @@ test("opportunities isolate tenants and private files, enforce completion, seria
       ...payload(challenge), publicParticipant: true,
     });
     assert.equal(publicApp.publicParticipant, true, "separate public opt-in is persisted");
-    await assert.rejects(service.saveApplication(applicant.actor, challenge.id, payload(challenge)),
-      { status: 409 }, "the final applicant slot is reserved atomically when submitted");
+    await assert.rejects(service.saveApplication(applicant.actor, challenge.id, payload(challenge, {
+      [captionId]: "One",
+    })), { status: 400 }, "caption word minimum is enforced");
+    const admitted = await service.saveApplication(applicant.actor, challenge.id, payload(challenge));
+    assert.equal(admitted.status, "SUBMITTED",
+      "a second participant can submit without an applicant capacity limit");
+    assert.equal(admitted.opportunitySnapshot.postRequirements[0].type, "CAPTION");
     assert.deepEqual(await challengeSummary(), { count: 0, members: [] }, "unverified identity is not exposed");
     await db.manualIdentityRequest.create({ data: {
       accountId: owner.id, state: "APPROVED", currentAttemptId: randomUUID(),
@@ -187,8 +200,6 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     publicApp = await service.withdraw(owner.actor, publicApp.id, { expectedVersion: publicApp.version });
     assert.equal(publicApp.status, "WITHDRAWN");
     assert.deepEqual(await challengeSummary(), { count: 0, members: [] }, "withdrawn applicants disappear immediately");
-    const admitted = await service.saveApplication(applicant.actor, challenge.id, payload(challenge));
-    assert.equal(admitted.status, "SUBMITTED", "withdrawing releases the Challenge slot");
     assert.deepEqual(await challengeSummary(), { count: 0, members: [] }, "participants remain private by default");
     const paused = await service.setStatus(owner.actor, org.id, opp.id, { expectedVersion: opp.version, status: "PAUSED" });
     const { requestKey: ignored, ...editableBody } = body; void ignored;
