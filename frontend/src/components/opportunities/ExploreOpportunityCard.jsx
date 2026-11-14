@@ -8,7 +8,7 @@ import NavigationIcon from "../layout/NavigationIcon";
 import PostTimestamp from "../posts/PostTimestamp";
 import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
 import { challengeDeadlineReminder } from "./challenge-deadline";
-import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER } from "../../../../shared/challenges.mjs";
+import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER, challengeCardPrize } from "../../../../shared/challenges.mjs";
 
 const EXPLORE_OPPORTUNITY_CATEGORIES = Object.freeze({
   JOB: "Jobs & Internships",
@@ -26,7 +26,7 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
     const interval = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
     return () => window.clearInterval(interval);
   }, []);
-  const mode = "On BrightWay";
+  const prizeText = challengeCardPrize(opportunity);
   const cover = opportunity.titleAssetId ? opportunitiesApi.challengeAssetUrl(opportunity.titleAssetId)
     : opportunity.backgroundAssetId ? opportunitiesApi.challengeAssetUrl(opportunity.backgroundAssetId)
     : CHALLENGE_COVER_IMAGES[opportunity.coverImage] || CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER];
@@ -83,9 +83,8 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
             {Boolean(organization.verifiedAt) && <VerificationBadge kind="organization" />}
           </span>
         </div>
-        <div className="bw-challenge-prize" aria-label="Challenge prize and participation mode">
-          <strong title={opportunity.prize?.trim() || "Not listed"}>{opportunity.prize?.trim() || "Not listed"}</strong>
-          <span className="bw-challenge-mode">{mode}</span>
+        <div className="bw-challenge-prize" aria-label="Challenge prize">
+          <strong title={prizeText}>{prizeText}</strong>
         </div>
         <p className="bw-challenge-deadline"><time dateTime={opportunity.deadline}
           title={"Deadline: " + formattedDeadline}>{challengeDeadlineReminder(opportunity.deadline, currentTime)}</time></p>
