@@ -4,6 +4,7 @@ import { opportunitiesApi as api } from "../../api/opportunities";
 import { MAX_CHALLENGE_COLLABORATORS } from "../../../../shared/challenges.mjs";
 import OrganizationAvatar from "../profile/OrganizationAvatar";
 import VerificationBadge from "../VerificationBadge";
+import "./challenge-collaborators.css";
 
 export function collaboratorPhotoUrl(organization) {
   return organization?.profilePhotoId
