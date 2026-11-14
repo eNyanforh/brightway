@@ -9,11 +9,13 @@ import { verifiedCredentials } from "../notifications/notifications.service.js";
 import { processEvidence } from "../credentials/evidence.process.js";
 import { fail } from "../network/network.schema.js";
 import * as input from "./opportunity.schema.js";
+import { processPhoto, processCoverPhoto } from "../photos/photo.image.js";
+import { CHALLENGE_PRIZE_TYPES } from "../../../../shared/challenges.mjs";
 
 const MANAGE = "organization.opportunities.manage", REVIEW = "organization.applications.review";
 const publicOrganization = { status: "ACTIVE", request: { status: "APPROVED" }, profileReadyAt: { not: null }, profilePhotoId: { not: null }, username: { not: null }, profileSetupStep: 5 };
 const organizationSelect = { id: true, name: true, username: true, profilePhotoId: true, verifiedAt: true };
-const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, prize: true, topics: true, coverImage: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect } };
+const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, prize: true, prizes: true, sponsorLogoIds: true, backgroundAssetId: true, titleAssetId: true, maxApplicants: true, topics: true, coverImage: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect } };
 const fileSelect = { id: true, questionId: true, contentType: true, size: true, createdAt: true };
 const applicationSelect = { id: true, status: true, version: true, answers: true, profileSnapshot: true, opportunitySnapshot: true, feedback: true, submittedAt: true, withdrawnAt: true, publicParticipant: true, createdAt: true, opportunityId: true,
   opportunity: { select: opportunitySelect }, files: { select: fileSelect }, events: { select: { id: true, fromStatus: true, toStatus: true, feedback: true, createdAt: true }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] } };
@@ -22,7 +24,7 @@ const unavailable = () => fail(404, "This opportunity or application is unavaila
 const id = value => input.parse(input.identifier, value);
 const day = now => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-export function createOpportunityService({ prisma, storage, now = () => new Date(), processFile = processEvidence }) {
+export function createOpportunityService({ prisma, storage, imageStorage = null, now = () => new Date(), processFile = processEvidence, processImage = processPhoto, processBackground = processCoverPhoto }) {
   async function transaction(work) {
     try { return await prisma.$transaction(work, { timeout: 15000 }); }
     catch (error) { if (["P2002", "P2034"].includes(error.code)) throw conflict(); throw error; }
@@ -149,6 +151,83 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
     ]));
   }
 
+  // All Challenges accept applications natively on BrightWay. The stored
+  // legacy work-mode/location fields cannot redirect someone to an external site.
+  function prepareOpportunity(data) {
+    if (data.type !== "CHALLENGE") return {
+      ...data, prizes: [], sponsorLogoIds: [], backgroundAssetId: null,
+      titleAssetId: null, maxApplicants: null,
+    };
+    const displayPrize = data.prizes.length
+      ? data.prizes.map(item => `${CHALLENGE_PRIZE_TYPES[item.type]}: ${item.description}`).join(" · ").slice(0, 120)
+      : data.prize;
+    return { ...data, location: "BrightWay", workMode: "REMOTE", prize: displayPrize };
+  }
+  function selectedAssets(data) {
+    if (data.type !== "CHALLENGE") return [];
+    return [
+      ...data.sponsorLogoIds.map(assetId => ({ assetId, kind: "SPONSOR_LOGO" })),
+      ...(data.backgroundAssetId ? [{ assetId: data.backgroundAssetId, kind: "BACKGROUND" }] : []),
+      ...(data.titleAssetId ? [{ assetId: data.titleAssetId, kind: "TITLE_IMAGE" }] : []),
+    ];
+  }
+  async function bindChallengeAssets(db, actor, orgId, oppId, data) {
+    const requests = selectedAssets(data);
+    if (!requests.length) return;
+    const ids = requests.map(row => row.assetId);
+    if (new Set(ids).size !== ids.length) throw fail(400, "A Challenge image cannot fill multiple roles.");
+    const rows = await db.opportunityAsset.findMany({
+      where: { id: { in: ids }, organizationId: orgId,
+        OR: [{ opportunityId: oppId }, { opportunityId: null, uploaderId: actor.accountId,
+          createdAt: { gte: new Date(+now() - 86400000) } }] },
+      select: { id: true, kind: true, opportunityId: true },
+    });
+    if (rows.length !== ids.length || rows.some(row =>
+      requests.find(request => request.assetId === row.id)?.kind !== row.kind)) {
+      throw fail(400, "Upload valid Challenge images for this organization before saving.");
+    }
+    const pending = rows.filter(row => !row.opportunityId).map(row => row.id);
+    if (pending.length) {
+      const result = await db.opportunityAsset.updateMany({
+        where: { id: { in: pending }, organizationId: orgId, uploaderId: actor.accountId,
+          opportunityId: null },
+        data: { opportunityId: oppId },
+      });
+      if (result.count !== pending.length) throw conflict();
+    }
+  }
+  async function authorizedChallengeAsset(actor, assetId) {
+    const asset = await prisma.opportunityAsset.findUnique({
+      where: { id: id(assetId) },
+      include: { opportunity: { select: {
+        id: true, status: true, backgroundAssetId: true, titleAssetId: true,
+        sponsorLogoIds: true, organization: { select: {
+          status: true, profileReadyAt: true, profilePhotoId: true, username: true,
+          profileSetupStep: true, request: { select: { status: true } },
+        } },
+      } } },
+    });
+    if (!asset) throw unavailable();
+    const row = asset.opportunity;
+    const publicImage = row?.status === "PUBLISHED" &&
+      (row.backgroundAssetId === asset.id || row.titleAssetId === asset.id ||
+        row.sponsorLogoIds.includes(asset.id)) &&
+      row.organization?.status === "ACTIVE" &&
+      row.organization?.request?.status === "APPROVED" &&
+      row.organization?.profileReadyAt &&
+      row.organization?.profilePhotoId && row.organization?.username &&
+      row.organization?.profileSetupStep === 5;
+    if (publicImage) await assertNetworkSession(prisma, actor, now);
+    else await organizationWork(actor, asset.organizationId, MANAGE, async db => {
+      const valid = await db.opportunityAsset.findFirst({ where: {
+        id: asset.id, organizationId: asset.organizationId,
+        ...(asset.opportunityId ? { opportunityId: asset.opportunityId }
+          : { uploaderId: actor.accountId, opportunityId: null }),
+      }, select: { id: true } });
+      if (!valid) throw unavailable();
+    });
+    return asset;
+  }
   async function profileSnapshot(db, actor) {
     // Lock the profile alongside submission; completion is decided by the backend.
     const account = await db.account.findUniqueOrThrow({ where: { id: actor.accountId }, select: { username: true, personId: true, person: { select: { firstName: true, middleName: true, lastName: true } } } });
@@ -172,6 +251,48 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
     return app;
   }
   return {
+    async uploadChallengeAsset(actor, organizationId, query, bytes, contentType) {
+      const { kind } = input.parse(input.challengeAssetUploadInput, query);
+      if (!["image/png", "image/jpeg", "image/webp"].includes(contentType))
+        throw fail(415, "Choose a JPEG, PNG or WebP image.");
+      if (!Buffer.isBuffer(bytes) || !bytes.length || bytes.length > 5 * 1024 * 1024)
+        throw fail(413, "Choose an image up to 5 MiB.");
+      if (!imageStorage) throw fail(503, "Challenge image storage is unavailable.");
+      const orgId = id(organizationId);
+      await organizationWork(actor, orgId, MANAGE, async db => {
+        const since = new Date(+now() - 86400000);
+        const uploads = await db.opportunityAsset.count({ where: { organizationId: orgId,
+          uploaderId: actor.accountId, createdAt: { gte: since } } });
+        if (uploads >= 30) throw fail(429, "Your daily Challenge image upload limit has been reached.");
+      });
+      imageStorage.check();
+      const image = kind === "BACKGROUND"
+        ? await processBackground(bytes, contentType)
+        : await processImage(bytes, contentType);
+      const key = `challenges/${orgId}/${randomUUID()}`;
+      await imageStorage.put(key, image.bytes, "image/webp");
+      try {
+        return await organizationWork(actor, orgId, MANAGE, async db => {
+          return db.opportunityAsset.create({
+            data: { organizationId: orgId, uploaderId: actor.accountId,
+              kind, storageKey: key, size: image.bytes.length },
+            select: { id: true, kind: true, size: true },
+          });
+        });
+      } catch (error) {
+        await imageStorage.delete(key).catch(() => {});
+        throw error;
+      }
+    },
+    async readChallengeAsset(actor, assetId) {
+      if (!imageStorage) throw fail(503, "Challenge image storage is unavailable.");
+      const asset = await authorizedChallengeAsset(actor, assetId);
+      const bytes = await imageStorage.get(asset.storageKey, { maxBytes: 3 * 1024 * 1024 });
+      const latest = await authorizedChallengeAsset(actor, assetId);
+      if (latest.storageKey !== asset.storageKey ||
+          latest.opportunityId !== asset.opportunityId) throw conflict();
+      return { bytes, contentType: "image/webp" };
+    },
     async browse(actor, query) {
       const q = input.parse(input.browseInput, query);
       await assertNetworkSession(prisma, actor, now);
@@ -246,19 +367,22 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
       return organizationWork(actor, organizationId, MANAGE, (db, orgId) => page(db, "opportunity", { organizationId: orgId }, q.cursor, opportunitySelect));
     },
     async create(actor, organizationId, body) {
-      const { requestKey, ...data } = input.parse(input.createInput, body);
+      const { requestKey, ...parsed } = input.parse(input.createInput, body);
+      const data = prepareOpportunity(parsed);
       const hash = createHash("sha256").update(JSON.stringify(data)).digest("hex");
       return organizationWork(actor, organizationId, MANAGE, async (db, orgId) => {
         const prior = await db.opportunity.findUnique({ where: { organizationId_authorId_requestKey: { organizationId: orgId, authorId: actor.accountId, requestKey } } });
         if (prior) { if (prior.inputHash !== hash) throw conflict(); return opportunity(db, prior.id, orgId); }
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
         const row = await db.opportunity.create({ data: { ...data, deadline: new Date(data.deadline), organizationId: orgId, authorId: actor.accountId, requestKey, inputHash: hash }, select: opportunitySelect });
+        await bindChallengeAssets(db, actor, orgId, row.id, data);
         await audit(db, actor, orgId, "OPPORTUNITY_CREATED", row.id);
         return row;
       });
     },
     async edit(actor, organizationId, opportunityId, body) {
-      const { expectedVersion, ...data } = input.parse(input.editInput, body);
+      const { expectedVersion, ...parsed } = input.parse(input.editInput, body);
+      const data = prepareOpportunity(parsed);
       return organizationWork(actor, organizationId, MANAGE, async (db, orgId) => {
         await lockOpportunity(db, id(opportunityId));
         const row = await opportunity(db, opportunityId, orgId);
@@ -267,6 +391,7 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
         if (row.publishedAt && (!isDeepStrictEqual(row.questions, data.questions) || row.type !== data.type))
           throw fail(409, "The type and application questions are locked after first publication.");
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
+        await bindChallengeAssets(db, actor, orgId, row.id, data);
         await db.opportunity.update({ where: { id: row.id }, data: { ...data, deadline: new Date(data.deadline), version: { increment: 1 } } });
         await audit(db, actor, orgId, "OPPORTUNITY_EDITED", row.id);
         return opportunity(db, row.id, orgId);
@@ -299,11 +424,18 @@ export function createOpportunityService({ prisma, storage, now = () => new Date
         input.validateAnswers(row.questions, data.answers, previous?.files || [], data.action === "SUBMIT");
         const submit = data.action === "SUBMIT";
         if (submit && !data.shareProfile) throw fail(400, "Confirm sharing your application and professional profile with this organization.");
+        if (submit && row.type === "CHALLENGE" && row.maxApplicants !== null) {
+          const taken = await db.opportunityApplication.count({ where: {
+            opportunityId: row.id, submittedAt: { not: null },
+            status: { in: ["SUBMITTED", "UNDER_REVIEW", "SHORTLISTED", "SELECTED", "NOT_SELECTED"] },
+          } });
+          if (taken >= row.maxApplicants) throw fail(409, "This Challenge has reached its application limit.");
+        }
         const snapshot = submit ? await profileSnapshot(db, actor) : null;
         const saved = { answers: data.answers,
           ...(submit ? { publicParticipant: row.type === "CHALLENGE" && data.publicParticipant } : {}),
           ...(submit ? { status: "SUBMITTED", submittedAt: now(), profileSnapshot: snapshot,
-          opportunitySnapshot: { title: row.title, type: row.type, organization: row.organization.name, questions: row.questions, description: row.description, location: row.location, workMode: row.workMode, prize: row.prize, version: row.version, deadline: row.deadline.toISOString() } } : {}) };
+          opportunitySnapshot: { title: row.title, type: row.type, organization: row.organization.name, questions: row.questions, description: row.description, location: row.location, workMode: row.workMode, prize: row.prize, prizes: row.prizes, maxApplicants: row.maxApplicants, version: row.version, deadline: row.deadline.toISOString() } } : {}) };
         const app = previous ? await db.opportunityApplication.update({ where: { id: previous.id }, data: { ...saved, version: { increment: 1 } } })
           : await db.opportunityApplication.create({ data: { opportunityId: oppId, applicantId: actor.accountId, ...saved } });
         if (submit) await event(db, actor, { ...app, status: previous?.status || "DRAFT" }, "SUBMITTED");
