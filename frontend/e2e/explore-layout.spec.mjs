@@ -1897,6 +1897,10 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   await page.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "Saved" }).click();
   await expect(feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" })).toBeVisible();
   await page.reload();
+  // Explore resets its selected feed on a page reload; explicitly reopen
+  // Saved to verify persistence and immediate removal in that view.
+  await page.getByRole("navigation", { name: "Explore feed" })
+    .getByRole("button", { name: "Saved", exact: true }).click();
   const savedCard = feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" });
   await expect(savedCard.getByRole("button", { name: "Unsave challenge" })).toBeVisible();
   await savedCard.getByRole("button", { name: "Unsave challenge" }).click();
