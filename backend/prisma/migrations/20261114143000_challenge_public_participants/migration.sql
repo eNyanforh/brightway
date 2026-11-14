@@ -3,5 +3,5 @@
 ALTER TABLE "OpportunityApplication"
   ADD COLUMN "publicParticipant" BOOLEAN NOT NULL DEFAULT false;
 
-CREATE INDEX "OpportunityApplication_opportunityId_publicParticipant_submittedAt_id_idx"
+CREATE INDEX "opp_app_public_participant_idx"
   ON "OpportunityApplication"("opportunityId", "publicParticipant", "submittedAt", "id");
