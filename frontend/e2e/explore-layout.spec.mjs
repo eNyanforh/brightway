@@ -130,7 +130,7 @@ test("Explore right sidebar displays photo-backed Challenge cards with prize, sp
   await expect.poll(async () => photo.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
   const prizeMode = card.locator(".bw-rail-challenge-prize-mode");
   await expect(prizeMode).toContainText("US$1,000");
-  await expect(prizeMode).toContainText("Online");
+  await expect(prizeMode).toContainText("On BrightWay");
   await expect(card.getByRole("link", { name: "View Research School organization profile" })).toHaveAttribute("href", "/organizations/" + oid);
   await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
   await expect(card.getByRole("heading", { name: challenge.title })).toBeVisible();
@@ -1928,7 +1928,7 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   await expect(deadline.locator("time")).toHaveAttribute("datetime", opportunity.deadline);
   await expect(deadline.locator("time")).toHaveAttribute("title", /Deadline: /);
   await expect(prize).toContainText("US$1,000");
-  await expect(prize).toContainText("Online");
+  await expect(prize).toContainText("On BrightWay");
   const participantGroup = body.getByRole("group", { name: "Publicly participating members" });
   await expect(participantGroup.getByRole("link")).toHaveCount(3);
   await expect(participantGroup.getByRole("link", { name: "Student One participating in challenge" })).toHaveAttribute("href", "/student_a");
