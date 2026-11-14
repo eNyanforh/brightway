@@ -87,7 +87,7 @@ it("the right-rail Challenge card shows a first-party photo, publisher, topics a
   const article = screen.getByRole("article", { name: "Challenge: Research assistant" });
   expect(article.querySelector(".bw-rail-challenge-photo").getAttribute("src")).toBe("/images/hero/schools-720.webp");
   expect(within(article).getByText("US$1,000")).toBeTruthy();
-  expect(article.querySelector(".bw-rail-challenge-prize-mode").textContent).toContain("In person");
+  expect(article.querySelector(".bw-rail-challenge-prize-mode").textContent).toContain("Offline");
   expect(article.querySelector(".bw-rail-challenge-logo")).toBeTruthy();
   expect(article.querySelector(".bw-challenge-participants").textContent).toContain("1 participant");
   const closing = article.querySelector(".bw-rail-challenge-closing-row");
