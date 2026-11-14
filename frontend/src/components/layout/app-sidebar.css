@@ -60,14 +60,14 @@
 
 .bw-design-sidebar-nav a[aria-current="page"],
 .bw-design-sidebar-nav a.bw-design-sidebar-active {
-  color: var(--bw-primary);
+  color: #175cd3;
   background: #e5eefc;
   font-weight: 700;
 }
 
 .bw-design-sidebar a:focus-visible,
 .bw-design-sidebar button:focus-visible {
-  outline: 3px solid var(--bw-primary);
+  outline: 3px solid #175cd3;
   outline-offset: 3px;
 }
 
@@ -78,7 +78,7 @@
 }
 
 .bw-design-sidebar-dot {
-  background: var(--bw-primary);
+  background: #175cd3;
   border-radius: 50%;
   width: 6px;
   height: 6px;
@@ -129,7 +129,11 @@
   padding: 13px 12px;
   border: 1px solid #185ac3;
   border-radius: 12px;
-  background: var(--bw-primary);
+  background: linear-gradient(
+    115deg,
+    #175cd3,
+    #3479e7
+  );
   color: #fff;
   font: inherit;
   font-size: 12px;

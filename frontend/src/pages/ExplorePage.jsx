@@ -26,14 +26,7 @@ export default function ExplorePage() {
     params.delete("compose");
     navigate({ pathname: location.pathname, search: params.toString() ? "?" + params : "", hash: location.hash }, { replace: true });
   };
-  const requestedView = new URLSearchParams(location.search).get("view");
-  const view = views.some(([key]) => key === requestedView) ? requestedView : "for-you";
-  function setView(next) {
-    const params = new URLSearchParams(location.search);
-    if (next === "for-you") params.delete("view");
-    else params.set("view", next);
-    navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash });
-  }
+  const [view, setView] = useState("for-you");
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   return (

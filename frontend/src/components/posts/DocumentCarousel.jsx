@@ -140,7 +140,7 @@ export default function DocumentCarousel({ item }) {
           const dx = end.clientX - start.x, dy = end.clientY - start.y;
           if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) select(page + (dx < 0 ? 1 : -1));
         }}>
-        {document ? <div className="bw-document-track" data-peek={!expanded && total > 1} style={{ transform: `translateX(-${page * 100}%)` }}>
+        {document ? <div className="bw-document-track" style={{ transform: `translateX(-${page * 100}%)` }}>
           {Array.from({ length: total }, (_, index) => <DocumentPage key={index} pdf={document.pdf}
             number={index + 1} active={page === index} render={(expanded || nearViewport) && Math.abs(page - index) <= 1} />)}
         </div> : error ? <div className="bw-document-load-error" role="alert"><strong>Document preview unavailable</strong><p>{error}</p><button type="button" onClick={() => { setError(""); setAttempt(value => value + 1); }}>Try again</button><a href={url} target="_blank" rel="noopener noreferrer">Open PDF</a></div>
@@ -161,6 +161,7 @@ export default function DocumentCarousel({ item }) {
   }
   return <section ref={root} className="bw-document-carousel" aria-label={"PDF document " + item.name} onKeyDown={keys}>
     {expanded ? <div className="bw-document-inline-placeholder" style={{ aspectRatio: Math.max(.65, Math.min(2.4, document?.aspect || .78)) }} /> : deck()}
+    <div className="bw-document-caption"><strong title={item.name}>{item.name.replace(/\.pdf$/i, "")}</strong><span>{total} {total === 1 ? "page" : "pages"} · PDF</span></div>
     {expanded && createPortal(<dialog ref={dialog} className="bw-document-dialog" aria-label={"Document viewer " + item.name}
       onCancel={event => { event.preventDefault(); event.stopPropagation(); closeExpanded(); }}
       onKeyDown={event => {

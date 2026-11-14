@@ -82,7 +82,7 @@ export default function EventBuilder({ body, tags, disabled, onBodyChange, onTag
   useEffect(() => {
     titleRef.current?.focus();
     const trigger = window.matchMedia?.("(max-width: 700px)")?.matches
-      ? document.querySelector("[data-compose-shortcut]") : triggerRef?.current;
+      ? document.querySelector(".bw-mobile-compose-fab") : triggerRef?.current;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const keyDown = event => {

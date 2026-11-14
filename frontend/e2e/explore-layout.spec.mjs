@@ -36,9 +36,7 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
     const url = new URL(request.url());
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith("/api/")) return route.continue();
-    if (/^\/api\/v1\/organizations\/[^/]+\/photo\/[^/]+$/.test(url.pathname) ||
-      /^\/api\/v1\/explore\/members\/[^/]+\/photo\/[^/]+$/.test(url.pathname))
-      return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9ySN6FcAAAAASUVORK5CYII=", "base64") });
+    if (/^\/api\/v1\/organizations\/[^/]+\/photo\/[^/]+$/.test(url.pathname) || /^\/api\/v1\/explore\/members\/[^/]+\/photo\/[^/]+$/.test(url.pathname)) return route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9ySN6FcAAAAASUVORK5CYII=", "base64") });
     const reply = (data, status = 200) => route.fulfill({ status, json: { success: true, data } });
     if (/^\/api\/v1\/explore\/posts\/(member|organization)\/[^/]+\/view$/.test(url.pathname)) return reply({ views: 1 });
     // Shared links read one server-authorized post rather than assuming it is in the first feed page.
@@ -137,15 +135,15 @@ test("Explore shows the compact three-action launcher instead of an always-open 
     await expect(explore.locator(".bw-explore-billboard")).toBeHidden();
     await expect(explore.locator(".bw-post-quick-actions")).toBeHidden();
     const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
-    const postShortcut = navigation.getByRole("link", { name: "Create Post" });
-    await expect(postShortcut).toBeVisible();
+    const floatingPost = navigation.getByRole("link", { name: "Create Post" });
+    await expect(floatingPost).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Explore" })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Opportunities" })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Network" })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Learning" })).toBeVisible();
-    const [shortcutBox, navBox] = await Promise.all([postShortcut.boundingBox(), navigation.boundingBox()]);
-    expect(shortcutBox.y).toBeGreaterThanOrEqual(navBox.y);
-    await postShortcut.click();
+    const [fabBox, navBox] = await Promise.all([floatingPost.boundingBox(), navigation.boundingBox()]);
+    expect(fabBox.y + fabBox.height).toBeLessThan(navBox.y + 1);
+    await floatingPost.click();
     const dialog = page.getByRole("dialog", { name: "Create a post", exact: true });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("button", { name: /Share an Achievement/ })).toBeVisible();
@@ -154,10 +152,10 @@ test("Explore shows the compact three-action launcher instead of an always-open 
     await expect(dialog.getByRole("textbox")).toHaveCount(0);
     await dialog.getByRole("button", { name: "Close post choices" }).click();
     await expect(dialog).toHaveCount(0);
-    await expect(postShortcut).toBeFocused();
+    await expect(floatingPost).toBeFocused();
     expect(writes).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-    await testInfo.attach("Mobile Explore Post shortcut", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+    await testInfo.attach("Mobile Explore floating Post", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
     return;
   }
   await expect(explore.getByRole("heading", { name: "Explore community" })).toHaveCount(1);
@@ -1317,7 +1315,7 @@ test("rich post cards render native image galleries, playable video and LinkedIn
   await expect(imageCard.getByRole("img", { name: "project.webp" })).toBeVisible();
   await expect(videoCard.locator("video[controls][playsinline]")).toHaveAttribute("src", /posts\/media\/bb222222/);
   const deck = pdfCard.getByRole("region", { name: "PDF document research-guide.pdf" });
-  await expect(deck.getByText("research-guide", { exact: true })).toHaveCount(0);
+  await expect(deck.getByText("research-guide", { exact: true })).toBeVisible();
   await deck.scrollIntoViewIfNeeded();
   await expect(deck.getByLabel("Page 1 of 3", { exact: true })).toBeVisible();
   await expect(deck.getByRole("group", { name: "Page 1", exact: true }).getByText("Document slide 1")).toBeAttached();
@@ -1521,13 +1519,13 @@ test("mobile shell keeps search in one row and opens a contained account drawer"
   for (const width of [320, 390, 700]) {
     await page.setViewportSize({ width, height: 844 });
     const [avatar, field, message, bar] = await Promise.all([
-      accountButton.boundingBox(), (width < 360 ? header.getByRole("link", { name: "Search BrightWay", exact:true }) : search).boundingBox(), messages.boundingBox(), header.boundingBox(),
+      accountButton.boundingBox(), search.boundingBox(), messages.boundingBox(), header.boundingBox(),
     ]);
-    expect(message.x + message.width).toBeLessThan(avatar.x);
+    expect(avatar.x + avatar.width).toBeLessThan(field.x);
     expect(field.x + field.width).toBeLessThan(message.x);
     expect(Math.abs(avatar.y + avatar.height / 2 - (field.y + field.height / 2))).toBeLessThan(2);
     expect(bar.height).toBeLessThanOrEqual(64);
-    if (width >= 360) expect(await search.evaluate(element => getComputedStyle(element).fontSize)).toBe("16px");
+    expect(await search.evaluate(element => getComputedStyle(element).fontSize)).toBe("16px");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   }
   await page.setViewportSize({ width: 390, height: 844 });
@@ -1537,9 +1535,9 @@ test("mobile shell keeps search in one row and opens a contained account drawer"
   expect(textBox.x - cardBox.x).toBeLessThanOrEqual(13);
   expect(cardBox.width - textBox.width).toBeLessThanOrEqual(25);
   const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
-  await expect(navigation.getByRole("link", { name: "Notifications", exact: true })).toHaveCount(0);
-  await expect(header.getByRole("link", { name: "Notifications", exact: true })).toBeVisible();
-  expect(await navigation.getByRole("link", { name: "Explore", exact: true }).evaluate(element => getComputedStyle(element).color)).toBe("rgb(23, 92, 211)");
+  await expect(navigation.getByRole("link", { name: "Notifications", exact: true })).toHaveAttribute("href", "/notifications");
+  await expect(header.getByRole("link", { name: "Notifications", exact: true })).toBeHidden();
+  expect(await navigation.getByRole("link", { name: "Explore", exact: true }).evaluate(element => getComputedStyle(element).color)).toBe("rgb(25, 25, 25)");
   await accountButton.click();
   const drawer = page.getByRole("dialog", { name: "Account menu", exact: true });
   await expect(drawer).toBeVisible();
@@ -1741,7 +1739,7 @@ test("published opportunities join the main Explore feed and remain separate fro
   await expect(feed.getByRole("article", { name: "Job opportunity: Research assistant opportunity" })).toHaveCount(0);
 });
 
-test("main Explore feed displays the four opportunity categories with white opportunity cards", async ({ page }) => {
+test("main Explore feed displays the four reference gradient categories with white opportunity cards", async ({ page }) => {
   const organizationId = "55555555-5555-4555-8555-555555555555";
   const categories = [
     { type: "JOB", label: "Job", heading: "Jobs & Internships", action: "Apply" },
@@ -1766,7 +1764,7 @@ test("main Explore feed displays the four opportunity categories with white oppo
   await page.goto("/explore");
 
   const feed = page.getByRole("region", { name: "Explore posts" });
-
+  const gradients = [];
   for (const category of categories) {
     const card = feed.getByRole("article", { name: category.label + " opportunity: " + category.heading + " listing" });
     await expect(card).toBeVisible();
@@ -1777,10 +1775,10 @@ test("main Explore feed displays the four opportunity categories with white oppo
     await expect(card.getByRole("link", { name: category.action + " on BrightWay" }))
       .toHaveAttribute("href", /\/opportunities\/66666666-/);
     const background = await card.evaluate(element => getComputedStyle(element).backgroundImage);
-    expect(background).toBe("none");
-
+    expect(background).toContain("linear-gradient");
+    gradients.push(background);
   }
-
+  expect(new Set(gradients).size).toBe(4);
   await expect(feed.getByText("Grants & Funding")).toHaveCount(0);
 });
 
@@ -1825,7 +1823,7 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
   const card = feed.getByRole("article", { name: "Challenge opportunity: Build a Community Learning App" });
   await expect(card).toBeVisible();
   // Brightway.me's actual reference wraps the white compact card in a
-  // 16px-padded category container; it has no full-height cover.
+  // 16px-padded gradient category container; it has no full-height cover.
   const heading = card.locator(".bw-timeline-opportunity-category");
   const body = card.locator(".bw-challenge-card");
   const shell = await card.evaluate(element => {
@@ -1833,7 +1831,7 @@ test("Challenge Explore card prioritizes title, verified organizer, deadline, pr
     return { padding: style.paddingTop, background: style.backgroundImage };
   });
   expect(shell.padding).toBe(isMobile ? "12px" : "16px");
-  expect(shell.background).toBe("none");
+  expect(shell.background).toContain("linear-gradient");
   await expect(body).toHaveCSS("background-color", "rgb(255, 255, 255)");
   expect(await body.evaluate(element => getComputedStyle(element).paddingTop))
     .toBe(isMobile ? "12px" : "16px");

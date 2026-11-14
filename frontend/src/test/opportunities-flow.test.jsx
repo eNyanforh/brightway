@@ -45,7 +45,8 @@ it("opportunity discovery exposes four filters and uses live on-platform links",
   await screen.findByRole("link", { name: "Research assistant" });
   expect(screen.getByRole("link", { name: /Apply/ }).getAttribute("href")).toBe("/opportunities/" + id);
   expect(screen.queryByText("YOUR NEXT STEP")).toBeNull();
-  expect(screen.getByRole("heading", { name: "Opportunities" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Opportunities that move you forward." })).toBeTruthy();
+  expect(screen.getByText("Find work, fund your education, take on a challenge, or join an event. Apply right here on BrightWay.").classList.contains("bw-op-intro")).toBe(true);
   const filters = screen.getByRole("navigation", { name: "Opportunity types" });
   await user.click(within(filters).getByRole("button", { name: "Scholarships" }));
   await waitFor(() => expect(fetch.mock.calls.at(-1)[0]).toContain("type=SCHOLARSHIP"));

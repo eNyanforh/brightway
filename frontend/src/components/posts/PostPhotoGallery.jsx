@@ -148,9 +148,8 @@ export default function PostPhotoGallery({ images, onRemove, onOpen, disabled = 
   // Wait for the whole set before choosing the collage so later images do not
   // repeatedly change the layout as they load. Failed photos use a square slot.
   const ready = images.every(file => measurements[file.id] > 0);
-  const { layout, lead } = photoLayout(images.map(file => ready ? measurements[file.id] : 1));
-  // Reserve the outer frame before decoding. Orientation only changes the internal grid.
-  const styles = { aspectRatio: images.length === 1 ? 1 : 4 / 3,
+  const { layout, aspect, lead } = photoLayout(images.map(file => ready ? measurements[file.id] : 1));
+  const styles = { aspectRatio: aspect,
     ...(lead ? { "--bw-gallery-lead": lead + "fr", "--bw-gallery-rest": (1 - lead) + "fr" } : {}),
   };
   return (

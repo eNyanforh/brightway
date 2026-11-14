@@ -129,7 +129,7 @@ export default function PersonalPostComposer({
       // On narrow screens the inline choices are hidden and the persistent
       // floating Post shortcut is the accessible return-focus target.
       const mobileFab = window.matchMedia?.("(max-width: 700px)")?.matches
-        ? document.querySelector("[data-compose-shortcut]") : null;
+        ? document.querySelector(".bw-mobile-compose-fab") : null;
       if (mobileFab) mobileFab.focus();
       else achievementTrigger.current?.focus();
     };

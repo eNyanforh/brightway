@@ -7,7 +7,7 @@
 .bw-completion-list li > span:nth-child(2) { flex: 1; min-width: 0; }
 .bw-completion-list small { display: block; margin-top: 3px; color: #64748b; }
 .bw-completion-done, .bw-completion-missing { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; flex-shrink: 0; }
-.bw-completion-done { color: var(--bw-primary); background: #eaf2ff; }
+.bw-completion-done { color: #175cd3; background: #eaf2ff; }
 .bw-completion-missing { color: #64748b; background: #f1f5f9; }
 .bw-completion-list .bw-profile-text-button { min-height: 44px; }
 .bw-account-email { border-top: 1px solid #e8edf4; margin-top: 16px; padding-top: 16px; }
