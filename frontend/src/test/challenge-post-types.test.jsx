@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { expect, it, vi } from "vitest";
@@ -22,7 +22,8 @@ it("Challenge post builder adds multiple types with their own constraints", asyn
   expect(updated[1]).toEqual({ id: formats[1].id, type: "PHOTO_POST", minImages: 1, maxImages: 4 });
   rerender(<ChallengePostTypes requirements={updated} onChange={changes} />);
   expect(screen.getByRole("spinbutton", { name: "Post type 2 Maximum photos" })).toBeTruthy();
-  expect(screen.getByRole("option", { name: "Video post" }).disabled).toBe(true);
+  expect(within(screen.getByRole("combobox", { name: "Post type 2" }))
+    .getByRole("option", { name: "Video post" }).disabled).toBe(true);
 });
 
 it("caption requirement counts words live and allows a link to an existing BrightWay video post", async () => {
