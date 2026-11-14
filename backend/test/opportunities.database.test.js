@@ -50,9 +50,20 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     await assert.rejects(service.list(otherOwner.actor, org.id, {}), { status: 403 });
     let opp = await service.setStatus(owner.actor, org.id, draft.id, { expectedVersion: draft.version, status: "PUBLISHED" });
     const otherListings = [];
-    for (const type of ["SCHOLARSHIP", "CHALLENGE", "EVENT"]) { const row = await service.create(owner.actor, org.id, listing(type)); otherListings.push(await service.setStatus(owner.actor, org.id, row.id, { expectedVersion: row.version, status: "PUBLISHED" })); }
+    for (const type of ["SCHOLARSHIP", "CHALLENGE", "EVENT"]) {
+      const request = { ...listing(type), ...(type === "CHALLENGE" ? {
+        prize: "US$500", coverImage: "SCHOOLS", topics: ["Education", "Technology"],
+      } : {}) };
+      const row = await service.create(owner.actor, org.id, request);
+      otherListings.push(await service.setStatus(owner.actor, org.id, row.id, { expectedVersion: row.version, status: "PUBLISHED" }));
+    }
     assert.deepEqual(new Set((await service.browse(applicant.actor, {})).items.filter(o => o.organizationId === org.id).map(o => o.type)), new Set(["JOB", "SCHOLARSHIP", "CHALLENGE", "EVENT"]));
     assert.equal((await service.browse(applicant.actor, { type: "SCHOLARSHIP" })).items.filter(o => o.organizationId === org.id).length, 1);
+    const publishedChallenge = (await service.browse(applicant.actor, { type: "CHALLENGE" })).items
+      .find(o => o.organizationId === org.id);
+    assert.deepEqual(publishedChallenge.topics, ["Education", "Technology"]);
+    assert.equal(publishedChallenge.coverImage, "SCHOOLS");
+    assert.equal(publishedChallenge.prize, "US$500");
     assert.equal((await service.browse(applicant.actor, { q: "assistant" })).items.filter(o => o.organizationId === org.id).length, 4);
     assert.equal((await service.browse(applicant.actor, { q: "%_" })).items.length, 0, "search wildcards are treated literally");
     assert.equal((await service.browse(applicant.actor, { following: "true" })).items.length, 0);

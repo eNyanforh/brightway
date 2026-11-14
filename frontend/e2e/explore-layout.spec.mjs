@@ -59,7 +59,8 @@ async function fixture(page, posts = [fixturePost], submittedStatus = "PUBLISHED
       case "/api/v1/explore/posts": return reply({ items: [...publishedPosts, ...posts], nextCursor: null });
       case "/api/v1/learning/discover": return reply({ items: [], nextCursor: null });
       case "/api/v1/opportunities": return reply({ items: opportunities
-        .filter(item => (url.searchParams.get("following") !== "true" || item.followed) &&
+        .filter(item => (url.searchParams.get("type") === null || url.searchParams.get("type") === item.type) &&
+          (url.searchParams.get("following") !== "true" || item.followed) &&
           (url.searchParams.get("saved") !== "true" || savedOpportunities.has(item.id)))
         .map(item => ({ ...item, saved: savedOpportunities.has(item.id) })), nextCursor: null });
       case "/api/v1/posts/me": {
@@ -99,6 +100,50 @@ async function documentFixture() {
   return Buffer.from(await pdf.save());
 }
 
+
+test("Explore right sidebar displays photo-backed Challenge cards with prize, sponsor, topic, CTA and days left", async ({ page, isMobile }) => {
+  const cid = "77777777-7777-4777-8777-777777777777";
+  const oid = "55555555-5555-4555-8555-555555555555";
+  const challenge = {
+    id: cid, type: "CHALLENGE", title: "Community Innovation Challenge",
+    description: "Build tools that help students learn together.", prize: "US$1,000",
+    topics: ["Technology", "Education"], coverImage: "SCHOOLS",
+    workMode: "REMOTE", location: "Monrovia, Liberia", status: "PUBLISHED",
+    createdAt: "2026-11-10T12:00:00Z", publishedAt: "2026-11-13T12:00:00Z",
+    deadline: "2099-01-01T12:00:00Z",
+    organization: { id: oid, name: "Research School", profilePhotoId: "logo-photo", verifiedAt: "2026-11-01T12:00:00Z" },
+  };
+  await fixture(page, [], "PUBLISHED", null, [challenge, { ...challenge, id: "88888888-8888-4888-8888-888888888888", type: "JOB" }]);
+  await page.goto("/explore");
+  const sidebar = page.getByRole("complementary", { name: "Explore sidebar" });
+  await expect(sidebar.getByRole("heading", { name: "Challenges" })).toBeVisible();
+  const card = sidebar.getByRole("article", { name: "Challenge: Community Innovation Challenge" });
+  await expect(card).toBeVisible();
+  await expect(sidebar.getByRole("article")).toHaveCount(1);
+  const photo = card.locator(".bw-rail-challenge-photo");
+  await expect(photo).toHaveAttribute("src", "/images/hero/schools-720.webp");
+  await expect(photo).toHaveCSS("object-fit", "cover");
+  await expect.poll(async () => photo.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
+  await expect(card.locator(".bw-rail-challenge-prize")).toContainText("US$1,000");
+  await expect(card.getByRole("link", { name: "View Research School organization profile" })).toHaveAttribute("href", "/organizations/" + oid);
+  await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
+  await expect(card.getByRole("heading", { name: challenge.title })).toBeVisible();
+  const topics = card.getByRole("list", { name: "Challenge categories" });
+  await expect(topics).toContainText("Technology");
+  await expect(topics).toContainText("Education");
+  await expect(card.getByRole("link", { name: "Take Part" })).toHaveAttribute("href", "/opportunities/" + cid);
+  const reminder = card.locator("time");
+  await expect(reminder).toHaveAttribute("datetime", challenge.deadline);
+  await expect(reminder).toContainText(/Closes in [0-9,]+ days/);
+  await expect(card.getByRole("link", { name: "Challenge", exact: true })).toHaveAttribute("href", "/opportunities?type=CHALLENGE");
+  const [prizeBounds, sponsorBounds] = await Promise.all([
+    card.locator(".bw-rail-challenge-prize").boundingBox(),
+    card.locator(".bw-rail-challenge-publisher").boundingBox(),
+  ]);
+  expect(prizeBounds.y).toBeLessThan(sponsorBounds.y);
+  if (isMobile) await expect(sidebar).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
 
 test("Explore remains readable at tablet width without horizontal scrolling", async ({ page }) => {
   await fixture(page);

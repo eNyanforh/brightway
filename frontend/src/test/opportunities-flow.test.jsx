@@ -8,6 +8,7 @@ import OpportunitiesPage from "../pages/OpportunitiesPage";
 import OpportunityCard from "../components/opportunities/OpportunityCard";
 import OrganizationApplications from "../components/opportunities/OrganizationApplications";
 import OpportunityEditor from "../components/opportunities/OpportunityEditor";
+import ChallengeSidebarCard from "../components/opportunities/ChallengeSidebarCard";
 import NotificationsPage from "../pages/NotificationsPage";
 const id = "33333333-3333-4333-8333-333333333333", qid = "44444444-4444-4444-8444-444444444444";
 const org = { id: "22222222-2222-4222-8222-222222222222", name: "Research Institute" };
@@ -76,6 +77,45 @@ it("the publisher builds questions and saves a draft with no external applicatio
   await user.click(screen.getByRole("button", { name: "Save draft" })); await waitFor(() => expect(saved).toHaveBeenCalled());
   const body = JSON.parse(fetch.mock.calls[0][1].body); expect(body.questions[0]).toMatchObject({ label: "Tell us about your experience", type: "SHORT_ANSWER", required: true }); expect(body).not.toHaveProperty("applicationUrl");
 });
+it("the right-rail Challenge card shows a first-party photo, publisher, topics and Take Part", () => {
+  const challenge = {
+    ...opp, type: "CHALLENGE", prize: "US$1,000", topics: ["Technology", "Education"], coverImage: "SCHOOLS",
+    organization: { ...org, profilePhotoId: "publisher-photo", verifiedAt: "2026-11-01T00:00:00Z" },
+  };
+  render(<MemoryRouter><aside className="bw-explore-right"><ChallengeSidebarCard opportunity={challenge} /></aside></MemoryRouter>);
+  const article = screen.getByRole("article", { name: "Challenge: Research assistant" });
+  expect(article.querySelector(".bw-rail-challenge-photo").getAttribute("src")).toBe("/images/hero/schools-720.webp");
+  expect(within(article).getByText("US$1,000")).toBeTruthy();
+  expect(within(article).getByRole("link", { name: "View Research Institute organization profile" })).toBeTruthy();
+  expect(within(article).getByRole("heading", { name: "Research assistant" })).toBeTruthy();
+  expect(within(article).getByRole("list", { name: "Challenge categories" }).textContent).toContain("Technology");
+  expect(within(article).getByRole("link", { name: "Take Part" }).getAttribute("href")).toBe("/opportunities/" + id);
+  expect(within(article).getByText(/Closes in/)).toBeTruthy();
+  expect(within(article).getByRole("link", { name: "Challenge" }).getAttribute("href")).toBe("/opportunities?type=CHALLENGE");
+});
+
+it("challenge publishers can select a cover photo and up to three categories", async () => {
+  const saved = vi.fn();
+  const fetch = vi.fn((_url, options) => reply({ ...opp, ...JSON.parse(options.body), status: "DRAFT", version: 1 }));
+  vi.stubGlobal("fetch", fetch);
+  const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
+  await user.selectOptions(screen.getByLabelText("Opportunity type"), "CHALLENGE");
+  await user.selectOptions(screen.getByLabelText("Challenge background photo"), "SCHOOLS");
+  await user.click(screen.getByRole("checkbox", { name: "Technology" }));
+  await user.click(screen.getByRole("checkbox", { name: "Education" }));
+  await user.click(screen.getByRole("checkbox", { name: "Design" }));
+  expect(screen.getByRole("checkbox", { name: "Coding" }).disabled).toBe(true);
+  await user.type(screen.getByLabelText("Title"), "Learning Innovation Challenge");
+  await user.type(screen.getByLabelText("Description"), "Design an innovation that improves access to education.");
+  await user.type(screen.getByLabelText("Location"), "Monrovia");
+  await user.type(screen.getByLabelText("Application deadline (your local time)"), "2099-12-01T12:00");
+  await user.click(screen.getByRole("button", { name: "Save draft" }));
+  await waitFor(() => expect(saved).toHaveBeenCalled());
+  const body = JSON.parse(fetch.mock.calls[0][1].body);
+  expect(body.coverImage).toBe("SCHOOLS");
+  expect(body.topics).toEqual(["Technology", "Education", "Design"]);
+});
+
 it("application decisions appear in Notifications with All and Unread views", async () => {
   const notice = { id: qid, kind: "APPLICATION_STATUS", createdAt: "2030-01-15T12:00:00Z", readAt: null, application: { id: app.id, title: opp.title, status: "SHORTLISTED" } };
   const fetch = vi.fn((_url, opts) => reply(opts?.method === "POST" ? { updated: true } : { items: [notice], nextCursor: null })); vi.stubGlobal("fetch", fetch);

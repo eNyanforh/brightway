@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { OPPORTUNITY_TYPES, QUESTION_TYPES } from "../../../../shared/opportunities.mjs";
+import { CHALLENGE_COVER_IMAGES, CHALLENGE_TOPIC_OPTIONS, DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS } from "../../../../shared/challenges.mjs";
 import { fail } from "../network/network.schema.js";
 
 export const identifier = z.uuid();
@@ -17,6 +18,9 @@ export const opportunityInput = z.strictObject({
   type: z.enum(Object.keys(OPPORTUNITY_TYPES)), title: text(160).min(3), description: text(12000).min(30),
   location: text(180).min(2), workMode: z.enum(["IN_PERSON", "REMOTE", "HYBRID"]),
   prize: text(120).nullish().transform(value => value ?? ""),
+  topics: z.array(z.enum(CHALLENGE_TOPIC_OPTIONS)).max(MAX_CHALLENGE_TOPICS)
+    .refine(values => new Set(values).size === values.length).default([]),
+  coverImage: z.enum(Object.keys(CHALLENGE_COVER_IMAGES)).default(DEFAULT_CHALLENGE_COVER),
   deadline: z.iso.datetime({ offset: true }),
   questions: z.array(question).max(20).refine(q => new Set(q.map(v => v.id)).size === q.length)
     .refine(q => q.filter(v => v.type === "FILE_UPLOAD").length <= 5),
