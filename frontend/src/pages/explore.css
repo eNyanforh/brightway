@@ -1417,8 +1417,12 @@
   .bw-explore .bw-timeline-panel { background:#fff; }
   .bw-explore .bw-timeline-post,
   .bw-explore .bw-timeline-post:hover {
+    /* Preserve the full-bleed mobile geometry and flat media cards. */
+    padding: 16px 12px 8px;
+    border-radius: 0;
+    box-shadow: none;
     border-bottom: 8px solid #f3f3f3;
-    background:#fff;
+    background: #fff;
   }
   .bw-explore .bw-timeline-avatar { background:#f1f1f1; color:#333; }
   .bw-explore-right { grid-template-columns:1fr; border:0; border-top:8px solid #f3f3f3; border-radius:0; }
