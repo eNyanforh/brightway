@@ -14,7 +14,7 @@ import ChallengeCoHosts from "./ChallengeCoHosts";
 const EXPLORE_OPPORTUNITY_CATEGORIES = Object.freeze({
   JOB: "Jobs & Internships",
   SCHOLARSHIP: "Scholarships",
-  CHALLENGE: "Challenges & Competitions",
+  CHALLENGE: "Challenge - Part take to Earn",
   EVENT: "Events",
 });
 

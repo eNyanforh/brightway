@@ -945,7 +945,7 @@
 .bw-explore .bw-challenge-primary { min-width: 0; }
 .bw-explore .bw-challenge-title {
   margin: 0 0 2px;
-  font-size: 15px;
+  font-size: 20px;
   line-height: 1.25;
   font-weight: 750;
   overflow-wrap: anywhere;
@@ -1097,7 +1097,7 @@
     gap: 8px;
   }
   .bw-explore .bw-challenge-organization-avatar { width: 40px; height: 40px; }
-  .bw-explore .bw-challenge-title { font-size: 14px; }
+  .bw-explore .bw-challenge-title { font-size: 18px; }
   .bw-explore .bw-challenge-organization-name { font-size: 12px; }
   .bw-explore .bw-challenge-deadline { font-size: 11px; }
   .bw-explore .bw-challenge-prize > strong { max-width: 100px; font-size: 12px; }
