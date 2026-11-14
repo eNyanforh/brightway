@@ -15,6 +15,16 @@ test("opportunity input rejects external application methods, unknown fields and
   const challenge = createInput.safeParse({ ...listing(), type: "CHALLENGE", prize: "US$1,000" });
   assert.equal(challenge.success, true);
   assert.equal(challenge.data.prize, "US$1,000");
+  assert.deepEqual(challenge.data.topics, []);
+  assert.equal(challenge.data.coverImage, "STUDENTS");
+  const illustrated = createInput.parse({ ...listing(), type: "CHALLENGE",
+    coverImage: "SCHOOLS", topics: ["Education", "Coding"] });
+  assert.deepEqual(illustrated.topics, ["Education", "Coding"]);
+  assert.equal(illustrated.coverImage, "SCHOOLS");
+  assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", topics: ["Coding", "Coding"] }).success, false);
+  assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", topics: ["Coding", "Art", "Design", "Science"] }).success, false);
+  assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", topics: ["Unapproved category"] }).success, false);
+  assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", coverImage: "https://example.invalid/image.jpg" }).success, false);
   assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", prize: "x".repeat(121) }).success, false);
   assert.equal(createInput.safeParse({ ...listing(), type: "CHALLENGE", prize: null }).success, true, "legacy unset prizes are accepted");
   const submitted = { expectedVersion: 0, expectedOpportunityVersion: 1, action: "SUBMIT", shareProfile: true, answers: {} };
