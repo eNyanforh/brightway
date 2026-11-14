@@ -373,8 +373,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
                 <dl><div><dt>Deadline</dt><dd>{new Date(draft.deadline).toLocaleString("en-GB")}</dd></div>
                   {challenge ? <>
                     <div><dt>Applicants</dt><dd>{draft.maxApplicants === null ? "Unlimited" : draft.maxApplicants}</dd></div>
-                    <div><dt>Where to participate</dt><dd>On BrightWay only</dd></div>
-                  </> : <>
+                   </> : <>
                     <div><dt>Location</dt><dd>{draft.location}</dd></div>
                     <div><dt>Format</dt><dd>{draft.workMode.replaceAll("_", " ")}</dd></div>
                   </>}
