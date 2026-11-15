@@ -181,6 +181,32 @@ test("Explore right sidebar stacks Challenge cover, details and Partake button",
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
 
+test("Explore limits the main reading column on desktop and tablet", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Desktop and tablet layout measurement");
+  await fixture(page);
+  await page.setViewportSize({ width: 1440, height: 950 });
+  await page.goto("/explore");
+  const explore = page.getByRole("region", { name: "Explore", exact: true });
+  const main = explore.locator(".bw-explore-main");
+  const sidebar = explore.getByRole("complementary", { name: "Explore sidebar" });
+  const [mainBox, sidebarBox, exploreBox] = await Promise.all([
+    main.boundingBox(), sidebar.boundingBox(), explore.boundingBox(),
+  ]);
+  expect(mainBox.width).toBeLessThanOrEqual(641);
+  expect(mainBox.width).toBeGreaterThan(600);
+  expect(sidebarBox.width).toBeLessThanOrEqual(269);
+  expect(sidebarBox.x).toBeGreaterThanOrEqual(mainBox.x + mainBox.width);
+  expect(exploreBox.width).toBeLessThanOrEqual(929);
+
+  await page.setViewportSize({ width: 1150, height: 950 });
+  const [tabletMainBox, tabletSidebarBox] = await Promise.all([
+    main.boundingBox(), sidebar.boundingBox(),
+  ]);
+  expect(tabletMainBox.width).toBeLessThanOrEqual(681);
+  expect(tabletSidebarBox.y).toBeGreaterThanOrEqual(tabletMainBox.y + tabletMainBox.height);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
 test("Explore remains readable at tablet width without horizontal scrolling", async ({ page }) => {
   await fixture(page);
   await page.setViewportSize({ width: 820, height: 950 });
