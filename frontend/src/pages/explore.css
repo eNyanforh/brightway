@@ -1402,6 +1402,24 @@
   .bw-explore-right .bw-explore-aside-card:nth-last-child(-n+2) { border-bottom: 0; }
 }
 
+/* The caption toggle should lead straight into the media, and media should
+   meet the action row without stacked margins. Keep action hit areas intact. */
+.bw-explore .bw-timeline-post .bw-post-caption:has(+ .bw-post-media) .bw-post-text,
+.bw-explore .bw-timeline-post .bw-post-caption:has(+ .bw-post-media) .bw-post-caption-toggle {
+  margin-bottom: 0;
+}
+.bw-explore .bw-timeline-post .bw-post-caption + .bw-post-media { margin-top: 2px; }
+.bw-explore .bw-timeline-post .bw-post-media { margin-bottom: 0; }
+.bw-explore .bw-timeline-post .bw-post-story--compact:has(> .bw-post-media:last-child) { margin-bottom: 0; }
+.bw-explore .bw-timeline-post .bw-post-story--compact:has(> .bw-post-media:last-child) + .bw-post-comments,
+.bw-explore .bw-timeline-post .bw-post-media + .bw-post-comments {
+  margin-top: 0;
+}
+.bw-explore .bw-timeline-post .bw-post-story--compact:has(> .bw-post-media:last-child) + .bw-post-comments .bw-timeline-actions,
+.bw-explore .bw-timeline-post .bw-post-media + .bw-post-comments .bw-timeline-actions {
+  margin-top: 0;
+}
+
 /* Mobile remains immersive: sticky feed tabs, flat stories and edge-to-edge media. */
 @media (max-width:700px) {
   .bw-explore { --explore-border:#e7e7e7; background:#fff; }
