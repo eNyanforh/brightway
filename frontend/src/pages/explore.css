@@ -1281,7 +1281,7 @@
   --bw-challenge-gradient: linear-gradient(135deg, #e2f39d 0%, #67b4f3 100%);
   /* Keep the 620px reading column and extend the opportunity rail to the
      header account-menu edge inside the shared desktop content shell. */
-  grid-template-columns: minmax(0, 620px) minmax(252px, 328px);
+  grid-template-columns: minmax(0, 620px) minmax(252px, 1fr);
   gap: 20px;
   max-width: 968px;
   margin-left: auto;
