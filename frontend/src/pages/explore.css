@@ -787,7 +787,7 @@
   --explore-opportunity-gradient: linear-gradient(135deg, #f3ff9a 0%, #fad0c4 100%);
 }
 .bw-explore .bw-timeline-opportunity-challenge {
-  --explore-opportunity-gradient: linear-gradient(135deg, #e2f39d 0%, #67b4f3 100%);
+  --explore-opportunity-gradient: var(--bw-challenge-gradient, linear-gradient(135deg, #e2f39d 0%, #67b4f3 100%));
 }
 .bw-explore .bw-timeline-opportunity-event {
   --explore-opportunity-gradient: linear-gradient(135deg, #43e97b 0%, #dcf93881 100%);
@@ -1278,6 +1278,7 @@
   --explore-border: #e4e7eb;
   --explore-soft: #f5f6f7;
   --explore-surface: #fff;
+  --bw-challenge-gradient: linear-gradient(135deg, #e2f39d 0%, #67b4f3 100%);
   /* Keep the main Explore reading column compact beside the challenge rail. */
   grid-template-columns: minmax(0, 620px) minmax(252px, 268px);
   gap: 20px;
@@ -1393,6 +1394,18 @@
 .bw-explore .bw-suggestions summary { color: #2f343a; }
 .bw-explore-aside-link { color: #0a5aa9; }
 .bw-explore-right :is(.bw-learn-card,.bw-opportunity-card,.bw-rail-challenge-card) { box-shadow: none; }
+
+/* The right rail shows mixed, active opportunity types, not just challenges. */
+.bw-explore-right .bw-rail-opportunity-list .bw-op-card,
+.bw-explore-right .bw-rail-opportunity-list .bw-op-card:hover {
+  padding: 10px 0;
+}
+.bw-explore-right .bw-rail-opportunity-list .bw-op-card-cover {
+  gap: 6px;
+}
+.bw-explore-right .bw-rail-opportunity-list .bw-op-card-bottom {
+  margin-top: .4rem;
+}
 
 /* Tablet keeps useful discovery modules below the feed in a clean two-column row. */
 @media (max-width:1180px) {
