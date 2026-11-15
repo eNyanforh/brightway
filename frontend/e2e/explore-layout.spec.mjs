@@ -107,6 +107,7 @@ async function documentFixture() {
 test("Explore right sidebar stacks Challenge cover, details and Partake button", async ({ page, isMobile }) => {
   const cid = "77777777-7777-4777-8777-777777777777";
   const oid = "55555555-5555-4555-8555-555555555555";
+  const longOrganizationName = "Institute for Community Research and International Student Innovation Development Network of Liberia";
   const challenge = {
     id: cid, type: "CHALLENGE", title: "Community Innovation Challenge",
     description: "Build tools that help students learn together.", prize: "US$1,000",
@@ -118,7 +119,7 @@ test("Explore right sidebar stacks Challenge cover, details and Partake button",
     workMode: "REMOTE", location: "Monrovia, Liberia", status: "PUBLISHED",
     createdAt: "2026-11-10T12:00:00Z", publishedAt: "2026-11-13T12:00:00Z",
     deadline: "2099-01-01T12:00:00Z",
-    organization: { id: oid, name: "Research School", profilePhotoId: "logo-photo", verifiedAt: "2026-11-01T12:00:00Z" },
+    organization: { id: oid, name: longOrganizationName, profilePhotoId: "logo-photo", verifiedAt: "2026-11-01T12:00:00Z" },
   };
   await fixture(page, [], "PUBLISHED", null, [challenge, { ...challenge, id: "88888888-8888-4888-8888-888888888888", type: "JOB" }]);
   await page.goto("/explore");
@@ -137,9 +138,22 @@ test("Explore right sidebar stacks Challenge cover, details and Partake button",
 
   await expect(card.getByRole("heading", { name: challenge.title })).toBeVisible();
   await expect(card.getByText(challenge.description)).toBeVisible();
-  await expect(card.getByRole("link", { name: "View Research School organization profile" }))
+  await expect(card.getByRole("link", { name: "View " + longOrganizationName + " organization profile" }))
     .toHaveAttribute("href", "/organizations/" + oid);
-  await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
+  const sponsorName = card.locator(".bw-rail-challenge-sponsor-name > a");
+  const verified = card.getByRole("img", { name: "Verified organization" });
+  await expect(sponsorName).toHaveAttribute("title", longOrganizationName);
+  await expect(sponsorName).toHaveCSS("text-overflow", "ellipsis");
+  await expect(verified).toBeVisible();
+  expect(await sponsorName.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
+  const [nameBox, verifiedBox, publisherRowBox] = await Promise.all([
+    sponsorName.boundingBox(), verified.boundingBox(),
+    card.locator(".bw-rail-challenge-publisher").boundingBox(),
+  ]);
+  expect(verifiedBox.x).toBeGreaterThanOrEqual(nameBox.x + nameBox.width - 1);
+  expect(verifiedBox.y + verifiedBox.height / 2).toBeCloseTo(nameBox.y + nameBox.height / 2, 0);
+  expect(nameBox.y).toBeGreaterThanOrEqual(publisherRowBox.y - 1);
+  expect(nameBox.y + nameBox.height).toBeLessThanOrEqual(publisherRowBox.y + publisherRowBox.height + 1);
   const prize = card.locator(".bw-rail-challenge-prize");
   await expect(prize).toContainText("US$1,000");
   await expect(prize).not.toContainText("Cash:");
@@ -1404,7 +1418,8 @@ test("rich post cards render native image galleries, playable video and LinkedIn
     ...fixturePost, id: ["dd111111-1111-4111-8111-111111111111",
       "dd222222-2222-4222-8222-222222222222",
       "dd333333-3333-4333-8333-333333333333"][index],
-    body: "Rich media example " + kind, type: "POST", tags: ["Education"],
+    body: (kind === "IMAGE" ? "Rich media example IMAGE with a detailed caption about research, learning and collaboration. ".repeat(9) : "Rich media example " + kind),
+    type: "POST", tags: ["Education"],
     media: [{ id: id(kind), kind, name: kind === "IMAGE" ? "project.webp" :
       kind === "VIDEO" ? "workshop.mp4" : "research-guide.pdf",
       contentType: kind === "IMAGE" ? "image/webp" : kind === "VIDEO" ? "video/mp4" : "application/pdf",
@@ -1420,6 +1435,15 @@ test("rich post cards render native image galleries, playable video and LinkedIn
   const videoCard = page.getByRole("article").filter({ hasText: "Rich media example VIDEO" });
   const pdfCard = page.getByRole("article").filter({ hasText: "Rich media example DOCUMENT" });
   await expect(imageCard.getByRole("img", { name: "project.webp" })).toBeVisible();
+  const seeMore = imageCard.getByRole("button", { name: "See more" });
+  await expect(seeMore).toBeVisible();
+  const [seeMoreBox, mediaBox, actionBox] = await Promise.all([
+    seeMore.boundingBox(),
+    imageCard.locator(".bw-post-media").boundingBox(),
+    imageCard.locator(".bw-timeline-actions").boundingBox(),
+  ]);
+  expect(mediaBox.y - (seeMoreBox.y + seeMoreBox.height)).toBeLessThanOrEqual(4);
+  expect(actionBox.y - (mediaBox.y + mediaBox.height)).toBeLessThanOrEqual(2);
   await expect(videoCard.locator("video[controls][playsinline]")).toHaveAttribute("src", /posts\/media\/bb222222/);
   const deck = pdfCard.getByRole("region", { name: "PDF document research-guide.pdf" });
   await expect(deck.getByText("research-guide", { exact: true })).toBeVisible();
