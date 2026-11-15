@@ -104,7 +104,7 @@ async function documentFixture() {
 }
 
 
-test("Explore right sidebar displays photo-backed Challenge cards with prize, sponsor, topic, CTA and days left", async ({ page, isMobile }) => {
+test("Explore right sidebar stacks Challenge cover, details and Partake button", async ({ page, isMobile }) => {
   const cid = "77777777-7777-4777-8777-777777777777";
   const oid = "55555555-5555-4555-8555-555555555555";
   const challenge = {
@@ -127,46 +127,56 @@ test("Explore right sidebar displays photo-backed Challenge cards with prize, sp
   const card = sidebar.getByRole("article", { name: "Challenge: Community Innovation Challenge" });
   await expect(card).toBeVisible();
   await expect(sidebar.getByRole("article")).toHaveCount(1);
-  const photo = card.locator(".bw-rail-challenge-photo");
+
+  const coverLink = card.getByRole("link", { name: "View challenge: " + challenge.title });
+  await expect(coverLink).toHaveAttribute("href", "/opportunities/" + cid);
+  const photo = coverLink.locator(".bw-rail-challenge-photo");
   await expect(photo).toHaveAttribute("src", "/images/hero/schools-720.webp");
   await expect(photo).toHaveCSS("object-fit", "cover");
   await expect.poll(async () => photo.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
+
+  await expect(card.getByRole("heading", { name: challenge.title })).toBeVisible();
+  await expect(card.getByText(challenge.description)).toBeVisible();
+  await expect(card.getByRole("link", { name: "View Research School organization profile" }))
+    .toHaveAttribute("href", "/organizations/" + oid);
+  await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
   const prize = card.locator(".bw-rail-challenge-prize");
   await expect(prize).toContainText("US$1,000");
   await expect(prize).not.toContainText("Cash:");
   await expect(card).not.toContainText("On BrightWay");
-  await expect(card.getByRole("link", { name: "View Research School organization profile" })).toHaveAttribute("href", "/organizations/" + oid);
-  await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
-  await expect(card.getByRole("heading", { name: challenge.title })).toBeVisible();
-  const topics = card.getByRole("list", { name: "Challenge categories" });
-  await expect(topics).toContainText("Technology");
-  await expect(topics).toContainText("Education");
-  await expect(card.getByRole("link", { name: "Take Part" })).toHaveAttribute("href", "/opportunities/" + cid);
+  // Categories guide discovery; they are intentionally not displayed on the card.
+  await expect(card.getByRole("list", { name: "Challenge categories" })).toHaveCount(0);
   const reminder = card.locator("time");
   await expect(reminder).toHaveAttribute("datetime", challenge.deadline);
   await expect(reminder).toContainText(/Closes in [0-9,]+ days/);
-  await expect(card.getByRole("link", { name: "Challenge", exact: true })).toHaveAttribute("href", "/opportunities?type=CHALLENGE");
-  const [sponsorBounds, prizeBounds, photoBounds, logoBounds, nameBounds, priceValueBounds, closingBounds, participantsBounds] = await Promise.all([
-    card.locator(".bw-rail-challenge-publisher").boundingBox(),
-    prize.boundingBox(),
-    photo.boundingBox(),
-    card.locator(".bw-rail-challenge-logo").boundingBox(),
-    card.locator(".bw-rail-challenge-sponsor-name").boundingBox(),
-    prize.locator("strong").boundingBox(),
-    card.locator(".bw-rail-challenge-closing-row").boundingBox(),
-    card.locator(".bw-challenge-participants").boundingBox(),
-  ]);
-  expect(logoBounds.width).toBe(18);
-  expect(logoBounds.x + logoBounds.width).toBeLessThanOrEqual(nameBounds.x + 1);
-  // Wrapped organization names can be taller than the logo; compare vertical centers.
-  expect(Math.abs((logoBounds.y + logoBounds.height / 2) - (nameBounds.y + nameBounds.height / 2))).toBeLessThan(3);
-  expect(prizeBounds.y).toBeGreaterThanOrEqual(sponsorBounds.y + sponsorBounds.height - 1);
-  expect(photoBounds.x).toBeGreaterThanOrEqual(sponsorBounds.x + sponsorBounds.width - 1);
-  expect(priceValueBounds.width).toBeGreaterThan(0);
+  const partake = card.getByRole("link", { name: "Partake", exact: true });
+  await expect(partake).toHaveAttribute("href", "/opportunities/" + cid);
+  await expect(partake).toHaveCSS("min-height", "44px");
+  await expect(card.getByRole("link", { name: "Take Part" })).toHaveCount(0);
   const participantGroup = card.getByRole("group", { name: "Publicly participating members" });
   await expect(participantGroup.getByRole("link")).toHaveCount(2);
   await expect(card.getByLabel("Public Challenge participants")).toContainText("2 participants");
-  expect(participantsBounds.y).toBeGreaterThanOrEqual(closingBounds.y + closingBounds.height - 1);
+
+  const [coverBounds, titleBounds, publisherBounds, descriptionBounds, prizeBounds, reminderBounds, participantsBounds, ctaBounds] =
+    await Promise.all([
+      coverLink.boundingBox(),
+      card.locator("h3").boundingBox(),
+      card.locator(".bw-rail-challenge-publisher").boundingBox(),
+      card.locator(".bw-rail-challenge-description").boundingBox(),
+      prize.boundingBox(),
+      reminder.boundingBox(),
+      card.locator(".bw-challenge-participants").boundingBox(),
+      partake.boundingBox(),
+    ]);
+  expect(coverBounds.width).toBeGreaterThan(coverBounds.height);
+  expect(titleBounds.y).toBeGreaterThanOrEqual(coverBounds.y + coverBounds.height - 1);
+  expect(publisherBounds.y).toBeGreaterThanOrEqual(titleBounds.y + titleBounds.height - 1);
+  expect(descriptionBounds.y).toBeGreaterThanOrEqual(publisherBounds.y + publisherBounds.height - 1);
+  expect(prizeBounds.y).toBeGreaterThanOrEqual(descriptionBounds.y + descriptionBounds.height - 1);
+  expect(reminderBounds.y).toBeGreaterThanOrEqual(prizeBounds.y + prizeBounds.height - 1);
+  expect(participantsBounds.y).toBeGreaterThanOrEqual(reminderBounds.y + reminderBounds.height - 1);
+  expect(ctaBounds.y).toBeGreaterThanOrEqual(participantsBounds.y + participantsBounds.height - 1);
+  expect(ctaBounds.width).toBeGreaterThanOrEqual(coverBounds.width - 1);
   if (isMobile) await expect(sidebar).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
