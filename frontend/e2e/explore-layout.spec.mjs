@@ -144,7 +144,7 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(card).toBeVisible();
   await expect(sidebar.getByRole("article")).toHaveCount(4);
   await expect(card).toHaveCSS("background-image", /linear-gradient/);
-  const mainChallenge = page.locator(".bw-timeline-opportunity-challenge .bw-timeline-opportunity-card").first();
+  const mainChallenge = page.locator(".bw-timeline-opportunity-challenge").first();
   await expect(mainChallenge).toBeVisible();
   expect(await card.evaluate(el => getComputedStyle(el).backgroundImage))
     .toBe(await mainChallenge.evaluate(el => getComputedStyle(el).backgroundImage));
