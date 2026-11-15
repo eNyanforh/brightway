@@ -1279,10 +1279,13 @@
   --explore-soft: #f5f6f7;
   --explore-surface: #fff;
   --bw-challenge-gradient: linear-gradient(135deg, #e2f39d 0%, #67b4f3 100%);
-  /* Keep the main Explore reading column compact beside the challenge rail. */
-  grid-template-columns: minmax(0, 620px) minmax(252px, 268px);
+  /* Keep the 620px reading column and extend the opportunity rail to the
+     header account-menu edge inside the shared desktop content shell. */
+  grid-template-columns: minmax(0, 620px) minmax(252px, 328px);
   gap: 20px;
-  max-width: 908px;
+  max-width: 968px;
+  margin-left: auto;
+  margin-right: 0;
 }
 .bw-explore-main { gap: 16px; }
 .bw-explore-right { gap: 0; top: 86px; border: 1px solid var(--explore-border); border-radius: 16px; background: #fff; overflow: hidden; }
@@ -1409,7 +1412,7 @@
 
 /* Tablet keeps useful discovery modules below the feed in a clean two-column row. */
 @media (max-width:1180px) {
-  .bw-explore { grid-template-columns: minmax(0,1fr); max-width: 660px; }
+  .bw-explore { grid-template-columns: minmax(0,1fr); max-width: 660px; margin-inline: auto; }
   .bw-explore-right { position: static; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); border-radius: 14px; }
   .bw-explore-right .bw-explore-aside-card:nth-child(odd) { border-right: 1px solid var(--explore-border); }
   .bw-explore-right .bw-explore-aside-card:nth-last-child(-n+2) { border-bottom: 0; }
