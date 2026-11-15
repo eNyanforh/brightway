@@ -1453,3 +1453,19 @@
 @media (prefers-reduced-motion:reduce) {
   .bw-explore .bw-explore-filters,.bw-explore .bw-timeline-post { scroll-behavior:auto; }
 }
+
+/* The mobile timeline uses an 8px grid row-gap for content sections.
+   Cancel that gap only where caption meets media and media meets actions. */
+@media (max-width: 700px) {
+  .bw-explore .bw-timeline-post-main > .bw-post-caption + .bw-post-media {
+    margin-top: -6px; /* 8px grid gap -> 2px after See more */
+  }
+  .bw-explore .bw-timeline-post-main > .bw-post-media + .bw-post-comments,
+  .bw-explore .bw-timeline-post-main > .bw-post-story--compact:has(> .bw-post-media:last-child) + .bw-post-comments {
+    margin-top: -8px;
+  }
+  .bw-explore .bw-timeline-post .bw-post-media + .bw-post-comments .bw-timeline-actions,
+  .bw-explore .bw-timeline-post .bw-post-story--compact:has(> .bw-post-media:last-child) + .bw-post-comments .bw-timeline-actions {
+    padding-top: 0;
+  }
+}
