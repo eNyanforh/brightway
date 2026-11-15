@@ -45,7 +45,7 @@ export default function ChallengeSidebarCard({ opportunity }) {
           <OrganizationAvatar organization={{ ...organization, photoUrl }} icon="briefcase" />
         </Link>
         <span className="bw-rail-challenge-sponsor-name">
-          <Link to={sponsor}>{organization.name}</Link>
+          <Link to={sponsor} title={organization.name}>{organization.name}</Link>
           {Boolean(organization.verifiedAt) && <VerificationBadge kind="organization" />}
         </span>
       </div>

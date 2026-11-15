@@ -83,15 +83,26 @@
   border-radius: 50%;
 }
 .bw-explore-right .bw-rail-challenge-sponsor-name {
-  display: inline-flex;
+  display: flex;
+  flex: 1 1 auto;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
   min-width: 0;
+  max-width: 100%;
   font-size: 12px;
   font-weight: 650;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+}
+.bw-explore-right .bw-rail-challenge-sponsor-name > a {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bw-explore-right .bw-rail-challenge-sponsor-name > .bw-verification-badge {
+  flex: 0 0 auto;
 }
 .bw-explore-right .bw-rail-challenge-description {
   display: -webkit-box;
