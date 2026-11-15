@@ -223,14 +223,27 @@ test("Explore limits the main reading column on desktop and tablet", async ({ pa
   const explore = page.getByRole("region", { name: "Explore", exact: true });
   const main = explore.locator(".bw-explore-main");
   const sidebar = explore.getByRole("complementary", { name: "Explore sidebar" });
-  const [mainBox, sidebarBox, exploreBox] = await Promise.all([
-    main.boundingBox(), sidebar.boundingBox(), explore.boundingBox(),
+  const accountMenu = page.locator(".bw-design-header").getByRole("button", { name: "Open account menu" });
+  const [mainBox, sidebarBox, exploreBox, menuBox] = await Promise.all([
+    main.boundingBox(), sidebar.boundingBox(), explore.boundingBox(), accountMenu.boundingBox(),
   ]);
+  expect(mainBox.width).toBeGreaterThanOrEqual(619);
   expect(mainBox.width).toBeLessThanOrEqual(621);
-  expect(mainBox.width).toBeGreaterThan(600);
-  expect(sidebarBox.width).toBeLessThanOrEqual(269);
+  expect(sidebarBox.width).toBeGreaterThanOrEqual(327);
+  expect(sidebarBox.width).toBeLessThanOrEqual(329);
   expect(sidebarBox.x).toBeGreaterThanOrEqual(mainBox.x + mainBox.width);
-  expect(exploreBox.width).toBeLessThanOrEqual(909);
+  expect(exploreBox.width).toBeLessThanOrEqual(969);
+  expect(Math.abs(sidebarBox.x + sidebarBox.width - menuBox.x - menuBox.width)).toBeLessThanOrEqual(2);
+
+  // The rail also meets the header menu at a narrower two-column desktop size.
+  await page.setViewportSize({ width: 1240, height: 950 });
+  const [narrowMainBox, narrowSidebarBox, narrowMenuBox] = await Promise.all([
+    main.boundingBox(), sidebar.boundingBox(), accountMenu.boundingBox(),
+  ]);
+  expect(narrowMainBox.width).toBeGreaterThanOrEqual(619);
+  expect(narrowSidebarBox.width).toBeGreaterThanOrEqual(252);
+  expect(Math.abs(narrowSidebarBox.x + narrowSidebarBox.width - narrowMenuBox.x - narrowMenuBox.width))
+    .toBeLessThanOrEqual(2);
 
   await page.setViewportSize({ width: 1150, height: 950 });
   const [tabletMainBox, tabletSidebarBox] = await Promise.all([
