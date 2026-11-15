@@ -35,7 +35,7 @@ export default function ChallengeSidebarCard({ opportunity }) {
 
   const description = typeof opportunity.description === "string" ? opportunity.description.trim() : "";
   return <article className="bw-rail-challenge-card" aria-label={"Challenge: " + opportunity.title}>
-    <Link className="bw-rail-challenge-cover" to={detail} aria-label={"View " + opportunity.title + " challenge details"}>
+    <Link className="bw-rail-challenge-cover" to={detail} aria-label={"View challenge: " + opportunity.title}>
       <img className="bw-rail-challenge-photo" src={cover} alt="" loading="lazy" />
     </Link>
     <div className="bw-rail-challenge-details">
