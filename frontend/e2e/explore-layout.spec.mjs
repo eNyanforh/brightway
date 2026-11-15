@@ -203,6 +203,9 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
       partake.boundingBox(),
     ]);
   expect(coverBounds.width).toBeGreaterThan(coverBounds.height);
+  // Sidebar Challenge artwork uses the slightly taller 8:5 cover ratio.
+  expect(coverBounds.width / coverBounds.height).toBeGreaterThan(1.58);
+  expect(coverBounds.width / coverBounds.height).toBeLessThan(1.62);
   expect(titleBounds.y).toBeGreaterThanOrEqual(coverBounds.y + coverBounds.height - 1);
   expect(publisherBounds.y).toBeGreaterThanOrEqual(titleBounds.y + titleBounds.height - 1);
   expect(descriptionBounds.y).toBeGreaterThanOrEqual(publisherBounds.y + publisherBounds.height - 1);

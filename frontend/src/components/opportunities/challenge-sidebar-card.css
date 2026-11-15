@@ -29,7 +29,8 @@
   display: block;
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  /* Slightly taller than 16:9 so Challenge cover art has more presence. */
+  aspect-ratio: 8 / 5;
   overflow: hidden;
   border-radius: 8px;
   background: #f2f4f7;
