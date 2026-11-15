@@ -1,6 +1,6 @@
 /* Explore right rail: compact open opportunities, with the same Challenge
    gradient as the Challenge card in the main feed. */
-.bw-explore-right .bw-rail-opportunity-list {
+.bw-explore-right .bw-op-grid-compact.bw-rail-opportunity-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
