@@ -1476,7 +1476,9 @@ test("rich post cards render native image galleries, playable video and LinkedIn
     imageCard.locator(".bw-timeline-actions").boundingBox(),
   ]);
   expect(mediaBox.y - (seeMoreBox.y + seeMoreBox.height)).toBeLessThanOrEqual(4);
-  expect(actionBox.y - (mediaBox.y + mediaBox.height)).toBeLessThanOrEqual(2);
+  const mediaToActions = actionBox.y - (mediaBox.y + mediaBox.height);
+  expect(mediaToActions).toBeGreaterThanOrEqual(6);
+  expect(mediaToActions).toBeLessThanOrEqual(12);
   await expect(videoCard.locator("video[controls][playsinline]")).toHaveAttribute("src", /posts\/media\/bb222222/);
   const deck = pdfCard.getByRole("region", { name: "PDF document research-guide.pdf" });
   await expect(deck.getByText("research-guide", { exact: true })).toBeVisible();
