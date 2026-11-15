@@ -206,17 +206,17 @@ test("Explore limits the main reading column on desktop and tablet", async ({ pa
   const [mainBox, sidebarBox, exploreBox] = await Promise.all([
     main.boundingBox(), sidebar.boundingBox(), explore.boundingBox(),
   ]);
-  expect(mainBox.width).toBeLessThanOrEqual(641);
+  expect(mainBox.width).toBeLessThanOrEqual(621);
   expect(mainBox.width).toBeGreaterThan(600);
   expect(sidebarBox.width).toBeLessThanOrEqual(269);
   expect(sidebarBox.x).toBeGreaterThanOrEqual(mainBox.x + mainBox.width);
-  expect(exploreBox.width).toBeLessThanOrEqual(929);
+  expect(exploreBox.width).toBeLessThanOrEqual(909);
 
   await page.setViewportSize({ width: 1150, height: 950 });
   const [tabletMainBox, tabletSidebarBox] = await Promise.all([
     main.boundingBox(), sidebar.boundingBox(),
   ]);
-  expect(tabletMainBox.width).toBeLessThanOrEqual(681);
+  expect(tabletMainBox.width).toBeLessThanOrEqual(661);
   expect(tabletSidebarBox.y).toBeGreaterThanOrEqual(tabletMainBox.y + tabletMainBox.height);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
