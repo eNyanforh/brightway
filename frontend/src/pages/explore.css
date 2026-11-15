@@ -1421,8 +1421,8 @@
   .bw-explore-right .bw-explore-aside-card:nth-last-child(-n+2) { border-bottom: 0; }
 }
 
-/* The caption toggle should lead straight into the media, and media should
-   meet the action row without stacked margins. Keep action hit areas intact. */
+/* Keep caption-to-media compact, but separate media from post actions
+   with an intentional 8px gap. Preserve action hit areas. */
 .bw-explore .bw-timeline-post .bw-post-caption:has(+ .bw-post-media) .bw-post-text,
 .bw-explore .bw-timeline-post .bw-post-caption:has(+ .bw-post-media) .bw-post-caption-toggle {
   margin-bottom: 0;
@@ -1432,7 +1432,7 @@
 .bw-explore .bw-timeline-post .bw-post-story--compact:has(> .bw-post-media:last-child) { margin-bottom: 0; }
 .bw-explore .bw-timeline-post .bw-post-story--compact:has(> .bw-post-media:last-child) + .bw-post-comments,
 .bw-explore .bw-timeline-post .bw-post-media + .bw-post-comments {
-  margin-top: 0;
+  margin-top: 8px;
 }
 .bw-explore .bw-timeline-post .bw-post-story--compact:has(> .bw-post-media:last-child) + .bw-post-comments .bw-timeline-actions,
 .bw-explore .bw-timeline-post .bw-post-media + .bw-post-comments .bw-timeline-actions {
@@ -1474,14 +1474,14 @@
 }
 
 /* The mobile timeline uses an 8px grid row-gap for content sections.
-   Cancel that gap only where caption meets media and media meets actions. */
+   Cancel only the extra gap above media; retain 8px below media. */
 @media (max-width: 700px) {
   .bw-explore .bw-timeline-post-main > .bw-post-caption + .bw-post-media {
     margin-top: -6px; /* 8px grid gap -> 2px after See more */
   }
   .bw-explore .bw-timeline-post-main > .bw-post-media + .bw-post-comments,
   .bw-explore .bw-timeline-post-main > .bw-post-story--compact:has(> .bw-post-media:last-child) + .bw-post-comments {
-    margin-top: -8px;
+    margin-top: 0; /* Existing 8px row-gap provides the requested separation. */
   }
   .bw-explore .bw-timeline-post .bw-post-media + .bw-post-comments .bw-timeline-actions,
   .bw-explore .bw-timeline-post .bw-post-story--compact:has(> .bw-post-media:last-child) + .bw-post-comments .bw-timeline-actions {
