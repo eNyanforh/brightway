@@ -91,29 +91,31 @@ it("the publisher uses type selection and the step-by-step form to save a Bright
   expect(body.questions[0]).toMatchObject({ label: "Tell us about your experience", type: "SHORT_ANSWER", required: true });
   expect(body).not.toHaveProperty("applicationUrl");
 });
-it("the right-rail Challenge card shows a first-party photo, publisher, topics and Take Part", () => {
+it("the right-rail Challenge card stacks its cover, details and Partake action", () => {
   const challenge = {
     ...opp, type: "CHALLENGE", prize: "US$1,000", topics: ["Technology", "Education"], coverImage: "SCHOOLS",
+    description: "A research opportunity for students.",
     participantSummary: { count: 1, members: [{ username: "student_a", name: "Student One", photoId: null, verified: true }] },
     organization: { ...org, profilePhotoId: "publisher-photo", verifiedAt: "2026-11-01T00:00:00Z" },
   };
   render(<MemoryRouter><aside className="bw-explore-right"><ChallengeSidebarCard opportunity={challenge} /></aside></MemoryRouter>);
   const article = screen.getByRole("article", { name: "Challenge: Research assistant" });
-  expect(article.querySelector(".bw-rail-challenge-photo").getAttribute("src")).toBe("/images/hero/schools-720.webp");
-  expect(within(article).getByText("US$1,000")).toBeTruthy();
-  expect(article.querySelector(".bw-rail-challenge-prize").textContent).toBe("US$1,000");
-  expect(article.textContent).not.toContain("On BrightWay");
-  expect(article.querySelector(".bw-rail-challenge-logo")).toBeTruthy();
-  expect(article.querySelector(".bw-challenge-participants").textContent).toContain("1 participant");
-  const closing = article.querySelector(".bw-rail-challenge-closing-row");
-  const participants = article.querySelector(".bw-challenge-participants");
-  expect(closing.compareDocumentPosition(participants) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(within(article).getByRole("link", { name: "View Research Institute organization profile" })).toBeTruthy();
+  const cover = within(article).getByRole("link", { name: "View challenge: Research assistant" });
+  expect(cover.getAttribute("href")).toBe("/opportunities/" + id);
+  expect(cover.querySelector(".bw-rail-challenge-photo").getAttribute("src")).toBe("/images/hero/schools-720.webp");
   expect(within(article).getByRole("heading", { name: "Research assistant" })).toBeTruthy();
-  expect(within(article).getByRole("list", { name: "Challenge categories" }).textContent).toContain("Technology");
-  expect(within(article).getByRole("link", { name: "Take Part" }).getAttribute("href")).toBe("/opportunities/" + id);
+  expect(within(article).getByRole("link", { name: "View Research Institute organization profile" })).toBeTruthy();
+  expect(within(article).getByText(challenge.description)).toBeTruthy();
+  expect(article.querySelector(".bw-rail-challenge-prize strong").textContent).toBe("US$1,000");
+  expect(article.querySelector(".bw-challenge-participants").textContent).toContain("1 participant");
+  expect(article.textContent).not.toContain("On BrightWay");
+  expect(within(article).queryByRole("list", { name: "Challenge categories" })).toBeNull();
+  const elements = [...article.querySelectorAll(".bw-rail-challenge-cover, .bw-rail-challenge-details, .bw-rail-challenge-cta")];
+  expect(elements.map(element => element.className)).toEqual([
+    "bw-rail-challenge-cover", "bw-rail-challenge-details", "bw-rail-challenge-cta",
+  ]);
+  expect(within(article).getByRole("link", { name: "Partake" }).getAttribute("href")).toBe("/opportunities/" + id);
   expect(within(article).getByText(/Closes in/)).toBeTruthy();
-  expect(within(article).getByRole("link", { name: "Challenge" }).getAttribute("href")).toBe("/opportunities?type=CHALLENGE");
 });
 
 it("Challenge wizard supports collaborators, cover, multiple post types and no applicant limit", async () => {
