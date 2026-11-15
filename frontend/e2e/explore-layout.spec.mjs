@@ -104,7 +104,7 @@ async function documentFixture() {
 }
 
 
-test("Explore right sidebar stacks Challenge cover, details and Partake button", async ({ page, isMobile }) => {
+test("Explore right sidebar shows open opportunities from multiple types with Challenge feed styling", async ({ page, isMobile }) => {
   const cid = "77777777-7777-4777-8777-777777777777";
   const oid = "55555555-5555-4555-8555-555555555555";
   const longOrganizationName = "Institute for Community Research and International Student Innovation Development Network of Liberia";
@@ -121,13 +121,33 @@ test("Explore right sidebar stacks Challenge cover, details and Partake button",
     deadline: "2099-01-01T12:00:00Z",
     organization: { id: oid, name: longOrganizationName, profilePhotoId: "logo-photo", verifiedAt: "2026-11-01T12:00:00Z" },
   };
-  await fixture(page, [], "PUBLISHED", null, [challenge, { ...challenge, id: "88888888-8888-4888-8888-888888888888", type: "JOB" }]);
+  const otherChallenge = { ...challenge, id: "66666666-6666-4666-8666-666666666666", title: "Another Innovation Challenge" };
+  const job = { ...challenge, id: "88888888-8888-4888-8888-888888888888", type: "JOB",
+    title: "Research Internship", description: "Gain practical experience.", location: "Monrovia, Liberia" };
+  const scholarship = { ...challenge, id: "99999999-9999-4999-8999-999999999999", type: "SCHOLARSHIP",
+    title: "Student Research Scholarship", description: "Support advanced study." };
+  const event = { ...challenge, id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", type: "EVENT",
+    title: "Career Discovery Event", description: "Meet and learn with professionals." };
+  await fixture(page, [], "PUBLISHED", null, [challenge, otherChallenge, job, scholarship, event]);
   await page.goto("/explore");
   const sidebar = page.getByRole("complementary", { name: "Explore sidebar" });
-  await expect(sidebar.getByRole("heading", { name: "Challenges" })).toBeVisible();
+  await expect(sidebar.getByRole("heading", { name: "Open Opportunities" })).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: /Browse all opportunities/ })).toHaveAttribute("href", "/opportunities");
+  await expect(sidebar.getByRole("article", { name: "Challenge: Another Innovation Challenge" })).toHaveCount(0);
+  await expect(sidebar.locator(".bw-op-job")).toHaveCount(1);
+  await expect(sidebar.locator(".bw-op-scholarship")).toHaveCount(1);
+  await expect(sidebar.locator(".bw-op-event")).toHaveCount(1);
+  await expect(sidebar.getByRole("link", { name: "Research Internship" })).toHaveAttribute("href", "/opportunities/" + job.id);
+  await expect(sidebar.getByRole("link", { name: "Student Research Scholarship" })).toHaveAttribute("href", "/opportunities/" + scholarship.id);
+  await expect(sidebar.getByRole("link", { name: "Career Discovery Event" })).toHaveAttribute("href", "/opportunities/" + event.id);
   const card = sidebar.getByRole("article", { name: "Challenge: Community Innovation Challenge" });
   await expect(card).toBeVisible();
-  await expect(sidebar.getByRole("article")).toHaveCount(1);
+  await expect(sidebar.getByRole("article")).toHaveCount(4);
+  await expect(card).toHaveCSS("background-image", /linear-gradient/);
+  const mainChallenge = page.locator(".bw-timeline-opportunity-challenge").first();
+  await expect(mainChallenge).toBeVisible();
+  expect(await card.evaluate(el => getComputedStyle(el).backgroundImage))
+    .toBe(await mainChallenge.evaluate(el => getComputedStyle(el).backgroundImage));
 
   const coverLink = card.getByRole("link", { name: "View challenge: " + challenge.title });
   await expect(coverLink).toHaveAttribute("href", "/opportunities/" + cid);
