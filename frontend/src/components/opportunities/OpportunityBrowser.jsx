@@ -44,7 +44,7 @@ function Browser({ q, type, following, compact, onRetry }) {
   return <section className="bw-op-results" aria-label="Opportunity results">
     {error && <p role="alert">{error.message} <button type="button" onClick={onRetry}>Reload opportunities</button></p>}
     {!page && !error && <p role="status">Finding opportunities…</p>}
-    {page?.items.length === 0 && <div className="bw-op-empty"><h2>{type === "CHALLENGE" ? "No open challenges" : "No open opportunities"}</h2><p>{type === "CHALLENGE" ? "New challenges will appear here when verified publishers announce them." : "Check back for new opportunities from verified organizations."}</p></div>}
+    {page?.items.length === 0 && <div className="bw-op-empty"><h2>{type === "CHALLENGE" ? "No open challenges" : compact ? "No open opportunities" : "No opportunities found"}</h2><p>{type === "CHALLENGE" ? "New challenges will appear here when verified publishers announce them." : "Check back for new opportunities from verified organizations."}</p></div>}
     {page?.items.length > 0 && <div className={compact ? "bw-op-grid bw-op-grid-compact bw-rail-opportunity-list" : "bw-op-grid"}>
       {(compact ? compactSelection(page.items) : page.items).map(o => compact && o.type === "CHALLENGE"
         ? <ChallengeSidebarCard key={o.id} opportunity={o} />
