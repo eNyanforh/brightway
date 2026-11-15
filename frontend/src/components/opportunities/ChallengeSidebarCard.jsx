@@ -29,47 +29,39 @@ export default function ChallengeSidebarCard({ opportunity }) {
     ? `/api/v1/organizations/${encodeURIComponent(organization.id)}/photo/${encodeURIComponent(organization.profilePhotoId)}`
     : null;
   const prizeText = challengeCardPrize(opportunity);
-  const topics = (Array.isArray(opportunity.topics) ? opportunity.topics : []).slice(0, 3);
   const deadline = new Date(opportunity.deadline);
   const formatted = Number.isNaN(deadline.getTime()) ? "Unavailable" :
     deadline.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
+  const description = typeof opportunity.description === "string" ? opportunity.description.trim() : "";
   return <article className="bw-rail-challenge-card" aria-label={"Challenge: " + opportunity.title}>
-    <div className="bw-rail-challenge-upper">
-      <div className="bw-rail-challenge-details">
-        <div className="bw-rail-challenge-publisher">
-          <Link className="bw-rail-challenge-logo" to={sponsor} aria-label={"View " + organization.name + " organization profile"}>
-            <OrganizationAvatar organization={{ ...organization, photoUrl }} icon="briefcase" />
-          </Link>
-          <span className="bw-rail-challenge-sponsor-name">
-            <Link to={sponsor}>{organization.name}</Link>
-            {Boolean(organization.verifiedAt) && <VerificationBadge kind="organization" />}
-          </span>
-        </div>
-        <ChallengeCoHosts collaborators={opportunity.collaborators} compact />
+    <Link className="bw-rail-challenge-cover" to={detail} aria-label={"View " + opportunity.title + " challenge details"}>
+      <img className="bw-rail-challenge-photo" src={cover} alt="" loading="lazy" />
+    </Link>
+    <div className="bw-rail-challenge-details">
+      <h3><Link to={detail}>{opportunity.title}</Link></h3>
+      <div className="bw-rail-challenge-publisher">
+        <Link className="bw-rail-challenge-logo" to={sponsor} aria-label={"View " + organization.name + " organization profile"}>
+          <OrganizationAvatar organization={{ ...organization, photoUrl }} icon="briefcase" />
+        </Link>
+        <span className="bw-rail-challenge-sponsor-name">
+          <Link to={sponsor}>{organization.name}</Link>
+          {Boolean(organization.verifiedAt) && <VerificationBadge kind="organization" />}
+        </span>
+      </div>
+      {description && <p className="bw-rail-challenge-description">{description}</p>}
+      <ChallengeCoHosts collaborators={opportunity.collaborators} compact />
+      <div className="bw-rail-challenge-meta">
         <div className="bw-rail-challenge-prize" aria-label="Challenge prize">
+          <span>Prize</span>
           <strong title={prizeText}>{prizeText}</strong>
         </div>
-        <h3><Link to={detail}>{opportunity.title}</Link></h3>
-        <ul className="bw-rail-challenge-topics" aria-label="Challenge categories">
-          {topics.length
-            ? topics.map(topic => <li key={topic}>{topic}</li>)
-            : <li className="bw-rail-challenge-topic-empty">Categories not listed</li>}
-        </ul>
+        <time dateTime={opportunity.deadline} title={"Deadline: " + formatted}>
+          {challengeDeadlineReminder(opportunity.deadline, currentTime)}
+        </time>
       </div>
-      <img className="bw-rail-challenge-photo" src={cover} alt="" loading="lazy" />
+      <ChallengeParticipantFacepile summary={opportunity.participantSummary} />
     </div>
-    <div className="bw-rail-challenge-content">
-      <Link className="bw-rail-challenge-cta" to={detail}>Take Part</Link>
-      <footer className="bw-rail-challenge-footer">
-        <div className="bw-rail-challenge-closing-row">
-          <time dateTime={opportunity.deadline} title={"Deadline: " + formatted}>
-            {challengeDeadlineReminder(opportunity.deadline, currentTime)}
-          </time>
-          <Link to="/opportunities?type=CHALLENGE" className="bw-rail-challenge-tag">Challenge</Link>
-        </div>
-        <ChallengeParticipantFacepile summary={opportunity.participantSummary} />
-      </footer>
-    </div>
+    <Link className="bw-rail-challenge-cta" to={detail}>Partake</Link>
   </article>;
 }
