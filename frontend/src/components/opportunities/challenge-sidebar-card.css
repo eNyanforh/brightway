@@ -1,5 +1,11 @@
-/* Explore right rail: cover photo, details, then a single Partake action.
-   Keep this editorial list flat; do not add a second dark card inside the rail. */
+/* Explore right rail: compact open opportunities, with the same Challenge
+   gradient as the Challenge card in the main feed. */
+.bw-explore-right .bw-rail-opportunity-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin: 10px 0 14px;
+}
 .bw-explore-right .bw-rail-challenge-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -10,13 +16,13 @@
   display: grid;
   gap: 10px;
   min-width: 0;
-  padding: 0 0 16px;
-  border-bottom: 1px solid #e4e7ec;
-  background: transparent;
+  padding: 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bw-challenge-gradient, linear-gradient(135deg, #e2f39d 0%, #67b4f3 100%));
   color: #111827;
 }
 .bw-explore-right .bw-rail-challenge-card:last-child {
-  padding-bottom: 0;
   border-bottom: 0;
 }
 .bw-explore-right .bw-rail-challenge-cover {
