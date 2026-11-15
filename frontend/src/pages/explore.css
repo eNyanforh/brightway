@@ -1279,9 +1279,9 @@
   --explore-soft: #f5f6f7;
   --explore-surface: #fff;
   /* Keep the main Explore reading column compact beside the challenge rail. */
-  grid-template-columns: minmax(0, 640px) minmax(252px, 268px);
+  grid-template-columns: minmax(0, 620px) minmax(252px, 268px);
   gap: 20px;
-  max-width: 928px;
+  max-width: 908px;
 }
 .bw-explore-main { gap: 16px; }
 .bw-explore-right { gap: 0; top: 86px; border: 1px solid var(--explore-border); border-radius: 16px; background: #fff; overflow: hidden; }
@@ -1396,7 +1396,7 @@
 
 /* Tablet keeps useful discovery modules below the feed in a clean two-column row. */
 @media (max-width:1180px) {
-  .bw-explore { grid-template-columns: minmax(0,1fr); max-width: 680px; }
+  .bw-explore { grid-template-columns: minmax(0,1fr); max-width: 660px; }
   .bw-explore-right { position: static; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); border-radius: 14px; }
   .bw-explore-right .bw-explore-aside-card:nth-child(odd) { border-right: 1px solid var(--explore-border); }
   .bw-explore-right .bw-explore-aside-card:nth-last-child(-n+2) { border-bottom: 0; }
