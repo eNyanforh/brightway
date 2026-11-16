@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import { useAuth } from "../../auth/useAuth";
-import OpportunityCard from "./OpportunityCard";
 import ChallengeSidebarCard from "./ChallengeSidebarCard";
 
 // Compact discovery surfaces prioritize variety without breaking newest-first order.
@@ -46,9 +45,8 @@ function Browser({ q, type, following, compact, onRetry }) {
     {!page && !error && <p role="status">Finding opportunities…</p>}
     {page?.items.length === 0 && <div className="bw-op-empty"><h2>{type === "CHALLENGE" ? "No open challenges" : compact ? "No open opportunities" : "No opportunities found"}</h2><p>{type === "CHALLENGE" ? "New challenges will appear here when verified publishers announce them." : "Check back for new opportunities from verified organizations."}</p></div>}
     {page?.items.length > 0 && <div className={compact ? "bw-op-grid bw-op-grid-compact bw-rail-opportunity-list" : "bw-op-grid"}>
-      {(compact ? compactSelection(page.items) : page.items).map(o => o.type === "CHALLENGE"
-        ? <ChallengeSidebarCard key={o.id} opportunity={o} />
-        : <OpportunityCard key={o.id} opportunity={o} />)}
+      {(compact ? compactSelection(page.items) : page.items).map(o =>
+        <ChallengeSidebarCard key={o.id} opportunity={o} />)}
     </div>}
     {!compact && page?.nextCursor && <button className="bw-op-secondary" type="button" disabled={busy} onClick={() => void more()}>{busy ? "Loading…" : "More opportunities"}</button>}
   </section>;
