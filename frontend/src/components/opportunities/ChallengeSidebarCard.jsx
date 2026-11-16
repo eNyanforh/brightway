@@ -19,9 +19,10 @@ export default function ChallengeSidebarCard({ opportunity }) {
   const isChallenge = opportunity.type === "CHALLENGE";
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   useEffect(() => {
+    if (!isChallenge) return undefined;
     const interval = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [isChallenge]);
   if (!organization || !type) return null;
   const detail = "/opportunities/" + encodeURIComponent(opportunity.id);
   const sponsor = "/organizations/" + encodeURIComponent(organization.id);
