@@ -166,7 +166,35 @@
   padding: 0;
 }
 .bw-rail-challenge-card .bw-challenge-participant-facepile {
+  display: inline-flex;
+  align-items: center;
   justify-content: flex-start;
+}
+/* Explore's 27px participant avatars must retain their exact dimensions
+   when this shared card is rendered on Opportunities or search pages. */
+.bw-rail-challenge-card .bw-challenge-participant-avatar {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  flex: 0 0 27px;
+  width: 27px;
+  height: 27px;
+  margin-left: -6px;
+  overflow: hidden;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #eaf1fd;
+  color: #3167a9;
+  text-decoration: none;
+  box-shadow: 0 1px 3px #15345a19;
+}
+.bw-rail-challenge-card .bw-challenge-participant-avatar:first-child { margin-left: 0; }
+.bw-rail-challenge-card .bw-challenge-participant-avatar:nth-child(even) { background: #e9f4ef; color: #267360; }
+.bw-rail-challenge-card .bw-challenge-participant-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .bw-rail-challenge-card .bw-challenge-participant-count {
   color: #667085;
