@@ -59,6 +59,8 @@ test("structured prizes reject missing, invalid or cross-type fields", () => {
 });
 
 test("Challenge card displays prize values without prize types or native-mode labels", () => {
+  assert.equal(challengeCardPrize({ prizes: [{ type: "CASH", amount: 1000, currency: "USD" }] }), "US$1,000");
+  assert.equal(challengeCardPrize({ prize: "Cash: USD 500" }), "US$500");
   assert.equal(challengeCardPrize({ prizes: [awards[0]] }), "LRD 500");
   assert.equal(challengeCardPrize({ prizes: [awards[0], awards[1]] }), "LRD 500 + 1 more prize");
   assert.equal(challengeCardPrize({ prizes: [awards[0], awards[1], awards[2]] }), "LRD 500 + 2 more prizes");
