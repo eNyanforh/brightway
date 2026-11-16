@@ -9,6 +9,7 @@ import OpportunityCard from "../components/opportunities/OpportunityCard";
 import OrganizationApplications from "../components/opportunities/OrganizationApplications";
 import OpportunityEditor from "../components/opportunities/OpportunityEditor";
 import ChallengeSidebarCard from "../components/opportunities/ChallengeSidebarCard";
+import OpportunityBrowser from "../components/opportunities/OpportunityBrowser";
 import NotificationsPage from "../pages/NotificationsPage";
 const id = "33333333-3333-4333-8333-333333333333", qid = "44444444-4444-4444-8444-444444444444";
 const org = { id: "22222222-2222-4222-8222-222222222222", name: "Research Institute" };
@@ -121,6 +122,50 @@ it("the right-rail Challenge card stacks its cover, details and Partake action",
   ]);
   expect(within(article).getByRole("link", { name: "Partake" }).getAttribute("href")).toBe("/opportunities/" + id);
   expect(within(article).getByText(/Closes in/)).toBeTruthy();
+});
+
+it("Jobs use the same cover, details and CTA structure as Challenges without Challenge-only data", () => {
+  render(<MemoryRouter><aside className="bw-explore-right"><ChallengeSidebarCard opportunity={opp} /></aside></MemoryRouter>);
+  const card = screen.getByRole("article", { name: "Job: Research assistant" });
+  expect(card.classList.contains("bw-rail-opportunity-job")).toBe(true);
+  const cover = within(card).getByRole("link", { name: "View job: Research assistant" });
+  expect(cover.querySelector(".bw-rail-opportunity-cover-fallback")).toBeTruthy();
+  expect(within(card).getByRole("heading", { name: opp.title })).toBeTruthy();
+  expect(within(card).getByText("Monrovia")).toBeTruthy();
+  expect(within(card).getByText("In person")).toBeTruthy();
+  expect(within(card).getByRole("link", { name: "Apply" }).getAttribute("href")).toBe("/opportunities/" + id);
+  expect(card.querySelector(".bw-rail-challenge-prize")).toBeNull();
+  expect(card.querySelector(".bw-challenge-participants")).toBeNull();
+  const layout = [...card.querySelectorAll(".bw-rail-challenge-cover, .bw-rail-challenge-details, .bw-rail-challenge-cta")];
+  expect(layout.map(element => element.className)).toEqual([
+    "bw-rail-challenge-cover", "bw-rail-challenge-details", "bw-rail-challenge-cta",
+  ]);
+});
+
+it("Jobs and Challenges share the same card layout in compact Explore and the Opportunities catalog", async () => {
+  const challenge = { ...opp, id: qid, type: "CHALLENGE", title: "Student innovation challenge", coverImage: "SCHOOLS", prize: "US$500" };
+  vi.stubGlobal("fetch", vi.fn(() => reply({ items: [challenge, opp], nextCursor: null })));
+  const { unmount } = render(<AuthContext.Provider value={{ account: { id: "owner" } }}>
+    <MemoryRouter><aside className="bw-explore-right"><OpportunityBrowser compact /></aside></MemoryRouter>
+  </AuthContext.Provider>);
+  const job = await screen.findByRole("article", { name: "Job: Research assistant" });
+  const challengeCard = screen.getByRole("article", { name: "Challenge: Student innovation challenge" });
+  expect(job.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
+  expect(challengeCard.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
+  unmount();
+  mount(<OpportunitiesPage />, "/opportunities");
+  const catalogJob = await screen.findByRole("article", { name: "Job: Research assistant" });
+  const catalogChallenge = screen.getByRole("article", { name: "Challenge: Student innovation challenge" });
+  expect(catalogJob.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
+  expect(catalogChallenge.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
+});
+
+it("Job cards show uploaded covers when the publisher provides one", () => {
+  const jobWithCover = { ...opp, coverAssetId: "88888888-8888-4888-8888-888888888888" };
+  render(<MemoryRouter><ChallengeSidebarCard opportunity={jobWithCover} /></MemoryRouter>);
+  const article = screen.getByRole("article", { name: "Job: Research assistant" });
+  expect(article.querySelector(".bw-rail-challenge-photo").getAttribute("src")).toContain("/challenge-assets/");
+  expect(article.querySelector(".bw-rail-opportunity-cover-fallback")).toBeNull();
 });
 
 it("Challenge composer supports collaborators, cover, multiple post types and no applicant limit", async () => {
