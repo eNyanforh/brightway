@@ -1,11 +1,12 @@
 import { dashboardFixture } from "./fixtures/organization-dashboard";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
 import { expect, it, vi } from "vitest";
 import { AuthContext } from "../auth/auth-context";
 import AppLayout from "../layouts/AppLayout";
 import OrganizationWorkspacePage from "../pages/OrganizationWorkspacePage";
+import CampusWorkspacePage from "../pages/CampusWorkspacePage";
 import MemberPostsPage from "../pages/MemberPostsPage";
 import ExplorePage from "../pages/ExplorePage";
 import WorkPage from "../pages/WorkPage";
@@ -23,7 +24,7 @@ const available = [
 const postsTool = { key: "posts", label: "Posts", icon: "post", shortLabel: "Posts", to: base + "/posts", sensitive: true };
 available.push(postsTool);
 const planned = [{ key: "opportunities", label: "Opportunities", sprint: 6 }, { key: "applications", label: "Applications", sprint: 6 }, { key: "programs", label: "Programs", sprint: 7 }, { key: "admissions", label: "Admissions", sprint: 7 }];
-const context = { accountId: "owner", organization, permissions: [MANAGE, REVIEW, "organization.posts.publish"], membership: { role: "PRIMARY_ADMIN", version: 1 }, permissionCatalog: [{ key: MANAGE, label: "Manage staff" }, { key: REVIEW, label: "Review education credentials" }], staffVersion: 1, workspace: { available, planned, campusActive: false, campusSetup: { label: "Build Campus", to: base + "/campus", status: "COMING_SOON" } } };
+const context = { accountId: "owner", organization, permissions: [MANAGE, REVIEW, "organization.posts.publish"], membership: { role: "PRIMARY_ADMIN", version: 1 }, permissionCatalog: [{ key: MANAGE, label: "Manage staff" }, { key: REVIEW, label: "Review education credentials" }], staffVersion: 1, workspace: { available, planned, campusActive: false, campusSetup: { label: "Set up Virtual Campus", to: `/campus/${id}/setup`, status: "NOT_CONFIGURED" } } };
 const profile = { version: 1, photo: null, location: {}, skills: [], interests: [] };
 const reply = (data, status = 200) => new Response(JSON.stringify(status < 400 ? { success: true, data } : { success: false, message: data }), { status, headers: { "Content-Type": "application/json" } });
 function mount(path = base, handler = () => reply(context)) {
@@ -33,7 +34,9 @@ function mount(path = base, handler = () => reply(context)) {
     <Route path="/organizations/new" element={<OrganizationRequestsPage />} />
     <Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} />
     <Route path="/organization-workspace/:id/profile" element={<OrganizationWorkspacePage section="profile" />} />
-    <Route path="/organization-workspace/:id/campus" element={<OrganizationWorkspacePage section="campus" />} />
+    <Route path="/organization-workspace/:id/campus" element={<Navigate to={`/campus/${id}`} replace />} />
+    <Route path="/campus/:id" element={<CampusWorkspacePage />} />
+    <Route path="/campus/:id/:section" element={<CampusWorkspacePage />} />
     <Route path="/organization-workspace/:id/posts" element={<OrganizationWorkspacePage section="posts" />} />
     <Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} />
     <Route path="/organization-workspace/:organizationId/credentials" element={<CredentialReviewsPage />} />
@@ -394,34 +397,36 @@ it("direct organization entry shows workspace loading rather than an account pic
   await screen.findByRole("heading", { name: organization.name, level: 1 });
 });
 
-it("Build Campus stays in the separate sidebar and requires explicit configuration before activation", async () => {
+it("Campus registration opens a separate setup workspace rather than an organization tool", async () => {
   const eligibility = { eligible: true, verifiedOrganization: true, verifiedLiberiaOperation: true, productEnabled: true,
     supportedEngines: ["GRADE_SCHOOL", "TVET"], reasons: [] };
   const f = mount(base, url => url.endsWith("/campus") ? reply({ organizationId: id, campus: null, eligible: true,
     eligibility, canSetup: true, canManage: true, canAnnounce: false, permissions: [] }) : reply(context));
   await screen.findByRole("heading", { name: organization.name, level: 1 });
   const sidebar = screen.getByRole("complementary", { name: "Organization navigation" });
-  const entry = within(sidebar).getByRole("link", { name: "Build Campus" });
-  expect(within(screen.getByRole("navigation", { name: "Organization tools" })).queryByRole("link", { name: "Build Campus" })).toBeNull();
-  expect(entry.getAttribute("href")).toBe(base + "/campus"); await f.user.click(entry);
-  await screen.findByRole("heading", { name: "Virtual Campus" });
-  expect(screen.getByText("Not configured")).toBeTruthy();
+  const entry = within(sidebar).getByRole("link", { name: "Set up Virtual Campus" });
+  expect(within(screen.getByRole("navigation", { name: "Organization tools" })).queryByRole("link", { name: "Virtual Campus" })).toBeNull();
+  expect(entry.getAttribute("href")).toBe(`/campus/${id}/setup`);
+  await f.user.click(entry);
+  await screen.findByRole("heading", { name: "Virtual Campus", exact: true });
+  expect(screen.getByRole("navigation", { name: "Campus tools" })).toBeTruthy();
+  expect(screen.queryByRole("navigation", { name: "Organization tools" })).toBeNull();
   expect(screen.getByRole("button", { name: "Save Campus setup" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Activate Campus" })).toBeNull();
   expect(f.fetch.mock.calls.some(([, options]) => options?.method && options.method !== "GET")).toBe(false);
 });
-it("Campus overview rejects ordinary members and non-training company administrators", async () => {
+it("non-training company administrators cannot enter an unrelated Campus workspace", async () => {
   const limited = { ...context, organization: { ...organization, type: "COMPANY", offersTraining: false }, workspace: { available: available.slice(0, 2), planned: [], campusActive: false, campusSetup: null } };
-  mount(base + "/campus", () => reply(limited));
-  await screen.findByRole("heading", { name: "This tool is not available to your role" });
-  expect(screen.queryByRole("heading", { name: "Build Campus" })).toBeNull();
-  expect(within(screen.getByRole("complementary", { name: "Organization navigation" })).queryByRole("link", { name: "Build Campus" })).toBeNull();
+  mount(`/campus/${id}`, () => reply(limited));
+  await screen.findByRole("alert");
+  expect(screen.getByRole("alert").textContent).toMatch(/does not include Virtual Campus access/);
+  expect(screen.queryByRole("navigation", { name: "Organization tools" })).toBeNull();
 });
-it("ordinary school staff cannot open the Campus administrator overview through a copied URL", async () => {
-  mount(base + "/campus", () => reply({ ...context, membership: { role: "STAFF" }, workspace: { available: available.slice(0, 2), planned: [], campusActive: false, campusSetup: null } }));
-  await screen.findByRole("heading", { name: "This tool is not available to your role" });
-  expect(screen.queryByRole("heading", { name: "Build Campus" })).toBeNull();
-  expect(within(screen.getByRole("complementary", { name: "Organization navigation" })).queryByRole("link", { name: "Build Campus" })).toBeNull();
+it("ordinary staff cannot open a Campus workspace using a copied URL", async () => {
+  mount(`/campus/${id}/setup`, () => reply({ ...context, membership: { role: "STAFF" }, workspace: { available: available.slice(0, 2), planned: [], campusActive: false, campusSetup: null } }));
+  await screen.findByRole("alert");
+  expect(screen.getByRole("alert").textContent).toMatch(/does not include Virtual Campus access/);
+  expect(screen.queryByRole("button", { name: "Save Campus setup" })).toBeNull();
 });
 it("Profile opens inside the organization workspace with verified details and the existing operating location", async () => {
   const f = mount(base, url => url.endsWith(`/organizations/${id}`) ? reply({ ...organization, verified: true, locations: [{ countryCode: "GH", city: "Accra", region: "Greater Accra", address: "Approved address", primary: true }] }) : reply(context));

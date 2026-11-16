@@ -18,12 +18,12 @@ export function organizationWorkspace(organization, permissions = [], role = "ST
     if (has("organization.admissions.review")) available.push({ key: "admissions", label: "Admissions", icon: "applications", sensitive: true, to: `${base}/admissions`, description: "Manage admission cycles and applicant decisions." });
   }
   const campusActive = organization.campus?.active === true;
-  if (campusActive && (role === "PRIMARY_ADMIN" || permissions.some(key => key.startsWith("organization.campus.")))) {
-    available.push({ key: "campus", label: "Virtual Campus", shortLabel: "Campus", icon: "learning", to: base + "/campus",
-      sensitive: true, description: "Campus settings, staff access and announcements." });
-  }
-  const campusSetup = role === "PRIMARY_ADMIN" && (organization.type === "SCHOOL" || organization.offersTraining)
-    ? { label: campusActive ? "Manage Campus" : "Build Campus", to: base + "/campus",
+  // Virtual Campus has its own workspace and navigation, not another organization tool.
+  const campusAccess = role === "PRIMARY_ADMIN" && (organization.type === "SCHOOL" || organization.offersTraining) ||
+    permissions.some(key => key.startsWith("organization.campus."));
+  const campusSetup = campusAccess
+    ? { label: campusActive ? "Open Virtual Campus" : "Set up Virtual Campus",
+        to: `/campus/${organization.id}${campusActive ? "" : "/setup"}`,
         status: organization.campus?.status || "NOT_CONFIGURED" } : null;
   return { available, planned, campusActive, campusSetup };
 }

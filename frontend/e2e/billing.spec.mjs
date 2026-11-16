@@ -36,7 +36,7 @@ async function freshMfa(page) { const d = page.getByRole("dialog"); await d.getB
 const clean = state => { expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]); };
 const layout = async page => expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 test("institution bulk payment preserves a failed report and its idempotency key", async ({ page }) => {
-  const s = await fixture(page); await page.goto(base + "/campus"); await page.getByText("Campus billing & payments", { exact: true }).click();
+  const s = await fixture(page); await page.goto("/campus/" + orgId + "/billing");
   await page.getByRole("button", { name: "Select outstanding shown" }).click(); await page.getByLabel("Payment reference", { exact: true }).fill("Synthetic transfer 808"); await page.getByRole("button", { name: "Report payment for confirmation" }).click();
   await expect(page.getByRole("alert")).toContainText("keep your receipt"); await expect(page.getByLabel("Payment reference", { exact: true })).toHaveValue("Synthetic transfer 808"); await page.getByRole("button", { name: "Report payment for confirmation" }).click(); await expect(page.getByText("PENDING", { exact: true })).toBeVisible(); expect(s.reports).toHaveLength(2); expect(s.reports[0].requestKey).toBe(s.reports[1].requestKey); expect(s.reports[1].allocations).toEqual([{ chargeId, amountCents: 100 }]); await layout(page); clean(s);
 });

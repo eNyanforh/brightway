@@ -38,7 +38,7 @@ async function fixture(page, role = "PRIMARY_ADMIN") {
 }
 const layout = async page => expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 test("Grade School staff save subject attendance as draft, then finalize a complete register once", async ({ page }) => {
-  const state = await fixture(page); await page.goto(base + "/campus");
+  const state = await fixture(page); await page.goto("/campus/" + organizationId + "/academics");
   await expect(page.getByRole("button", { name: "Academic setup", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Teaching & attendance", exact: true }).click(); await page.getByRole("button", { name: "Edit attendance", exact: true }).click();
   await page.getByRole("button", { name: "Submit final attendance", exact: true }).click(); await expect(page.getByRole("alert")).toContainText("Complete every student's record"); expect(state.submits).toHaveLength(0);
@@ -49,7 +49,7 @@ test("Grade School staff save subject attendance as draft, then finalize a compl
   expect(state.alerts).toBe(1); expect(state.submits.map(r => r.finalize)).toEqual([false, true]); await layout(page); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });
 test("assigned teachers use organization Campus without academic setup or student administration", async ({ page }) => {
-  const state = await fixture(page, "STAFF"); await page.goto(base + "/campus");
+  const state = await fixture(page, "STAFF"); await page.goto("/campus/" + organizationId + "/academics");
   await expect(page.getByRole("heading", { name: "Subject attendance", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Academic setup", exact: true })).toHaveCount(0); await expect(page.getByRole("button", { name: "Students & guardians", exact: true })).toHaveCount(0); await expect(page.getByLabel("Teacher username", { exact: true })).toHaveCount(0);
   await layout(page); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);

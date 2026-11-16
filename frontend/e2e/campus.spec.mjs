@@ -5,6 +5,7 @@ import { organizationWorkspace } from "../../shared/organization-workspace.mjs";
 const organizationId = "55555555-5555-4555-8555-555555555555";
 const workspacePath = "/organization-workspace/" + organizationId;
 const campusPath = workspacePath + "/campus";
+const campusWorkspace = "/campus/" + organizationId;
 const accountId = "44444444-4444-4444-8444-444444444444";
 const org = { id: organizationId, name: "Synthetic Liberia Academy", type: "SCHOOL", offersTraining: true };
 
@@ -69,7 +70,7 @@ test("Campus setup requires explicit activation before staff announcements, and 
   const browserErrors = []; page.on("pageerror", e => browserErrors.push(e.message));
   page.on("dialog", dialog => dialog.accept());
   await page.route("**/*", f.serve);
-  await page.goto(campusPath);
+  await page.goto(campusWorkspace + "/setup");
   await expect(page.getByRole("heading", { name: "Virtual Campus", exact: true })).toBeVisible();
   await expect(page.getByText("Not configured", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Activate Campus" })).toHaveCount(0);
@@ -78,14 +79,17 @@ test("Campus setup requires explicit activation before staff announcements, and 
   await expect(page.getByText("Setup", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Campus announcements" })).toHaveCount(0);
   await page.getByRole("button", { name: "Activate Campus" }).click();
+  await page.getByRole("navigation", { name: "Campus tools" }).getByRole("link", { name: "Announcements" }).click();
   await expect(page.getByRole("heading", { name: "Campus announcements" })).toBeVisible();
   await expect(page.getByLabel("Announcement audience", { exact: true })).toHaveValue("STAFF");
   await page.getByLabel("Announcement title").fill("Academic term update");
   await page.getByLabel("Announcement details").fill("Staff planning begins next Monday.");
   await page.getByRole("button", { name: "Publish announcement" }).click();
   await expect(page.getByRole("heading", { name: "Academic term update" })).toBeVisible();
+  await page.getByRole("navigation", { name: "Campus tools" }).getByRole("link", { name: "Campus setup" }).click();
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   await expect(page.getByText("Paused", { exact: true }).first()).toBeVisible();
+  await page.getByRole("navigation", { name: "Campus tools" }).getByRole("link", { name: "Announcements" }).click();
   await expect(page.getByRole("heading", { name: "Campus announcements" })).toHaveCount(0);
   expect(f.requests.map(r => r.action)).toEqual(["setup", "activate", "publish", "pause"]);
   expect(f.errors).toEqual([]); expect(browserErrors).toEqual([]);
@@ -94,10 +98,22 @@ test("Campus setup requires explicit activation before staff announcements, and 
 test("Verified headquarters without a verified Liberia operating site cannot configure Campus", async ({ page }) => {
   const f = fixture(false);
   await page.route("**/*", f.serve);
-  await page.goto(campusPath);
+  await page.goto(campusWorkspace + "/setup");
   await expect(page.getByText("Restricted", { exact: true })).toBeVisible();
   await expect(page.getByText("A verified operating location in Liberia is required.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Activate Campus" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Save Campus setup" })).toHaveCount(0);
   expect(f.requests).toEqual([]); expect(f.errors).toEqual([]);
+});
+
+
+test("the legacy organization Campus URL redirects to a dedicated Campus workspace", async ({ page }) => {
+  const f = fixture();
+  await page.route("**/*", f.serve);
+  await page.goto(campusPath);
+  await expect(page).toHaveURL(campusWorkspace);
+  await expect(page.getByRole("navigation", { name: "Campus tools" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Organization tools" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Begin Campus setup" })).toHaveAttribute("href", campusWorkspace + "/setup");
+  expect(f.errors).toEqual([]);
 });
