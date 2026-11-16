@@ -7,8 +7,7 @@ import { opportunitiesApi as api } from "../../api/opportunities";
 import "./opportunities.css";
 export default function OpportunityCard({ opportunity: o }) {
   const type = OPPORTUNITY_TYPES[o.type];
-  const cover = o.type === "CHALLENGE" && o.coverAssetId
-    ? api.challengeAssetUrl(o.coverAssetId) : null;
+  const cover = o.coverAssetId ? api.challengeAssetUrl(o.coverAssetId) : null;
   return <article className={`bw-op-card bw-op-${o.type.toLowerCase()}`}>
     <div className="bw-op-card-cover" style={cover ? {
       backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.70), rgba(0,0,0,.35)), url("${cover}")`,
