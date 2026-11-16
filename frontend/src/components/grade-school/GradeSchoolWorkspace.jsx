@@ -3,6 +3,7 @@ import { schoolApi as api } from "../../api/grade-school";
 import SchoolForm from "./SchoolForm";
 import SchoolStudents from "./SchoolStudents";
 import SchoolTeaching from "./SchoolTeaching";
+import CampusWorkspaceStats from "./CampusWorkspaceStats";
 import "./grade-school.css";
 const option = (value, label) => ({ value, label });
 const values = form => Object.fromEntries(form);
@@ -29,6 +30,7 @@ export default function GradeSchoolWorkspace({ campusId }) {
   const sections = data.classes.flatMap(c => c.sections.map(v => option(v.id, c.name + " / " + v.name)));
   function configure(kind, form, transform = values) { return run(() => api.configure(campusId, kind, transform(form))); }
   return <section className="bw-school-root" aria-label="Grade School management"><header className="bw-school-heading"><div><p className="bw-school-eyebrow">GRADE SCHOOL / ACADEMICS</p><h3>{data.displayName}</h3><p>Every class, lesson and result belongs to an academic period.</p></div><span className="bw-school-role">{data.canManage ? "Academic administration" : "Assigned teaching"}</span></header>
+    <CampusWorkspaceStats engine="GRADE_SCHOOL" data={data} />
     <div className="bw-school-toolbar"><nav aria-label="School management views">{[...(data.canManage ? [["setup", "Academic setup"], ["students", "Students & guardians"]] : []), ["teaching", "Teaching & attendance"]].map(([key, label]) => <button key={key} type="button" disabled={busy} aria-pressed={activeTab === key} onClick={() => { setTab(key); setNotice(""); }}>{label}</button>)}</nav><label>Academic period<select value={periodId || ""} disabled={busy} onChange={e => setPeriod(e.target.value)}><option value="" disabled>Select a period</option>{periods.map(p => <option value={p.value} key={p.value}>{p.label}</option>)}</select></label><button type="button" disabled={busy} onClick={() => { setNotice(""); setRevision(v => v + 1); }}>Refresh academics</button></div>
     {error && <p className="bw-school-feedback bw-school-error" role="alert">{error.message}</p>}{notice && <p className="bw-school-feedback" role="status">{notice}</p>}
     {activeTab === "setup" && <div className="bw-school-setup-grid">
