@@ -225,6 +225,45 @@
   outline-offset: 3px;
 }
 
+
+/* Jobs, scholarships and events reuse the Challenge cover → details → CTA layout.
+   An authored cover is shown when available; otherwise use first-party type artwork. */
+.bw-rail-opportunity-job { background: linear-gradient(135deg, #e9efff, #b5cffb); }
+.bw-rail-opportunity-scholarship { background: linear-gradient(135deg, #f2eafe, #d7baf6); }
+.bw-rail-opportunity-event { background: linear-gradient(135deg, #fff0cf, #fad4a1); }
+.bw-rail-opportunity-card .bw-rail-challenge-cover { background: #e8edf7; }
+.bw-rail-opportunity-cover-fallback {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #243454;
+  background: linear-gradient(135deg, #eef3fc 0%, #b6cbed 100%);
+}
+.bw-rail-opportunity-job .bw-rail-opportunity-cover-fallback { background: linear-gradient(135deg, #d9e7ff, #8bb6eb); }
+.bw-rail-opportunity-scholarship .bw-rail-opportunity-cover-fallback { background: linear-gradient(135deg, #f0e4ff, #c29be7); }
+.bw-rail-opportunity-event .bw-rail-opportunity-cover-fallback { background: linear-gradient(135deg, #fff1d5, #f0ba6e); }
+.bw-rail-opportunity-cover-fallback > span:last-child {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: .025em;
+}
+.bw-rail-opportunity-facts { display: flex; flex-wrap: wrap; gap: 5px 12px; min-width: 0; }
+.bw-rail-opportunity-facts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 /* Photo previews and subject selection in the existing organization editor. */
 .bw-op-challenge-cover-preview {
   max-width: 100%;
