@@ -254,3 +254,64 @@
 @media (prefers-reduced-motion: reduce) {
   .bw-op-challenge-overlay * { scroll-behavior: auto; }
 }
+
+
+/* Shared composer treatment for Jobs, Scholarships and Events.
+   No stock imagery: the editable poster previews the actual listing title
+   until an optional, privately uploaded cover is attached. */
+.bw-op-standard-composer .bw-op-standard-preview-stage {
+  background: #161c28;
+  color: #fff;
+}
+.bw-op-standard-poster {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: clamp(22px, 3vw, 36px);
+  box-sizing: border-box;
+  color: #fff;
+  background: linear-gradient(150deg, #171e2b 5%, #30343f 100%);
+}
+.bw-op-standard-poster-symbol {
+  display: inline-grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border: 1px solid #ffffff30;
+  border-radius: 14px;
+  background: #ffffff12;
+}
+.bw-op-standard-poster-kind {
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: #d6dae2;
+  font-size: 12px;
+  font-weight: 750;
+}
+.bw-op-standard-poster strong {
+  font-size: clamp(22px, 2.5vw, 33px);
+  line-height: 1.18;
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+.bw-op-standard-poster small {
+  color: #d6dae2;
+  font-size: 13px;
+}
+.bw-op-standard-main .bw-op-challenge-section .bw-op-field-row {
+  align-items: start;
+}
+.bw-op-standard-main .bw-op-challenge-section .bw-op-field-row label {
+  min-width: 0;
+}
+@media (max-width: 850px) {
+  .bw-op-standard-poster {
+    gap: 10px;
+    padding: 20px;
+  }
+}

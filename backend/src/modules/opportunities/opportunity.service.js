@@ -159,7 +159,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
   function prepareOpportunity(data) {
     if (data.type !== "CHALLENGE") return {
       ...data, prizes: [], sponsorLogoIds: [], backgroundAssetId: null,
-      titleAssetId: null, coverAssetId: null, collaboratorIds: [], postRequirements: [], maxApplicants: null,
+      titleAssetId: null, collaboratorIds: [], postRequirements: [], maxApplicants: null,
     };
     const displayPrize = data.prizes.length
       ? data.prizes.map(challengePrizeValue).join(" · ").slice(0, 120)
@@ -167,19 +167,22 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
     return { ...data, maxApplicants: null, location: "BrightWay", workMode: "REMOTE", prize: displayPrize };
   }
   function selectedAssets(data) {
-    if (data.type !== "CHALLENGE") return [];
+    // A cover photo is supported for every opportunity type. Only Challenges
+    // accept the additional sponsor, title and background media.
+    const cover = data.coverAssetId ? [{ assetId: data.coverAssetId, kind: "COVER" }] : [];
+    if (data.type !== "CHALLENGE") return cover;
     return [
       ...data.sponsorLogoIds.map(assetId => ({ assetId, kind: "SPONSOR_LOGO" })),
       ...(data.backgroundAssetId ? [{ assetId: data.backgroundAssetId, kind: "BACKGROUND" }] : []),
       ...(data.titleAssetId ? [{ assetId: data.titleAssetId, kind: "TITLE_IMAGE" }] : []),
-      ...(data.coverAssetId ? [{ assetId: data.coverAssetId, kind: "COVER" }] : []),
+      ...cover,
     ];
   }
   async function bindChallengeAssets(db, actor, orgId, oppId, data) {
     const requests = selectedAssets(data);
     if (!requests.length) return;
     const ids = requests.map(row => row.assetId);
-    if (new Set(ids).size !== ids.length) throw fail(400, "A Challenge image cannot fill multiple roles.");
+    if (new Set(ids).size !== ids.length) throw fail(400, "An opportunity image cannot fill multiple roles.");
     const rows = await db.opportunityAsset.findMany({
       where: { id: { in: ids }, organizationId: orgId,
         OR: [{ opportunityId: oppId }, { opportunityId: null, uploaderId: actor.accountId,
@@ -188,7 +191,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
     });
     if (rows.length !== ids.length || rows.some(row =>
       requests.find(request => request.assetId === row.id)?.kind !== row.kind)) {
-      throw fail(400, "Upload valid Challenge images for this organization before saving.");
+      throw fail(400, "Upload valid opportunity images for this organization before saving.");
     }
     const pending = rows.filter(row => !row.opportunityId).map(row => row.id);
     if (pending.length) {

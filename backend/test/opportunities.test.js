@@ -33,6 +33,12 @@ test("opportunity input rejects external application methods, unknown fields and
   assert.equal(structured.prizes.length, 2);
   assert.deepEqual(structured.sponsorLogoIds, [sponsor]);
   assert.equal(structured.coverAssetId, cover);
+  for (const type of ["JOB", "SCHOLARSHIP", "EVENT"]) {
+    const withCover = createInput.parse({ ...listing(), type, coverAssetId: cover });
+    assert.equal(withCover.coverAssetId, cover, type + " supports a private uploaded cover ID");
+    assert.deepEqual(withCover.postRequirements, []);
+    assert.deepEqual(withCover.collaboratorIds, []);
+  }
   assert.deepEqual(structured.collaboratorIds, [collaborator]);
   assert.deepEqual(structured.postRequirements, []);
   for (const invalid of [

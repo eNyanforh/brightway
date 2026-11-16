@@ -57,8 +57,8 @@ function Detail({ id, applicationRoute }) {
   const questions = app?.opportunitySnapshot?.questions || opportunity?.questions || [];
   const postRequirements = app?.opportunitySnapshot?.postRequirements || opportunity?.postRequirements || [];
   const challenge = opportunity?.type === "CHALLENGE";
-  const challengeBackground = challenge && (opportunity.coverAssetId || opportunity.backgroundAssetId || opportunity.titleAssetId)
-    ? api.challengeAssetUrl(opportunity.coverAssetId || opportunity.backgroundAssetId || opportunity.titleAssetId) : null;
+  const opportunityBackground = opportunity?.coverAssetId || (challenge ? opportunity?.backgroundAssetId || opportunity?.titleAssetId : null);
+  const coverBackground = opportunityBackground ? api.challengeAssetUrl(opportunityBackground) : null;
   return <section className="bw-op-page bw-op-detail" aria-busy={busy}>
     <Link className="bw-op-back" to="/opportunities?view=applications">← My applications</Link>
     {error && <div className="bw-op-feedback" role="alert"><p>{error.message}</p>{error.status === 403 && <p><Link to="/profile">Complete your profile</Link> · <Link to="/security">Account security</Link></p>}<button type="button" disabled={busy} onClick={() => { if (!dirty || window.confirm("Reload and discard unsaved answers?")) void load(); }}>Reload saved application</button></div>}
@@ -66,8 +66,8 @@ function Detail({ id, applicationRoute }) {
     {!opportunity && !error && <p role="status">Opening opportunity…</p>}
     {opportunity && <>
       <header className={`bw-op-detail-header bw-op-${opportunity.type.toLowerCase()}`}
-        style={challengeBackground ? {
-          backgroundImage: `linear-gradient(90deg, rgba(10,20,37,.94), rgba(10,20,37,.60)), url("${challengeBackground}")`,
+        style={coverBackground ? {
+          backgroundImage: `linear-gradient(90deg, rgba(10,20,37,.94), rgba(10,20,37,.60)), url("${coverBackground}")`,
           backgroundSize: "cover", backgroundPosition: "center",
         } : undefined}>
         <p className="bw-op-eyebrow">{OPPORTUNITY_TYPES[opportunity.type].label} · {OPPORTUNITY_STATUSES[opportunity.status]}</p>
