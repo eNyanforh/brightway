@@ -1,42 +1,52 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
 import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER, challengeCardPrize } from "../../../../shared/challenges.mjs";
 import { challengeDeadlineReminder } from "./challenge-deadline";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import OrganizationAvatar from "../profile/OrganizationAvatar";
+import NavigationIcon from "../layout/NavigationIcon";
 import VerificationBadge from "../VerificationBadge";
 import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
 import ChallengeCoHosts from "./ChallengeCoHosts";
 import "./challenge-sidebar-card.css";
 
-// Cover images are local BrightWay photographs, not third-party image links.
-// The prize and other details are real published Challenge data.
+// A shared presentation for all published opportunities on the right rail and catalog.
+// Challenge-only information (prizes, co-hosts and participants) remains type-specific.
 export default function ChallengeSidebarCard({ opportunity }) {
   const organization = opportunity.organization;
+  const type = OPPORTUNITY_TYPES[opportunity.type];
+  const isChallenge = opportunity.type === "CHALLENGE";
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   useEffect(() => {
     const interval = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
     return () => window.clearInterval(interval);
   }, []);
-  if (!organization) return null;
+  if (!organization || !type) return null;
   const detail = "/opportunities/" + encodeURIComponent(opportunity.id);
   const sponsor = "/organizations/" + encodeURIComponent(organization.id);
   const cover = opportunity.coverAssetId ? api.challengeAssetUrl(opportunity.coverAssetId)
-    : opportunity.titleAssetId ? api.challengeAssetUrl(opportunity.titleAssetId)
-    : opportunity.backgroundAssetId ? api.challengeAssetUrl(opportunity.backgroundAssetId)
-    : CHALLENGE_COVER_IMAGES[opportunity.coverImage] || CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER];
+    : isChallenge ? (opportunity.titleAssetId ? api.challengeAssetUrl(opportunity.titleAssetId)
+      : opportunity.backgroundAssetId ? api.challengeAssetUrl(opportunity.backgroundAssetId)
+      : CHALLENGE_COVER_IMAGES[opportunity.coverImage] || CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER])
+    : null;
   const photoUrl = organization.profilePhotoId
     ? `/api/v1/organizations/${encodeURIComponent(organization.id)}/photo/${encodeURIComponent(organization.profilePhotoId)}`
     : null;
-  const prizeText = challengeCardPrize(opportunity);
+  const prizeText = isChallenge ? challengeCardPrize(opportunity) : null;
   const deadline = new Date(opportunity.deadline);
   const formatted = Number.isNaN(deadline.getTime()) ? "Unavailable" :
     deadline.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
   const description = typeof opportunity.description === "string" ? opportunity.description.trim() : "";
-  return <article className="bw-rail-challenge-card" aria-label={"Challenge: " + opportunity.title}>
-    <Link className="bw-rail-challenge-cover" to={detail} aria-label={"View challenge: " + opportunity.title}>
-      <img className="bw-rail-challenge-photo" src={cover} alt="" loading="lazy" />
+  const mode = opportunity.workMode === "REMOTE" ? "Remote" : opportunity.workMode === "HYBRID" ? "Hybrid" : "In person";
+  return <article className={"bw-rail-challenge-card" + (isChallenge ? "" : " bw-rail-opportunity-card bw-rail-opportunity-" + opportunity.type.toLowerCase())}
+    aria-label={type.label + ": " + opportunity.title}>
+    <Link className="bw-rail-challenge-cover" to={detail} aria-label={"View " + type.label.toLowerCase() + ": " + opportunity.title}>
+      {cover ? <img className="bw-rail-challenge-photo" src={cover} alt="" loading="lazy" />
+        : <span className="bw-rail-opportunity-cover-fallback" aria-hidden="true">
+            <NavigationIcon name={type.icon} size={40} /><span>{type.plural}</span>
+          </span>}
     </Link>
     <div className="bw-rail-challenge-details">
       <h3><Link to={detail}>{opportunity.title}</Link></h3>
@@ -50,18 +60,21 @@ export default function ChallengeSidebarCard({ opportunity }) {
         </span>
       </div>
       {description && <p className="bw-rail-challenge-description">{description}</p>}
-      <ChallengeCoHosts collaborators={opportunity.collaborators} compact />
+      {isChallenge && <ChallengeCoHosts collaborators={opportunity.collaborators} compact />}
       <div className="bw-rail-challenge-meta">
-        <div className="bw-rail-challenge-prize" aria-label="Challenge prize">
+        {isChallenge ? <div className="bw-rail-challenge-prize" aria-label="Challenge prize">
           <span>Prize</span>
           <strong title={prizeText}>{prizeText}</strong>
-        </div>
+        </div> : <div className="bw-rail-opportunity-facts">
+          {opportunity.location && <span><NavigationIcon name="pin" size={14} />{opportunity.location}</span>}
+          <span><NavigationIcon name="work" size={14} />{mode}</span>
+        </div>}
         <time dateTime={opportunity.deadline} title={"Deadline: " + formatted}>
-          {challengeDeadlineReminder(opportunity.deadline, currentTime)}
+          {isChallenge ? challengeDeadlineReminder(opportunity.deadline, currentTime) : "Closes " + formatted}
         </time>
       </div>
-      <ChallengeParticipantFacepile summary={opportunity.participantSummary} />
+      {isChallenge && <ChallengeParticipantFacepile summary={opportunity.participantSummary} />}
     </div>
-    <Link className="bw-rail-challenge-cta" to={detail}>Partake</Link>
+    <Link className="bw-rail-challenge-cta" to={detail}>{isChallenge ? "Partake" : type.action}</Link>
   </article>;
 }
