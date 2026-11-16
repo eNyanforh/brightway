@@ -85,6 +85,10 @@ test("members discover four opportunity types, save and submit an application, a
 });
 test("Challenges in Opportunities reuse the Explore sidebar cover, identity and participation card", async ({ page }) => {
   const state = await fixture(page);
+  await page.route("**/api/v1/explore/members/student_a/photo/photo-a", route => route.fulfill({
+    status: 200, contentType: "image/svg+xml",
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><circle cx="40" cy="40" r="40" fill="#5599cc"/></svg>',
+  }));
   state.opportunity = {
     ...state.opportunity, type: "CHALLENGE", title: "Student innovation challenge",
     description: "Build a learning tool for students.", coverImage: "SCHOOLS",
@@ -92,7 +96,7 @@ test("Challenges in Opportunities reuse the Explore sidebar cover, identity and 
     organization: { ...organization, verifiedAt: "2026-11-01T12:00:00Z" },
     collaborators: [{ organizationId: collaborator.id, organization: collaborator, state: "ACCEPTED" }],
     participantSummary: { count: 2, members: [
-      { username: "student_a", name: "Student One", verified: true, photoId: null },
+      { username: "student_a", name: "Student One", verified: true, photoId: "photo-a" },
       { username: "student_b", name: "Student Two", verified: true, photoId: null },
     ] },
   };
@@ -116,6 +120,19 @@ test("Challenges in Opportunities reuse the Explore sidebar cover, identity and 
   await expect(card.getByLabel("Challenge prize")).toContainText("US$1,000");
   await expect(card.locator("time")).toContainText(/Closes in/);
   await expect(card.getByLabel("Public Challenge participants")).toContainText("2 participants");
+  const participantAvatars = card.locator(".bw-challenge-participant-facepile .bw-challenge-participant-avatar");
+  await expect(participantAvatars).toHaveCount(2);
+  const avatarBoxes = await Promise.all([participantAvatars.nth(0).boundingBox(), participantAvatars.nth(1).boundingBox()]);
+  for (const box of avatarBoxes) {
+    expect(box.width).toBeCloseTo(27, 0);
+    expect(box.height).toBeCloseTo(27, 0);
+  }
+  expect(avatarBoxes[1].x).toBeLessThan(avatarBoxes[0].x + avatarBoxes[0].width);
+  await expect(participantAvatars.first()).toHaveCSS("border-radius", "50%");
+  const participantPhoto = participantAvatars.first().locator("img");
+  await expect(participantPhoto).toBeVisible();
+  await expect(participantPhoto).toHaveCSS("object-fit", "cover");
+  await expect.poll(() => participantPhoto.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
   await expect(card.getByRole("link", { name: "Partake" })).toHaveAttribute("href", "/opportunities/" + id);
   await expect(card.getByRole("link", { name: "Partake" })).toHaveCSS("min-height", "44px");
   await expect(card.locator(".bw-op-card-cover")).toHaveCount(0);
