@@ -57,7 +57,7 @@ function Detail({ id, applicationRoute }) {
   const questions = app?.opportunitySnapshot?.questions || opportunity?.questions || [];
   const postRequirements = app?.opportunitySnapshot?.postRequirements || opportunity?.postRequirements || [];
   const challenge = opportunity?.type === "CHALLENGE";
-  const opportunityBackground = opportunity.coverAssetId || (challenge ? opportunity.backgroundAssetId || opportunity.titleAssetId : null);
+  const opportunityBackground = opportunity?.coverAssetId || (challenge ? opportunity?.backgroundAssetId || opportunity?.titleAssetId : null);
   const coverBackground = opportunityBackground ? api.challengeAssetUrl(opportunityBackground) : null;
   return <section className="bw-op-page bw-op-detail" aria-busy={busy}>
     <Link className="bw-op-back" to="/opportunities?view=applications">← My applications</Link>
