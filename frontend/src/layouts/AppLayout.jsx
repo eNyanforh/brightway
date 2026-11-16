@@ -12,6 +12,7 @@ import { useAuth } from "../auth/useAuth";
 
 import AppHeader from "../components/layout/AppHeader";
 import OrganizationNavigation from "../components/layout/OrganizationNavigation";
+import CampusNavigation from "../components/layout/CampusNavigation";
 import ManagementNavigation from "../components/layout/ManagementNavigation";
 import AppSidebar from "../components/layout/AppSidebar";
 import ModuleRightRail from "../components/layout/ModuleRightRail";
@@ -51,14 +52,18 @@ function AccountLayout() {
     return () => { controller?.abort(); unsubscribeFocus(); };
   }, [account?.id]);
   const [actingOrganization, setActingOrganization] = useState(null);
+  const [campusWorkspace, setCampusWorkspace] = useState(null);
   const [managementWorkspace, setManagementWorkspace] = useState(null);
   const managementMode = pathname === "/superadmin" || pathname.startsWith("/superadmin/");
   const management = managementMode && managementWorkspace?.accountId === account?.id ? managementWorkspace : null;
   const organizationMode = /^\/organization-workspace\/[^/]+(?:\/|$)/.test(pathname);
+  const campusMode = /^\/campus\/[^/]+(?:\/|$)/.test(pathname);
+  const campusId = campusMode ? pathname.split("/")[2] : null;
+  const activeCampus = campusWorkspace?.accountId === account?.id && campusWorkspace?.organization.id === campusId ? campusWorkspace : null;
   const organizationBase = `/organization-workspace/${actingOrganization?.organization.id}`;
   const activeOrganization = actingOrganization?.accountId === account?.id && (pathname === organizationBase || pathname.startsWith(organizationBase + "/")) ? actingOrganization : null;
   const acting = activeOrganization?.organization;
-  const showRightRail = shouldShowModuleRightRail(pathname);
+  const showRightRail = !campusMode && shouldShowModuleRightRail(pathname);
   const [profileDraft, setProfileDraft] = useState(null);
   const [profileError, setProfileError] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -143,12 +148,12 @@ function AccountLayout() {
   }, [dirty, profileDraft?.busy]);
 
   return (
-    <div className={`bw-app-shell${organizationMode ? " bw-org-shell" : managementMode ? " bw-management-shell" : ""}`}>
+    <div className={`bw-app-shell${organizationMode ? " bw-org-shell" : managementMode ? " bw-management-shell" : campusMode ? " bw-campus-shell" : ""}`}>
       <MessagingRealtime />
       <AppHeader
         hasWork={hasWork}
         actingOrganization={acting}
-        workspaceLabel={managementMode ? "BrightWay Management" : undefined}
+        workspaceLabel={managementMode ? "BrightWay Management" : campusMode ? "Virtual Campus" : undefined}
         photoId={profileDraft?.profile.photo?.id}
         unsaved={dirty}
         profileBusy={profileDraft?.busy}
@@ -161,7 +166,7 @@ function AccountLayout() {
       />
 
       <div className={`bw-design-layout${showRightRail ? " bw-design-layout--three" : ""}`}>
-        {managementMode ? <ManagementNavigation management={management} id={navigationId} open={navigationOpen} onNavigate={() => setNavigationOpen(false)} /> : organizationMode ? <OrganizationNavigation acting={activeOrganization} id={navigationId} open={navigationOpen} onNavigate={() => setNavigationOpen(false)} /> : <AppSidebar
+        {managementMode ? <ManagementNavigation management={management} id={navigationId} open={navigationOpen} onNavigate={() => setNavigationOpen(false)} /> : organizationMode ? <OrganizationNavigation acting={activeOrganization} id={navigationId} open={navigationOpen} onNavigate={() => setNavigationOpen(false)} /> : campusMode ? <CampusNavigation campus={activeCampus} campusId={campusId} id={navigationId} open={navigationOpen} onNavigate={() => setNavigationOpen(false)} /> : <AppSidebar
           hasWork={hasWork}
           id={navigationId}
           open={navigationOpen}
@@ -173,6 +178,7 @@ function AccountLayout() {
             context={{
               onOrganizationSubmitted,
               setActingOrganization,
+              setCampusWorkspace,
               setManagementWorkspace,
               profileDraft,
               setProfileDraft,
@@ -185,7 +191,7 @@ function AccountLayout() {
         {showRightRail && <ModuleRightRail />}
       </div>
 
-      {managementMode ? <ManagementNavigation management={management} mobile onNavigate={() => setNavigationOpen(false)} /> : organizationMode ? <OrganizationNavigation acting={activeOrganization} mobile onNavigate={() => setNavigationOpen(false)} /> : <MobileNavigation
+      {managementMode ? <ManagementNavigation management={management} mobile onNavigate={() => setNavigationOpen(false)} /> : organizationMode ? <OrganizationNavigation acting={activeOrganization} mobile onNavigate={() => setNavigationOpen(false)} /> : campusMode ? <CampusNavigation campus={activeCampus} campusId={campusId} mobile onNavigate={() => setNavigationOpen(false)} /> : <MobileNavigation
         onNavigate={() => setNavigationOpen(false)}
       />}
     </div>
