@@ -111,7 +111,7 @@ test("Challenges in Opportunities reuse the Explore sidebar cover, identity and 
   expect(bounds.width / bounds.height).toBeLessThan(1.62);
   await expect(card.getByRole("link", { name: "View Synthetic Research Institute organization profile" }))
     .toHaveAttribute("href", "/organizations/" + oid);
-  await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
+  await expect(card.locator(".bw-rail-challenge-sponsor-name").getByRole("img", { name: "Verified organization" })).toBeVisible();
   await expect(card.getByRole("link", { name: "View co-host Collaborating Academy" })).toBeVisible();
   await expect(card.getByLabel("Challenge prize")).toContainText("US$1,000");
   await expect(card.locator("time")).toContainText(/Closes in/);
