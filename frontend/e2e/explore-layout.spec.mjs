@@ -155,7 +155,7 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(mainJob.getByText(job.description)).toBeVisible();
   await expect(mainJob.getByText(job.location, { exact: true })).toBeVisible();
   await expect(mainJob.getByText("Remote", { exact: true })).toBeVisible();
-  await expect(mainJob.locator("time")).toContainText(/\\d+ days remaining/);
+  await expect(mainJob.locator("time")).toContainText(/\d+ days remaining/);
   await expect(mainJob.locator(".bw-challenge-prize")).toHaveCount(0);
   await expect(mainJob.locator(".bw-challenge-participants")).toHaveCount(0);
   await expect(mainJob.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/opportunities/" + job.id);
@@ -164,7 +164,7 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await mainJob.getByRole("button", { name: "Save job" }).click();
   await expect(mainJob.getByRole("button", { name: "Unsave job" })).toHaveAttribute("aria-pressed", "true");
   const sidebarJob = sidebar.getByRole("article", { name: "Job: Research Internship" });
-  await expect(sidebarJob.locator("time")).toContainText(/\\d+ days remaining/);
+  await expect(sidebarJob.locator("time")).toContainText(/\d+ days remaining/);
   await expect(mainJob.locator(".bw-job-card")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   expect(await card.evaluate(el => getComputedStyle(el).backgroundImage))
     .toBe(await mainChallenge.evaluate(el => getComputedStyle(el).backgroundImage));
