@@ -13,6 +13,7 @@ import { CHALLENGE_POST_TYPES, describeChallengePostType } from "../../../../sha
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./challenge-sidebar-card.css";
 import "./opportunity-editor-wizard.css";
+import "./challenge-composer.css";
 
 const choices = [
   ["JOB", "Job", "Recruit talent for a position."],
