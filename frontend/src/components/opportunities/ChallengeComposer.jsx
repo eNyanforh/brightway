@@ -1,4 +1,7 @@
 import NavigationIcon from "../layout/NavigationIcon";
+import OpportunityDateTimePicker from "./OpportunityDateTimePicker";
+import OpportunityDescriptionField from "./OpportunityDescriptionField";
+import OpportunityCategoryIcon from "./OpportunityCategoryIcon";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import {
   CHALLENGE_TOPIC_OPTIONS, MAX_CHALLENGE_TOPICS, MAX_CHALLENGE_PRIZES,
@@ -45,10 +48,6 @@ export default function ChallengeComposer({
       <p className="bw-op-challenge-cover-help">JPEG, PNG or WebP · Up to 5 MB. Your cover appears on Challenge cards across BrightWay.</p>
     </aside>
     <div className="bw-op-challenge-main">
-      <div className="bw-op-challenge-heading">
-        <span className="bw-op-challenge-eyebrow">BRIGHTWAY CHALLENGE</span>
-        <span className="bw-op-challenge-audience"><NavigationIcon name="globe" size={15} /> Public on BrightWay</span>
-      </div>
       <h3 id="bw-op-step-heading" tabIndex={-1}>Create your Challenge</h3>
       <label className="bw-op-challenge-title-field">Challenge Title
         <input required autoFocus minLength={3} maxLength={160} value={draft.title}
@@ -56,18 +55,14 @@ export default function ChallengeComposer({
       </label>
       <section className="bw-op-challenge-section" aria-labelledby="bw-op-challenge-description-heading">
         <h4 id="bw-op-challenge-description-heading">About the challenge</h4>
-        <label className="bw-op-challenge-field-label">Description
-          <textarea required rows={4} minLength={30} maxLength={12000} value={draft.description}
-            placeholder="Explain the goal, rules, judging criteria, and what participants must submit."
-            onChange={e => field("description", e.target.value)} />
-        </label>
+        <OpportunityDescriptionField value={draft.description} rows={5}
+          placeholder="Explain the goal, rules, judging criteria, and what participants must submit."
+          onChange={value => field("description", value)} />
       </section>
       <section className="bw-op-challenge-section" aria-labelledby="bw-op-challenge-deadline-heading">
         <h4 id="bw-op-challenge-deadline-heading">Deadline</h4>
-        <label>Deadline (your local time)
-          <input required type="datetime-local" value={draft.deadline}
-            onChange={e => field("deadline", e.target.value)} />
-        </label>
+        <OpportunityDateTimePicker value={draft.deadline}
+          onChange={value => field("deadline", value)} />
       </section>
       <section className="bw-op-challenge-section" aria-labelledby="bw-op-challenge-categories-heading">
         <h4 id="bw-op-challenge-categories-heading">Categories</h4>
@@ -79,7 +74,7 @@ export default function ChallengeComposer({
                 disabled={!draft.topics.includes(topic) && draft.topics.length >= MAX_CHALLENGE_TOPICS}
                 onChange={e => field("topics", e.target.checked
                   ? [...draft.topics, topic] : draft.topics.filter(value => value !== topic))} />
-              <span>{topic}</span>
+              <OpportunityCategoryIcon category={topic} /><span>{topic}</span>
             </label>)}</div>
         </fieldset>
       </section>

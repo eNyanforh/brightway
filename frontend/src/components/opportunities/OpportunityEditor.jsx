@@ -5,6 +5,9 @@ import {
   MAX_CHALLENGE_PRIZES, newChallengePrize, challengePrizeValue,
 } from "../../../../shared/challenges.mjs";
 import NavigationIcon from "../layout/NavigationIcon";
+import OpportunityDateTimePicker from "./OpportunityDateTimePicker";
+import OpportunityDescriptionField from "./OpportunityDescriptionField";
+import OpportunityCategoryIcon from "./OpportunityCategoryIcon";
 import ChallengePrizeFields from "./ChallengePrizeFields";
 import ChallengeCollaboratorPicker from "./ChallengeCollaboratorPicker";
 import ChallengePostTypes from "./ChallengePostTypes";
@@ -291,9 +294,9 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
                 <input required autoFocus minLength={3} maxLength={160} value={draft.title}
                   onChange={e => field("title", e.target.value)}
                   placeholder={challenge ? "Give your challenge a clear title" : "A clear title for your opportunity"} /></label>
-              <label>Description<textarea required rows={6} minLength={30} maxLength={12000}
-                value={draft.description} onChange={e => field("description", e.target.value)}
-                placeholder={challenge ? "Explain the goal, rules, judging criteria, and what participants must submit on BrightWay." : "Describe eligibility, benefits and the selection process."} /></label>
+              <OpportunityDescriptionField value={draft.description} rows={6}
+                onChange={value => field("description", value)}
+                placeholder={challenge ? "Explain the goal, rules, judging criteria, and what participants must submit on BrightWay." : "Describe eligibility, benefits and the selection process."} />
               {challenge ? <>
                 <fieldset className="bw-op-challenge-topics" aria-label="Challenge categories">
                   <legend>Categories (choose up to {MAX_CHALLENGE_TOPICS})</legend>
@@ -303,7 +306,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
                         disabled={!draft.topics.includes(topic) && draft.topics.length >= MAX_CHALLENGE_TOPICS}
                         onChange={e => field("topics", e.target.checked
                           ? [...draft.topics, topic] : draft.topics.filter(value => value !== topic))} />
-                      <span>{topic}</span>
+                      <OpportunityCategoryIcon category={topic} /><span>{topic}</span>
                     </label>)}</div>
                 </fieldset>
                 <p className="bw-op-wizard-native"><NavigationIcon name="security" size={18} />
@@ -350,8 +353,8 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
               disabled={locked} locked={lockedForm} />}
 
             {stepName === "Applications" && <>
-              <label>Deadline (your local time)<input required type="datetime-local" value={draft.deadline}
-                onChange={e => field("deadline", e.target.value)} /></label>
+              <OpportunityDateTimePicker value={draft.deadline}
+                onChange={value => field("deadline", value)} />
               <QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
                 lockedForm={lockedForm} busy={busy} />
               {challenge && <p className="bw-op-wizard-native"><NavigationIcon name="security" size={18} />

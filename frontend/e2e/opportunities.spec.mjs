@@ -241,6 +241,13 @@ test("organization Challenge composer uses cover-left layout and preserves nativ
   await editor.getByRole("button", { name: "Continue" }).click();
   await expect(editor).toHaveAttribute("aria-modal", "true");
   await expect(editor.getByRole("heading", { name: "Create your Challenge" })).toBeVisible();
+  await expect(editor.getByText("BRIGHTWAY CHALLENGE", { exact: true })).toHaveCount(0);
+  await expect(editor.getByText("Public on BrightWay", { exact: true })).toHaveCount(0);
+  await expect(editor.locator(".bw-op-challenge-topic svg")).toHaveCount(12);
+  await expect(editor.locator(".bw-op-description-field")).toBeVisible();
+  await editor.getByRole("button", { name: "Open deadline calendar" }).click();
+  await expect(editor.getByRole("group", { name: "Select deadline date and time" })).toBeVisible();
+  await editor.getByRole("button", { name: "Open deadline calendar" }).click();
   await expect(editor.getByRole("heading", { name: "Post types" })).toBeVisible();
   const coverStage = editor.locator(".bw-op-challenge-cover-stage");
   const titleField = editor.getByLabel("Challenge Title");

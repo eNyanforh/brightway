@@ -1,6 +1,8 @@
 import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import NavigationIcon from "../layout/NavigationIcon";
+import OpportunityDateTimePicker from "./OpportunityDateTimePicker";
+import OpportunityDescriptionField from "./OpportunityDescriptionField";
 
 const copy = {
   JOB: {
@@ -80,11 +82,8 @@ export default function StandardOpportunityComposer({
       </label>
       <section className="bw-op-challenge-section" aria-labelledby="bw-standard-description">
         <h4 id="bw-standard-description">About the {type.label.toLowerCase()}</h4>
-        <label>Description
-          <textarea required rows={5} minLength={30} maxLength={12000}
-            value={draft.description} placeholder={labels.description}
-            onChange={e => field("description", e.target.value)} />
-        </label>
+        <OpportunityDescriptionField value={draft.description} placeholder={labels.description}
+          onChange={value => field("description", value)} />
       </section>
       <section className="bw-op-challenge-section" aria-labelledby="bw-standard-details">
         <h4 id="bw-standard-details">{type.label} details</h4>
@@ -104,10 +103,8 @@ export default function StandardOpportunityComposer({
       </section>
       <section className="bw-op-challenge-section" aria-labelledby="bw-standard-deadline">
         <h4 id="bw-standard-deadline">{draft.type === "EVENT" ? "Registration deadline" : "Application deadline"}</h4>
-        <label>Deadline (your local time)
-          <input required type="datetime-local" value={draft.deadline}
-            onChange={e => field("deadline", e.target.value)} />
-        </label>
+        <OpportunityDateTimePicker value={draft.deadline}
+          onChange={value => field("deadline", value)} />
       </section>
       <section className="bw-op-challenge-section bw-op-challenge-questions">
         {questions}

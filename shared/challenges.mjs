@@ -82,10 +82,10 @@ export function challengeCardPrize(opportunity) {
   if (prizes.length) {
     const first = challengePrizeValue(prizes[0]);
     const extra = prizes.length - 1;
-    return first ? `${first}${extra ? ` + ${extra} more ${extra === 1 ? "prize" : "prizes"}` : ""}` : "To be announced";
+    return first ? `${first.replace(/\bUSD\s*(?=\d)/g, "US$")}${extra ? ` + ${extra} more ${extra === 1 ? "prize" : "prizes"}` : ""}` : "To be announced";
   }
   const summary = (opportunity?.prize || "").trim();
   if (!summary) return "To be announced";
   const first = summary.split(" · ")[0];
-  return first.replace(/^(Cash|Scholarship|Certificate|Mentorship|Equipment or tools|Internship|Other):\s*/i, "");
+  return first.replace(/^(Cash|Scholarship|Certificate|Mentorship|Equipment or tools|Internship|Other):\s*/i, "").replace(/\bUSD\s*(?=\d)/g, "US$");
 }
