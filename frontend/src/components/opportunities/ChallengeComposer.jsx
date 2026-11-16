@@ -56,7 +56,7 @@ export default function ChallengeComposer({
       </label>
       <section className="bw-op-challenge-section" aria-labelledby="bw-op-challenge-description-heading">
         <h4 id="bw-op-challenge-description-heading">Description</h4>
-        <label className="bw-op-challenge-field-label">Challenge description
+        <label className="bw-op-challenge-field-label">Description
           <textarea required rows={4} minLength={30} maxLength={12000} value={draft.description}
             placeholder="Explain the goal, rules, judging criteria, and what participants must submit."
             onChange={e => field("description", e.target.value)} />
