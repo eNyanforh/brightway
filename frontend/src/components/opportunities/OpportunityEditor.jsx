@@ -9,6 +9,7 @@ import ChallengePrizeFields from "./ChallengePrizeFields";
 import ChallengeCollaboratorPicker from "./ChallengeCollaboratorPicker";
 import ChallengePostTypes from "./ChallengePostTypes";
 import ChallengeComposer from "./ChallengeComposer";
+import StandardOpportunityComposer from "./StandardOpportunityComposer";
 import { CHALLENGE_POST_TYPES, describeChallengePostType } from "../../../../shared/challenge-submissions.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./challenge-sidebar-card.css";
@@ -112,7 +113,9 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const uploadController = useRef(null), lock = useRef(false), dialog = useRef(null);
   const lockedForm = Boolean(opportunity?.publishedAt);
   const challenge = draft.type === "CHALLENGE";
-  const challengeComposer = challenge && step > 0;
+  const singlePageComposer = step > 0 && Boolean(draft.type);
+  const challengeComposer = challenge && singlePageComposer;
+  const standardComposer = singlePageComposer && !challenge;
   const steps = challenge
     ? ["Opportunity type", "Challenge details", "Prizes & collaborators", "Cover photo", "Post types", "Applications", "Review"]
     : ["Opportunity type", "Opportunity details", "Applications", "Review"];
@@ -172,7 +175,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         item.maxImages > 4 || item.minImages > item.maxImages;
       return item.maxPages < 1 || item.maxPages > 100;
     })) return "Check each post type's minimum and maximum requirements.";
-    if (challengeComposer || steps[step]?.endsWith("Applications")) {
+    if (singlePageComposer || steps[step]?.endsWith("Applications")) {
       if (!draft.deadline || !Number.isFinite(new Date(draft.deadline).getTime()) ||
           new Date(draft.deadline).getTime() <= Date.now()) return "Choose a future deadline.";
       if (draft.questions.some(q => ["SINGLE_CHOICE", "MULTIPLE_CHOICE"].includes(q.type) &&
@@ -187,7 +190,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     setError(null);
     const problem = validateStep();
     if (problem) { setError(new Error(problem)); return; }
-    if (!challengeComposer && step < last) { setStep(current => current + 1); return; }
+    if (!singlePageComposer && step < last) { setStep(current => current + 1); return; }
     if (!draft.type || draft.title.trim().length < 3 || draft.description.trim().length < 30 ||
         !draft.deadline || !Number.isFinite(new Date(draft.deadline).getTime()) ||
         new Date(draft.deadline).getTime() <= Date.now()) {
@@ -209,7 +212,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         sponsorLogoIds: challenge ? draft.sponsorLogoIds : [],
         backgroundAssetId: challenge ? draft.backgroundAssetId : null,
         titleAssetId: challenge ? draft.titleAssetId : null,
-        coverAssetId: challenge ? draft.coverAssetId : null,
+        coverAssetId: draft.coverAssetId,
         deadline: new Date(draft.deadline).toISOString(),
       };
       const saved = opportunity
@@ -227,7 +230,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const locked = busy || Boolean(uploading) || error?.status === 409 ||
     [401, 403, 404].includes(error?.status);
 
-  return <div className={"bw-op-overlay bw-op-wizard-overlay" + (challengeComposer ? " bw-op-challenge-overlay" : "")} onKeyDown={e => {
+  return <div className={"bw-op-overlay bw-op-wizard-overlay" + (singlePageComposer ? " bw-op-challenge-overlay" : "") + (standardComposer ? " bw-op-standard-overlay" : "")} onKeyDown={e => {
     if (e.key === "Escape") { e.preventDefault(); close(); }
     if (e.key === "Tab" && dialog.current) {
       const nodes = [...dialog.current.querySelectorAll(
@@ -242,26 +245,30 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
       aria-labelledby="op-editor-title" className="bw-op-editor bw-op-wizard">
       <header className="bw-op-wizard-header">
         <div><p className="bw-op-wizard-kicker">{opportunity ? "EDIT OPPORTUNITY" : "CREATE OPPORTUNITY"}</p>
-          <h2 id="op-editor-title">{challengeComposer
-            ? opportunity ? "Edit Challenge" : "Create a Challenge"
+          <h2 id="op-editor-title">{singlePageComposer
+            ? (opportunity ? "Edit " : "Create a ") + OPPORTUNITY_TYPES[draft.type].label
             : opportunity ? "Edit your opportunity" : "Create an opportunity"}</h2>
-          <p>{challengeComposer ? "Cover, details, prizes and submissions" : "Step " + (step + 1) + " of " + steps.length}</p>
+          <p>{singlePageComposer ? "Cover, details, deadline and applications" : "Step " + (step + 1) + " of " + steps.length}</p>
         </div>
         <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
       </header>
-      {!challengeComposer && <nav className="bw-op-wizard-progress" aria-label="Creation progress">
+      {!singlePageComposer && <nav className="bw-op-wizard-progress" aria-label="Creation progress">
         {steps.map((label, index) => <span key={label} className={index === step ? "is-current" : index < step ? "is-complete" : ""}
           aria-current={index === step ? "step" : undefined}><span>{index + 1}</span>{label}</span>)}
       </nav>}
       <form onSubmit={submit}>
         {error && <div className="bw-op-wizard-error" role="alert">{error.message}</div>}
-        <fieldset className={"bw-op-editor-fields bw-op-wizard-fields" + (challengeComposer ? " is-challenge-composer" : "")} disabled={locked}>
+        <fieldset className={"bw-op-editor-fields bw-op-wizard-fields" + (singlePageComposer ? " is-challenge-composer" : "")} disabled={locked}>
           {challengeComposer ? <ChallengeComposer draft={draft} field={field}
             organizationId={organizationId} collaborators={collaborators}
             setCollaborators={setCollaborators} locked={locked} lockedForm={lockedForm}
             uploading={uploading} upload={upload}
             questions={<QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
               lockedForm={lockedForm} busy={busy} />} /> :
+            standardComposer ? <StandardOpportunityComposer draft={draft} field={field}
+              opportunity={opportunity} locked={locked} uploading={uploading} upload={upload}
+              questions={<QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
+                lockedForm={lockedForm} busy={busy} />} /> :
           <div className="bw-op-wizard-step">
             <h3 id="bw-op-step-heading" tabIndex={-1}>{step === 0 ? "What opportunity do you want to offer?" : stepName}</h3>
             {step === 0 && <>
@@ -389,14 +396,14 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         </fieldset>
         <footer className="bw-op-wizard-footer">
           <button className="bw-op-secondary" type="button" disabled={busy || Boolean(uploading)}
-            onClick={() => challengeComposer && opportunity ? close() : step ? (setError(null), setStep(current => current - 1)) : close()}>
-            {challengeComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
+            onClick={() => singlePageComposer && opportunity ? close() : step ? (setError(null), setStep(current => current - 1)) : close()}>
+            {singlePageComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
           </button>
           <span className="bw-op-wizard-footer-hint">{opportunity ? "Editing saved listing" : "Saved as draft until you publish"}</span>
           <button className="bw-op-primary" type="submit"
             disabled={locked || (step === 0 && !draft.type)}>
-            {busy ? "Saving…" : challengeComposer || step === last ? opportunity ? "Save changes" : "Save draft" : "Continue"}
-            {!busy && !challengeComposer && step !== last && <NavigationIcon name="chevron-right" size={16} />}
+            {busy ? "Saving…" : singlePageComposer || step === last ? opportunity ? "Save changes" : "Save draft" : "Continue"}
+            {!busy && !singlePageComposer && step !== last && <NavigationIcon name="chevron-right" size={16} />}
           </button>
         </footer>
       </form>
