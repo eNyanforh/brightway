@@ -60,7 +60,7 @@ function FeaturedOpportunityCard({ opportunity, organization, profile, detail, p
       onSavedChange?.(opportunity.id, Boolean(updated.saved));
       setFeedback(updated.saved ? "Opportunity saved to your account." : "Opportunity removed from your saved items.");
     } catch (error) {
-      setFeedback(error?.message || "Could not update your saved challenge. Try again.");
+      setFeedback(error?.message || "Could not update your saved opportunity. Try again.");
     } finally {
       setSaving(false);
     }
@@ -82,10 +82,10 @@ function FeaturedOpportunityCard({ opportunity, organization, profile, detail, p
         await navigator.clipboard.writeText(url);
         setFeedback("Opportunity link copied.");
       } else {
-        setFeedback("Share this challenge link: " + url);
+        setFeedback("Share this opportunity link: " + url);
       }
     } catch {
-      setFeedback("Share this challenge link: " + url);
+      setFeedback("Share this opportunity link: " + url);
     }
   }
 
