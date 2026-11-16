@@ -104,7 +104,7 @@ it("opens a sectioned learner dashboard using only finalized school report data"
   await user.click(within(dashboard).getByRole("button", { name: "Assessments" }));
   expect(within(dashboard).getByRole("table")).toHaveProperty("textContent", expect.stringContaining("Algebra quiz"));
   await user.click(within(dashboard).getByRole("button", { name: "Announcements" }));
-  expect(within(dashboard).getByText("School timetable update")).toBeTruthy();
+  expect(within(dashboard).getAllByText("School timetable update").length).toBeGreaterThan(0);
 });
 
 it("shows a waiting dialog for a selected pre-registered school and never requests a report", async () => {
