@@ -786,7 +786,7 @@
 .bw-explore .bw-timeline-opportunity-scholarship {
   --explore-opportunity-gradient: linear-gradient(135deg, #f3ff9a 0%, #fad0c4 100%);
 }
-.bw-explore .bw-timeline-opportunity-challenge {
+.bw-explore :is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job) {
   --explore-opportunity-gradient: var(--bw-challenge-gradient, linear-gradient(135deg, #e2f39d 0%, #67b4f3 100%));
 }
 .bw-explore .bw-timeline-opportunity-event {
@@ -883,8 +883,8 @@
    Gradient category container (16px) around a compact 16px-padded white
    opportunity row. Avatar left, title / publisher / deadline in the middle,
    price and mode right. Keep Explore's split action footer below the row. */
-.bw-explore .bw-timeline-post.bw-timeline-opportunity-challenge,
-.bw-explore .bw-timeline-post.bw-timeline-opportunity-challenge:hover {
+.bw-explore .bw-timeline-post:is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job),
+.bw-explore .bw-timeline-post:is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job):hover {
   display: block;
   padding: 16px;
   border: 0;
@@ -892,22 +892,22 @@
   background: var(--explore-opportunity-gradient);
   box-shadow: none;
 }
-.bw-explore .bw-timeline-opportunity-challenge .bw-timeline-opportunity-category {
+.bw-explore :is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job) .bw-timeline-opportunity-category {
   min-height: 0;
   margin: 0;
   padding: 0 0 15px;
   background: transparent;
   color: #0f172a;
 }
-.bw-explore .bw-timeline-opportunity-challenge .bw-timeline-opportunity-category > span {
+.bw-explore :is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job) .bw-timeline-opportunity-category > span {
   gap: 6px;
   font-size: 16px;
   font-weight: 600;
 }
-.bw-explore .bw-timeline-opportunity-challenge .bw-timeline-opportunity-category > a {
+.bw-explore :is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job) .bw-timeline-opportunity-category > a {
   color: #0f172a;
 }
-.bw-explore .bw-timeline-opportunity-challenge .bw-challenge-card {
+.bw-explore :is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job) .bw-challenge-card {
   display: block;
   min-width: 0;
   padding: 16px;
@@ -1076,22 +1076,22 @@
 }
 /* Keep Challenge card elements flush at the top except the separator,
    which needs breathing room above the actions. */
-.bw-explore .bw-timeline-opportunity-challenge .bw-challenge-card :where(*):not(.bw-challenge-divider) {
+.bw-explore :is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job) .bw-challenge-card :where(*):not(.bw-challenge-divider) {
   margin-top: 0;
 }
 @media (max-width: 700px) {
-  .bw-explore .bw-timeline-post.bw-timeline-opportunity-challenge,
-  .bw-explore .bw-timeline-post.bw-timeline-opportunity-challenge:hover {
+  .bw-explore .bw-timeline-post:is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job),
+  .bw-explore .bw-timeline-post:is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job):hover {
     width: 100%;
     padding: 12px;
     border: 0;
     border-bottom: 8px solid #f3f2ef;
     border-radius: 0;
   }
-  .bw-explore .bw-timeline-opportunity-challenge .bw-timeline-opportunity-category {
+  .bw-explore :is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job) .bw-timeline-opportunity-category {
     padding-bottom: 12px;
   }
-  .bw-explore .bw-timeline-opportunity-challenge .bw-challenge-card { padding: 12px; }
+  .bw-explore :is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job) .bw-challenge-card { padding: 12px; }
   .bw-explore .bw-challenge-overview {
     grid-template-columns: 40px minmax(0, 1fr) minmax(66px, auto);
     gap: 8px;
@@ -1268,6 +1268,59 @@
   .bw-explore .bw-challenge-organization-name { font-size: 11px; }
 }
 
+
+/* Main-feed Jobs share the Challenge card geometry and controls. */
+.bw-explore .bw-job-card .bw-job-description {
+  padding: 5px 0 0;
+  margin-bottom: 0;
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.bw-explore .bw-job-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  min-width: 0;
+  padding-top: 6px;
+  color: #475467;
+  font-size: 12px;
+}
+.bw-explore .bw-job-facts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bw-explore .bw-job-cover-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 122px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #d9e7ff, #8bb6eb);
+  color: #243454;
+  font-size: 11px;
+  font-weight: 750;
+  text-align: center;
+  padding: 12px;
+}
+@media (max-width: 700px) {
+  .bw-explore .bw-job-cover-fallback { min-height: 112px; padding: 8px; font-size: 10px; }
+  .bw-explore .bw-job-card .bw-job-description,
+  .bw-explore .bw-job-facts { font-size: 11px; }
+}
 
 /* 2026 Explore modernization: BrightWay black/white editorial system. */
 .bw-explore {
