@@ -786,7 +786,7 @@
 .bw-explore .bw-timeline-opportunity-scholarship {
   --explore-opportunity-gradient: linear-gradient(135deg, #f3ff9a 0%, #fad0c4 100%);
 }
-.bw-explore :is(.bw-timeline-opportunity-challenge, .bw-timeline-opportunity-job) {
+.bw-explore .bw-timeline-opportunity-challenge {
   --explore-opportunity-gradient: var(--bw-challenge-gradient, linear-gradient(135deg, #e2f39d 0%, #67b4f3 100%));
 }
 .bw-explore .bw-timeline-opportunity-event {
