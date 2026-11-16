@@ -134,9 +134,9 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(sidebar.getByRole("heading", { name: "Open Opportunities" })).toBeVisible();
   await expect(sidebar.getByRole("link", { name: /Browse all opportunities/ })).toHaveAttribute("href", "/opportunities");
   await expect(sidebar.getByRole("article", { name: "Challenge: Another Innovation Challenge" })).toHaveCount(0);
-  await expect(sidebar.locator(".bw-op-job")).toHaveCount(1);
-  await expect(sidebar.locator(".bw-op-scholarship")).toHaveCount(1);
-  await expect(sidebar.locator(".bw-op-event")).toHaveCount(1);
+  await expect(sidebar.locator(".bw-rail-opportunity-job")).toHaveCount(1);
+  await expect(sidebar.locator(".bw-rail-opportunity-scholarship")).toHaveCount(1);
+  await expect(sidebar.locator(".bw-rail-opportunity-event")).toHaveCount(1);
   await expect(sidebar.getByRole("link", { name: "Research Internship" })).toHaveAttribute("href", "/opportunities/" + job.id);
   await expect(sidebar.getByRole("link", { name: "Student Research Scholarship" })).toHaveAttribute("href", "/opportunities/" + scholarship.id);
   await expect(sidebar.getByRole("link", { name: "Career Discovery Event" })).toHaveAttribute("href", "/opportunities/" + event.id);
@@ -146,6 +146,26 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(card).toHaveCSS("background-image", /linear-gradient/);
   const mainChallenge = page.locator(".bw-timeline-opportunity-challenge").first();
   await expect(mainChallenge).toBeVisible();
+  const mainJob = page.locator(".bw-timeline-opportunity-job").first();
+  await expect(mainJob.locator(".bw-challenge-card.bw-job-card")).toBeVisible();
+  await expect(mainJob.locator(".bw-challenge-overview")).toBeVisible();
+  await expect(mainJob.locator(".bw-challenge-cover-link")).toHaveAttribute("href", "/opportunities/" + job.id);
+  await expect(mainJob.locator(".bw-job-cover-fallback")).toBeVisible();
+  await expect(mainJob.getByRole("heading", { name: "Research Internship" })).toBeVisible();
+  await expect(mainJob.getByText(job.description)).toBeVisible();
+  await expect(mainJob.getByText(job.location, { exact: true })).toBeVisible();
+  await expect(mainJob.getByText("Remote", { exact: true })).toBeVisible();
+  await expect(mainJob.locator("time")).toContainText(/\\d+ days remaining/);
+  await expect(mainJob.locator(".bw-challenge-prize")).toHaveCount(0);
+  await expect(mainJob.locator(".bw-challenge-participants")).toHaveCount(0);
+  await expect(mainJob.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/opportunities/" + job.id);
+  await expect(mainJob.getByRole("button", { name: "Share job" })).toBeVisible();
+  await expect(mainJob.getByRole("button", { name: "Save job" })).toBeVisible();
+  await mainJob.getByRole("button", { name: "Save job" }).click();
+  await expect(mainJob.getByRole("button", { name: "Unsave job" })).toHaveAttribute("aria-pressed", "true");
+  const sidebarJob = sidebar.getByRole("article", { name: "Job: Research Internship" });
+  await expect(sidebarJob.locator("time")).toContainText(/\\d+ days remaining/);
+  await expect(mainJob.locator(".bw-job-card")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   expect(await card.evaluate(el => getComputedStyle(el).backgroundImage))
     .toBe(await mainChallenge.evaluate(el => getComputedStyle(el).backgroundImage));
 
