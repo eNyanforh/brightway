@@ -328,7 +328,7 @@ for (const [type, label] of [["SCHOLARSHIP", "Scholarship"], ["EVENT", "Event"]]
     const state = await fixture(page);
     await page.goto(base + "/opportunities");
     await page.getByRole("button", { name: "+ Create opportunity" }).click();
-    const editor = page.getByRole("dialog", { name: "Create an opportunity" });
+    const editor = page.getByRole("dialog");
     await editor.getByRole("radio", { name: new RegExp(label) }).click();
     await editor.getByRole("button", { name: "Continue" }).click();
     await expect(editor.getByRole("heading", { name: "Create your " + label })).toBeVisible();
