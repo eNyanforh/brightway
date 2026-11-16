@@ -153,7 +153,8 @@ function AccountLayout() {
       <AppHeader
         hasWork={hasWork}
         actingOrganization={acting}
-        workspaceLabel={managementMode ? "BrightWay Management" : campusMode ? "Virtual Campus" : undefined}
+        workspaceLabel={managementMode ? "BrightWay Management" : undefined}
+        campusHome={campusMode ? `/campus/${campusId}` : undefined}
         photoId={profileDraft?.profile.photo?.id}
         unsaved={dirty}
         profileBusy={profileDraft?.busy}
