@@ -7,7 +7,7 @@ import VerificationBadge from "../VerificationBadge";
 import NavigationIcon from "../layout/NavigationIcon";
 import PostTimestamp from "../posts/PostTimestamp";
 import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
-import { challengeDeadlineReminder } from "./challenge-deadline";
+import { challengeDeadlineReminder, opportunityDaysRemaining } from "./challenge-deadline";
 import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER, challengeCardPrize } from "../../../../shared/challenges.mjs";
 import ChallengeCoHosts from "./ChallengeCoHosts";
 
@@ -18,7 +18,21 @@ const EXPLORE_OPPORTUNITY_CATEGORIES = Object.freeze({
   EVENT: "Events",
 });
 
-function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, formattedDeadline, onSavedChange }) {
+function RemainingDeadline({ deadline, formattedDeadline }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
+  return <time dateTime={deadline} title={"Deadline: " + formattedDeadline}>
+    {opportunityDaysRemaining(deadline, now)}
+  </time>;
+}
+
+function FeaturedOpportunityCard({ opportunity, organization, profile, detail, photoUrl, formattedDeadline, onSavedChange }) {
+  const isChallenge = opportunity.type === "CHALLENGE";
+  const label = isChallenge ? "challenge" : "job";
+
   const [saved, setSaved] = useState(Boolean(opportunity.saved));
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -27,11 +41,14 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
     const interval = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
     return () => window.clearInterval(interval);
   }, []);
-  const prizeText = challengeCardPrize(opportunity);
+  const prizeText = isChallenge ? challengeCardPrize(opportunity) : null;
   const cover = opportunity.coverAssetId ? opportunitiesApi.challengeAssetUrl(opportunity.coverAssetId)
-    : opportunity.titleAssetId ? opportunitiesApi.challengeAssetUrl(opportunity.titleAssetId)
-    : opportunity.backgroundAssetId ? opportunitiesApi.challengeAssetUrl(opportunity.backgroundAssetId)
-    : CHALLENGE_COVER_IMAGES[opportunity.coverImage] || CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER];
+    : isChallenge ? (opportunity.titleAssetId ? opportunitiesApi.challengeAssetUrl(opportunity.titleAssetId)
+      : opportunity.backgroundAssetId ? opportunitiesApi.challengeAssetUrl(opportunity.backgroundAssetId)
+      : CHALLENGE_COVER_IMAGES[opportunity.coverImage] || CHALLENGE_COVER_IMAGES[DEFAULT_CHALLENGE_COVER])
+    : null;
+  const mode = opportunity.workMode === "REMOTE" ? "Remote"
+    : opportunity.workMode === "HYBRID" ? "Hybrid" : "In person";
 
   async function toggleSaved() {
     if (saving) return;
@@ -41,7 +58,7 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
       const updated = await opportunitiesApi.setSaved(opportunity.id, !saved);
       setSaved(Boolean(updated.saved));
       onSavedChange?.(opportunity.id, Boolean(updated.saved));
-      setFeedback(updated.saved ? "Challenge saved to your account." : "Challenge removed from your saved items.");
+      setFeedback(updated.saved ? "Opportunity saved to your account." : "Opportunity removed from your saved items.");
     } catch (error) {
       setFeedback(error?.message || "Could not update your saved challenge. Try again.");
     } finally {
@@ -63,7 +80,7 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
-        setFeedback("Challenge link copied.");
+        setFeedback("Opportunity link copied.");
       } else {
         setFeedback("Share this challenge link: " + url);
       }
@@ -72,7 +89,7 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
     }
   }
 
-  return <div className="bw-timeline-opportunity-card bw-challenge-card">
+  return <div className={"bw-timeline-opportunity-card bw-challenge-card" + (isChallenge ? "" : " bw-job-card")}>
     <div className="bw-challenge-overview">
       <div className="bw-challenge-primary">
         <h3 className="bw-challenge-title"><Link to={detail}>{opportunity.title}</Link></h3>
@@ -85,29 +102,42 @@ function ChallengeCard({ opportunity, organization, profile, detail, photoUrl, f
             {Boolean(organization.verifiedAt) && <VerificationBadge kind="organization" />}
           </span>
         </div>
-        <ChallengeCoHosts collaborators={opportunity.collaborators} compact />
-        <div className="bw-challenge-prize" aria-label="Challenge prize">
-          <strong title={prizeText}>{prizeText}</strong>
-        </div>
+        {isChallenge ? <>
+          <ChallengeCoHosts collaborators={opportunity.collaborators} compact />
+          <div className="bw-challenge-prize" aria-label="Challenge prize">
+            <strong title={prizeText}>{prizeText}</strong>
+          </div>
+        </> : <>
+          {opportunity.description && <p className="bw-job-description">{opportunity.description}</p>}
+          <div className="bw-job-facts">
+            {opportunity.location && <span><NavigationIcon name="pin" size={14} />{opportunity.location}</span>}
+            <span><NavigationIcon name="work" size={14} />{mode}</span>
+          </div>
+        </>}
         <p className="bw-challenge-deadline"><time dateTime={opportunity.deadline}
-          title={"Deadline: " + formattedDeadline}>{challengeDeadlineReminder(opportunity.deadline, currentTime)}</time></p>
-        <ChallengeParticipantFacepile summary={opportunity.participantSummary} />
+          title={"Deadline: " + formattedDeadline}>{isChallenge
+            ? challengeDeadlineReminder(opportunity.deadline, currentTime)
+            : opportunityDaysRemaining(opportunity.deadline, currentTime)}</time></p>
+        {isChallenge && <ChallengeParticipantFacepile summary={opportunity.participantSummary} />}
       </div>
       <Link className="bw-challenge-cover-link" to={detail} aria-label={"Open " + opportunity.title}>
-        <img className="bw-challenge-cover-photo" src={cover} alt="" loading="lazy" />
+        {cover ? <img className="bw-challenge-cover-photo" src={cover} alt="" loading="lazy" />
+          : <span className="bw-job-cover-fallback" aria-hidden="true">
+              <NavigationIcon name="work" size={32} /><span>Jobs & Internships</span>
+            </span>}
       </Link>
     </div>
 
     <div className="bw-challenge-divider" role="separator" aria-hidden="true" />
     <div className="bw-challenge-actions">
       <Link className="bw-timeline-opportunity-cta bw-challenge-participate" to={detail}>
-        Take Part
+        {isChallenge ? "Take Part" : "Apply"}
       </Link>
       <div className="bw-challenge-secondary">
-        <button type="button" aria-label="Share challenge" title="Share challenge" onClick={() => void share()}>
+        <button type="button" aria-label={"Share " + label} title={"Share " + label} onClick={() => void share()}>
           <NavigationIcon name="share" size={18} /><span>Share</span>
         </button>
-        <button type="button" aria-label={saved ? "Unsave challenge" : "Save challenge"} title={saved ? "Unsave challenge" : "Save challenge"}
+        <button type="button" aria-label={saved ? "Unsave " + label : "Save " + label} title={saved ? "Unsave " + label : "Save " + label}
           aria-pressed={saved} disabled={saving} onClick={() => void toggleSaved()}>
           <NavigationIcon name="bookmark" size={18} active={saved} /><span>{saved ? "Saved" : "Save"}</span>
         </button>
@@ -139,8 +169,8 @@ export default function ExploreOpportunityCard({ opportunity, onSavedChange }) {
       <span><NavigationIcon name={type.icon} size={18} />{category}</span>
       <Link to={categoryHref}>See all <NavigationIcon name="chevron-right" size={16} /></Link>
     </header>
-    {opportunity.type === "CHALLENGE"
-      ? <ChallengeCard opportunity={opportunity} organization={organization} profile={profile} detail={detail}
+    {(opportunity.type === "CHALLENGE" || opportunity.type === "JOB")
+      ? <FeaturedOpportunityCard opportunity={opportunity} organization={organization} profile={profile} detail={detail}
           photoUrl={photoUrl} formattedDeadline={formattedDeadline} onSavedChange={onSavedChange} />
       : <div className="bw-timeline-opportunity-card">
         <Link className="bw-timeline-avatar" to={profile} aria-label={"View " + organization.name + " profile"}>
@@ -160,7 +190,8 @@ export default function ExploreOpportunityCard({ opportunity, onSavedChange }) {
             <p className="bw-timeline-opportunity-description">{opportunity.description}</p>
             <div className="bw-timeline-opportunity-meta">
               <span><NavigationIcon name="pin" size={15} />{opportunity.location}</span>
-              <span><NavigationIcon name="calendar" size={15} />Closes {formattedDeadline}</span>
+              <span><NavigationIcon name="calendar" size={15} /><RemainingDeadline
+                deadline={opportunity.deadline} formattedDeadline={formattedDeadline} /></span>
             </div>
             <div className="bw-timeline-opportunity-actions">
               <Link className="bw-timeline-opportunity-cta" to={detail}>{type.action} on BrightWay <NavigationIcon name="chevron-right" size={17} /></Link>
