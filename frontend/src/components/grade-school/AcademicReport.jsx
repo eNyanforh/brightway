@@ -37,7 +37,7 @@ export default function AcademicReport({ data, onClose }) {
       <Stat label="Attendance" value={total ? Math.round(100 * present / total) + "%" : "—"} note={total ? present + " present or late / " + total + " finalized" : "No final records"} />
       <Stat label="Assessments" value={assessments.length} note="Published results" />
     </div>
-    <nav className="bw-campus-dash-tabs" aria-label="Student Campus sections">{TABS.map(([key, label]) => <button type="button" key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}{key === "announcements" && announcements.length > 0 ? <span className="bw-campus-dash-count">{announcements.length}</span> : null}</button>)}</nav>
+    <nav className="bw-campus-dash-tabs" aria-label="Student Campus sections">{TABS.map(([key, label]) => <button type="button" key={key} aria-label={label} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}{key === "announcements" && announcements.length > 0 ? <span className="bw-campus-dash-count">{announcements.length}</span> : null}</button>)}</nav>
     <div className="bw-campus-dash-content">
       <div hidden={tab !== "overview"} className="bw-campus-dash-overview">
         <section className="bw-campus-dash-panel"><h4>My subjects</h4><p className="bw-campus-dash-description">Class and teacher assignments for this academic period.</p>
