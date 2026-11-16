@@ -11,7 +11,7 @@ export default function CampusNavigation({ campus, campusId, id, mobile = false,
   const has = permission => admin || permissions.includes(permission);
   const items = [
     { to: base, label: "Overview", icon: "explore", end: true },
-    ...(admin || has("organization.campus.setup.manage") || has("organization.campus.settings.manage")
+    ...(admin || has("organization.campus.manage")
       ? [{ to: base + "/setup", label: "Campus setup", icon: "work" }] : []),
     ...(has("organization.campus.academics.manage") || has("organization.campus.teach")
       ? [{ to: base + "/academics", label: "Academics", icon: "learning" }] : []),
