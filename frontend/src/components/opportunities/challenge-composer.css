@@ -1,0 +1,256 @@
+/* Challenge-only composer. Mirrors the reference's spacious cover-left /
+   fields-right rhythm, using BrightWay's own branding and validated fields. */
+.bw-op-wizard-overlay.bw-op-challenge-overlay {
+  padding: clamp(10px, 2vw, 28px);
+  align-items: center;
+}
+.bw-op-challenge-overlay .bw-op-wizard {
+  width: min(1180px, 100%);
+  max-height: 94dvh;
+  overflow-y: auto;
+  border-radius: 18px;
+  background: #fff;
+}
+.bw-op-challenge-overlay .bw-op-wizard-header {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  align-items: center;
+  padding: 16px clamp(20px, 3vw, 38px);
+  border-bottom: 1px solid #f0f1f3;
+  background: rgba(255, 255, 255, .97);
+}
+.bw-op-challenge-overlay .bw-op-wizard-header h2 {
+  font-size: 19px;
+}
+.bw-op-challenge-overlay .bw-op-wizard-header > button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.bw-op-challenge-overlay .bw-op-wizard-fields.is-challenge-composer {
+  padding: 0;
+}
+.bw-op-challenge-composer {
+  display: grid;
+  grid-template-columns: minmax(0, .85fr) minmax(0, 1.4fr);
+  gap: clamp(24px, 3.8vw, 56px);
+  align-items: start;
+  padding: 26px clamp(20px, 3vw, 38px) 8px;
+  min-width: 0;
+}
+.bw-op-challenge-cover-column {
+  position: sticky;
+  top: 100px;
+  min-width: 0;
+}
+.bw-op-challenge-cover-stage {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 13px;
+  background: #f1f3f6;
+  color: #667085;
+}
+.bw-op-challenge-cover-stage > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.bw-op-challenge-cover-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  text-align: center;
+}
+.bw-op-challenge-cover-placeholder strong {
+  font-size: 16px;
+  color: #344054;
+}
+.bw-op-challenge-cover-placeholder span {
+  font-size: 12px;
+  color: #667085;
+}
+.bw-op-challenge-cover-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 8px;
+}
+.bw-op-challenge-cover-tools .bw-op-wizard-upload {
+  min-height: 44px;
+  padding: 11px 16px;
+}
+.bw-op-challenge-cover-tools .bw-op-text-button {
+  min-height: 44px;
+}
+.bw-op-challenge-cover-help {
+  margin: 0;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.bw-op-challenge-main {
+  min-width: 0;
+  padding-bottom: 8px;
+}
+.bw-op-challenge-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.bw-op-challenge-eyebrow {
+  font-size: 11px;
+  font-weight: 750;
+  color: #667085;
+  letter-spacing: .06em;
+}
+.bw-op-challenge-audience {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 12px;
+}
+.bw-op-challenge-main > h3 {
+  margin: 2px 0 14px;
+  font-size: clamp(21px, 2.3vw, 28px);
+  letter-spacing: -.03em;
+  font-weight: 750;
+  line-height: 1.2;
+}
+.bw-op-challenge-overlay .bw-op-editor .bw-op-challenge-title-field {
+  display: grid;
+  margin: 0;
+  gap: 7px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 600;
+}
+.bw-op-challenge-overlay .bw-op-editor .bw-op-challenge-title-field input {
+  padding: 9px 0 13px;
+  border: 0;
+  border-bottom: 1px solid #d0d5dd;
+  border-radius: 0;
+  background: transparent;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.22;
+  font-weight: 700;
+  letter-spacing: -.035em;
+  color: #101828;
+}
+.bw-op-challenge-overlay .bw-op-editor .bw-op-challenge-title-field input:focus {
+  outline: 0;
+  border-bottom: 2px solid #175cd3;
+}
+.bw-op-challenge-section {
+  min-width: 0;
+  margin: 0;
+  padding: 20px 0 15px;
+  border-bottom: 1px solid #eaecf0;
+}
+.bw-op-challenge-section > h4,
+.bw-op-challenge-section .bw-collaborator-picker > h4 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  color: #101828;
+  font-weight: 750;
+  letter-spacing: -.01em;
+}
+.bw-op-challenge-section > label,
+.bw-op-challenge-section .bw-collaborator-picker > label {
+  font-size: 12px;
+}
+.bw-op-challenge-overlay .bw-op-editor .bw-op-challenge-section textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+.bw-op-challenge-section .bw-op-challenge-topics {
+  margin: 0;
+}
+.bw-op-challenge-section .bw-op-challenge-topics legend {
+  color: #667085;
+}
+.bw-op-challenge-section .bw-op-wizard-help {
+  margin: 0 0 12px;
+}
+.bw-op-challenge-section .bw-op-wizard-prize {
+  background: #f9fafb;
+}
+.bw-op-challenge-section > .bw-collaborator-picker,
+.bw-op-challenge-section > .bw-challenge-post-types {
+  min-width: 0;
+}
+.bw-op-challenge-questions .bw-op-form-builder {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.bw-op-challenge-questions .bw-op-form-builder > h3 {
+  font-size: 15px;
+  margin: 0 0 9px;
+}
+.bw-op-challenge-native {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 18px 0 0;
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.bw-op-challenge-native svg { flex: 0 0 auto; }
+.bw-op-challenge-overlay .bw-op-wizard-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 8;
+  padding: 15px clamp(20px, 3vw, 38px);
+  background: rgba(255,255,255,.98);
+}
+.bw-op-challenge-overlay .bw-op-wizard-footer .bw-op-primary {
+  min-width: 180px;
+}
+@media (max-width: 850px) {
+  .bw-op-challenge-composer {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .bw-op-challenge-cover-column {
+    position: static;
+  }
+  .bw-op-challenge-cover-stage {
+    aspect-ratio: 16 / 10;
+    max-height: 300px;
+  }
+  .bw-op-challenge-cover-tools { margin-top: 10px; }
+}
+@media (max-width: 720px) {
+  .bw-op-wizard-overlay.bw-op-challenge-overlay { padding: 0; }
+  .bw-op-challenge-overlay .bw-op-wizard {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .bw-op-challenge-overlay .bw-op-wizard-header { padding: 12px 18px; }
+  .bw-op-challenge-composer { padding: 18px 18px 8px; gap: 18px; }
+  .bw-op-challenge-cover-stage { max-height: 220px; }
+  .bw-op-challenge-overlay .bw-op-wizard-footer { padding: 12px 18px; }
+  .bw-op-challenge-overlay .bw-op-wizard-footer .bw-op-primary { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-op-challenge-overlay * { scroll-behavior: auto; }
+}
