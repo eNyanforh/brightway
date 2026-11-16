@@ -12,3 +12,14 @@ export function challengeDeadlineReminder(deadline, now = Date.now()) {
   const days = Math.ceil(remaining / DAY_MS);
   return `Closes in ${days} ${days === 1 ? "day" : "days"}`;
 }
+
+/** Human-readable whole/partial days remaining for non-Challenge listings. */
+export function opportunityDaysRemaining(deadline, now = Date.now()) {
+  const end = new Date(deadline).getTime();
+  if (!Number.isFinite(end)) return "Deadline unavailable";
+  const remaining = end - now;
+  if (remaining <= 0) return "Closed";
+  if (remaining < DAY_MS) return "Less than 1 day remaining";
+  const days = Math.ceil(remaining / DAY_MS);
+  return `${days} ${days === 1 ? "day" : "days"} remaining`;
+}

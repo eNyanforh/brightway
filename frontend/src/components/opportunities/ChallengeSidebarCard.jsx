@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
 import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER, challengeCardPrize } from "../../../../shared/challenges.mjs";
-import { challengeDeadlineReminder } from "./challenge-deadline";
+import { challengeDeadlineReminder, opportunityDaysRemaining } from "./challenge-deadline";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import OrganizationAvatar from "../profile/OrganizationAvatar";
 import NavigationIcon from "../layout/NavigationIcon";
@@ -19,10 +19,9 @@ export default function ChallengeSidebarCard({ opportunity }) {
   const isChallenge = opportunity.type === "CHALLENGE";
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   useEffect(() => {
-    if (!isChallenge) return undefined;
     const interval = window.setInterval(() => setCurrentTime(Date.now()), 60_000);
     return () => window.clearInterval(interval);
-  }, [isChallenge]);
+  }, []);
   if (!organization || !type) return null;
   const detail = "/opportunities/" + encodeURIComponent(opportunity.id);
   const sponsor = "/organizations/" + encodeURIComponent(organization.id);
@@ -71,7 +70,7 @@ export default function ChallengeSidebarCard({ opportunity }) {
           <span><NavigationIcon name="work" size={14} />{mode}</span>
         </div>}
         <time dateTime={opportunity.deadline} title={"Deadline: " + formatted}>
-          {isChallenge ? challengeDeadlineReminder(opportunity.deadline, currentTime) : "Closes " + formatted}
+          {isChallenge ? challengeDeadlineReminder(opportunity.deadline, currentTime) : opportunityDaysRemaining(opportunity.deadline, currentTime)}
         </time>
       </div>
       {isChallenge && <ChallengeParticipantFacepile summary={opportunity.participantSummary} />}
