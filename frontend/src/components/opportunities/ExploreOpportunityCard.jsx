@@ -58,7 +58,7 @@ function FeaturedOpportunityCard({ opportunity, organization, profile, detail, p
       const updated = await opportunitiesApi.setSaved(opportunity.id, !saved);
       setSaved(Boolean(updated.saved));
       onSavedChange?.(opportunity.id, Boolean(updated.saved));
-      setFeedback(updated.saved ? "Opportunity saved to your account." : "Opportunity removed from your saved items.");
+      setFeedback(updated.saved ? `${isChallenge ? "Challenge" : "Job"} saved to your account.` : `${isChallenge ? "Challenge" : "Job"} removed from your saved items.`);
     } catch (error) {
       setFeedback(error?.message || "Could not update your saved opportunity. Try again.");
     } finally {
@@ -80,12 +80,12 @@ function FeaturedOpportunityCard({ opportunity, organization, profile, detail, p
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
-        setFeedback("Opportunity link copied.");
+        setFeedback(isChallenge ? "Challenge link copied." : "Job link copied.");
       } else {
-        setFeedback("Share this opportunity link: " + url);
+        setFeedback(`Share this ${label} link: ` + url);
       }
     } catch {
-      setFeedback("Share this opportunity link: " + url);
+      setFeedback(`Share this ${label} link: ` + url);
     }
   }
 
