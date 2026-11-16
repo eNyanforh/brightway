@@ -36,5 +36,5 @@ it("presents TVET intake training, competencies and issued certificate in distin
   await user.click(within(campus).getByRole("button", { name: "Competencies" }));
   expect(within(campus).getByText(/Attempt 1: Competent/)).toBeTruthy();
   await user.click(within(campus).getByRole("button", { name: "Certificate" }));
-  expect(within(campus).getByText("Automotive Mechanics Certificate")).toBeTruthy();
+  expect(within(campus).getByRole("heading", { name: "Automotive Mechanics Certificate" })).toBeTruthy();
 });
