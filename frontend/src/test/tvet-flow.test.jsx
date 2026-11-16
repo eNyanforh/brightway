@@ -22,3 +22,19 @@ it("completion stays disabled until the report requirements are met",async()=>{a
 it("completed learners open the TVET report using their own engine",async()=>{schoolApi.myCampus.mockResolvedValue({items:[{engine:"TVET",id:"enrolment",schoolName:"Institute",status:"COMPLETED",studentStatus:"ACTIVE",period:"Intake",section:"A"}]});api.myReport.mockResolvedValue(report());const u=mount(<MyCampus/>);await u.click(await screen.findByRole("button",{name:"Open my Campus"}));await screen.findByRole("region",{name:"TVET learner record"});expect(api.myReport).toHaveBeenCalledWith("enrolment",expect.any(AbortSignal));expect(schoolApi.myReport).not.toHaveBeenCalled();});
 it("sponsors confirm only through the TVET relationship endpoint",async()=>{schoolApi.guardians.mockResolvedValue({items:[{engine:"TVET",id:"support",schoolName:"Institute",relationship:"SPONSOR",student:{fullName:"Learner"},status:"PENDING",version:1,registrations:[]}]});api.supporterDecision.mockResolvedValue({status:"CONFIRMED"});const u=mount(<MyCampus guardians/>);await u.click(await screen.findByRole("button",{name:"Confirm learner relationship"}));expect(api.supporterDecision).toHaveBeenCalledWith("support",{expectedVersion:1,decision:"CONFIRM"});expect(schoolApi.guardianDecision).not.toHaveBeenCalled();});
 it("pre-enrolled learners see Come Later without requesting a report",async()=>{schoolApi.myCampus.mockResolvedValue({items:[{engine:"TVET",id:"enrolment",schoolName:"Institute",status:"PRE_REGISTERED",studentStatus:"PRE_REGISTERED",period:"Intake",section:"A",message:"Welcome! Access is being finalized."}]});mount(<MyCampus/>);await screen.findByRole("link",{name:"Come Later"});expect(api.myReport).not.toHaveBeenCalled();});
+
+
+it("presents TVET intake training, competencies and issued certificate in distinct learner views", async () => {
+  schoolApi.myCampus.mockResolvedValue({ items: [{ engine: "TVET", id: "enrolment", campusId: "campus", schoolName: "Synthetic TVET Institute", status: "COMPLETED", studentStatus: "ACTIVE", period: "November intake", section: "Workshop A" }] });
+  const certificate = { title: "Automotive Mechanics Certificate", number: "CERT-001", issuedAt: "2026-12-31", revokedAt: null, snapshot: { learner: { fullName: "Synthetic Learner" }, program: "Automotive Mechanics", intake: "November intake", institution: "Synthetic TVET Institute", completedAt: "2026-12-30" } };
+  api.myReport.mockResolvedValue({ ...report(), enrolment: { ...enrolment, status: "COMPLETED", certificate }, assignments: [{ ...assignment, schedules: [{ id: "training", weekday: 2, startsAt: 540, endsAt: 660, room: "Workshop 2" }] }], progress: { ...report().progress, eligible: true, blockers: [], assessments: [{ ...assessment, attempts: [{ id: "attempt", attempt: 1, outcome: "COMPETENT", heldOn: "2026-11-15", score: null }] }] } });
+  const user = mount(<MyCampus />);
+  await user.click(await screen.findByRole("button", { name: "Open my Campus" }));
+  const campus = await screen.findByRole("region", { name: "TVET learner record" });
+  await user.click(within(campus).getByRole("button", { name: "Training schedule" }));
+  expect(within(campus).getByRole("table")).toHaveProperty("textContent", expect.stringContaining("Workshop 2"));
+  await user.click(within(campus).getByRole("button", { name: "Competencies" }));
+  expect(within(campus).getByText(/Attempt 1: Competent/)).toBeTruthy();
+  await user.click(within(campus).getByRole("button", { name: "Certificate" }));
+  expect(within(campus).getByRole("heading", { name: "Automotive Mechanics Certificate" })).toBeTruthy();
+});
