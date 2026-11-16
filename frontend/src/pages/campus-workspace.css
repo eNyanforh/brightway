@@ -1,0 +1,33 @@
+.bw-campus-workspace-page{width:100%;max-width:1440px;margin:0 auto;padding:0 0 56px;color:#191919;min-width:0}
+.bw-campus-workspace-heading{display:flex;align-items:center;justify-content:space-between;gap:22px;margin:0 0 22px;padding:22px 26px;background:#fff;border:1px solid #e5e8ed;border-radius:18px}
+.bw-campus-workspace-identity{display:flex;align-items:center;min-width:0;gap:15px}
+.bw-campus-workspace-mark{width:54px;height:54px;display:grid;place-items:center;border-radius:15px;color:#fff;background:#191919;flex:none}
+.bw-campus-workspace-identity p{margin:0 0 4px;color:#1a63ca;font-weight:800;letter-spacing:.12em;font-size:10px}
+.bw-campus-workspace-identity h1{font-size:clamp(19px,2.6vw,27px);letter-spacing:-.035em;line-height:1.25;margin:0 0 4px;overflow-wrap:anywhere}
+.bw-campus-workspace-identity span:not(.bw-campus-workspace-mark){color:#646e7d;font-size:13px}
+.bw-campus-workspace-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.bw-campus-workspace-actions a{border:1px solid #dce2eb;border-radius:10px;color:#232323;background:#fff;text-decoration:none;padding:11px 13px;font-size:12px;font-weight:750;min-height:44px;box-sizing:border-box}
+.bw-campus-workspace-actions a:hover{background:#f3f6fb}
+.bw-campus-workspace-page .bw-campus-root{max-width:none;color:#181818}
+.bw-campus-workspace-page .bw-campus-panel{border:1px solid #e4e8ef;background:#fff;border-radius:16px;padding:24px;margin:0}
+.bw-campus-workspace-page .bw-campus-form,.bw-campus-workspace-page .bw-campus-announcement-form{border:0;background:transparent;margin:0;padding:0;display:grid;gap:13px}
+.bw-campus-workspace-page .bw-campus-muted-button{background:#fff;color:#334155;border-color:#d1d9e5}
+.bw-campus-workspace-page .bw-campus-announcement{background:#fff;border:1px solid #e4e8ef;padding:16px;border-radius:13px;margin:0}
+.bw-campus-workspace-page .bw-campus-link-button{background:none;border:0;color:#b14141;font-size:12px;padding:0}
+.bw-campus-workspace-page .bw-campus-form button,.bw-campus-workspace-page .bw-campus-announcement-form button{background:#191919;border-color:#191919;color:#fff;border-radius:10px;min-height:44px;font-weight:750}
+.bw-campus-workspace-page .bw-campus-hero{border-radius:18px;margin-bottom:20px}
+.bw-campus-workspace-page .bw-campus-layout{grid-template-columns:minmax(0,1fr) minmax(225px,280px)}
+.bw-campus-entry-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.bw-campus-entry-card{padding:25px;display:flex;flex-direction:column;align-items:flex-start;min-height:205px;background:#fff;border:1px solid #e3e7ed;border-radius:18px}
+.bw-campus-entry-card h3{margin:15px 0 8px;font-size:22px;letter-spacing:-.035em}
+.bw-campus-entry-card p{flex:1;margin:0 0 20px;color:#667085;font-size:13px;line-height:1.65}
+.bw-campus-entry-card a{display:inline-flex;min-height:44px;align-items:center;padding:10px 15px;border-radius:10px;background:#171717;color:#fff;font-weight:700;text-decoration:none;font-size:13px}
+.bw-campus-entry-card a:hover{background:#2e2e2e}
+.bw-campus-workspace-empty{border:1px solid #e0e5eb;background:#fff;border-radius:16px;padding:32px;min-height:180px}
+.bw-campus-workspace-empty h3{font-size:21px;margin:0 0 10px}
+.bw-campus-workspace-empty p{font-size:14px;color:#616e7c;line-height:1.6;max-width:650px}
+.bw-campus-workspace-empty a{color:#1a64c9;font-weight:750}
+.bw-campus-access-state{border:1px solid #e5e7ec;background:#fff;border-radius:16px;padding:32px}
+.bw-campus-access-state button{background:#191919;border:0;border-radius:10px;color:#fff;min-height:44px;padding:10px 17px}
+@media(max-width:1120px){.bw-campus-entry-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bw-campus-workspace-page .bw-campus-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){.bw-campus-workspace-heading{flex-direction:column;align-items:flex-start;padding:18px;gap:18px}.bw-campus-workspace-actions{justify-content:flex-start}.bw-campus-entry-grid{grid-template-columns:1fr}.bw-campus-entry-card{min-height:0;padding:22px}.bw-campus-workspace-page .bw-campus-panel{padding:18px}}
