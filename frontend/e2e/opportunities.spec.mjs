@@ -323,6 +323,52 @@ test("organization Challenge composer uses cover-left layout and preserves nativ
   if (isMobile) await expect(page.locator(".bw-op-dashboard")).toBeVisible();
 });
 
+for (const [type, label] of [["SCHOLARSHIP", "Scholarship"], ["EVENT", "Event"]]) {
+  test(label + " uses the same responsive composer, uploads a cover, and saves type-specific fields", async ({ page, isMobile }) => {
+    const state = await fixture(page);
+    await page.goto(base + "/opportunities");
+    await page.getByRole("button", { name: "+ Create opportunity" }).click();
+    const editor = page.getByRole("dialog", { name: "Create an opportunity" });
+    await editor.getByRole("radio", { name: new RegExp(label) }).click();
+    await editor.getByRole("button", { name: "Continue" }).click();
+    await expect(editor.getByRole("heading", { name: "Create your " + label })).toBeVisible();
+    await expect(editor.getByRole("navigation", { name: "Creation progress" })).toHaveCount(0);
+    const coverStage = editor.locator(".bw-op-standard-preview-stage");
+    const [coverBox, formBox] = await Promise.all([
+      coverStage.boundingBox(), editor.locator(".bw-op-standard-main").boundingBox(),
+    ]);
+    if (isMobile) expect(formBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height - 1);
+    else expect(formBox.x).toBeGreaterThanOrEqual(coverBox.x + coverBox.width - 1);
+    await editor.getByLabel("Title", { exact: true }).fill(label + " for young researchers");
+    await expect(editor.locator(".bw-op-standard-poster strong"))
+      .toHaveText(label + " for young researchers");
+    await editor.getByLabel("Description", { exact: true })
+      .fill("Support young researchers with development, learning, and meaningful career opportunities.");
+    await editor.getByLabel("Format").selectOption("HYBRID");
+    await editor.getByLabel("Location").fill("Monrovia, Liberia");
+    await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCXUAAAAASUVORK5CYII=", "base64");
+    await editor.getByLabel("Opportunity cover photo").setInputFiles({
+      name: "cover.png", mimeType: "image/png", buffer: png,
+    });
+    await expect.poll(() => state.assets.length).toBe(1);
+    await expect(coverStage.locator("img")).toHaveAttribute("src", /challenge-assets/);
+    await expect(coverStage.locator("img")).toHaveCSS("object-fit", "cover");
+    await editor.getByRole("button", { name: "Save draft" }).click();
+    await expect(editor).toHaveCount(0);
+    expect(state.drafts).toHaveLength(1);
+    const saved = state.drafts[0];
+    expect(saved.type).toBe(type);
+    expect(saved.workMode).toBe("HYBRID");
+    expect(saved.location).toBe("Monrovia, Liberia");
+    expect(saved.coverAssetId).toBe(state.assets[0].id);
+    expect(saved.postRequirements).toEqual([]);
+    expect(saved.collaboratorIds).toEqual([]);
+    await noOverflow(page);
+    expect(state.errors).toEqual([]);
+  });
+}
+
 test("organization publishers create and publish a form, and reviewers send an applicant decision", async ({ page, isMobile }, testInfo) => {
   const state = await fixture(page);
   state.application = { id: aid, opportunity: state.opportunity, status: "SUBMITTED", version: 1, answers: { [qid]: false }, files: [], events: [], submittedAt: "2026-11-11T12:00:00Z", profileSnapshot: { name: "Synthetic Applicant", headline: "Data analyst", location: {}, skills: ["Data"], interests: ["Education"], credentials: [] }, opportunitySnapshot: { title: state.opportunity.title, organization: organization.name, questions: state.opportunity.questions } };
