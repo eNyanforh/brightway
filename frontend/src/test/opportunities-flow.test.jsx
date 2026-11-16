@@ -68,7 +68,7 @@ it("reviewers keep feedback after a conflict and clear private applications when
   denied = true; await user.click(screen.getByRole("button", { name: "Reload application queue" })); await screen.findByText("Organization access revoked");
   expect(screen.queryByText("Synthetic Applicant")).toBeNull();
 });
-it("the publisher uses type selection and the step-by-step form to save a BrightWay draft", async () => {
+it("the publisher creates a Job with the shared single-page composer and saves a BrightWay draft", async () => {
   const saved = vi.fn();
   const fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
   vi.stubGlobal("fetch", fetch);
@@ -76,15 +76,20 @@ it("the publisher uses type selection and the step-by-step form to save a Bright
   expect(screen.getByRole("heading", { name: "What opportunity do you want to offer?" })).toBeTruthy();
   await user.click(screen.getByRole("radio", { name: /Job/ }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("heading", { name: "Create your Job" })).toBeTruthy();
+  expect(screen.getByLabelText("Job cover preview")).toBeTruthy();
+  expect(screen.getByLabelText("Opportunity cover photo")).toBeTruthy();
+  expect(screen.queryByRole("navigation", { name: "Creation progress" })).toBeNull();
   await user.type(screen.getByLabelText("Title", { exact: true }), "Data internship");
+  expect(screen.getByText("Data internship", { selector: ".bw-op-standard-poster strong" })).toBeTruthy();
   await user.type(screen.getByLabelText("Description", { exact: true }), "Learn research and data quality skills with our team.");
   await user.type(screen.getByLabelText("Location"), "Monrovia");
-  await user.click(screen.getByRole("button", { name: "Continue" }));
+
   await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
   await user.click(screen.getByRole("button", { name: "+ Add question" }));
   await user.type(screen.getByLabelText("Question 1 text"), "Tell us about your experience");
-  await user.click(screen.getByRole("button", { name: "Continue" }));
-  expect(screen.getByRole("heading", { name: "Review" })).toBeTruthy();
+
+  expect(screen.getByRole("heading", { name: "Application questions" })).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Save draft" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
   const body = JSON.parse(fetch.mock.calls[0][1].body);
