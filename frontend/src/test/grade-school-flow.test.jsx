@@ -84,3 +84,34 @@ describe("learner and guardian Campus access", () => {
     const user = mount(<MyCampus guardians />); await screen.findByText("Synthetic Student"); expect(api.guardianReport).not.toHaveBeenCalled(); await user.click(screen.getByRole("button", { name: "Confirm guardian relationship" })); expect(api.guardianDecision).toHaveBeenCalledWith("link", { expectedVersion: 1, decision: "CONFIRM" });
   });
 });
+
+
+it("opens a sectioned learner dashboard using only finalized school report data", async () => {
+  api.myCampus.mockResolvedValue({ items: [{ id: "registration", campusId: "school", schoolName: "Synthetic Academy", year: "2026", period: "Semester 1", section: "Grade 10 / A", status: "ACTIVE", studentStatus: "ACTIVE" }] });
+  api.myReport.mockResolvedValue({
+    schoolName: "Synthetic Academy", registration: r,
+    subjects: [{ offering: { ...offering, schedules: [{ id: "schedule", weekday: 1, startsAt: 480, endsAt: 540, room: "B2" }] }, grade: { percent: 88, passingMark: 50, outcome: "PASS" }, assessments: [{ id: "quiz", title: "Algebra quiz", heldOn: "2026-11-12", score: 18, maxScore: 20, weight: 20 }], attendance: [{ id: "attendance", heldOn: "2026-11-11", status: "PRESENT", startsAt: 480 }] }],
+    announcements: [{ id: "announcement", title: "School timetable update", body: "Please check your classroom.", createdAt: "2026-11-11T08:00:00Z" }],
+  });
+  const user = mount(<MyCampus />);
+  await user.click(await screen.findByRole("button", { name: "Open my Campus" }));
+  const dashboard = await screen.findByRole("region", { name: "Student academic report" });
+  expect(within(dashboard).getByText("88%")).toBeTruthy();
+  await user.click(within(dashboard).getByRole("button", { name: "Timetable" }));
+  expect(within(dashboard).getByRole("table")).toHaveProperty("textContent", expect.stringContaining("Monday"));
+  await user.click(within(dashboard).getByRole("button", { name: "Attendance" }));
+  expect(within(dashboard).getByRole("table")).toHaveProperty("textContent", expect.stringContaining("Present"));
+  await user.click(within(dashboard).getByRole("button", { name: "Assessments" }));
+  expect(within(dashboard).getByRole("table")).toHaveProperty("textContent", expect.stringContaining("Algebra quiz"));
+  await user.click(within(dashboard).getByRole("button", { name: "Announcements" }));
+  expect(within(dashboard).getByText("School timetable update")).toBeTruthy();
+});
+
+it("shows a waiting dialog for a selected pre-registered school and never requests a report", async () => {
+  api.myCampus.mockResolvedValue({ items: [{ id: "registration", campusId: "school", schoolName: "Synthetic Academy", status: "PRE_REGISTERED", studentStatus: "PRE_REGISTERED", period: "Semester 1", section: "Grade 10 / A", message: "Welcome, Student! Access is being finalized." }] });
+  mount(<MyCampus campusId="school" />);
+  const dialog = await screen.findByRole("dialog", { name: "Synthetic Academy" });
+  expect(within(dialog).getByText(/Access is being finalized/)).toBeTruthy();
+  expect(within(dialog).getByRole("link", { name: "Come Later" }).getAttribute("href")).toBe("/explore");
+  expect(api.myReport).not.toHaveBeenCalled();
+});
