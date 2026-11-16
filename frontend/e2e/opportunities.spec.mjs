@@ -64,6 +64,29 @@ async function fixture(page) {
   return state;
 }
 async function noOverflow(page) { expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true); }
+test("Opportunities page intro is unboxed and aligned to the page edges", async ({ page }) => {
+  await fixture(page);
+  await page.goto("/opportunities");
+  const header = page.locator(".bw-op-page > .bw-op-hero");
+  const tabs = page.getByRole("navigation", { name: "Opportunity views" });
+  await expect(header.getByRole("heading", { name: "Opportunities that move you forward." })).toBeVisible();
+  await expect(header).toHaveCSS("border-top-width", "0px");
+  await expect(header).toHaveCSS("padding-left", "0px");
+  await expect(header).toHaveCSS("padding-right", "0px");
+  await expect(header).toHaveCSS("background-image", "none");
+  const [headerBounds, tabsBounds] = await Promise.all([header.boundingBox(), tabs.boundingBox()]);
+  expect(headerBounds.x).toBeCloseTo(tabsBounds.x, 0);
+  expect(headerBounds.x + headerBounds.width).toBeCloseTo(tabsBounds.x + tabsBounds.width, 0);
+  const description = header.locator(".bw-op-intro");
+  if (await description.isVisible()) {
+    await expect(description).toHaveCSS("max-width", "none");
+    const introBounds = await description.boundingBox();
+    expect(introBounds.x).toBeCloseTo(tabsBounds.x, 0);
+    expect(introBounds.x + introBounds.width).toBeCloseTo(tabsBounds.x + tabsBounds.width, 0);
+  }
+  await noOverflow(page);
+});
+
 test("members discover four opportunity types, save and submit an application, and withdraw", async ({ page }, testInfo) => {
   const state = await fixture(page);
   await page.goto("/opportunities");
