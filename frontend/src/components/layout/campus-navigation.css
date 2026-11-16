@@ -1,0 +1,15 @@
+.bw-campus-sidebar-heading{margin:8px 10px 18px;padding:18px 14px;border:1px solid #e4e8ee;border-radius:15px;background:#fff}
+.bw-campus-sidebar-heading>span{color:#1b66ca;font-size:10px;letter-spacing:.12em;font-weight:800}
+.bw-campus-sidebar-heading h2{margin:9px 0 5px;color:#191919;font-size:18px;line-height:1.35;overflow-wrap:anywhere}
+.bw-campus-sidebar-heading p{margin:0;color:#697386;font-size:12px}
+.bw-campus-sidebar .bw-design-sidebar-nav a{min-height:44px}
+.bw-campus-mobile-navigation{grid-template-columns:repeat(5,minmax(0,1fr))}
+.bw-campus-mobile-navigation .bw-mobile-navigation-label{font-size:10px;text-align:center}
+.bw-campus-shell .bw-app-content{max-width:none;width:100%;box-sizing:border-box}
+.bw-campus-shell .bw-design-layout{min-width:0}
+@media(max-width:700px){
+ .bw-campus-shell .bw-design-navigation-toggle{display:inline-flex}
+ .bw-campus-shell .bw-campus-sidebar.bw-design-sidebar-open{display:block}
+ .bw-campus-mobile-navigation{overflow-x:auto}
+ .bw-campus-mobile-navigation a{min-width:0}
+}
