@@ -323,7 +323,7 @@ test("organization Challenge composer uses cover-left layout and preserves nativ
   if (isMobile) await expect(page.locator(".bw-op-dashboard")).toBeVisible();
 });
 
-test("organization publishers create and publish a form, and reviewers send an applicant decision", async ({ page }, testInfo) => {
+test("organization publishers create and publish a form, and reviewers send an applicant decision", async ({ page, isMobile }, testInfo) => {
   const state = await fixture(page);
   state.application = { id: aid, opportunity: state.opportunity, status: "SUBMITTED", version: 1, answers: { [qid]: false }, files: [], events: [], submittedAt: "2026-11-11T12:00:00Z", profileSnapshot: { name: "Synthetic Applicant", headline: "Data analyst", location: {}, skills: ["Data"], interests: ["Education"], credentials: [] }, opportunitySnapshot: { title: state.opportunity.title, organization: organization.name, questions: state.opportunity.questions } };
   await page.goto(base + "/opportunities");
@@ -331,14 +331,21 @@ test("organization publishers create and publish a form, and reviewers send an a
   const editor = page.getByRole("dialog");
   await editor.getByRole("radio", { name: /Job/ }).click();
   await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByRole("heading", { name: "Create your Job" })).toBeVisible();
+  await expect(editor.getByRole("navigation", { name: "Creation progress" })).toHaveCount(0);
+  const [coverBox, formBox] = await Promise.all([
+    editor.locator(".bw-op-standard-preview-stage").boundingBox(),
+    editor.locator(".bw-op-standard-main").boundingBox(),
+  ]);
+  if (isMobile) expect(formBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height - 1);
+  else expect(formBox.x).toBeGreaterThanOrEqual(coverBox.x + coverBox.width - 1);
   await editor.getByLabel("Title", { exact: true }).fill("Data internship");
+  await expect(editor.locator(".bw-op-standard-poster strong")).toHaveText("Data internship");
   await editor.getByLabel("Description", { exact: true }).fill("Build skills in field research, data quality, and community engagement.");
   await editor.getByLabel("Location", { exact: true }).fill("Monrovia");
-  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
   await editor.getByRole("button", { name: "+ Add question" }).click();
   await editor.getByLabel("Question 1 text").fill("Why would you like to join?");
-  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(editor).toHaveCount(0);
   page.once("dialog", d => d.accept()); await page.getByRole("button", { name: "Publish", exact: true }).click(); await expect(page.locator(".bw-op-managed-card")).toContainText("Published");
