@@ -231,19 +231,36 @@ test("organization publishing workspace filters and displays listings without mo
   expect(state.errors).toEqual([]);
 });
 
-test("organization Challenge wizard supports collaborator, cover, multiple post types and unlimited participants", async ({ page, isMobile }) => {
+test("organization Challenge composer uses cover-left layout and preserves native fields", async ({ page, isMobile }) => {
   const state = await fixture(page);
   await page.goto(base + "/opportunities");
   await page.locator(".bw-op-dashboard-header").getByRole("button", { name: "+ Create opportunity" }).click();
-  const editor = page.getByRole("dialog", { name: "Create an opportunity" });
+  const editor = page.getByRole("dialog");
   await expect(editor.getByRole("heading", { name: "What opportunity do you want to offer?" })).toBeVisible();
   await editor.getByRole("radio", { name: /Challenge/ }).click();
   await editor.getByRole("button", { name: "Continue" }).click();
-  await editor.getByLabel("Challenge Title").fill("Innovation on BrightWay");
+  await expect(editor).toHaveAttribute("aria-modal", "true");
+  await expect(editor.getByRole("heading", { name: "Create your Challenge" })).toBeVisible();
+  await expect(editor.getByRole("heading", { name: "Post types" })).toBeVisible();
+  const coverStage = editor.locator(".bw-op-challenge-cover-stage");
+  const titleField = editor.getByLabel("Challenge Title");
+  const composer = editor.locator(".bw-op-challenge-composer");
+  await expect(composer).toBeVisible();
+  const [coverBox, formBox] = await Promise.all([
+    coverStage.boundingBox(), editor.locator(".bw-op-challenge-main").boundingBox(),
+  ]);
+  if (isMobile) {
+    expect(formBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height - 1);
+  } else {
+    expect(formBox.x).toBeGreaterThanOrEqual(coverBox.x + coverBox.width - 1);
+    expect(coverBox.width).toBeGreaterThan(240);
+  }
+  await expect(editor.getByRole("navigation", { name: "Creation progress" })).toHaveCount(0);
+  await titleField.fill("Innovation on BrightWay");
   await editor.getByLabel("Description").fill("Create a learning tool, upload your work on BrightWay, and win awards.");
   await editor.getByRole("checkbox", { name: "Technology" }).check();
   await expect(editor.getByLabel("Format")).toHaveCount(0);
-  await editor.getByRole("button", { name: "Continue" }).click();
+
   await editor.getByRole("button", { name: "+ Add Prize" }).click();
   await editor.getByLabel("Prize 1 amount").fill("1000");
   await editor.getByLabel("Prize 1 currency").selectOption("USD");
@@ -258,14 +275,16 @@ test("organization Challenge wizard supports collaborator, cover, multiple post 
   await expect(match).toContainText("@collaborating_academy");
   await match.click();
   await expect(editor.getByText("Invite on save")).toBeVisible();
-  await editor.getByRole("button", { name: "Continue" }).click();
+
   await expect(editor.getByLabel("Challenge Title Image")).toHaveCount(0);
   await expect(editor.getByLabel("Background Image")).toHaveCount(0);
   await expect(editor.getByLabel("Default background photograph")).toHaveCount(0);
   const smallPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCXUAAAAASUVORK5CYII=", "base64");
   await editor.getByLabel("Challenge cover photo").setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: smallPng });
   await expect.poll(() => state.assets.length).toBe(1);
-  await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(coverStage.locator("img")).toHaveAttribute("src", /challenge-assets/);
+  await expect(coverStage.locator("img")).toHaveCSS("object-fit", "cover");
+
   await expect(editor.getByRole("heading", { name: "Post types" })).toBeVisible();
   await editor.getByRole("button", { name: "+ Add post type" }).click();
   await editor.getByRole("combobox", { name: "Post type 1" }).selectOption("VIDEO_POST");
@@ -273,10 +292,10 @@ test("organization Challenge wizard supports collaborator, cover, multiple post 
   await editor.getByRole("button", { name: "+ Add post type" }).click();
   await editor.getByRole("combobox", { name: "Post type 2" }).selectOption("CAPTION");
   await editor.getByRole("spinbutton", { name: "Post type 2 Maximum words" }).fill("100");
-  await editor.getByRole("button", { name: "Continue" }).click();
+
   await expect(editor.getByLabel("Number of Applicants (maximum)")).toHaveCount(0);
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
-  await editor.getByRole("button", { name: "Continue" }).click();
+
   await expect(editor.getByText("On BrightWay only")).toHaveCount(0);
   await editor.getByRole("button", { name: "Save draft" }).click();
   await expect(editor).toHaveCount(0);

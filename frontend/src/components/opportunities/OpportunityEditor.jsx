@@ -8,10 +8,12 @@ import NavigationIcon from "../layout/NavigationIcon";
 import ChallengePrizeFields from "./ChallengePrizeFields";
 import ChallengeCollaboratorPicker from "./ChallengeCollaboratorPicker";
 import ChallengePostTypes from "./ChallengePostTypes";
+import ChallengeComposer from "./ChallengeComposer";
 import { CHALLENGE_POST_TYPES, describeChallengePostType } from "../../../../shared/challenge-submissions.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./challenge-sidebar-card.css";
 import "./opportunity-editor-wizard.css";
+import "./challenge-composer.css";
 
 const choices = [
   ["JOB", "Job", "Recruit talent for a position."],
@@ -110,6 +112,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const uploadController = useRef(null), lock = useRef(false), dialog = useRef(null);
   const lockedForm = Boolean(opportunity?.publishedAt);
   const challenge = draft.type === "CHALLENGE";
+  const challengeComposer = challenge && step > 0;
   const steps = challenge
     ? ["Opportunity type", "Challenge details", "Prizes & collaborators", "Cover photo", "Post types", "Applications", "Review"]
     : ["Opportunity type", "Opportunity details", "Applications", "Review"];
@@ -157,10 +160,10 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   }
   function validateStep() {
     if (step === 0 && !draft.type) return "Choose which opportunity you want to offer.";
-    if (challenge && steps[step] === "Cover photo" && !draft.coverAssetId &&
+    if (challenge && (challengeComposer || steps[step] === "Cover photo") && !draft.coverAssetId &&
         !opportunity?.backgroundAssetId && !opportunity?.titleAssetId)
       return "Upload a Challenge cover photo to continue.";
-    if (challenge && steps[step] === "Post types" && draft.postRequirements.some(item => {
+    if (challenge && (challengeComposer || steps[step] === "Post types") && draft.postRequirements.some(item => {
       if (item.type === "VIDEO_POST") return item.minDurationSeconds < 1 ||
         item.maxDurationSeconds > 3600 || item.minDurationSeconds > item.maxDurationSeconds;
       if (item.type === "CAPTION") return item.minWords < 1 ||
@@ -169,7 +172,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         item.maxImages > 4 || item.minImages > item.maxImages;
       return item.maxPages < 1 || item.maxPages > 100;
     })) return "Check each post type's minimum and maximum requirements.";
-    if (steps[step]?.endsWith("Applications")) {
+    if (challengeComposer || steps[step]?.endsWith("Applications")) {
       if (!draft.deadline || !Number.isFinite(new Date(draft.deadline).getTime()) ||
           new Date(draft.deadline).getTime() <= Date.now()) return "Choose a future deadline.";
       if (draft.questions.some(q => ["SINGLE_CHOICE", "MULTIPLE_CHOICE"].includes(q.type) &&
@@ -184,7 +187,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     setError(null);
     const problem = validateStep();
     if (problem) { setError(new Error(problem)); return; }
-    if (step < last) { setStep(current => current + 1); return; }
+    if (!challengeComposer && step < last) { setStep(current => current + 1); return; }
     if (!draft.type || draft.title.trim().length < 3 || draft.description.trim().length < 30 ||
         !draft.deadline || !Number.isFinite(new Date(draft.deadline).getTime()) ||
         new Date(draft.deadline).getTime() <= Date.now()) {
@@ -224,7 +227,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const locked = busy || Boolean(uploading) || error?.status === 409 ||
     [401, 403, 404].includes(error?.status);
 
-  return <div className="bw-op-overlay bw-op-wizard-overlay" onKeyDown={e => {
+  return <div className={"bw-op-overlay bw-op-wizard-overlay" + (challengeComposer ? " bw-op-challenge-overlay" : "")} onKeyDown={e => {
     if (e.key === "Escape") { e.preventDefault(); close(); }
     if (e.key === "Tab" && dialog.current) {
       const nodes = [...dialog.current.querySelectorAll(
@@ -239,18 +242,26 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
       aria-labelledby="op-editor-title" className="bw-op-editor bw-op-wizard">
       <header className="bw-op-wizard-header">
         <div><p className="bw-op-wizard-kicker">{opportunity ? "EDIT OPPORTUNITY" : "CREATE OPPORTUNITY"}</p>
-          <h2 id="op-editor-title">{opportunity ? "Edit your opportunity" : "Create an opportunity"}</h2>
-          <p>Step {step + 1} of {steps.length}</p>
+          <h2 id="op-editor-title">{challengeComposer
+            ? opportunity ? "Edit Challenge" : "Create a Challenge"
+            : opportunity ? "Edit your opportunity" : "Create an opportunity"}</h2>
+          <p>{challengeComposer ? "Cover, details, prizes and submissions" : "Step " + (step + 1) + " of " + steps.length}</p>
         </div>
         <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
       </header>
-      <nav className="bw-op-wizard-progress" aria-label="Creation progress">
+      {!challengeComposer && <nav className="bw-op-wizard-progress" aria-label="Creation progress">
         {steps.map((label, index) => <span key={label} className={index === step ? "is-current" : index < step ? "is-complete" : ""}
           aria-current={index === step ? "step" : undefined}><span>{index + 1}</span>{label}</span>)}
-      </nav>
+      </nav>}
       <form onSubmit={submit}>
         {error && <div className="bw-op-wizard-error" role="alert">{error.message}</div>}
-        <fieldset className="bw-op-editor-fields bw-op-wizard-fields" disabled={locked}>
+        <fieldset className={"bw-op-editor-fields bw-op-wizard-fields" + (challengeComposer ? " is-challenge-composer" : "")} disabled={locked}>
+          {challengeComposer ? <ChallengeComposer draft={draft} field={field}
+            organizationId={organizationId} collaborators={collaborators}
+            setCollaborators={setCollaborators} locked={locked} lockedForm={lockedForm}
+            uploading={uploading} upload={upload}
+            questions={<QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
+              lockedForm={lockedForm} busy={busy} />} /> :
           <div className="bw-op-wizard-step">
             <h3 id="bw-op-step-heading" tabIndex={-1}>{step === 0 ? "What opportunity do you want to offer?" : stepName}</h3>
             {step === 0 && <>
@@ -374,18 +385,18 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
                 </dl>
               </div>
             </>}
-          </div>
+          </div>}
         </fieldset>
         <footer className="bw-op-wizard-footer">
           <button className="bw-op-secondary" type="button" disabled={busy || Boolean(uploading)}
-            onClick={() => step ? (setError(null), setStep(current => current - 1)) : close()}>
-            {step ? "Back" : "Cancel"}
+            onClick={() => challengeComposer && opportunity ? close() : step ? (setError(null), setStep(current => current - 1)) : close()}>
+            {challengeComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
           </button>
           <span className="bw-op-wizard-footer-hint">{opportunity ? "Editing saved listing" : "Saved as draft until you publish"}</span>
           <button className="bw-op-primary" type="submit"
             disabled={locked || (step === 0 && !draft.type)}>
-            {busy ? "Saving…" : step === last ? opportunity ? "Save changes" : "Save draft" : "Continue"}
-            {!busy && step !== last && <NavigationIcon name="chevron-right" size={16} />}
+            {busy ? "Saving…" : challengeComposer || step === last ? opportunity ? "Save changes" : "Save draft" : "Continue"}
+            {!busy && !challengeComposer && step !== last && <NavigationIcon name="chevron-right" size={16} />}
           </button>
         </footer>
       </form>

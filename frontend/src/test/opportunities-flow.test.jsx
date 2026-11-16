@@ -118,7 +118,7 @@ it("the right-rail Challenge card stacks its cover, details and Partake action",
   expect(within(article).getByText(/Closes in/)).toBeTruthy();
 });
 
-it("Challenge wizard supports collaborators, cover, multiple post types and no applicant limit", async () => {
+it("Challenge composer supports collaborators, cover, multiple post types and no applicant limit", async () => {
   const saved = vi.fn();
   const coverId = "88888888-8888-4888-8888-888888888888";
   const fetch = vi.fn((url, opts) =>
@@ -129,6 +129,10 @@ it("Challenge wizard supports collaborators, cover, multiple post types and no a
   const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
   await user.click(screen.getByRole("radio", { name: /Challenge/ }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("heading", { name: "Create your Challenge" })).toBeTruthy();
+  expect(screen.getByLabelText("Challenge cover photo")).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Post types" })).toBeTruthy();
+  expect(screen.queryByRole("navigation", { name: "Creation progress" })).toBeNull();
   await user.click(screen.getByRole("checkbox", { name: "Technology" }));
   await user.click(screen.getByRole("checkbox", { name: "Education" }));
   await user.click(screen.getByRole("checkbox", { name: "Design" }));
@@ -137,7 +141,7 @@ it("Challenge wizard supports collaborators, cover, multiple post types and no a
   await user.type(screen.getByLabelText("Description"), "Design an innovation that improves access to education.");
   expect(screen.queryByLabelText("Format")).toBeNull();
   expect(screen.queryByLabelText("Location")).toBeNull();
-  await user.click(screen.getByRole("button", { name: "Continue" }));
+
   await user.click(screen.getByRole("button", { name: "+ Add Prize" }));
   await user.selectOptions(screen.getByLabelText("Prize 1 type"), "SCHOLARSHIP");
   expect(screen.queryByLabelText("Prize 1 amount")).toBeNull();
@@ -146,7 +150,7 @@ it("Challenge wizard supports collaborators, cover, multiple post types and no a
   expect(screen.getByLabelText("Prize 2 type").value).toBe("CASH");
   await user.type(screen.getByLabelText("Prize 2 amount"), "500");
   await user.selectOptions(screen.getByLabelText("Prize 2 currency"), "LRD");
-  await user.click(screen.getByRole("button", { name: "Continue" }));
+
   expect(screen.queryByLabelText("Default background photograph")).toBeNull();
   expect(screen.queryByLabelText("Background Image")).toBeNull();
   expect(screen.queryByLabelText("Challenge Title Image")).toBeNull();
@@ -154,17 +158,17 @@ it("Challenge wizard supports collaborators, cover, multiple post types and no a
     new File(["synthetic cover"], "cover.png", { type: "image/png" }));
   await waitFor(() => expect(fetch.mock.calls.some(([url]) => url.includes("/challenge-assets"))).toBe(true));
   await waitFor(() => expect(screen.getByAltText("Challenge cover photo preview")).toBeTruthy());
-  await user.click(screen.getByRole("button", { name: "Continue" }));
+
   await user.click(screen.getByRole("button", { name: "+ Add post type" }));
   expect(screen.getByRole("combobox", { name: "Post type 1" }).value).toBe("VIDEO_POST");
   await user.click(screen.getByRole("button", { name: "+ Add post type" }));
   await user.selectOptions(screen.getByRole("combobox", { name: "Post type 2" }), "CAPTION");
   expect(screen.getByRole("spinbutton", { name: "Post type 2 Maximum words" })).toBeTruthy();
-  await user.click(screen.getByRole("button", { name: "Continue" }));
+
   expect(screen.queryByLabelText("Number of Applicants (maximum)")).toBeNull();
   await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
-  await user.click(screen.getByRole("button", { name: "Continue" }));
-  expect(screen.getByText("Required post types")).toBeTruthy();
+
+  expect(screen.getByRole("heading", { name: "Post types" })).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Save draft" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
   const body = JSON.parse(fetch.mock.calls.find(([, opts]) => opts?.headers?.["Content-Type"] === "application/json")[1].body);
