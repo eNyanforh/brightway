@@ -68,7 +68,10 @@ test("members discover four opportunity types, save and submit an application, a
   const state = await fixture(page);
   await page.goto("/opportunities");
   await expect(page.getByRole("link", { name: initialOpportunity.title })).toBeVisible();
-  await expect(page.locator(".bw-op-card")).toHaveCount(4); await noOverflow(page);
+  await expect(page.locator(".bw-op-grid > article")).toHaveCount(4);
+  await expect(page.locator(".bw-op-card")).toHaveCount(3);
+  await expect(page.locator(".bw-rail-challenge-card")).toHaveCount(1);
+  await noOverflow(page);
   await page.screenshot({ path: `/tmp/brightway-opportunities-${testInfo.project.name}.png`, fullPage: true });
   await page.getByRole("link", { name: initialOpportunity.title }).click();
   await page.getByLabel("Can you join our team?").selectOption("false");
@@ -80,6 +83,46 @@ test("members discover four opportunity types, save and submit an application, a
   await page.getByRole("button", { name: "Withdraw application", exact: true }).click(); await page.getByRole("button", { name: "Confirm withdrawal" }).click();
   await expect(page.locator(".bw-op-section-title")).toContainText("Withdrawn"); await noOverflow(page); expect(state.errors).toEqual([]);
 });
+test("Challenges in Opportunities reuse the Explore sidebar cover, identity and participation card", async ({ page }) => {
+  const state = await fixture(page);
+  state.opportunity = {
+    ...state.opportunity, type: "CHALLENGE", title: "Student innovation challenge",
+    description: "Build a learning tool for students.", coverImage: "SCHOOLS",
+    prize: "US$1,000",
+    organization: { ...organization, verifiedAt: "2026-11-01T12:00:00Z" },
+    collaborators: [{ organizationId: collaborator.id, organization: collaborator, state: "ACCEPTED" }],
+    participantSummary: { count: 2, members: [
+      { username: "student_a", name: "Student One", verified: true, photoId: null },
+      { username: "student_b", name: "Student Two", verified: true, photoId: null },
+    ] },
+  };
+  await page.goto("/opportunities?type=CHALLENGE");
+  const card = page.getByRole("article", { name: "Challenge: Student innovation challenge" });
+  await expect(card).toBeVisible();
+  await expect(card).toHaveCSS("background-image", /linear-gradient/);
+  await expect(card.getByRole("heading", { name: "Student innovation challenge" })).toBeVisible();
+  await expect(card.getByText("Build a learning tool for students.")).toBeVisible();
+  const cover = card.getByRole("link", { name: "View challenge: Student innovation challenge" });
+  await expect(cover).toHaveAttribute("href", "/opportunities/" + id);
+  await expect(cover.locator("img")).toHaveAttribute("src", "/images/hero/schools-720.webp");
+  await expect(cover.locator("img")).toHaveCSS("object-fit", "cover");
+  const bounds = await cover.boundingBox();
+  expect(bounds.width / bounds.height).toBeGreaterThan(1.58);
+  expect(bounds.width / bounds.height).toBeLessThan(1.62);
+  await expect(card.getByRole("link", { name: "View Synthetic Research Institute organization profile" }))
+    .toHaveAttribute("href", "/organizations/" + oid);
+  await expect(card.locator(".bw-rail-challenge-sponsor-name").getByRole("img", { name: "Verified organization" })).toBeVisible();
+  await expect(card.getByRole("link", { name: "View co-host Collaborating Academy" })).toBeVisible();
+  await expect(card.getByLabel("Challenge prize")).toContainText("US$1,000");
+  await expect(card.locator("time")).toContainText(/Closes in/);
+  await expect(card.getByLabel("Public Challenge participants")).toContainText("2 participants");
+  await expect(card.getByRole("link", { name: "Partake" })).toHaveAttribute("href", "/opportunities/" + id);
+  await expect(card.getByRole("link", { name: "Partake" })).toHaveCSS("min-height", "44px");
+  await expect(card.locator(".bw-op-card-cover")).toHaveCount(0);
+  await noOverflow(page);
+  expect(state.errors).toEqual([]);
+});
+
 test("challenge participant facepile requires separate optional public consent", async ({ page }) => {
   const state = await fixture(page);
   state.opportunity = { ...state.opportunity, type: "CHALLENGE", title: "Student innovation challenge", prize: "US$1,000" };
