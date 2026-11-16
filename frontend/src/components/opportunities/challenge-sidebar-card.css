@@ -1,18 +1,18 @@
-/* Explore right rail: compact open opportunities, with the same Challenge
-   gradient as the Challenge card in the main feed. */
+/* Shared Challenge card presentation for Explore's right rail, the
+   Opportunities catalog, and opportunity discovery in search. */
 .bw-explore-right .bw-op-grid-compact.bw-rail-opportunity-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin: 10px 0 14px;
 }
-.bw-explore-right .bw-rail-challenge-list {
+.bw-rail-challenge-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin: 10px 0 14px;
 }
-.bw-explore-right .bw-rail-challenge-card {
+.bw-rail-challenge-card {
   display: grid;
   gap: 10px;
   min-width: 0;
@@ -22,10 +22,10 @@
   background: var(--bw-challenge-gradient, linear-gradient(135deg, #e2f39d 0%, #67b4f3 100%));
   color: #111827;
 }
-.bw-explore-right .bw-rail-challenge-card:last-child {
+.bw-rail-challenge-card:last-child {
   border-bottom: 0;
 }
-.bw-explore-right .bw-rail-challenge-cover {
+.bw-rail-challenge-cover {
   display: block;
   position: relative;
   width: 100%;
@@ -35,20 +35,20 @@
   border-radius: 8px;
   background: #f2f4f7;
 }
-.bw-explore-right .bw-rail-challenge-photo {
+.bw-rail-challenge-photo {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
 }
-.bw-explore-right .bw-rail-challenge-details {
+.bw-rail-challenge-details {
   display: grid;
   align-content: start;
   gap: 8px;
   min-width: 0;
 }
-.bw-explore-right .bw-rail-challenge-card h3 {
+.bw-rail-challenge-card h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 750;
@@ -56,22 +56,22 @@
   letter-spacing: -.015em;
   overflow-wrap: anywhere;
 }
-.bw-explore-right .bw-rail-challenge-card h3 a,
-.bw-explore-right .bw-rail-challenge-sponsor-name a {
+.bw-rail-challenge-card h3 a,
+.bw-rail-challenge-sponsor-name a {
   color: #111827;
   text-decoration: none;
 }
-.bw-explore-right .bw-rail-challenge-card h3 a:hover,
-.bw-explore-right .bw-rail-challenge-sponsor-name a:hover {
+.bw-rail-challenge-card h3 a:hover,
+.bw-rail-challenge-sponsor-name a:hover {
   text-decoration: underline;
 }
-.bw-explore-right .bw-rail-challenge-publisher {
+.bw-rail-challenge-publisher {
   display: flex;
   align-items: center;
   gap: 7px;
   min-width: 0;
 }
-.bw-explore-right .bw-rail-challenge-logo {
+.bw-rail-challenge-logo {
   display: grid;
   place-items: center;
   flex: 0 0 24px;
@@ -82,14 +82,14 @@
   background: #f2f4f7;
   color: #175cd3;
 }
-.bw-explore-right .bw-rail-challenge-logo img,
-.bw-explore-right .bw-rail-challenge-logo span {
+.bw-rail-challenge-logo img,
+.bw-rail-challenge-logo span {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
 }
-.bw-explore-right .bw-rail-challenge-sponsor-name {
+.bw-rail-challenge-sponsor-name {
   display: flex;
   flex: 1 1 auto;
   align-items: center;
@@ -101,17 +101,17 @@
   font-weight: 650;
   line-height: 1.35;
 }
-.bw-explore-right .bw-rail-challenge-sponsor-name > a {
+.bw-rail-challenge-sponsor-name > a {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.bw-explore-right .bw-rail-challenge-sponsor-name > .bw-verification-badge {
+.bw-rail-challenge-sponsor-name > .bw-verification-badge {
   flex: 0 0 auto;
 }
-.bw-explore-right .bw-rail-challenge-description {
+.bw-rail-challenge-card .bw-rail-challenge-description {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -123,16 +123,16 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
-.bw-explore-right .bw-rail-challenge-details .bw-challenge-cohosts {
+.bw-rail-challenge-details .bw-challenge-cohosts {
   margin: 0;
   color: #475467;
 }
-.bw-explore-right .bw-rail-challenge-meta {
+.bw-rail-challenge-meta {
   display: grid;
   gap: 5px;
   min-width: 0;
 }
-.bw-explore-right .bw-rail-challenge-prize {
+.bw-rail-challenge-prize {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -141,39 +141,39 @@
   font-size: 12px;
   line-height: 1.4;
 }
-.bw-explore-right .bw-rail-challenge-prize span {
+.bw-rail-challenge-prize span {
   flex: 0 0 auto;
   color: #667085;
 }
-.bw-explore-right .bw-rail-challenge-prize strong {
+.bw-rail-challenge-prize strong {
   min-width: 0;
   color: #175cd3;
   font-size: 12px;
   font-weight: 750;
   overflow-wrap: anywhere;
 }
-.bw-explore-right .bw-rail-challenge-meta time {
+.bw-rail-challenge-meta time {
   color: #667085;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.4;
 }
-.bw-explore-right .bw-rail-challenge-card .bw-challenge-participants {
+.bw-rail-challenge-card .bw-challenge-participants {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
   padding: 0;
 }
-.bw-explore-right .bw-rail-challenge-card .bw-challenge-participant-facepile {
+.bw-rail-challenge-card .bw-challenge-participant-facepile {
   justify-content: flex-start;
 }
-.bw-explore-right .bw-rail-challenge-card .bw-challenge-participant-count {
+.bw-rail-challenge-card .bw-challenge-participant-count {
   color: #667085;
   font-size: 11px;
   text-align: left;
 }
-.bw-explore-right .bw-rail-challenge-cta {
+.bw-rail-challenge-cta {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -188,11 +188,11 @@
   font-weight: 750;
   line-height: 1.2;
 }
-.bw-explore-right .bw-rail-challenge-cta:hover {
+.bw-rail-challenge-cta:hover {
   background: #124aa9;
   color: #fff;
 }
-.bw-explore-right .bw-rail-challenge-card a:focus-visible {
+.bw-rail-challenge-card a:focus-visible {
   outline: 3px solid #84b5ff;
   outline-offset: 3px;
 }
