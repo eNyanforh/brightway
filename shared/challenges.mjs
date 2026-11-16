@@ -66,7 +66,7 @@ export function challengePrizeValue(prize) {
   switch (prize.type) {
     case "CASH":
       return Number.isFinite(Number(prize.amount)) && Number(prize.amount) > 0
-        ? `${prize.currency === "USD" ? "US$" : prize.currency + " "}${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(prize.amount)}` : "";
+        ? `${prize.currency} ${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(prize.amount)}` : "";
     case "SCHOLARSHIP": return [prize.coverage, prize.institution].filter(Boolean).join(" · ");
     case "CERTIFICATE": return [prize.title, prize.issuer].filter(Boolean).join(" · ");
     case "MENTORSHIP": return [prize.focus, prize.sessions && `${prize.sessions} sessions`].filter(Boolean).join(" · ");
