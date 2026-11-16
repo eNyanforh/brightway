@@ -315,3 +315,222 @@
     padding: 20px;
   }
 }
+
+/* Refined publishing fields shared by every opportunity type. */
+.bw-op-wizard-overlay .bw-op-challenge-main > h3 {
+  margin-top: 0;
+}
+.bw-op-wizard-overlay .bw-op-challenge-section[aria-labelledby="bw-op-challenge-categories-heading"] {
+  padding-top: 13px;
+  padding-bottom: 12px;
+}
+.bw-op-wizard-overlay .bw-op-challenge-section[aria-labelledby="bw-op-challenge-categories-heading"] > h4 {
+  margin-bottom: 3px;
+}
+.bw-op-wizard-overlay .bw-op-challenge-section .bw-op-challenge-topics legend {
+  padding: 0;
+  margin: 0 0 7px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #667085;
+}
+.bw-op-wizard-overlay .bw-op-challenge-section .bw-op-challenge-topics {
+  margin: 0;
+}
+.bw-op-editor-fields .bw-op-challenge-topic {
+  gap: 7px;
+  min-height: 39px;
+  border-radius: 10px;
+  transition: background .15s ease, border-color .15s ease;
+}
+.bw-op-editor-fields .bw-op-challenge-topic svg {
+  flex: 0 0 auto;
+  color: #667085;
+}
+.bw-op-editor-fields .bw-op-challenge-topic:has(input:checked) svg {
+  color: #175cd3;
+}
+.bw-op-description-field {
+  overflow: hidden;
+  border: 1px solid #d0d5dd;
+  border-radius: 13px;
+  background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.bw-op-description-field:focus-within {
+  border-color: #175cd3;
+  box-shadow: 0 0 0 3px #175cd318;
+}
+.bw-op-description-toolbar, .bw-op-description-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 10px 14px;
+}
+.bw-op-description-toolbar {
+  border-bottom: 1px solid #eaecf0;
+  background: #f9fafb;
+  font-size: 12px;
+}
+.bw-op-description-toolbar > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  color: #344054;
+}
+.bw-op-description-format { color: #667085; font-size: 11px; }
+.bw-op-editor .bw-op-description-input { display: block; margin: 0; }
+.bw-op-editor .bw-op-description-input textarea,
+.bw-op-challenge-overlay .bw-op-editor .bw-op-challenge-section .bw-op-description-input textarea {
+  display: block;
+  width: 100%;
+  min-height: 150px;
+  margin: 0;
+  padding: 15px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+  resize: vertical;
+  line-height: 1.65;
+  background: #fff;
+  color: #101828;
+}
+.bw-op-description-footer {
+  border-top: 1px solid #eaecf0;
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.bw-op-description-footer > span:last-child {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.bw-op-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+.bw-op-date-picker { position: relative; width: min(100%, 440px); }
+.bw-op-date-picker > label {
+  display: block;
+  margin-bottom: 7px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 650;
+}
+.bw-op-date-input-wrap {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  gap: 10px;
+  padding: 0 6px 0 13px;
+  border: 1px solid #d0d5dd;
+  border-radius: 11px;
+  background: #fff;
+  color: #667085;
+}
+.bw-op-date-input-wrap:focus-within { border-color: #175cd3; box-shadow: 0 0 0 3px #175cd318; }
+.bw-op-wizard-overlay .bw-op-editor .bw-op-date-input-wrap input[type="datetime-local"] {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 11px 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+  font-size: 13px;
+  color: #101828;
+}
+.bw-op-date-toggle {
+  display: grid;
+  flex: 0 0 38px;
+  place-items: center;
+  min-width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: #f2f4f7;
+  color: #344054;
+  cursor: pointer;
+}
+.bw-op-date-toggle svg { transform: rotate(90deg); }
+.bw-op-date-toggle[aria-expanded="true"] { color: #175cd3; background: #eff6ff; }
+.bw-op-calendar {
+  position: absolute;
+  z-index: 12;
+  top: calc(100% + 9px);
+  left: 0;
+  width: min(340px, 100%);
+  box-sizing: border-box;
+  padding: 15px;
+  border: 1px solid #eaecf0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 45px #10182824;
+}
+.bw-op-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.bw-op-calendar-header strong { font-size: 14px; color: #101828; }
+.bw-op-calendar-header button,
+.bw-op-calendar-grid button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #344054;
+  cursor: pointer;
+}
+.bw-op-calendar-header button { width: 36px; height: 36px; border-radius: 8px; }
+.bw-op-calendar-header button:hover, .bw-op-calendar-grid button:hover:not(:disabled) { background: #f2f4f7; }
+.bw-op-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  text-align: center;
+}
+.bw-op-calendar-weekday { padding: 6px 0 8px; color: #667085; font-size: 10px; font-weight: 700; }
+.bw-op-calendar-grid button { width: 100%; aspect-ratio: 1; border-radius: 9px; font-size: 12px; }
+.bw-op-calendar-grid button.is-today { outline: 1px solid #175cd3; outline-offset: -1px; }
+.bw-op-calendar-grid button.is-selected,
+.bw-op-calendar-grid button.is-selected:hover:not(:disabled) { background: #175cd3; color: white; font-weight: 700; }
+.bw-op-calendar-grid button:disabled { opacity: .35; cursor: not-allowed; }
+.bw-op-calendar-bottom {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eaecf0;
+  color: #344054;
+  font-size: 12px;
+}
+.bw-op-wizard-overlay .bw-op-editor .bw-op-calendar-bottom input[type="time"] {
+  width: auto;
+  max-width: 118px;
+  min-width: 0;
+  padding: 8px;
+  margin: 0;
+  font-size: 12px;
+}
+.bw-op-calendar-today { margin-left: auto; padding: 7px 10px; border: 0; border-radius: 7px; background: #eff6ff; color: #175cd3; font-weight: 700; cursor: pointer; }
+@media (max-width: 420px) {
+  .bw-op-description-format { display: none; }
+  .bw-op-calendar { width: 100%; padding: 10px; }
+}
