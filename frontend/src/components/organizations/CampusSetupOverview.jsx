@@ -19,9 +19,9 @@ function Status({ campus, eligible }) {
   </span>;
 }
 
-export default function CampusSetupOverview({ organization }) {
+export default function CampusSetupOverview({ organization, section = "all" }) {
   const id = organization.id;
-  const [data, setData] = useState(null), [schoolView, setSchoolView] = useState(true);
+  const [data, setData] = useState(null);
   const [form, setForm] = useState({ engine: organization.type === "SCHOOL" ? "GRADE_SCHOOL" : "TVET", displayName: organization.name, contactEmail: "" });
   const [draft, setDraft] = useState(emptyAnnouncement);
   const [announcements, setAnnouncements] = useState([]);
@@ -38,14 +38,14 @@ export default function CampusSetupOverview({ organization }) {
       displayName: snapshot.campus?.displayName || organization.name,
       contactEmail: snapshot.campus?.contactEmail || "",
     });
-    const canRead = snapshot.campus?.status === "ACTIVE" && (snapshot.permissions.length > 0 || snapshot.canAnnounce);
+    const canRead = (section === "all" || section === "announcements") && snapshot.campus?.status === "ACTIVE" && (snapshot.permissions.length > 0 || snapshot.canAnnounce);
     if (canRead) {
       const feed = await campusApi.announcements(id, signal);
       if (signal?.aborted) return;
       setAnnouncements(feed.items); setNextCursor(feed.nextCursor);
     } else { setAnnouncements([]); setNextCursor(null); }
     return snapshot;
-  }, [id, organization.name, organization.type]);
+  }, [id, organization.name, organization.type, section]);
   useEffect(() => {
     const controller = new AbortController();
     Promise.resolve().then(() => { if (!controller.signal.aborted) return load(controller.signal); })
@@ -106,18 +106,28 @@ export default function CampusSetupOverview({ organization }) {
   return <section className="bw-campus-root" aria-labelledby="campus-heading">
     <header className="bw-campus-hero">
       <div><p className="bw-campus-kicker">BRIGHTWAY / DIGITAL CAMPUS</p><h2 id="campus-heading">Virtual Campus</h2>
-        <p>Organize school and training operations in one secure workspace. Campus is separate from global Programs and Admissions.</p>
+        <p>{section === "setup" ? "Configure your academic engine, campus identity and activation in your dedicated workspace." : section === "academics" ? "Manage academic years, classes and learning operations with scoped access." : section === "billing" ? "Review Campus usage and payments securely." : section === "announcements" ? "Communicate with your authorized campus staff and learners." : "A dedicated workspace for your school or training operations, separate from the organization dashboard."}</p>
         <div className="bw-campus-tags"><Status campus={campus} eligible={data.eligible} />
           {campus?.engine && <span className="bw-campus-engine">{label[campus.engine]}</span>}</div></div>
       <div className="bw-campus-hero-mark" aria-hidden="true"><WorkspaceIcon name="learning" size={38} /></div>
     </header>
     {error && <p className="bw-campus-message" role="alert">{error}</p>}
     {notice && <p className="bw-campus-message bw-campus-success" role="status">{notice}</p>}
-    {campus?.status === "ACTIVE" && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p)) && <><nav className="bw-school-mode-tabs" aria-label="Campus tools"><button type="button" aria-pressed={schoolView} onClick={() => setSchoolView(true)}>{campus.engine === "TVET" ? "TVET management" : "School management"}</button><button type="button" aria-pressed={!schoolView} onClick={() => setSchoolView(false)}>Campus settings & announcements</button></nav>{schoolView && (campus.engine === "TVET" ? <TvetWorkspace key={id} campusId={id} /> : <GradeSchoolWorkspace key={id} campusId={id} />)}</>}
-    {campus?.status === "ACTIVE" && data.permissions.includes("organization.campus.billing.manage") && <details className="bw-campus-panel"><summary>Campus billing & payments</summary><CampusBilling key={id} campusId={id} /></details>}
-    <div className="bw-campus-layout" hidden={schoolView && campus?.status === "ACTIVE" && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p))}>
+    {section === "overview" && <div className="bw-campus-entry-grid" aria-label="Campus workspace overview">
+      <article className="bw-campus-entry-card"><span className="bw-campus-overline">CAMPUS STATUS</span><h3>{statusText[state] || state}</h3><p>{data.eligible ? "Your organization meets the currently verified Campus eligibility checks." : "Eligibility must be restored before Campus activation."}</p><Link to={`/campus/${id}/setup`}>{campus ? "Review Campus setup" : "Begin Campus setup"}</Link></article>
+      <article className="bw-campus-entry-card"><span className="bw-campus-overline">LEARNING OPERATIONS</span><h3>{campus?.engine ? label[campus.engine] : "Choose your academic engine"}</h3><p>{active ? "Manage your classes, student records, attendance, and outcomes." : "Academic tools become available after Campus activation."}</p><Link to={active ? `/campus/${id}/academics` : `/campus/${id}/setup`}>{active ? "Open academics" : "Continue setup"}</Link></article>
+      <article className="bw-campus-entry-card"><span className="bw-campus-overline">CAMPUS COMMUNICATION</span><h3>Announcements</h3><p>Share updates with authorized staff and active learners.</p><Link to={active ? `/campus/${id}/announcements` : `/campus/${id}/setup`}>{active ? "Open announcements" : "Activate Campus first"}</Link></article>
+    </div>}
+    {section === "academics" && (active && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p))
+      ? (campus.engine === "TVET" ? <TvetWorkspace key={id} campusId={id} /> : <GradeSchoolWorkspace key={id} campusId={id} />)
+      : <div className="bw-campus-workspace-empty" role="status"><h3>Academic workspace unavailable</h3><p>Activate the Campus and use an authorized teaching or academic-management account before managing learner records.</p><Link to={`/campus/${id}/setup`}>Campus setup</Link></div>)}
+    {section === "billing" && (active && data.permissions.includes("organization.campus.billing.manage")
+      ? <section className="bw-campus-panel" aria-label="Campus billing & payments"><CampusBilling key={id} campusId={id} /></section>
+      : <div className="bw-campus-workspace-empty" role="status"><h3>Billing is not available</h3><p>Billing requires an active Campus and authorized billing access.</p><Link to={`/campus/${id}`}>Campus overview</Link></div>)}
+    {section === "announcements" && !canRead && <div className="bw-campus-workspace-empty" role="status"><h3>Announcements unavailable</h3><p>Activate your Campus or request authorized Campus access to view announcements.</p><Link to={`/campus/${id}/setup`}>Campus setup</Link></div>}
+    {(section === "setup" || section === "all" || section === "announcements") && <div className="bw-campus-layout">
       <div className="bw-campus-main">
-        <section className="bw-campus-panel" aria-labelledby="campus-eligibility">
+        {(section === "setup" || section === "all") && <section className="bw-campus-panel" aria-labelledby="campus-eligibility">
           <div className="bw-campus-panel-heading"><div><span className="bw-campus-overline">01 / AVAILABILITY</span><h3 id="campus-eligibility">Campus eligibility</h3></div><strong className={data.eligible ? "bw-campus-yes" : "bw-campus-no"}>{data.eligible ? "Eligible" : "Restricted"}</strong></div>
           <ul className="bw-campus-checks">
             <li><span>{data.eligibility.verifiedOrganization ? "✓" : "×"}</span> Verified, approved organization</li>
@@ -127,10 +137,10 @@ export default function CampusSetupOverview({ organization }) {
           </ul>
           {!data.eligible && <div className="bw-campus-guidance"><strong>Campus activation is unavailable.</strong>
             {data.eligibility.reasons.map(reason => <p key={reason}>{reason}</p>)}<p>Other BrightWay organization tools, Programs and Admissions remain available according to existing permissions.</p></div>}
-        </section>
+        </section>}
 
-        {data.canManage && <section className="bw-campus-panel" aria-labelledby="campus-configuration">
-          <div className="bw-campus-panel-heading"><div><span className="bw-campus-overline">02 / ORGANIZATION SETUP</span><h3 id="campus-configuration">{canConfigure ? "Configure your Campus" : "Campus settings"}</h3></div></div>
+        {(section === "setup" || section === "all") && data.canManage && <section className="bw-campus-panel" aria-labelledby="campus-configuration">
+          <div className="bw-campus-panel-heading"><div><span className="bw-campus-overline">02 / CAMPUS SETUP</span><h3 id="campus-configuration">{canConfigure ? "Configure your Campus" : "Campus settings"}</h3></div></div>
           <form className="bw-campus-form" onSubmit={save}>
             {canConfigure && <label>Academic engine
               <select value={form.engine} onChange={e => setForm(s => ({ ...s, engine: e.target.value }))} disabled={busy}>
@@ -152,7 +162,7 @@ export default function CampusSetupOverview({ organization }) {
           {state === "BLOCKED" && <p className="bw-campus-help">Your Campus remains blocked even though its stored status was Active. Restore verified eligibility before resuming Campus operations.</p>}
         </section>}
 
-        {canRead && <section className="bw-campus-panel" aria-labelledby="campus-announcements">
+        {(section === "announcements" || section === "all") && canRead && <section className="bw-campus-panel" aria-labelledby="campus-announcements">
           <div className="bw-campus-panel-heading"><div><span className="bw-campus-overline">03 / COMMUNICATION</span><h3 id="campus-announcements">Campus announcements</h3></div><span>{announcements.length} shown</span></div>
           {mayPublish && <form className="bw-campus-announcement-form" onSubmit={publish}>
             <label>Announcement audience<select aria-label="Announcement audience" value={draft.audience} disabled={busy} onChange={e => { key.current = null; setDraft(s => ({ ...s, audience: e.target.value })); }}><option value="STAFF">Campus staff only</option><option value="CAMPUS">Campus staff and active learners</option></select></label>
@@ -178,8 +188,8 @@ export default function CampusSetupOverview({ organization }) {
           <p>{campus?.engine === "GRADE_SCHOOL" ? "Manage academic years, classes, students, teachers, subject attendance and grades in School management." : campus?.engine === "TVET" ? "Manage trades, intakes, learners, instructors, training attendance, competencies and certificates in TVET management." : "Select Grade School or TVET according to your verified organization capability."}</p>
           <p className="bw-campus-caution">Admission acceptance does not register a learner. Billing cannot be charged from this setup screen.</p>
         </section>
-        <Link className="bw-campus-back" to={"/organization-workspace/" + id}>Return to dashboard</Link>
+        <Link className="bw-campus-back" to={"/campus/" + id}>Back to Campus overview</Link>
       </aside>
-    </div>
+    </div>}
   </section>;
 }
