@@ -27,7 +27,7 @@ const choices = [
 ];
 const blank = () => ({
   type: "", title: "", description: "", location: "", workMode: "IN_PERSON",
-  jobDetails: null,
+  jobDetails: null, details: {},
   prize: "", prizes: [], collaboratorIds: [], sponsorLogoIds: [], backgroundAssetId: null,
   titleAssetId: null, coverAssetId: null, postRequirements: [], topics: [],
   deadline: "", questions: [],
@@ -215,6 +215,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         location: challenge ? "BrightWay" : draft.location,
         workMode: challenge ? "REMOTE" : draft.workMode,
         jobDetails: draft.type === "JOB" ? draft.jobDetails : null,
+        details: ["JOB", "SCHOLARSHIP"].includes(draft.type) ? draft.details : {},
         // The structured prizes are canonical. Removing every prize must not
         // silently restore a legacy reward from a previous save.
         prize: "",
