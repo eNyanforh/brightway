@@ -34,7 +34,7 @@ it("TVET certificate module reads learner completion evidence without enrolment 
  await screen.findByRole("heading",{name:"Completion & certificates"});
  expect(screen.queryByText("Enrol a learner")).toBeNull();
  expect(api.admissions).not.toHaveBeenCalled();
- await u.click(screen.getByRole("button",{name:"Review completion evidence"}));
+ await u.click(await screen.findByRole("button",{name:"Review completion evidence"}));
  await screen.findByRole("region",{name:"TVET learner record"});
  expect(screen.getByRole("button",{name:"Mark program completed"}).disabled).toBe(true);
  expect(api.report).toHaveBeenCalledWith("campus","enrolment",expect.any(AbortSignal));
