@@ -4,7 +4,7 @@ import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityOrganization from "./OpportunityOrganization";
 import ChallengeCoHosts from "./ChallengeCoHosts";
 import JobDetailsSummary from "./JobDetailsSummary";
-import { scholarshipSummary } from "./scholarship-summary";
+import { scholarshipSummary, scholarshipLevelLabel } from "./scholarship-summary";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./opportunities.css";
 export default function OpportunityCard({ opportunity: o }) {
@@ -24,7 +24,7 @@ export default function OpportunityCard({ opportunity: o }) {
       {o.type === "SCHOLARSHIP" && <div className="bw-op-scholarship-summary">
         {scholarshipSummary(o.details) && <strong>{scholarshipSummary(o.details)}</strong>}
         {Array.isArray(o.details?.academicLevels) && o.details.academicLevels.length > 0 &&
-          <span>{o.details.academicLevels.map(level => level.replaceAll("_", " ")).join(", ")}</span>}
+          <span>{o.details.academicLevels.map(scholarshipLevelLabel).join(", ")}</span>}
       </div>}
       <p className="bw-op-preview">{o.description}</p>
       <div className="bw-op-card-bottom"><span>Closes {new Date(o.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span><Link to={`/opportunities/${o.id}`}>{type.action}<NavigationIcon name="chevron-right" size={14} /></Link></div>
