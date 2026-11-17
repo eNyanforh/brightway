@@ -67,10 +67,52 @@ const jobDetailsInput = z.strictObject({
     context.addIssue({ code: "custom", message: "Enter a complete, valid salary range with currency and pay period." });
   }
 });
+
+const detailString = text(500).optional();
+const detailNumber = z.number().finite().min(0).max(1000000000).nullable().optional();
+const detailDate = z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/).optional();
+const detailList = z.array(text(300).min(1)).max(60).optional();
+const jobDetailsExtended = z.strictObject({
+  category: detailString, experienceLevel: detailString, vacancies: detailNumber,
+  startDate: detailDate, country: detailString, region: detailString, city: detailString, address: detailString,
+  benefits: detailList, education: detailString, experienceMonths: detailNumber,
+  fieldsOfStudy: detailList, requiredSkills: detailList, preferredSkills: detailList,
+  certifications: detailList, languages: detailList, responsibilities: detailList,
+  requiredQualifications: detailList, preferredQualifications: detailList,
+  requireCv: z.boolean().optional(), requireCoverLetter: z.boolean().optional(),
+  requirePortfolio: z.boolean().optional(), additionalDocuments: detailList,
+  applicationLimit: detailNumber, recruitmentStages: detailList, hiringDate: detailDate,
+});
+const scholarshipDetailsExtended = z.strictObject({
+  category: detailString, academicLevels: detailList, fieldsOfStudy: detailList,
+  awardsAvailable: detailNumber, fundingType: detailString, currency: detailString,
+  value: detailNumber, fundingMonths: detailNumber, tuitionPercent: z.number().min(0).max(100).nullable().optional(),
+  livingAllowance: z.boolean().optional(), accommodation: z.boolean().optional(), travelSupport: z.boolean().optional(),
+  healthInsurance: z.boolean().optional(), learningMaterials: z.boolean().optional(),
+  livingAllowanceAmount: detailNumber, benefits: detailList,
+  studyCountry: detailString, studyRegion: detailString, institution: detailString,
+  programs: detailList, programMonths: detailNumber, intake: detailDate,
+  eligibleCountries: detailList, education: detailString, minAge: detailNumber, maxAge: detailNumber,
+  academicPerformance: detailString, experienceMonths: detailNumber,
+  languages: detailList, financialNeedRequired: z.boolean().optional(),
+  eligibilityCriteria: detailList, openingDate: detailDate, announcementDate: detailDate,
+  requireTranscript: z.boolean().optional(), requireStatement: z.boolean().optional(),
+  requireRecommendation: z.boolean().optional(), requireResearchProposal: z.boolean().optional(),
+  requireCv: z.boolean().optional(), requireAdmission: z.boolean().optional(),
+  additionalDocuments: detailList, selectionCriteria: detailList, selectionStages: detailList,
+}).superRefine((data, ctx) => {
+  if (data.minAge != null && data.maxAge != null && data.minAge > data.maxAge)
+    ctx.addIssue({ code: "custom", message: "Minimum eligible age must not exceed maximum age." });
+  if (data.fundingType && !["FULLY_FUNDED", "PARTIALLY_FUNDED", "FIXED_AMOUNT", "TUITION_WAIVER", "STIPEND", "OTHER"].includes(data.fundingType))
+    ctx.addIssue({ code: "custom", message: "Choose a valid scholarship funding type." });
+});
+const opportunityDetails = z.union([jobDetailsExtended, scholarshipDetailsExtended]).default({});
+
 export const opportunityInput = z.strictObject({
   type: z.enum(Object.keys(OPPORTUNITY_TYPES)), title: text(160).min(3), description: text(12000).min(30),
   location: text(180).min(2), workMode: z.enum(["IN_PERSON", "REMOTE", "HYBRID"]),
   jobDetails: jobDetailsInput.nullish().transform(value => value ?? null),
+  details: opportunityDetails,
   prize: text(120).nullish().transform(value => value ?? ""),
   prizes: z.array(z.union([typedPrize, legacyPrize])).max(MAX_CHALLENGE_PRIZES).default([]),
   postRequirements: z.array(postRequirement).max(MAX_CHALLENGE_POST_TYPES)
