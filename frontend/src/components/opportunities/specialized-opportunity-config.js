@@ -10,7 +10,7 @@ export const blankScholarshipSpecification = () => ({
   fundingType: "", scholarshipValue: null, currency: null, fundingDurationMonths: null,
   tuitionCoverage: "NONE", customTuitionPercent: null, livingAllowance: null, accommodation: false,
   travelSupport: false, healthInsurance: false, booksMaterials: false, otherBenefits: [],
-  studyCountry: "", studyRegion: "", hostInstitution: "", programs: [], programDurationMonths: null,
+  studyCountry: "", studyRegion: "", hostInstitution: "", hostInstitutionId: null, programs: [], programDurationMonths: null,
   academicIntake: "", eligibleCountries: [], minimumEducation: "", academicRequirement: "", eligibleStudyFields: [],
   ageMin: null, ageMax: null, workExperienceMonths: null, languages: [], financialNeed: false,
   eligibilityCriteria: [], applicationsOpen: "", documentQuestionIds: {}, additionalDocuments: [],
