@@ -1,5 +1,5 @@
 export const OPPORTUNITY_TYPES = Object.freeze({
-  JOB: { label: "Job", plural: "Jobs", action: "Apply", icon: "work" },
+  JOB: { label: "Job", plural: "Jobs", action: "Apply Now", icon: "work" },
   SCHOLARSHIP: { label: "Scholarship", plural: "Scholarships", action: "Apply", icon: "learning" },
   CHALLENGE: { label: "Challenge", plural: "Challenges", action: "Participate", icon: "awards" },
   EVENT: { label: "Event", plural: "Events", action: "Register", icon: "calendar" },
