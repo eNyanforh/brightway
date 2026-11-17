@@ -37,7 +37,7 @@ describe("Grade School academic workspace", () => {
     api.setup.mockResolvedValue(setup()); api.subject.mockResolvedValue({ offering, students: [r], attendance: [], assessments: [] });
     mount(<GradeSchoolWorkspace campusId="school" module="teaching" />);
     await screen.findByRole("region", { name: "Selected subject" });
-    expect(screen.getByRole("form", { name: "Save teacher assignment" })).toBeTruthy();
+    expect(screen.getByRole("form", { name: "Assign a teacher" })).toBeTruthy();
     expect(screen.getByText("Timetable")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Open attendance session" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Create assessment" })).toBeNull();
