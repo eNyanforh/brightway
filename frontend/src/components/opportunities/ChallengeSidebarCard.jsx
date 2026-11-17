@@ -68,10 +68,10 @@ export default function ChallengeSidebarCard({ opportunity }) {
         </div> : <div className="bw-rail-opportunity-facts">
           {opportunity.location && <span><NavigationIcon name="pin" size={14} />{opportunity.location}</span>}
           <span><NavigationIcon name="work" size={14} />{mode}</span>
-          {opportunity.type === "JOB" && jobEmploymentLabel(opportunity.jobDetails) &&
-            <span><NavigationIcon name="briefcase" size={14} />{jobEmploymentLabel(opportunity.jobDetails)}</span>}
-          {opportunity.type === "JOB" && jobSalaryLabel(opportunity.jobDetails) &&
-            <span className="bw-job-salary"><NavigationIcon name="wallet" size={14} />{jobSalaryLabel(opportunity.jobDetails)}</span>}
+          {opportunity.type === "JOB" && <>
+            <span><NavigationIcon name="briefcase" size={14} />{jobEmploymentLabel(opportunity.jobDetails) || "Type not specified"}</span>
+            <span className="bw-job-salary"><NavigationIcon name="wallet" size={14} />{jobSalaryLabel(opportunity.jobDetails) || "Salary not listed"}</span>
+          </>}
         </div>}
         <time dateTime={opportunity.deadline} title={"Deadline: " + formatted}>
           {isChallenge ? challengeDeadlineReminder(opportunity.deadline, currentTime) : opportunityDaysRemaining(opportunity.deadline, currentTime)}
