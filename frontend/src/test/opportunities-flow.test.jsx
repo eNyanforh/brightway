@@ -69,33 +69,73 @@ it("reviewers keep feedback after a conflict and clear private applications when
   denied = true; await user.click(screen.getByRole("button", { name: "Reload application queue" })); await screen.findByText("Organization access revoked");
   expect(screen.queryByText("Synthetic Applicant")).toBeNull();
 });
-it("the publisher creates a Job with the shared single-page composer and saves a BrightWay draft", async () => {
+it("publishes a six-step Job Vacancy draft with requirements and native document uploads", async () => {
   const saved = vi.fn();
   const fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
   vi.stubGlobal("fetch", fetch);
   const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
-  expect(screen.getByRole("heading", { name: "What opportunity do you want to offer?" })).toBeTruthy();
   await user.click(screen.getByRole("radio", { name: /Job/ }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  expect(screen.getByRole("heading", { name: "Create your Job" })).toBeTruthy();
-  expect(screen.getByLabelText("Job cover preview")).toBeTruthy();
-  expect(screen.getByLabelText("Opportunity cover photo")).toBeTruthy();
-  expect(screen.queryByRole("navigation", { name: "Creation progress" })).toBeNull();
-  await user.type(screen.getByLabelText("Title", { exact: true }), "Data internship");
-  expect(screen.getByText("Data internship", { selector: ".bw-op-standard-poster strong" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Job information" })).toBeTruthy();
+  expect(screen.getByRole("navigation", { name: "Creation progress" })).toBeTruthy();
+  await user.type(screen.getByLabelText("Job title"), "Data internship");
   await user.type(screen.getByLabelText("Description", { exact: true }), "Learn research and data quality skills with our team.");
-  await user.type(screen.getByLabelText("Location"), "Monrovia");
-
+  await user.selectOptions(screen.getByLabelText("Job category"), "Research");
+  await user.selectOptions(screen.getByLabelText("Experience level"), "ENTRY");
+  await user.selectOptions(screen.getByLabelText("Job type"), "INTERNSHIP");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Work location"), "Monrovia, Liberia");
+  await user.selectOptions(screen.getByLabelText("Compensation"), "PAID");
+  await user.type(screen.getByLabelText("Minimum salary"), "200");
+  await user.type(screen.getByLabelText("Maximum salary"), "400");
+  await user.selectOptions(screen.getByLabelText("Currency"), "USD");
+  await user.selectOptions(screen.getByLabelText("Pay period"), "MONTH");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Job responsibilities"), "Support field data collection");
+  await user.type(screen.getByLabelText("Required qualifications"), "High school completion");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByText(/Required documents:/)).toBeTruthy();
   await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
   await user.click(screen.getByRole("button", { name: "+ Add question" }));
-  await user.type(screen.getByLabelText("Question 1 text"), "Tell us about your experience");
-
-  expect(screen.getByRole("heading", { name: "Application questions" })).toBeTruthy();
+  await user.type(screen.getByLabelText("Question 2 text"), "Describe relevant experience");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.click(screen.getByRole("button", { name: "Save draft" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
   const body = JSON.parse(fetch.mock.calls[0][1].body);
-  expect(body.questions[0]).toMatchObject({ label: "Tell us about your experience", type: "SHORT_ANSWER", required: true });
+  expect(body.details).toMatchObject({ category: "Research", experienceLevel: "ENTRY", requireCv: true });
+  expect(body.jobDetails).toMatchObject({ type: "INTERNSHIP", compensationType: "PAID", salaryMin: 200, salaryMax: 400 });
+  expect(body.questions.some(q => q.label === "Required document: CV / résumé" && q.type === "FILE_UPLOAD" && q.required)).toBe(true);
+  expect(body.questions.some(q => q.label === "Describe relevant experience")).toBe(true);
   expect(body).not.toHaveProperty("applicationUrl");
+});
+it("creates a scholarship with funding, eligibility and required document uploads", async () => {
+  const saved = vi.fn(), fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT" }));
+  vi.stubGlobal("fetch", fetch);
+  const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
+  await user.click(screen.getByRole("radio", { name: /Scholarship/ }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Scholarship title"), "Liberia Research Scholarship");
+  await user.type(screen.getByLabelText("Description", { exact: true }), "Funding for students pursuing research in public health.");
+  await user.selectOptions(screen.getByLabelText("Scholarship category"), "RESEARCH");
+  await user.click(screen.getByLabelText("Masters"));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.selectOptions(screen.getByLabelText("Funding type"), "FULLY_FUNDED");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Study destination"), "Liberia");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Eligible countries"), "Liberia");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Selection criteria"), "Academic merit");
+  await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.click(screen.getByRole("button", { name: "Save draft" }));
+  await waitFor(() => expect(saved).toHaveBeenCalled());
+  const body = JSON.parse(fetch.mock.calls[0][1].body);
+  expect(body.type).toBe("SCHOLARSHIP");
+  expect(body.details).toMatchObject({ category: "RESEARCH", fundingType: "FULLY_FUNDED", academicLevels: ["MASTERS"], eligibleCountries: ["Liberia"] });
+  expect(body.questions.some(q => q.label === "Required document: Academic transcript" && q.required)).toBe(true);
+  expect(body.questions.some(q => q.label === "Required document: Personal statement" && q.required)).toBe(true);
 });
 it("the right-rail Challenge card stacks its cover, details and Partake action", () => {
   const challenge = {
