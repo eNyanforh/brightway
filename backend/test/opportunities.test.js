@@ -80,6 +80,21 @@ test("opportunity input rejects external application methods, unknown fields and
   assert.equal(createInput.safeParse({ ...listing(), questions: [q, q] }).success, false);
   assert.equal(applicationInput.safeParse({ expectedVersion: 0, expectedOpportunityVersion: 1, action: "SUBMIT", answers: {}, applicantId: randomUUID() }).success, false);
 });
+test("job employment and salary metadata validates complete pay ranges", () => {
+  const base = { type: "INTERNSHIP", compensationType: "PAID",
+    salaryMin: 200, salaryMax: 500, salaryCurrency: "USD", salaryPeriod: "MONTH" };
+  assert.deepEqual(createInput.parse({ ...listing(), jobDetails: base }).jobDetails, base);
+  assert.equal(createInput.parse(listing()).jobDetails, null, "legacy jobs remain valid");
+  for (const invalid of [
+    { salaryMin: 600, salaryMax: 500 },
+    { salaryMin: -1 }, { salaryMax: null },
+    { salaryCurrency: null }, { salaryPeriod: null },
+    { type: "UNKNOWN" }, { compensationType: "UNKNOWN" },
+    { compensationType: "UNPAID" }, { compensationType: "NEGOTIABLE" },
+  ]) assert.equal(createInput.safeParse({ ...listing(), jobDetails: { ...base, ...invalid } }).success, false);
+  const withoutAmount = { ...base, salaryMin: null, salaryMax: null, salaryCurrency: null, salaryPeriod: null };
+  assert.equal(createInput.safeParse({ ...listing(), jobDetails: { ...withoutAmount, compensationType: "UNPAID" } }).success, true);
+});
 test("application validation distinguishes false from unanswered and checks choices, lengths and required attachments", () => {
   const yes = question("YES_NO"), choice = question("MULTIPLE_CHOICE", { options: ["Coding", "Writing"] }), file = question("FILE_UPLOAD"), short = question("SHORT_ANSWER");
   assert.doesNotThrow(() => validateAnswers([yes, choice, file], { [yes.id]: false, [choice.id]: ["Coding"] }, [{ questionId: file.id }], true));
