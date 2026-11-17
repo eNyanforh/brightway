@@ -14,7 +14,6 @@ import ChallengeCollaboratorPicker from "./ChallengeCollaboratorPicker";
 import ChallengePostTypes from "./ChallengePostTypes";
 import ChallengeComposer from "./ChallengeComposer";
 import StandardOpportunityComposer from "./StandardOpportunityComposer";
-import DedicatedOpportunityWizard from "./DedicatedOpportunityWizard";
 import { isAutoDocumentQuestion, syncDocumentQuestions, requiredDocumentLabels } from "../../../../shared/opportunity-documents.mjs";
 import { opportunityPublicationIssues } from "../../../../shared/opportunity-readiness.mjs";
 import { CHALLENGE_POST_TYPES, describeChallengePostType } from "../../../../shared/challenge-submissions.mjs";
@@ -134,7 +133,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const challenge = draft.type === "CHALLENGE";
   const dedicated = ["JOB", "SCHOLARSHIP"].includes(draft.type);
   const dedicatedComposer = step > 0 && dedicated;
-  const singlePageComposer = step > 0 && (challenge || draft.type === "EVENT");
+  const singlePageComposer = step > 0 && (challenge || draft.type === "EVENT" || dedicated);
   const challengeComposer = challenge && singlePageComposer;
   const standardComposer = singlePageComposer && !challenge;
   const steps = challenge
@@ -214,8 +213,19 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     } catch (cause) { if (!controller.signal.aborted) setError(cause); }
     finally { if (!controller.signal.aborted) setUploading(""); }
   }
-  function validateStep() {
+  function validateStep(publishOnSave = false) {
     if (step === 0 && !draft.type) return "Choose which opportunity you want to offer.";
+    // The approved cover-left composer shows every Job/Scholarship section at once.
+    // Drafts may be incomplete; publishing validates the entire form.
+    if (dedicated && singlePageComposer) {
+      if (draft.questions.length > 20 || draft.questions.filter(q => q.type === "FILE_UPLOAD").length > 12)
+        return "Use at most 20 questions, including up to 12 document uploads.";
+      if (publishOnSave) {
+        const issues = opportunityPublicationIssues(draft);
+        if (issues.length) return issues[0];
+      }
+      return null;
+    }
     if (dedicated) {
       const d = draft.details || {};
       const has = value => typeof value === "string" && value.trim().length > 0;
@@ -291,7 +301,8 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     e.preventDefault();
     if (lock.current || uploading) return;
     setError(null);
-    const problem = validateStep();
+    const publishOnSave = dedicatedComposer && e.nativeEvent?.submitter?.value === "publish";
+    const problem = validateStep(publishOnSave);
     if (problem) { setError(new Error(problem)); return; }
     if (!singlePageComposer && step < last) { setStep(current => current + 1); return; }
     if (draft.type === "JOB" && (!draft.jobDetails?.type || !draft.jobDetails?.compensationType ||
@@ -306,7 +317,6 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         new Date(draft.deadline).getTime() <= Date.now()) {
       setError(new Error("Check the required details and future deadline before saving.")); return;
     }
-    const publishOnSave = dedicatedComposer && step === last && e.nativeEvent?.submitter?.value === "publish";
     lock.current = true; setBusy(true);
     const controller = new AbortController(); request.current = controller;
     try {
@@ -384,11 +394,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
       <form onSubmit={submit}>
         {error && <div className="bw-op-wizard-error" role="alert">{error.message}</div>}
         <fieldset className={"bw-op-editor-fields bw-op-wizard-fields" + (singlePageComposer ? " is-challenge-composer" : "")} disabled={locked}>
-          {dedicatedComposer ? <DedicatedOpportunityWizard draft={draft} field={field} step={step}
-            opportunity={opportunity} locked={locked} uploading={uploading} upload={upload}
-            questions={<QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
-              lockedForm={lockedForm} busy={busy} />} /> :
-            challengeComposer ? <ChallengeComposer draft={draft} field={field}
+          {challengeComposer ? <ChallengeComposer draft={draft} field={field}
             organizationId={organizationId} collaborators={collaborators}
             setCollaborators={setCollaborators} locked={locked} lockedForm={lockedForm}
             uploading={uploading} upload={upload}
@@ -529,7 +535,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
             {singlePageComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
           </button>
           <span className="bw-op-wizard-footer-hint">{opportunity ? "Editing saved listing" : "Saved as draft until you publish"}</span>
-          {dedicatedComposer && step === last ? <>
+          {dedicatedComposer && singlePageComposer ? <>
             <button className="bw-op-secondary" type="submit" name="intent" value="draft" disabled={locked}>
               {busy ? "Saving…" : opportunity ? "Save changes" : "Save draft"}
             </button>
