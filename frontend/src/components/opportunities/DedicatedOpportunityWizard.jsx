@@ -46,7 +46,7 @@ function EmploymentFields({ draft, field, jobTypeOnly = false }) {
   </section>;
 }
 function LocationFields({ draft, field, scholarship }) {
-  return <section className="bw-op-challenge-section" aria-label={scholarship ? "Study mode and location" : "Work mode and location"}>
+  return <section className="bw-op-challenge-section">
     <h4>{scholarship ? "Study mode and destination" : "Work location"}</h4>
     <div className="bw-op-field-row">
       <label>{scholarship ? "Study mode" : "Work mode"} <select value={draft.workMode} onChange={e => field("workMode", e.target.value)}>
