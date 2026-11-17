@@ -19,9 +19,9 @@ export default function CampusNavigation({ campus, campusId, id, mobile = false,
     { to: base, label: "Overview", icon: "explore", end: true },
     ...(setup ? [{ to: base + "/setup", label: "Campus setup", icon: "work" }] : []),
     ...modules.map(module => ({ ...module, to: base + "/" + module.section })),
-    ...(active && (permissions.some(p => p.startsWith("organization.campus.announcements.")) || admin)
+    ...((permissions.some(p => p.startsWith("organization.campus.announcements.")) || admin)
       ? [{ to: base + "/announcements", label: "Announcements", icon: "notifications" }] : []),
-    ...(active && has("organization.campus.billing.manage")
+    ...(has("organization.campus.billing.manage")
       ? [{ to: base + "/billing", label: "Platform billing", icon: "analytics" }] : []),
   ];
 
