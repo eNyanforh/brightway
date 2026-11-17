@@ -90,13 +90,13 @@ test("Opportunities page intro is unboxed and aligned to the page edges", async 
 test("members discover four opportunity types, save and submit an application, and withdraw", async ({ page }, testInfo) => {
   const state = await fixture(page);
   await page.goto("/opportunities");
-  await expect(page.getByRole("link", { name: initialOpportunity.title })).toBeVisible();
+  await expect(page.getByRole("link", { name: initialOpportunity.title, exact: true })).toBeVisible();
   await expect(page.locator(".bw-op-grid > article")).toHaveCount(4);
   await expect(page.locator(".bw-op-card")).toHaveCount(3);
   await expect(page.locator(".bw-rail-challenge-card")).toHaveCount(1);
   await noOverflow(page);
   await page.screenshot({ path: `/tmp/brightway-opportunities-${testInfo.project.name}.png`, fullPage: true });
-  await page.getByRole("link", { name: initialOpportunity.title }).click();
+  await page.getByRole("link", { name: initialOpportunity.title, exact: true }).click();
   await page.getByLabel("Can you join our team?").selectOption("false");
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Draft saved");
@@ -422,7 +422,7 @@ test("organization publishers create and publish a form, and reviewers send an a
   const editor = page.getByRole("dialog");
   await editor.getByRole("radio", { name: /Job/ }).click();
   await editor.getByRole("button", { name: "Continue" }).click();
-  await expect(editor.getByRole("heading", { name: "Job information" })).toBeVisible();
+  await expect(editor.getByRole("heading", { name: "Job information", exact: true })).toBeVisible();
   await expect(editor.getByRole("navigation", { name: "Creation progress" })).toBeVisible();
   const [coverBox, formBox] = await Promise.all([
     editor.locator(".bw-op-standard-preview-stage").boundingBox(),
@@ -456,6 +456,6 @@ test("organization publishers create and publish a form, and reviewers send an a
   await page.getByRole("combobox", { name: "Decision", exact: true }).selectOption("SHORTLISTED"); await page.getByLabel("Message to applicant").fill("Please prepare for an interview.");
   await page.getByRole("button", { name: "Save decision" }).click(); await expect(page.getByRole("heading", { name: "Application timeline" })).toBeVisible();
   await page.screenshot({ path: `/tmp/brightway-applications-${testInfo.project.name}.png`, fullPage: true }); await noOverflow(page);
-  await page.goto("/notifications"); await expect(page.getByRole("link", { name: initialOpportunity.title })).toBeVisible();
-  await page.getByRole("button", { name: "Unread", exact: true }).click(); await expect(page.getByRole("link", { name: initialOpportunity.title })).toBeVisible(); expect(state.errors).toEqual([]);
+  await page.goto("/notifications"); await expect(page.getByRole("link", { name: initialOpportunity.title, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Unread", exact: true }).click(); await expect(page.getByRole("link", { name: initialOpportunity.title, exact: true })).toBeVisible(); expect(state.errors).toEqual([]);
 });
