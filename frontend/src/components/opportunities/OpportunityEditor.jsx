@@ -546,23 +546,31 @@ export default function OpportunityEditor({ organizationId, organization, opport
           </div>}
         </fieldset>
         <footer className="bw-op-wizard-footer">
-          <button className="bw-op-secondary" type="button" disabled={busy || Boolean(uploading)}
-            onClick={() => singlePageComposer && opportunity ? close() : step ? (setError(null), setStep(current => current - 1)) : close()}>
-            {singlePageComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
-          </button>
-          <span className="bw-op-wizard-footer-hint">{opportunity ? "Editing saved listing" : "Saved as draft until you publish"}</span>
-          {dedicatedComposer && step === last ? <>
-            <button className="bw-op-secondary" type="submit" name="intent" value="draft" disabled={locked}>
-              {busy ? "Saving…" : opportunity ? "Save changes" : "Save draft"}
+          {dedicatedComposer ? <>
+            <button className="bw-op-dedicated-save" type={step === last ? "submit" : "button"}
+              name="intent" value="draft" disabled={locked}
+              onClick={step < last ? saveWorkingDraft : undefined}>
+              <NavigationIcon name="save" size={16}/>{busy ? "Saving…" : "Save draft"}
             </button>
-            <button className="bw-op-primary" type="submit" name="intent" value="publish" disabled={locked}>
-              {busy ? "Publishing…" : "Publish " + (draft.type === "JOB" ? "Job Vacancy" : "Scholarship")}
+            <span className="bw-op-dedicated-footer-space"/>
+            <button className="bw-op-dedicated-back" type="button" disabled={busy || Boolean(uploading)}
+              onClick={() => { setError(null); setDraftNotice(""); setStep(current => current - 1); }}>Back</button>
+            {step === last ? <button className="bw-op-primary" type="submit" name="intent" value="publish"
+              disabled={locked}>{busy ? "Publishing…" : "Publish " + OPPORTUNITY_TYPES[draft.type].label}</button>
+              : <button className="bw-op-primary" type="submit" disabled={locked}>
+                  Next: {DEDICATED_STEPS[draft.type][step]} <NavigationIcon name="chevron-right" size={16}/>
+                </button>}
+          </> : <>
+            <button className="bw-op-secondary" type="button" disabled={busy || Boolean(uploading)}
+              onClick={() => singlePageComposer && opportunity ? close() : step ? (setError(null), setStep(current => current - 1)) : close()}>
+              {singlePageComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
             </button>
-          </> : <button className="bw-op-primary" type="submit"
-            disabled={locked || (step === 0 && !draft.type)}>
-            {busy ? "Saving…" : singlePageComposer || step === last ? opportunity ? "Save changes" : "Save draft" : "Continue"}
-            {!busy && !singlePageComposer && step !== last && <NavigationIcon name="chevron-right" size={16} />}
-          </button>}
+            <span className="bw-op-wizard-footer-hint">{opportunity ? "Editing saved listing" : "Saved as draft until you publish"}</span>
+            <button className="bw-op-primary" type="submit" disabled={locked || (step === 0 && !draft.type)}>
+              {busy ? "Saving…" : singlePageComposer || step === last ? opportunity ? "Save changes" : "Save draft" : "Continue"}
+              {!busy && !singlePageComposer && step !== last && <NavigationIcon name="chevron-right" size={16}/>}
+            </button>
+          </>}
         </footer>
       </form>
     </section>
