@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
+import { OPPORTUNITY_TYPES, jobEmploymentLabel, jobSalaryLabel } from "../../../../shared/opportunities.mjs";
 import { opportunitiesApi } from "../../api/opportunities";
 import OrganizationAvatar from "../profile/OrganizationAvatar";
 import VerificationBadge from "../VerificationBadge";
@@ -112,6 +112,10 @@ function FeaturedOpportunityCard({ opportunity, organization, profile, detail, p
           <div className="bw-job-facts">
             {opportunity.location && <span><NavigationIcon name="pin" size={14} />{opportunity.location}</span>}
             <span><NavigationIcon name="work" size={14} />{mode}</span>
+            {jobEmploymentLabel(opportunity.jobDetails) &&
+              <span><NavigationIcon name="briefcase" size={14} />{jobEmploymentLabel(opportunity.jobDetails)}</span>}
+            {jobSalaryLabel(opportunity.jobDetails) &&
+              <span className="bw-job-salary"><NavigationIcon name="wallet" size={14} />{jobSalaryLabel(opportunity.jobDetails)}</span>}
           </div>
         </>}
         <p className="bw-challenge-deadline"><time dateTime={opportunity.deadline}
