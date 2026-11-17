@@ -324,3 +324,15 @@
   font-weight: 750;
   overflow-wrap: anywhere;
 }
+
+
+/* Scholarship funding and eligibility stay visible in the shared catalog card. */
+.bw-rail-scholarship-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .65rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: .875rem;
+}
+.bw-rail-scholarship-summary > strong { font-weight: 650; }
