@@ -403,3 +403,34 @@
   .bw-op-dedicated-salary-inputs { grid-template-columns: 1fr; }
   .bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-primary { min-width: 0; }
 }
+
+/* Step 2 is titled in the wizard header; inputs align directly with the cover. */
+.bw-op-dedicated-form-column .bw-op-dedicated-section-heading[data-step="2"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+.bw-op-dedicated-money-field {
+  position: relative;
+}
+.bw-op-dedicated-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+.bw-op-dedicated-money-prefix {
+  position: absolute;
+  left: 11px;
+  bottom: 13px;
+  color: #151515;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+}
+.bw-op-dedicated-money-field input { padding-left: 46px !important; }
