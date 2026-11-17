@@ -130,3 +130,23 @@
 .bw-dedicated-benefits { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
 .bw-dedicated-benefits span { border-radius: 8px; background: #f2f4f7; padding: 7px 9px; font-size: 12px; color: #344054; }
 @media (max-width: 640px) { .bw-dedicated-detail .bw-dedicated-detail-attributes { grid-template-columns: 1fr; } }
+
+.bw-dedicated-institution { position: relative; display: grid; gap: 8px; }
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-institution input {
+  width: 100%; min-height: 44px; padding: 10px 12px;
+  border: 1px solid #d0d5dd; border-radius: 8px; font-size: 13px; background: #fff; color: #101828;
+}
+.bw-dedicated-institution-results {
+  list-style: none; padding: 4px; margin: 0; border: 1px solid #eaecf0;
+  border-radius: 9px; box-shadow: 0 8px 20px rgba(16,24,40,.08); background: #fff;
+  max-height: 245px; overflow: auto;
+}
+.bw-dedicated-institution-results li { margin: 0; padding: 0; }
+.bw-dedicated-institution-results button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  width: 100%; padding: 10px; border: 0; border-radius: 7px; text-align: left;
+  background: #fff; cursor: pointer; color: #101828;
+}
+.bw-dedicated-institution-results button:hover { background: #f2f4f7; }
+.bw-dedicated-institution-results strong { font-size: 13px; }
+.bw-dedicated-institution-results span { font-size: 11px; color: #667085; }
