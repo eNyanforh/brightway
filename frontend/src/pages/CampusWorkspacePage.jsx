@@ -31,8 +31,14 @@ export default function CampusWorkspacePage() {
       if (!previous || previous.organization?.id !== id || previous.accountId !== account?.id) return previous;
       const status = snapshot.campus?.status || "NOT_CONFIGURED";
       const engine = snapshot.campus?.engine || null;
-      if (previous.status === status && previous.engine === engine) return previous;
-      return { ...previous, status, engine };
+      const permissions = [...new Set([
+        ...previous.permissions.filter(permission => !permission.startsWith("organization.campus.")),
+        ...(snapshot.permissions || []),
+      ])];
+      if (previous.status === status && previous.engine === engine &&
+          previous.permissions.length === permissions.length &&
+          previous.permissions.every(permission => permissions.includes(permission))) return previous;
+      return { ...previous, status, engine, permissions };
     });
   }, [id, account?.id, setCampusWorkspace]);
 
