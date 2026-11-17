@@ -33,6 +33,21 @@ it("invites by username with explicit permissions, scope version and one cookie-
   const [, options] = f.fetch.mock.calls.find(([, o]) => o?.method === "POST"); const body = JSON.parse(options.body); expect(body).toMatchObject({ username: "new_staff", permissions: [POSTS], expectedStaffVersion: 1 }); expect(body.idempotencyKey).toBeTruthy(); expect(options.credentials).toBe("include");
   release(reply({ id: inviteId })); await screen.findByText(/Saved. Organization access/);
 });
+it("offers active Campus teaching and academic permissions as working staff grants", async () => {
+  const campusCatalog = [...catalog,
+    { key: "organization.campus.academics.manage", label: "Manage Campus academic operations" },
+    { key: "organization.campus.teach", label: "Teach assigned Campus subjects" }];
+  const activeContext = { ...context, permissionCatalog: campusCatalog };
+  const f = mount(url => url.endsWith("/staff") ? reply(staff) : reply(activeContext));
+  await openInvite(f);
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).getByLabelText("Manage Campus academic operations")).toBeTruthy();
+  expect(within(dialog).getByLabelText("Teach assigned Campus subjects")).toBeTruthy();
+  expect(within(dialog).queryByText("Upcoming capabilities")).toBeNull();
+  await f.user.click(within(dialog).getByLabelText("Teach assigned Campus subjects"));
+  expect(within(dialog).getByLabelText("Teach assigned Campus subjects").checked).toBe(true);
+});
+
 it("ambiguous delivery retries the identical invitation without accepting edits or duplicating grants", async () => {
   const f = mount((url, options) => options?.method === "POST" ? reply("Response unavailable", 503) : defaultRead(url));
   await openInvite(f); await f.user.type(await screen.findByLabelText("BrightWay username"), "new_staff"); await f.user.click(screen.getByRole("button", { name: "Send invitation" }));
