@@ -14,6 +14,7 @@ export const DEDICATED_STEPS = Object.freeze({
 });
 
 const readable = value => value ? String(value).replaceAll("_", " ").toLowerCase().replace(/\b\w/g, char => char.toUpperCase()) : "Not specified";
+const payPeriodLabels = { HOUR: "Hourly", DAY: "Daily", WEEK: "Weekly", MONTH: "Monthly", YEAR: "Yearly" };
 const currency = (value, code) => code && value != null
   ? new Intl.NumberFormat("en-US", { style: "currency", currency: code, maximumFractionDigits: 2 }).format(value)
   : null;
@@ -123,15 +124,6 @@ function JobLocationAndSalary({ draft, field }) {
         {countries.map(country => <option value={country.name} key={country.name} />)}
       </datalist>
     </label>
-    <label>Compensation
-      <select required value={job.compensationType || ""}
-        onChange={e => updateJob({ compensationType: e.target.value,
-          salaryMin: null, salaryMax: null, salaryCurrency: null, salaryPeriod: null })}>
-        <option value="">Select compensation</option>
-        {Object.entries(JOB_COMPENSATION_TYPES).map(([value, label]) =>
-          <option key={value} value={value}>{label}</option>)}
-      </select>
-    </label>
     {salary && <>
       <div className="bw-op-dedicated-salary-group">
         <span>Salary Range <small>(optional)</small></span>
@@ -152,7 +144,7 @@ function JobLocationAndSalary({ draft, field }) {
         <select value={job.salaryPeriod || ""} onChange={e => updateJob({ salaryPeriod: e.target.value || null })}>
           <option value="">Choose pay period</option>
           {Object.entries(JOB_SALARY_PERIODS).map(([value, label]) =>
-            <option key={value} value={value}>{readable(label)}</option>)}
+            <option key={value} value={value}>{payPeriodLabels[value] || readable(label)}</option>)}
         </select>
       </label>
       <label>Currency
@@ -164,6 +156,15 @@ function JobLocationAndSalary({ draft, field }) {
         </select>
       </label>
     </>}
+    <label>Compensation
+      <select required value={job.compensationType || ""}
+        onChange={e => updateJob({ compensationType: e.target.value,
+          salaryMin: null, salaryMax: null, salaryCurrency: null, salaryPeriod: null })}>
+        <option value="">Select compensation</option>
+        {Object.entries(JOB_COMPENSATION_TYPES).map(([value, label]) =>
+          <option key={value} value={value}>{label}</option>)}
+      </select>
+    </label>
     <div className="bw-op-dedicated-field-row">
       <label>County / State
         <input value={details.region || ""} onChange={e => updateDetails("region", e.target.value)}/>
