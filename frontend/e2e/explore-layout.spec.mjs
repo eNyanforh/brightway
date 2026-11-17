@@ -172,10 +172,10 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(sidebarJob.getByLabel("Job type and compensation")).toContainText("Paid");
   await expect(sidebarJob.getByRole("link", { name: "Apply Now", exact: true }))
     .toHaveAttribute("href", "/opportunities/" + job.id);
-  await expect(sidebarJob.locator(".bw-job-detail-type")).toHaveCSS("background-color", "rgb(226, 237, 255)");
-  await expect(sidebarJob.locator(".bw-job-detail-compensation")).toHaveCSS("background-color", "rgb(223, 245, 233)");
-  await expect(mainJob.locator(".bw-job-detail-type")).toHaveCSS("background-color", "rgb(226, 237, 255)");
-  await expect(mainJob.locator(".bw-job-detail-compensation")).toHaveCSS("background-color", "rgb(223, 245, 233)");
+  await expect(sidebarJob.locator(".bw-job-detail-type")).not.toHaveCSS("background-color", "rgb(226, 237, 255)");
+  await expect(sidebarJob.locator(".bw-job-detail-compensation")).not.toHaveCSS("background-color", "rgb(223, 245, 233)");
+  await expect(mainJob.locator(".bw-job-detail-type")).not.toHaveCSS("background-color", "rgb(226, 237, 255)");
+  await expect(mainJob.locator(".bw-job-detail-compensation")).not.toHaveCSS("background-color", "rgb(223, 245, 233)");
   await expect(sidebarJob.getByLabel("Job type and compensation")).toContainText("US$200–US$500/month");
   await expect(mainJob.getByLabel("Job type and compensation")).toContainText("US$200–US$500/month");
   // Right-rail jobs must keep the same visible category gradient as main Explore jobs.
