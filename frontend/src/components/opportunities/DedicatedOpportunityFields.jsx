@@ -45,16 +45,16 @@ export default function DedicatedOpportunityFields({ type, details, onChange, se
   const toggle = (label, key) => <Toggle label={label} value={val(key)} update={v => set(key, v)} />;
   if (type === "JOB") return <div aria-labelledby={headingId} className="bw-op-dedicated-details">
     <h3 id={headingId}>Job vacancy details</h3>
-    {(section === "all" || section === 1) && {(section === "all" || section === 1) && {(section === "all" || section === 1) && {(section === "all" || section === 1) && {(section === "all" || section === 1) && <Section title="1. Job information">
+    {(section === "all" || section === 1) && <Section title="1. Job information">
       <div className="bw-op-field-row">{select("Job category", "category", JOB_CATEGORIES)}{select("Experience level", "experienceLevel", JOB_LEVELS)}</div>
       <div className="bw-op-field-row">{input("Number of vacancies", "vacancies", { type: "number", min: 1 })}{input("Expected start date", "startDate", { type: "date" })}</div>
     </Section>}
-    {(section === "all" || section === 2) && {(section === "all" || section === 2) && {(section === "all" || section === 2) && {(section === "all" || section === 2) && {(section === "all" || section === 2) && <Section title="2. Location and benefits">
+    {(section === "all" || section === 2) && <Section title="2. Location and benefits">
       <div className="bw-op-field-row">{input("Country", "country")}{input("County / State", "region")}</div>
       <div className="bw-op-field-row">{input("City", "city")}{input("Work address (optional)", "address")}</div>
       {many("Additional benefits", "benefits", "Health insurance\nTransport allowance\nTraining")}
     </Section>}
-    {(section === "all" || section === 3) && {(section === "all" || section === 3) && {(section === "all" || section === 3) && {(section === "all" || section === 3) && {(section === "all" || section === 3) && <Section title="3. Requirements and qualifications">
+    {(section === "all" || section === 3) && <Section title="3. Requirements and qualifications">
       <div className="bw-op-field-row">{select("Minimum education", "education", EDUCATION)}{input("Minimum experience (months)", "experienceMonths", { type: "number", min: 0 })}</div>
       {many("Preferred fields of study", "fieldsOfStudy")}
       {many("Required skills", "requiredSkills")}
@@ -65,12 +65,12 @@ export default function DedicatedOpportunityFields({ type, details, onChange, se
       {many("Required qualifications", "requiredQualifications")}
       {many("Preferred qualifications", "preferredQualifications")}
     </Section>}
-    {(section === "all" || section === 4) && {(section === "all" || section === 4) && {(section === "all" || section === 4) && {(section === "all" || section === 4) && {(section === "all" || section === 4) && <Section title="4. Applicant documents">
+    {(section === "all" || section === 4) && <Section title="4. Applicant documents">
       <div className="bw-op-detail-choices">{toggle("Require CV / résumé", "requireCv")}{toggle("Require cover letter", "requireCoverLetter")}{toggle("Require portfolio", "requirePortfolio")}</div>
       {many("Other required documents", "additionalDocuments")}
       {input("Application limit (optional)", "applicationLimit", { type: "number", min: 1 })}
     </Section>}
-    {(section === "all" || section === 5) && {(section === "all" || section === 5) && {(section === "all" || section === 5) && {(section === "all" || section === 5) && {(section === "all" || section === 5) && <Section title="5. Recruitment and selection">
+    {(section === "all" || section === 5) && <Section title="5. Recruitment and selection">
       {multiple("Recruitment stages", "recruitmentStages", ["APPLICATION_REVIEW", "SHORTLISTING", "ASSESSMENT", "INTERVIEW", "FINAL_SELECTION"])}
       {input("Expected hiring date", "hiringDate", { type: "date" })}
       <p className="bw-op-challenge-cover-help">Reviewers and their permissions are managed within the organization's authorized recruitment workspace.</p>
@@ -79,13 +79,13 @@ export default function DedicatedOpportunityFields({ type, details, onChange, se
   if (type !== "SCHOLARSHIP") return null;
   return <div aria-labelledby={headingId} className="bw-op-dedicated-details">
     <h3 id={headingId}>Scholarship details</h3>
-    {(section === "all" || section === 1) && {(section === "all" || section === 1) && {(section === "all" || section === 1) && {(section === "all" || section === 1) && {(section === "all" || section === 1) && <Section title="1. Scholarship information">
+    {(section === "all" || section === 1) && <Section title="1. Scholarship information">
       {select("Scholarship category", "category", ["MERIT", "NEED", "RESEARCH", "ATHLETIC", "GOVERNMENT", "INSTITUTIONAL", "PROFESSIONAL_DEVELOPMENT", "OTHER"])}
       {multiple("Academic levels", "academicLevels", STUDY_LEVELS)}
       {many("Eligible fields of study", "fieldsOfStudy")}
       {input("Number of scholarships", "awardsAvailable", { type: "number", min: 1 })}
     </Section>}
-    {(section === "all" || section === 2) && {(section === "all" || section === 2) && {(section === "all" || section === 2) && {(section === "all" || section === 2) && {(section === "all" || section === 2) && <Section title="2. Funding and benefits">
+    {(section === "all" || section === 2) && <Section title="2. Funding and benefits">
       <div className="bw-op-field-row">{select("Funding type", "fundingType", FUNDING, true)}{select("Currency", "currency", ["USD", "LRD", "EUR", "GBP"])}</div>
       {["FIXED_AMOUNT", "STIPEND", "PARTIALLY_FUNDED"].includes(val("fundingType")) && input("Scholarship value", "value", { type: "number", min: 0 })}
       <div className="bw-op-field-row">{input("Funding duration (months)", "fundingMonths", { type: "number", min: 1 })}
@@ -98,14 +98,14 @@ export default function DedicatedOpportunityFields({ type, details, onChange, se
       {val("livingAllowance") && input("Living allowance amount", "livingAllowanceAmount", { type: "number", min: 0 })}
       {many("Other benefits", "benefits")}
     </Section>}
-    {(section === "all" || section === 3) && {(section === "all" || section === 3) && {(section === "all" || section === 3) && {(section === "all" || section === 3) && {(section === "all" || section === 3) && <Section title="3. Study destination and institution">
+    {(section === "all" || section === 3) && <Section title="3. Study destination and institution">
       <div className="bw-op-field-row">{input("Study country", "studyCountry")}{input("City or region", "studyRegion")}</div>
       {input("Host institution", "institution", { placeholder: "Institution name" })}
       {many("Programs or courses", "programs")}
       <div className="bw-op-field-row">{input("Program duration (months)", "programMonths", { type: "number", min: 1 })}
         {input("Academic intake (YYYY-MM)", "intake", { type: "month" })}</div>
     </Section>}
-    {(section === "all" || section === 4) && {(section === "all" || section === 4) && {(section === "all" || section === 4) && {(section === "all" || section === 4) && {(section === "all" || section === 4) && <Section title="4. Eligibility requirements">
+    {(section === "all" || section === 4) && <Section title="4. Eligibility requirements">
       {many("Eligible countries", "eligibleCountries", "Enter one country per line, or Worldwide")}
       {select("Minimum education", "education", EDUCATION)}
       <div className="bw-op-field-row">{input("Minimum age (if applicable)", "minAge", { type: "number", min: 0 })}
@@ -116,7 +116,7 @@ export default function DedicatedOpportunityFields({ type, details, onChange, se
       {toggle("Financial need evidence required", "financialNeedRequired")}
       {many("Additional eligibility criteria", "eligibilityCriteria")}
     </Section>}
-    {(section === "all" || section === 5) && {(section === "all" || section === 5) && {(section === "all" || section === 5) && {(section === "all" || section === 5) && {(section === "all" || section === 5) && <Section title="5. Application and selection">
+    {(section === "all" || section === 5) && <Section title="5. Application and selection">
       <div className="bw-op-field-row">{input("Application opening date", "openingDate", { type: "date" })}
         {input("Expected announcement date", "announcementDate", { type: "date" })}</div>
       <div className="bw-op-detail-choices">
