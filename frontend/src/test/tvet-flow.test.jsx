@@ -39,6 +39,15 @@ it("TVET certificate module reads learner completion evidence without enrolment 
  expect(screen.getByRole("button",{name:"Mark program completed"}).disabled).toBe(true);
  expect(api.report).toHaveBeenCalledWith("campus","enrolment",expect.any(AbortSignal));
 });
+it("revoked TVET learner-report access clears the institutional learner list",async()=>{
+ api.setup.mockResolvedValue(setup());api.enrolments.mockResolvedValue({items:[enrolment],supporters:[],nextCursor:null});api.admissions.mockResolvedValue({items:[],nextCursor:null});
+ api.report.mockRejectedValue(Object.assign(new Error("Training access revoked"),{status:403}));
+ const u=mount(<TvetWorkspace campusId="campus" module="certificates"/>);
+ await u.click(await screen.findByRole("button",{name:"Review completion evidence"}));
+ await screen.findByRole("alert");
+ expect(screen.queryByRole("button",{name:"Review completion evidence"})).toBeNull();
+ expect(screen.queryByText("Synthetic TVET Institute")).toBeNull();
+});
 it("completed learners open the TVET report using their own engine",async()=>{schoolApi.myCampus.mockResolvedValue({items:[{engine:"TVET",id:"enrolment",schoolName:"Institute",status:"COMPLETED",studentStatus:"ACTIVE",period:"Intake",section:"A"}]});api.myReport.mockResolvedValue(report());const u=mount(<MyCampus/>);await u.click(await screen.findByRole("button",{name:"Open my Campus"}));await screen.findByRole("region",{name:"TVET learner record"});expect(api.myReport).toHaveBeenCalledWith("enrolment",expect.any(AbortSignal));expect(schoolApi.myReport).not.toHaveBeenCalled();});
 it("sponsors confirm only through the TVET relationship endpoint",async()=>{schoolApi.guardians.mockResolvedValue({items:[{engine:"TVET",id:"support",schoolName:"Institute",relationship:"SPONSOR",student:{fullName:"Learner"},status:"PENDING",version:1,registrations:[]}]});api.supporterDecision.mockResolvedValue({status:"CONFIRMED"});const u=mount(<MyCampus guardians/>);await u.click(await screen.findByRole("button",{name:"Confirm learner relationship"}));expect(api.supporterDecision).toHaveBeenCalledWith("support",{expectedVersion:1,decision:"CONFIRM"});expect(schoolApi.guardianDecision).not.toHaveBeenCalled();});
 it("pre-enrolled learners see Come Later without requesting a report",async()=>{schoolApi.myCampus.mockResolvedValue({items:[{engine:"TVET",id:"enrolment",schoolName:"Institute",status:"PRE_REGISTERED",studentStatus:"PRE_REGISTERED",period:"Intake",section:"A",message:"Welcome! Access is being finalized."}]});mount(<MyCampus/>);await screen.findByRole("link",{name:"Come Later"});expect(api.myReport).not.toHaveBeenCalled();});
