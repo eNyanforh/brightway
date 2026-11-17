@@ -93,7 +93,7 @@ export const opportunityInput = z.strictObject({
   coverImage: z.enum(Object.keys(CHALLENGE_COVER_IMAGES)).default(DEFAULT_CHALLENGE_COVER),
   deadline: z.iso.datetime({ offset: true }),
   questions: z.array(question).max(20).refine(q => new Set(q.map(v => v.id)).size === q.length)
-    .refine(q => q.filter(v => v.type === "FILE_UPLOAD").length <= 5),
+    .refine(q => q.filter(v => v.type === "FILE_UPLOAD").length <= 10),
 }).superRefine((data, context) => {
   if (data.type !== "JOB" && data.jobSpecification)
     context.addIssue({ code: "custom", path: ["jobSpecification"], message: "Job details belong to job vacancies only." });
