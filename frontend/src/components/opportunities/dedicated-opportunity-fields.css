@@ -28,3 +28,421 @@
 .bw-op-scholarship-summary { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin: .6rem 0; }
 .bw-op-scholarship-summary > * { font-size: .875rem; }
 @media (max-width: 768px) { .bw-op-dedicated-wizard .bw-op-challenge-cover-column { position: static; } }
+
+
+/* Perfect Creation Form: dedicated six-step Job/Scholarship wizard.
+   The left side previews the actual public listing; only the right side changes
+   between steps. Scoped to avoid changing Challenge and Event composers. */
+.bw-op-wizard-overlay.bw-op-dedicated-overlay {
+  align-items: center;
+  padding: clamp(10px, 2vw, 24px);
+}
+.bw-op-dedicated-overlay .bw-op-wizard {
+  width: min(960px, 100%);
+  max-height: 94dvh;
+  overflow-y: auto;
+  border: 1px solid #e2e2e2;
+  border-radius: 18px;
+  background: #fff;
+}
+.bw-op-dedicated-overlay .bw-op-wizard-header {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 18px 10px;
+  background: #fff;
+}
+.bw-op-dedicated-overlay .bw-op-wizard-header h2 {
+  margin: 0;
+  color: #101010;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -.015em;
+}
+.bw-op-dedicated-overlay .bw-op-wizard-header p {
+  margin: 5px 0 0;
+  color: #606774;
+  font-size: 13px;
+}
+.bw-op-dedicated-header-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 9px;
+}
+.bw-op-dedicated-status {
+  padding: 4px 10px;
+  color: #1f1f1f;
+  background: #f0f0f0;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.bw-op-dedicated-overlay .bw-op-wizard-header > .bw-op-dedicated-header-actions > button {
+  min-width: 34px;
+  min-height: 34px;
+}
+.bw-op-dedicated-progress {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 5px;
+  padding: 0 16px 15px;
+  background: #fff;
+}
+.bw-op-dedicated-progress > span {
+  height: 5px;
+  border-radius: 4px;
+  background: #f0f0f0;
+}
+.bw-op-dedicated-progress > span.is-filled {
+  background: #1976d2;
+}
+.bw-op-dedicated-overlay .bw-op-wizard-fields {
+  padding: 9px clamp(16px, 2.5vw, 26px) 26px;
+  border: 0;
+}
+.bw-op-dedicated-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, .93fr) minmax(0, 1.4fr);
+  align-items: start;
+  gap: clamp(18px, 2.8vw, 28px);
+  min-width: 0;
+}
+.bw-op-dedicated-preview {
+  position: sticky;
+  top: 112px;
+  min-width: 0;
+  align-self: start;
+}
+.bw-op-dedicated-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.bw-op-dedicated-cover {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 8 / 5;
+  overflow: hidden;
+  border-radius: 11px;
+  background: #f2f2f2;
+  color: #636363;
+}
+.bw-op-dedicated-cover > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bw-op-dedicated-cover-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.bw-op-dedicated-upload {
+  position: relative;
+  display: inline-flex !important;
+  align-items: center;
+  align-self: flex-start;
+  gap: 7px;
+  min-height: 36px;
+  padding: 4px 0 !important;
+  margin: 4px 0 !important;
+  color: #535b66;
+  font-size: 12px !important;
+  cursor: pointer;
+}
+.bw-op-dedicated-upload:focus-within {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+}
+.bw-op-dedicated-upload input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.bw-op-dedicated-preview-title {
+  margin: 2px 0 11px;
+  color: #111;
+  font-size: 18px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+.bw-op-dedicated-preview-organization {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 23px;
+  color: #4d5969;
+  font-size: 13px;
+}
+.bw-op-dedicated-preview-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 10px 0 7px;
+}
+.bw-op-dedicated-preview-badges > span {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #f0f0f0;
+  color: #131313;
+  font-size: 12px;
+  font-weight: 650;
+}
+.bw-op-dedicated-preview-location {
+  margin: 0 0 11px;
+  font-size: 12px;
+  color: #647084;
+  overflow-wrap: anywhere;
+}
+.bw-op-dedicated-preview-reward {
+  display: grid;
+  gap: 3px;
+  padding: 10px 9px;
+  border-radius: 10px;
+  background: #f3f3f3;
+  color: #101010;
+}
+.bw-op-dedicated-preview-reward > span {
+  color: #5e6875;
+  font-size: 10px;
+  letter-spacing: .045em;
+}
+.bw-op-dedicated-preview-reward > strong {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.bw-op-dedicated-preview-cta {
+  display: block;
+  margin-top: 10px;
+  padding: 12px;
+  text-align: center;
+  border-radius: 10px;
+  background: #f1f1f1;
+  color: #111;
+  font-size: 13px;
+  font-weight: 750;
+}
+.bw-op-dedicated-preview-note {
+  margin: 7px 0 0;
+  color: #77808d;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.bw-op-dedicated-form-column {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+.bw-op-dedicated-form-column .bw-op-dedicated-section-heading {
+  margin: 0 0 4px;
+  color: #111;
+  font-size: 15px;
+  font-weight: 700;
+}
+.bw-op-dedicated-form-column label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  color: #3d4b60;
+  font-size: 13px;
+  font-weight: 600;
+}
+.bw-op-dedicated-form-column input:not([type="checkbox"]):not([type="file"]),
+.bw-op-dedicated-form-column select,
+.bw-op-dedicated-form-column textarea {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #d9dce1;
+  border-radius: 10px;
+  background: #fff;
+  color: #151515;
+  font-size: 14px;
+}
+.bw-op-dedicated-form-column input:not([type="checkbox"]):not([type="file"]),
+.bw-op-dedicated-form-column select {
+  min-height: 46px;
+  padding: 10px 11px;
+}
+.bw-op-dedicated-form-column textarea { padding: 11px; }
+.bw-op-dedicated-form-column :is(input, select, textarea):focus-visible {
+  outline: 2px solid #1976d2;
+  outline-offset: 1px;
+}
+.bw-op-dedicated-step-fields { display: grid; gap: 14px; }
+.bw-op-dedicated-field-row,
+.bw-op-dedicated-salary-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.bw-op-dedicated-salary-group { display: grid; gap: 7px; }
+.bw-op-dedicated-salary-group > span {
+  font-size: 13px;
+  color: #3d4b60;
+  font-weight: 600;
+}
+.bw-op-dedicated-salary-group small { font-weight: 400; color: #6c7786; }
+.bw-op-dedicated-field-section { display: grid; gap: 10px; }
+.bw-op-dedicated-field-section > h4 { margin: 3px 0; font-size: 14px; }
+.bw-op-dedicated-form-column .bw-op-dedicated-details { gap: 0; }
+.bw-op-dedicated-form-column .bw-op-dedicated-details > h3 { display: none; }
+.bw-op-dedicated-form-column .bw-op-details-section { padding: 0; border: 0; }
+.bw-op-dedicated-form-column .bw-op-details-section > h4 { display: none; }
+.bw-op-dedicated-form-column .bw-op-detail-options { min-width: 0; }
+.bw-op-dedicated-form-column .bw-op-detail-choices label {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+}
+.bw-op-dedicated-review dl { display: grid; gap: 10px; }
+.bw-op-dedicated-review dl > div {
+  padding: 10px;
+  background: #f7f7f7;
+  border-radius: 8px;
+}
+.bw-op-dedicated-review dt { color: #697586; font-size: 12px; }
+.bw-op-dedicated-review dd { margin: 2px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.bw-op-dedicated-private {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: #647084;
+}
+.bw-op-dedicated-draft-notice {
+  margin: 4px 20px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f4f6f8;
+  color: #364152;
+  font-size: 12px;
+}
+.bw-op-dedicated-overlay .bw-op-wizard-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px clamp(16px, 2.5vw, 26px);
+  border-top: 1px solid #eeeeee;
+  background: #fff;
+}
+.bw-op-dedicated-footer-space { flex: 1; }
+.bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-dedicated-save,
+.bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-dedicated-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 4px;
+  min-height: 44px;
+  color: #57606d;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+}
+.bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 160px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 10px;
+  background: #f1f1f1;
+  color: #111;
+  font-size: 13px;
+  font-weight: 750;
+}
+.bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-primary:hover {
+  background: #e7e7e7;
+}
+@media (max-width: 800px) {
+  .bw-op-dedicated-layout { grid-template-columns: 1fr; gap: 20px; }
+  .bw-op-dedicated-preview { position: static; }
+  .bw-op-dedicated-cover { aspect-ratio: 16 / 7; max-height: 240px; }
+}
+@media (max-width: 720px) {
+  .bw-op-wizard-overlay.bw-op-dedicated-overlay { padding: 0; align-items: stretch; }
+  .bw-op-dedicated-overlay .bw-op-wizard {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+  .bw-op-dedicated-overlay .bw-op-wizard-header { padding: 15px 16px 10px; }
+  .bw-op-dedicated-progress { padding: 0 16px 12px; }
+  .bw-op-dedicated-overlay .bw-op-wizard-fields { padding: 12px 16px 18px; }
+  .bw-op-dedicated-overlay .bw-op-wizard-footer { padding: 10px 16px; }
+  .bw-op-dedicated-preview-organization, .bw-op-dedicated-preview-location { font-size: 12px; }
+}
+@media (max-width: 400px) {
+  .bw-op-dedicated-field-row,
+  .bw-op-dedicated-salary-inputs { grid-template-columns: 1fr; }
+  .bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-primary { min-width: 0; }
+}
+
+/* Step 2 is titled in the wizard header; inputs align directly with the cover. */
+.bw-op-dedicated-form-column .bw-op-dedicated-section-heading[data-step="2"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+.bw-op-dedicated-money-field {
+  position: relative;
+}
+.bw-op-dedicated-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+.bw-op-dedicated-money-prefix {
+  position: absolute;
+  left: 11px;
+  bottom: 13px;
+  color: #151515;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+}
+.bw-op-dedicated-money-field input { padding-left: 46px !important; }
+
+@media (max-width: 560px) {
+  .bw-op-dedicated-overlay .bw-op-wizard-footer { flex-wrap: wrap; }
+  .bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-dedicated-save { margin-right: auto; }
+  .bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-primary {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
+  .bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-dedicated-footer-space { display: none; }
+  .bw-op-dedicated-form-column .bw-op-field-row { grid-template-columns: 1fr; }
+}

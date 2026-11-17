@@ -251,7 +251,7 @@ export default function OrganizationOpportunities({ organization, disabled = fal
           onClick={() => void load(page.nextCursor)}>Load more</button>
       </div>}
     </div>}
-    {editor && !disabled && <OpportunityEditor key={editor.id || "new"} organizationId={organization.id}
+    {editor && !disabled && <OpportunityEditor key={editor.id || "new"} organizationId={organization.id} organization={organization}
       opportunity={editor.new ? null : editor} onClose={() => setEditor(null)}
       onSaved={o => {
         setEditor(null);
