@@ -7,6 +7,7 @@
   --explore-border: #dfe7f1;
   --explore-soft: #f5f8fc;
   --explore-surface: #fff;
+  --explore-job-gradient: linear-gradient(135deg, #a1c4fd 0%, #f9c2fb 100%);
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(252px, 268px);
   align-items: start;
@@ -781,7 +782,7 @@
 }
 .bw-explore .bw-timeline-post.bw-timeline-opportunity:hover { border: 0; box-shadow: none; }
 .bw-explore .bw-timeline-opportunity-job {
-  --explore-opportunity-gradient: linear-gradient(135deg, #a1c4fd 0%, #f9c2fb 100%);
+  --explore-opportunity-gradient: var(--explore-job-gradient);
 }
 .bw-explore .bw-timeline-opportunity-scholarship {
   --explore-opportunity-gradient: linear-gradient(135deg, #f3ff9a 0%, #fad0c4 100%);
