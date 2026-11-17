@@ -58,6 +58,10 @@ jobs:
           npx --no-install prisma generate
       - name: Prepare check logs
         run: mkdir -p check-results
+      - name: Validate real-institution smoke runner syntax
+        run: node --check scripts/campus-institution-smoke.mjs
+      - name: Runtime dependency audit
+        run: npm audit --omit=dev --audit-level=moderate 2>&1 | tee check-results/runtime-audit.log
       - name: Dependency security audit
         id: dependency_audit
         # Continue functional checks even if an upstream advisory has no available fix.
