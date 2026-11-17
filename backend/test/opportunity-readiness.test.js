@@ -24,6 +24,18 @@ test("scholarship readiness checks levels, country, funding, and selection crite
   assert.deepEqual(opportunityPublicationIssues(base), []);
   assert.ok(opportunityPublicationIssues({ ...base, details: { ...base.details, eligibleCountries: [] } }).some(x => /eligible country/i.test(x)));
 });
+test("fixed-amount scholarships need a positive disclosed amount and supported currency", () => {
+  const base = { ...job(), type: "SCHOLARSHIP", jobDetails: null, details: {
+    category: "RESEARCH", academicLevels: ["MASTERS"], fundingType: "FIXED_AMOUNT",
+    eligibleCountries: ["Liberia"], selectionCriteria: ["Academic achievement"],
+  } };
+  assert.ok(opportunityPublicationIssues(base).some(issue => /amount/i.test(issue)));
+  assert.ok(opportunityPublicationIssues({ ...base, details: { ...base.details, value: 1000 } })
+    .some(issue => /currency/i.test(issue)));
+  assert.deepEqual(opportunityPublicationIssues({ ...base, details: {
+    ...base.details, value: 1000, currency: "USD",
+  } }), []);
+});
 test("document toggles produce deterministic required file questions and cannot be omitted at publication", () => {
   const details = { ...job().details, requireCv: true, requireCoverLetter: true };
   const missing = opportunityPublicationIssues({ ...job(), details });
