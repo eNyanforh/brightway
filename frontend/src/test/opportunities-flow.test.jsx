@@ -84,7 +84,7 @@ it("the publisher creates a Job Vacancy through six dedicated steps", async () =
   expect(screen.getByRole("navigation", { name: "Creation progress" })).toBeTruthy();
   await user.type(screen.getByRole("textbox", { name: /Job title/ }), "Data internship");
   await user.type(screen.getByLabelText("Description"), "Learn research and data quality skills with our team.");
-  await user.type(screen.getByRole("textbox", { name: /Job category/ }), "Research");
+  await user.type(screen.getByRole("combobox", { name: /Job category/ }), "Research");
   await user.selectOptions(screen.getByRole("combobox", { name: /Job type/ }), "INTERNSHIP");
   await user.selectOptions(screen.getByRole("combobox", { name: /Experience level/ }), "ENTRY");
   await user.click(screen.getByRole("button", { name: "Continue" }));
