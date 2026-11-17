@@ -21,6 +21,18 @@ describe("Grade School academic workspace", () => {
     await screen.findByRole("alert"); expect(screen.getByLabelText("Subject name").value).toBe("History");
     expect(api.configure).toHaveBeenCalledWith("school", "subjects", { name: "History", passingMark: 50 });
   });
+  it("opens finalized Grade School reports from a dedicated admin module without registration controls", async () => {
+    api.setup.mockResolvedValue(setup()); api.registrations.mockResolvedValue({ items: [r], guardians: [], nextCursor: null });
+    api.report.mockResolvedValue({ schoolName: "Synthetic Academy", registration: r, subjects: [{ offering, grade: { percent: 89, outcome: "PASS" }, assessments: [], attendance: [] }], announcements: [] });
+    const user = mount(<GradeSchoolWorkspace campusId="school" module="reports" />);
+    await screen.findByRole("heading", { name: "Results & reporting" });
+    expect(screen.queryByRole("form", { name: "Register a student" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Manage student" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "View report" }));
+    const report = await screen.findByRole("region", { name: "Student academic report" });
+    expect(within(report).getByText("89%")).toBeTruthy();
+    expect(api.report).toHaveBeenCalledWith("school", "registration", expect.any(AbortSignal));
+  });
   it("teachers see assigned subjects without academic administration or student registration tools", async () => {
     api.setup.mockResolvedValue(setup(false)); api.subject.mockResolvedValue({ offering, students: [r], attendance: [], assessments: [] });
     mount(<GradeSchoolWorkspace campusId="school" />);
