@@ -11,6 +11,7 @@ import { challengeDeadlineReminder, opportunityDaysRemaining } from "./challenge
 import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER, challengeCardPrize } from "../../../../shared/challenges.mjs";
 import ChallengeCoHosts from "./ChallengeCoHosts";
 import JobDetailsSummary from "./JobDetailsSummary";
+import { ScholarshipFundingSummary } from "./SpecializedOpportunityDetails";
 
 const EXPLORE_OPPORTUNITY_CATEGORIES = Object.freeze({
   JOB: "Job Vacancy",
@@ -190,6 +191,7 @@ export default function ExploreOpportunityCard({ opportunity, onSavedChange }) {
           <div className="bw-timeline-opportunity-body">
             <h3><Link to={detail}>{opportunity.title}</Link></h3>
             <p className="bw-timeline-opportunity-description">{opportunity.description}</p>
+            {opportunity.type === "SCHOLARSHIP" && <ScholarshipFundingSummary details={opportunity.scholarshipSpecification} compact />}
             <div className="bw-timeline-opportunity-meta">
               <span><NavigationIcon name="pin" size={15} />{opportunity.location}</span>
               <span><NavigationIcon name="calendar" size={15} /><RemainingDeadline
