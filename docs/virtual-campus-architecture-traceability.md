@@ -75,3 +75,12 @@ Scope: route-level navigation alignment, role/engine visibility, and preserving 
 - Grade School has a dedicated read-only results/reporting module backed by the existing official student report endpoint; registration actions remain in registration management.
 - TVET has a dedicated completion/certificates module backed by the existing learner-report, completion, certificate issue and revoke endpoints. It does not load admissions or show enrolment setup controls.
 - Existing browser tests were updated to use the mobile Campus navigation and the explicit learner certificate tab/back-navigation flows. A regression test for Job draft creation now supplies newly required employment and compensation fields. These changes are test/UX alignment; do not infer production readiness without completed CI.
+
+## Final alignment follow-up — role contexts and module boundaries
+
+- Student account-switching now deep-links to the selected institution under `/learning?view=campus&campus=<institution-id>`; pre-registered students see the institutional waiting dialog and Come Later without academic reads.
+- The Grade School Teachers & schedules module permits assignment/timetabling only; Subject attendance and Assessments & grades own their separate forms and finalized records. The legacy academic view still supports older internal navigation.
+- TVET Instructors & schedules is separated from Session attendance and Competency assessments; record mutation uses the existing role-scoped endpoints.
+- On 401/403/404 from a student registration/report or TVET learner/report, cached sensitive rows are removed and the institutional workspace is invalidated. Personal/guardian report and guardian-decision errors also clear cached access context.
+- The new automated tests check route uniqueness, dedicated results/certificate views, schedule-only boundaries, permission revocation, school-specific selection and browser denial of copied privileged Campus links.
+- CI jobs may be superseded by subsequent commits; only successful checks for the final PR HEAD satisfy the evidence gate. Browser tests use synthetic route fixtures; live institution UAT and a browser-to-real-database end-to-end test remain separate release blockers.
