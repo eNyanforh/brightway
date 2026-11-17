@@ -15,12 +15,6 @@ function List({ heading, items }) {
   return Array.isArray(items) && items.filter(Boolean).length > 0
     ? <div><h3>{heading}</h3><ul>{items.filter(Boolean).map((item, i) => <li key={i}>{item}</li>)}</ul></div> : null;
 }
-export function scholarshipSummary(details) {
-  if (!details) return null;
-  const category = details.fundingType ? human(details.fundingType) : null;
-  const amount = money(details.value, details.currency);
-  return [category, amount].filter(Boolean).join(" · ") || null;
-}
 export default function OpportunityExtendedDetails({ opportunity }) {
   if (!["JOB", "SCHOLARSHIP"].includes(opportunity.type)) return null;
   const d = opportunity.details || {};
