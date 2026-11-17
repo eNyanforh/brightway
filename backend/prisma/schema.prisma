@@ -1694,6 +1694,7 @@ model Opportunity {
   location String @db.VarChar(180)
   workMode String @db.VarChar(16)
   jobDetails Json?
+  details Json @default("{}")
   prize String? @db.VarChar(120)
   prizes Json @default("[]")
   postRequirements Json @default("[]")
