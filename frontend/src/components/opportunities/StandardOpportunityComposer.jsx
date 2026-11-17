@@ -1,3 +1,4 @@
+import "./dedicated-opportunity-fields.css";
 import DedicatedOpportunityFields from "./DedicatedOpportunityFields";
 import { OPPORTUNITY_TYPES, JOB_TYPES, JOB_COMPENSATION_TYPES, JOB_SALARY_PERIODS } from "../../../../shared/opportunities.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
