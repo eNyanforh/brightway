@@ -92,8 +92,8 @@ test("members discover four opportunity types, save and submit an application, a
   await page.goto("/opportunities");
   await expect(page.getByRole("link", { name: initialOpportunity.title, exact: true })).toBeVisible();
   await expect(page.locator(".bw-op-grid > article")).toHaveCount(4);
-  await expect(page.locator(".bw-op-card")).toHaveCount(3);
-  await expect(page.locator(".bw-rail-challenge-card")).toHaveCount(1);
+  await expect(page.locator(".bw-rail-opportunity-card")).toHaveCount(3);
+  await expect(page.locator(".bw-rail-challenge-card:not(.bw-rail-opportunity-card)")).toHaveCount(1);
   await noOverflow(page);
   await page.screenshot({ path: `/tmp/brightway-opportunities-${testInfo.project.name}.png`, fullPage: true });
   await page.getByRole("link", { name: initialOpportunity.title, exact: true }).click();
@@ -438,7 +438,7 @@ test("organization publishers create and publish a form, and reviewers send an a
   await editor.getByLabel("Job type").selectOption("INTERNSHIP");
   await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Work location").fill("Monrovia");
-  await editor.getByLabel("Compensation").selectOption("PAID");
+  await editor.getByLabel("Compensation", { exact: true }).selectOption("PAID");
   await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Job responsibilities").fill("Conduct research");
   await editor.getByLabel("Required qualifications").fill("High school");
