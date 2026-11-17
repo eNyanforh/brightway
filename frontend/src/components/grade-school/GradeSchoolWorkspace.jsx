@@ -25,7 +25,7 @@ export default function GradeSchoolWorkspace({ campusId, module = null }) {
     finally { lock.current = false; if (!current?.signal.aborted) setBusy(false); }
   }
   if (!data) return <section className="bw-school-root"><h3>Grade School management</h3>{error ? <div role="alert"><p>{error.message}</p><button type="button" onClick={() => setRevision(v => v + 1)}>Retry school access</button></div> : <p role="status">Loading academic workspace…</p>}</section>;
-  const periodId = data.periodId, requestedTab = module || tab, activeTab = !data.canManage && ["setup", "students"].includes(requestedTab) ? "teaching" : requestedTab;
+  const periodId = data.periodId, requestedTab = module || tab, activeTab = !data.canManage && ["setup", "students", "reports"].includes(requestedTab) ? "teaching" : requestedTab;
   const periods = data.years.flatMap(y => y.periods.map(p => option(p.id, y.name + " / " + p.name)));
   const sections = data.classes.flatMap(c => c.sections.map(v => option(v.id, c.name + " / " + v.name)));
   function configure(kind, form, transform = values) { return run(() => api.configure(campusId, kind, transform(form))); }
@@ -44,7 +44,7 @@ export default function GradeSchoolWorkspace({ campusId, module = null }) {
       <section className="bw-school-card"><span className="bw-school-step">04 / PERIOD SUBJECTS</span><SchoolForm key={periodId} title="Subject offerings" description="Offer subjects to a section for the selected period. Assign teachers in Teaching & attendance." busy={busy || !periodId} action="Offer subject" fields={[{ name: "sectionId", label: "Section", options: sections }, { name: "subjectId", label: "Subject", options: data.subjects.map(s => option(s.id, s.name)) }, { name: "mode", label: "Subject requirement", options: [option("COMPULSORY", "Compulsory"), option("ELECTIVE", "Elective")] }]} onSubmit={f => configure("offerings", f, f => ({ ...values(f), periodId }))} />
         <ul className="bw-school-items">{data.offerings.map(o => <li key={o.id}><strong>{o.subject.name}</strong><span>{o.section.schoolClass.name} / {o.section.name} · {o.mode.toLowerCase()}</span></li>)}</ul>{!periodId && <p className="bw-school-help">Create an academic year and period to begin.</p>}</section>
     </div>}
-    {activeTab === "students" && <SchoolStudents key={campusId + ":" + periodId} campusId={campusId} data={data} sections={sections} busy={busy} run={run} revision={revision} />}
+    {["students", "reports"].includes(activeTab) && <SchoolStudents key={campusId + ":" + periodId + ":" + activeTab} campusId={campusId} data={data} sections={sections} busy={busy} run={run} revision={revision} mode={activeTab} />}
     {["teaching", "attendance", "assessments"].includes(activeTab) && <SchoolTeaching key={campusId + ":" + periodId + ":" + activeTab} campusId={campusId} data={data} busy={busy} run={run} revision={revision} mode={activeTab === "teaching" ? "all" : activeTab} />}
   </section>;
 }
