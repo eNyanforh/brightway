@@ -167,7 +167,11 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         details: type === "JOB" ? { requireCv: true } : type === "SCHOLARSHIP" ?
           { requireTranscript: true, requireStatement: true } : {},
         jobDetails: null,
-        questions: old.questions.filter(q => !isAutoDocumentQuestion(q)),
+        questions: ["JOB", "SCHOLARSHIP"].includes(type)
+          ? syncDocumentQuestions(type, type === "JOB" ? { requireCv: true } :
+              { requireTranscript: true, requireStatement: true },
+              old.questions.filter(q => !isAutoDocumentQuestion(q)), () => crypto.randomUUID())
+          : old.questions.filter(q => !isAutoDocumentQuestion(q)),
       } : {}),
       ...(type === "CHALLENGE"
         ? { location: "BrightWay", workMode: "REMOTE" }
