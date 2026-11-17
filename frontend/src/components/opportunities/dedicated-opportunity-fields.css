@@ -1,0 +1,30 @@
+/* Dedicated Job Vacancy and Scholarship creation sections */
+.bw-op-dedicated-details { display: grid; gap: 1.25rem; min-width: 0; }
+.bw-op-dedicated-details > h3 { font-size: 1.1rem; margin: .25rem 0 0; }
+.bw-op-details-section { display: grid; gap: .85rem; }
+.bw-op-details-section > h4 { margin-bottom: .15rem; }
+.bw-op-details-section > label { display: grid; gap: .4rem; min-width: 0; }
+.bw-op-details-section textarea { min-height: 5rem; resize: vertical; width: 100%; }
+.bw-op-detail-choices { display: flex; flex-wrap: wrap; gap: .6rem 1rem; padding: .65rem 0; }
+.bw-op-detail-choices > label { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.5rem; }
+.bw-op-detail-choices input[type="checkbox"] { width: 1.15rem; height: 1.15rem; flex-shrink: 0; }
+@media (max-width: 640px) {
+  .bw-op-detail-choices { flex-direction: column; }
+  .bw-op-dedicated-details .bw-op-field-row { display: grid; grid-template-columns: 1fr; }
+}
+
+.bw-op-dedicated-wizard .bw-op-challenge-main { min-width: 0; }
+.bw-op-dedicated-wizard .bw-op-challenge-cover-column { position: sticky; top: 0; align-self: start; }
+.bw-op-dedicated-wizard .bw-op-dedicated-preview-facts { padding: .8rem; border-radius: .75rem; background: var(--bw-surface-secondary, rgba(120,120,120,.06)); display: grid; gap: .45rem; }
+.bw-op-dedicated-wizard .bw-op-dedicated-preview-facts p { margin: 0; overflow-wrap: anywhere; }
+.bw-op-detail-options { padding: .5rem 0; border: none; }
+.bw-op-detail-options legend { font-weight: 600; padding: 0; }
+.bw-op-dedicated-metadata { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1rem 0; }
+.bw-op-dedicated-metadata > div { display: grid; gap: .25rem; }
+.bw-op-dedicated-metadata dt { color: var(--bw-text-muted, #777); font-size: .85rem; }
+.bw-op-dedicated-metadata dd { margin: 0; overflow-wrap: anywhere; font-weight: 500; }
+.bw-op-extended-details ul { padding-left: 1.4rem; }
+.bw-op-extended-details h3 { font-size: 1rem; margin: 1rem 0 .35rem; }
+.bw-op-scholarship-summary { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin: .6rem 0; }
+.bw-op-scholarship-summary > * { font-size: .875rem; }
+@media (max-width: 768px) { .bw-op-dedicated-wizard .bw-op-challenge-cover-column { position: static; } }

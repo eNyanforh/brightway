@@ -1,11 +1,12 @@
 export const OPPORTUNITY_TYPES = Object.freeze({
-  JOB: { label: "Job", plural: "Jobs", action: "Apply Now", icon: "work" },
-  SCHOLARSHIP: { label: "Scholarship", plural: "Scholarships", action: "Apply", icon: "learning" },
+  JOB: { label: "Job Vacancy", plural: "Job Vacancies", action: "Apply Now", icon: "work" },
+  SCHOLARSHIP: { label: "Scholarship", plural: "Scholarships", action: "Apply Now", icon: "learning" },
   CHALLENGE: { label: "Challenge", plural: "Challenges", action: "Participate", icon: "awards" },
   EVENT: { label: "Event", plural: "Events", action: "Register", icon: "calendar" },
 });
 export const JOB_TYPES = Object.freeze({
   INTERNSHIP: "Internship",
+  APPRENTICESHIP: "Apprenticeship",
   FULL_TIME: "Full-time",
   PART_TIME: "Part-time",
   CONTRACT: "Contract",
@@ -21,6 +22,8 @@ export const JOB_COMPENSATION_TYPES = Object.freeze({
 });
 export const JOB_SALARY_PERIODS = Object.freeze({
   HOUR: "hour",
+  DAY: "day",
+  WEEK: "week",
   MONTH: "month",
   YEAR: "year",
 });

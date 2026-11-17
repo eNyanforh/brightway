@@ -69,33 +69,76 @@ it("reviewers keep feedback after a conflict and clear private applications when
   denied = true; await user.click(screen.getByRole("button", { name: "Reload application queue" })); await screen.findByText("Organization access revoked");
   expect(screen.queryByText("Synthetic Applicant")).toBeNull();
 });
-it("the publisher creates a Job with the shared single-page composer and saves a BrightWay draft", async () => {
+it("publishes a six-step Job Vacancy draft with requirements and native document uploads", async () => {
   const saved = vi.fn();
   const fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
   vi.stubGlobal("fetch", fetch);
   const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
-  expect(screen.getByRole("heading", { name: "What opportunity do you want to offer?" })).toBeTruthy();
   await user.click(screen.getByRole("radio", { name: /Job/ }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  expect(screen.getByRole("heading", { name: "Create your Job" })).toBeTruthy();
-  expect(screen.getByLabelText("Job cover preview")).toBeTruthy();
-  expect(screen.getByLabelText("Opportunity cover photo")).toBeTruthy();
-  expect(screen.queryByRole("navigation", { name: "Creation progress" })).toBeNull();
-  await user.type(screen.getByLabelText("Title", { exact: true }), "Data internship");
-  expect(screen.getByText("Data internship", { selector: ".bw-op-standard-poster strong" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Job information" })).toBeTruthy();
+  expect(screen.getByRole("navigation", { name: "Creation progress" })).toBeTruthy();
+  await user.type(screen.getByLabelText("Job title"), "Data internship");
   await user.type(screen.getByLabelText("Description", { exact: true }), "Learn research and data quality skills with our team.");
-  await user.type(screen.getByLabelText("Location"), "Monrovia");
-
+  await user.selectOptions(screen.getByLabelText("Job category"), "Research");
+  await user.selectOptions(screen.getByLabelText("Experience level"), "ENTRY");
+  await user.selectOptions(screen.getByLabelText("Job type"), "INTERNSHIP");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Work location"), "Monrovia, Liberia");
+  await user.selectOptions(screen.getByLabelText("Compensation"), "PAID");
+  await user.type(screen.getByLabelText("Minimum salary"), "200");
+  await user.type(screen.getByLabelText("Maximum salary"), "400");
+  await user.selectOptions(screen.getByLabelText("Currency"), "USD");
+  await user.selectOptions(screen.getByLabelText("Pay period"), "MONTH");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Job responsibilities"), "Support field data collection");
+  await user.type(screen.getByLabelText("Required qualifications"), "High school completion");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByText(/Required documents:/)).toBeTruthy();
   await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
   await user.click(screen.getByRole("button", { name: "+ Add question" }));
-  await user.type(screen.getByLabelText("Question 1 text"), "Tell us about your experience");
-
-  expect(screen.getByRole("heading", { name: "Application questions" })).toBeTruthy();
+  await user.type(screen.getByLabelText("Question 2 text"), "Describe relevant experience");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.click(screen.getByRole("button", { name: "Save draft" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
   const body = JSON.parse(fetch.mock.calls[0][1].body);
-  expect(body.questions[0]).toMatchObject({ label: "Tell us about your experience", type: "SHORT_ANSWER", required: true });
+  expect(body.details).toMatchObject({ category: "Research", experienceLevel: "ENTRY", requireCv: true });
+  expect(body.jobDetails).toMatchObject({ type: "INTERNSHIP", compensationType: "PAID", salaryMin: 200, salaryMax: 400 });
+  expect(body.questions.some(q => q.label === "Required document: CV / résumé" && q.type === "FILE_UPLOAD" && q.required)).toBe(true);
+  expect(body.questions.some(q => q.label === "Describe relevant experience")).toBe(true);
   expect(body).not.toHaveProperty("applicationUrl");
+});
+it("creates a scholarship with funding, eligibility and required document uploads", async () => {
+  const saved = vi.fn(), fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT" }));
+  vi.stubGlobal("fetch", fetch);
+  const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
+  await user.click(screen.getByRole("radio", { name: /Scholarship/ }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Scholarship title"), "Liberia Research Scholarship");
+  await user.type(screen.getByLabelText("Description", { exact: true }), "Funding for students pursuing research in public health.");
+  await user.selectOptions(screen.getByLabelText("Scholarship category"), "RESEARCH");
+  await user.click(screen.getByLabelText("Masters"));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.selectOptions(screen.getByLabelText("Funding type"), "FULLY_FUNDED");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Study destination"), "Liberia");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Eligible countries"), "Liberia");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Selection criteria"), "Academic merit");
+  await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.click(screen.getByRole("button", { name: "Publish Scholarship" }));
+  await waitFor(() => expect(saved).toHaveBeenCalled());
+  const body = JSON.parse(fetch.mock.calls[0][1].body);
+  expect(body.type).toBe("SCHOLARSHIP");
+  expect(fetch.mock.calls).toHaveLength(2);
+  expect(fetch.mock.calls[1][0]).toContain("/status");
+  expect(JSON.parse(fetch.mock.calls[1][1].body)).toMatchObject({ status: "PUBLISHED" });
+  expect(body.details).toMatchObject({ category: "RESEARCH", fundingType: "FULLY_FUNDED", academicLevels: ["MASTERS"], eligibleCountries: ["Liberia"] });
+  expect(body.questions.some(q => q.label === "Required document: Academic transcript" && q.required)).toBe(true);
+  expect(body.questions.some(q => q.label === "Required document: Personal statement" && q.required)).toBe(true);
 });
 it("the right-rail Challenge card stacks its cover, details and Partake action", () => {
   const challenge = {
@@ -128,9 +171,9 @@ it("Jobs use the same cover, details and CTA structure as Challenges without Cha
   const fullTimePaid = { ...opp, jobDetails: { type: "FULL_TIME", compensationType: "PAID",
     salaryMin: 400, salaryMax: 800, salaryCurrency: "USD", salaryPeriod: "MONTH" } };
   render(<MemoryRouter><aside className="bw-explore-right"><ChallengeSidebarCard opportunity={fullTimePaid} /></aside></MemoryRouter>);
-  const card = screen.getByRole("article", { name: "Job: Research assistant" });
+  const card = screen.getByRole("article", { name: "Job Vacancy: Research assistant" });
   expect(card.classList.contains("bw-rail-opportunity-job")).toBe(true);
-  const cover = within(card).getByRole("link", { name: "View job: Research assistant" });
+  const cover = within(card).getByRole("link", { name: "View job vacancy: Research assistant" });
   expect(cover.querySelector(".bw-rail-opportunity-cover-fallback")).toBeTruthy();
   expect(within(card).getByRole("heading", { name: opp.title })).toBeTruthy();
   expect(within(card).getByText("Monrovia")).toBeTruthy();
@@ -153,13 +196,13 @@ it("Jobs and Challenges share the same card layout in compact Explore and the Op
   const { unmount } = render(<AuthContext.Provider value={{ account: { id: "owner" } }}>
     <MemoryRouter><aside className="bw-explore-right"><OpportunityBrowser compact /></aside></MemoryRouter>
   </AuthContext.Provider>);
-  const job = await screen.findByRole("article", { name: "Job: Research assistant" });
+  const job = await screen.findByRole("article", { name: "Job Vacancy: Research assistant" });
   const challengeCard = screen.getByRole("article", { name: "Challenge: Student innovation challenge" });
   expect(job.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
   expect(challengeCard.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
   unmount();
   mount(<OpportunitiesPage />, "/opportunities");
-  const catalogJob = await screen.findByRole("article", { name: "Job: Research assistant" });
+  const catalogJob = await screen.findByRole("article", { name: "Job Vacancy: Research assistant" });
   const catalogChallenge = screen.getByRole("article", { name: "Challenge: Student innovation challenge" });
   expect(catalogJob.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
   expect(catalogChallenge.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
@@ -168,7 +211,7 @@ it("Jobs and Challenges share the same card layout in compact Explore and the Op
 it("Job cards show uploaded covers when the publisher provides one", () => {
   const jobWithCover = { ...opp, coverAssetId: "88888888-8888-4888-8888-888888888888" };
   render(<MemoryRouter><ChallengeSidebarCard opportunity={jobWithCover} /></MemoryRouter>);
-  const article = screen.getByRole("article", { name: "Job: Research assistant" });
+  const article = screen.getByRole("article", { name: "Job Vacancy: Research assistant" });
   expect(article.querySelector(".bw-rail-challenge-photo").getAttribute("src")).toContain("/challenge-assets/");
   expect(article.querySelector(".bw-rail-opportunity-cover-fallback")).toBeNull();
 });

@@ -75,7 +75,7 @@ test("opportunity input rejects external application methods, unknown fields and
   assert.equal(saveInput.safeParse({ saved: "true" }).success, false);
   assert.equal(saveInput.safeParse({ saved: true, accountId: randomUUID() }).success, false);
   for (const extra of [{ applicationUrl: "https://example.invalid" }, { applicationMethod: "EXTERNAL" }, { organizationId: randomUUID() }, { status: "PUBLISHED" }]) assert.equal(createInput.safeParse({ ...listing(), ...extra }).success, false);
-  for (const questions of [[question("SINGLE_CHOICE")], [question("YES_NO", { options: ["Yes"] })], Array.from({ length: 6 }, () => question("FILE_UPLOAD"))]) assert.equal(createInput.safeParse({ ...listing(), questions }).success, false);
+  for (const questions of [[question("SINGLE_CHOICE")], [question("YES_NO", { options: ["Yes"] })], Array.from({ length: 13 }, () => question("FILE_UPLOAD"))]) assert.equal(createInput.safeParse({ ...listing(), questions }).success, false);
   const q = question("SHORT_ANSWER");
   assert.equal(createInput.safeParse({ ...listing(), questions: [q, q] }).success, false);
   assert.equal(applicationInput.safeParse({ expectedVersion: 0, expectedOpportunityVersion: 1, action: "SUBMIT", answers: {}, applicantId: randomUUID() }).success, false);
