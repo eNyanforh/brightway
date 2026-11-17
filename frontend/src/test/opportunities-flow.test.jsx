@@ -69,34 +69,76 @@ it("reviewers keep feedback after a conflict and clear private applications when
   denied = true; await user.click(screen.getByRole("button", { name: "Reload application queue" })); await screen.findByText("Organization access revoked");
   expect(screen.queryByText("Synthetic Applicant")).toBeNull();
 });
-it("the publisher creates a Job with the shared single-page composer and saves a BrightWay draft", async () => {
+it("the publisher creates a Job Vacancy through six dedicated steps", async () => {
+  localStorage.clear();
   const saved = vi.fn();
-  const fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
+  const fetch = vi.fn((url, opts) => opts?.method === "GET" ? reply({ members: [] }) :
+    reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
   vi.stubGlobal("fetch", fetch);
   const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
-  expect(screen.getByRole("heading", { name: "What opportunity do you want to offer?" })).toBeTruthy();
   await user.click(screen.getByRole("radio", { name: /Job/ }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  expect(screen.getByRole("heading", { name: "Create your Job" })).toBeTruthy();
-  expect(screen.getByLabelText("Job cover preview")).toBeTruthy();
-  expect(screen.getByLabelText("Opportunity cover photo")).toBeTruthy();
-  expect(screen.queryByRole("navigation", { name: "Creation progress" })).toBeNull();
-  await user.type(screen.getByLabelText("Title", { exact: true }), "Data internship");
-  expect(screen.getByText("Data internship", { selector: ".bw-op-standard-poster strong" })).toBeTruthy();
-  await user.type(screen.getByLabelText("Description", { exact: true }), "Learn research and data quality skills with our team.");
-  await user.type(screen.getByLabelText("Location"), "Monrovia");
+  expect(screen.getByRole("heading", { name: "Job information" })).toBeTruthy();
+  expect(screen.getByLabelText("Job Vacancy live preview")).toBeTruthy();
+  expect(screen.getByLabelText("Job Vacancy cover photo")).toBeTruthy();
+  expect(screen.getByRole("navigation", { name: "Creation progress" })).toBeTruthy();
+  await user.type(screen.getByRole("textbox", { name: /Job title/ }), "Data internship");
+  await user.type(screen.getByLabelText("Description"), "Learn research and data quality skills with our team.");
+  await user.type(screen.getByRole("textbox", { name: /Job category/ }), "Research");
+  await user.selectOptions(screen.getByRole("combobox", { name: /Job type/ }), "INTERNSHIP");
+  await user.selectOptions(screen.getByRole("combobox", { name: /Experience level/ }), "ENTRY");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
 
+  expect(screen.getByRole("heading", { name: "Work location & salary" })).toBeTruthy();
+  await user.type(screen.getByRole("textbox", { name: /Location shown on card/ }), "Monrovia");
+  await user.selectOptions(screen.getByRole("combobox", { name: /Compensation type/ }), "PAID");
+  await user.type(screen.getByRole("spinbutton", { name: /Minimum salary/ }), "200");
+  await user.type(screen.getByRole("spinbutton", { name: /Maximum salary/ }), "500");
+  await user.selectOptions(screen.getByRole("combobox", { name: /Currency/ }), "USD");
+  await user.selectOptions(screen.getByRole("combobox", { name: /Payment period/ }), "MONTH");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+
+  expect(screen.getByRole("heading", { name: "Requirements & qualifications" })).toBeTruthy();
+  for (const [name, item] of [["Responsibilities", "Check data quality"], ["Required qualifications", "Use spreadsheets"]]) {
+    const group = screen.getByText(new RegExp(name)).closest(".bw-dedicated-field");
+    await user.type(within(group).getByRole("textbox"), item);
+    await user.click(within(group).getByRole("button", { name: "Add" }));
+  }
+  await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
-  await user.click(screen.getByRole("button", { name: "+ Add question" }));
-  await user.type(screen.getByLabelText("Question 1 text"), "Tell us about your experience");
-
+  await user.click(screen.getByRole("checkbox", { name: /CV \/ Resume required/ }));
   expect(screen.getByRole("heading", { name: "Application questions" })).toBeTruthy();
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("heading", { name: "Preview & publish" })).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Save draft" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
-  const body = JSON.parse(fetch.mock.calls[0][1].body);
-  expect(body.questions[0]).toMatchObject({ label: "Tell us about your experience", type: "SHORT_ANSWER", required: true });
-  expect(body).not.toHaveProperty("applicationUrl");
+  const post = fetch.mock.calls.find(([url, opts]) => url.includes("/opportunities") && opts?.method === "POST");
+  const body = JSON.parse(post[1].body);
+  expect(body.jobSpecification).toMatchObject({ category: "Research", experienceLevel: "ENTRY",
+    responsibilities: ["Check data quality"], requiredQualifications: ["Use spreadsheets"] });
+  expect(body.questions).toContainEqual(expect.objectContaining({ label: "CV / Resume", type: "FILE_UPLOAD", required: true }));
+  expect(body.jobDetails).toMatchObject({ type: "INTERNSHIP", compensationType: "PAID", salaryMin: 200, salaryMax: 500 });
+  expect(body.scholarshipSpecification).toBeNull();
 });
+it("Scholarship creation presents its separate funding and eligibility forms", async () => {
+  localStorage.clear();
+  const user = mount(<OpportunityEditor organizationId={org.id} onSaved={() => {}} onClose={() => {}} />, "/test");
+  await user.click(screen.getByRole("radio", { name: /^Scholarship/ }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("heading", { name: "Scholarship information" })).toBeTruthy();
+  expect(screen.getByLabelText("Scholarship live preview")).toBeTruthy();
+  await user.type(screen.getByRole("textbox", { name: /Scholarship title/ }), "Research Scholarship");
+  await user.type(screen.getByLabelText("Description"), "A scholarship to help students conduct research in Liberia.");
+  await user.selectOptions(screen.getByRole("combobox", { name: /Scholarship category/ }), "Research");
+  await user.click(screen.getByText("Academic levels *"));
+  await user.click(screen.getByRole("checkbox", { name: "Undergraduate" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("heading", { name: "Funding & benefits" })).toBeTruthy();
+  await user.selectOptions(screen.getByRole("combobox", { name: /Funding type/ }), "FULL");
+  expect(screen.getByRole("checkbox", { name: "Accommodation included" })).toBeTruthy();
+});
+
 it("the right-rail Challenge card stacks its cover, details and Partake action", () => {
   const challenge = {
     ...opp, type: "CHALLENGE", prize: "US$1,000", topics: ["Technology", "Education"], coverImage: "SCHOOLS",
