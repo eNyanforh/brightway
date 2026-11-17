@@ -85,7 +85,7 @@ const jobDetailsExtended = z.strictObject({
 });
 const scholarshipDetailsExtended = z.strictObject({
   category: detailString, academicLevels: detailList, fieldsOfStudy: detailList,
-  awardsAvailable: detailNumber, fundingType: detailString, currency: detailString,
+  awardsAvailable: detailNumber, fundingType: detailString, currency: z.enum(["", "USD", "LRD", "EUR", "GBP"]).optional(),
   value: detailNumber, fundingMonths: detailNumber, tuitionPercent: z.number().min(0).max(100).nullable().optional(),
   livingAllowance: z.boolean().optional(), accommodation: z.boolean().optional(), travelSupport: z.boolean().optional(),
   healthInsurance: z.boolean().optional(), learningMaterials: z.boolean().optional(),
