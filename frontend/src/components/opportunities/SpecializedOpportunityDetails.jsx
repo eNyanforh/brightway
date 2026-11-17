@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { JOB_TYPES } from "../../../../shared/opportunities.mjs";
 import "./specialized-opportunity.css";
 
@@ -71,7 +72,9 @@ export default function SpecializedOpportunityDetails({ opportunity }) {
         <Attribute label="Minimum education" value={d.minimumEducation} />
         <Attribute label="Academic requirement" value={d.academicRequirement} />
         <Attribute label="Eligible study fields" value={d.eligibleStudyFields} />
-        <Attribute label="Host institution" value={d.hostInstitution} />
+        {d.hostInstitution && <div><dt>Host institution</dt><dd>
+          {d.hostInstitutionId ? <Link to={"/organizations/" + encodeURIComponent(d.hostInstitutionId)}>{d.hostInstitution}</Link> : d.hostInstitution}
+        </dd></div>}
         <Attribute label="Study country" value={d.studyCountry} />
         <Attribute label="Study region" value={d.studyRegion} />
         <Attribute label="Programs" value={d.programs} />
