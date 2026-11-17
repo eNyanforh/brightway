@@ -23,7 +23,7 @@ export default function MyCampus({ guardians = false, campusId = null }) {
   async function decision(row, value) {
     if (lock.current) return; lock.current = true; setBusy(true); const c = life.current; setError(null);
     try { await (row.engine === "TVET" ? tvetApi.supporterDecision(row.id, { expectedVersion: row.version, decision: value }) : api.guardianDecision(row.id, { expectedVersion: row.version, decision: value })); if (!c.signal.aborted) { setReport(null); setRevision(v => v + 1); } }
-    catch (e) { if (!c.signal.aborted) setError(e); }
+    catch (e) { if (!c.signal.aborted) { setError(e); if ([401, 403, 404].includes(e.status)) { setPage(null); setReport(null); } } }
     finally { lock.current = false; if (!c.signal.aborted) setBusy(false); }
   }
   if (report) return <div className="bw-school-root bw-school-personal bw-school-open-campus">
