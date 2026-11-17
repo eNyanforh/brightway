@@ -20,7 +20,7 @@ function Choice({ label, value, values, update, required = false, multi = false 
 }
 function Entry({ label, value, update, type = "text", required = false, min, max, placeholder }) {
   return <label>{label}<input type={type} value={value ?? ""} required={required} min={min} max={max}
-    placeholder={placeholder || ""} onChange={e => update(type === "number" ? (e.target.value === "" ? null : Number(e.target.value)) : e.target.value)} /></label>;
+    placeholder={placeholder || ""} onChange={e => update(type === "number" ? (e.target.value === "" ? null : Number(e.target.value)) : ["date", "month"].includes(type) ? (e.target.value || undefined) : e.target.value)} /></label>;
 }
 function Many({ label, value, update, hint }) {
   return <label>{label}<textarea rows={3} value={textList(value)}
