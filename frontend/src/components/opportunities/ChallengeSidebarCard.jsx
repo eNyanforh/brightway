@@ -10,7 +10,7 @@ import VerificationBadge from "../VerificationBadge";
 import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
 import ChallengeCoHosts from "./ChallengeCoHosts";
 import JobDetailsSummary from "./JobDetailsSummary";
-import { scholarshipSummary } from "./scholarship-summary";
+import { scholarshipSummary, scholarshipLevelLabel } from "./scholarship-summary";
 import "./challenge-sidebar-card.css";
 
 // A shared presentation for all published opportunities on the right rail and catalog.
@@ -66,7 +66,7 @@ export default function ChallengeSidebarCard({ opportunity }) {
       {opportunity.type === "SCHOLARSHIP" && <div className="bw-rail-scholarship-summary">
         {scholarshipSummary(opportunity.details) && <strong>{scholarshipSummary(opportunity.details)}</strong>}
         {Array.isArray(opportunity.details?.academicLevels) && opportunity.details.academicLevels.length > 0 &&
-          <span>{opportunity.details.academicLevels.map(level => level.replaceAll("_", " ")).join(", ")}</span>}
+          <span>{opportunity.details.academicLevels.map(scholarshipLevelLabel).join(", ")}</span>}
         {Array.isArray(opportunity.details?.eligibleCountries) && opportunity.details.eligibleCountries.length > 0 &&
           <span>Eligible: {opportunity.details.eligibleCountries.join(", ")}</span>}
       </div>}
