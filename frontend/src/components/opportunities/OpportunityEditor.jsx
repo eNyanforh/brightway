@@ -230,7 +230,11 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
           return "Select at least one academic level.";
       }
       if (step === 2) {
-        if (draft.type === "SCHOLARSHIP" && !has(d.fundingType)) return "Choose the scholarship funding type.";
+        if (draft.type === "SCHOLARSHIP") {
+          if (!has(d.fundingType)) return "Choose the scholarship funding type.";
+          if (d.fundingType === "FIXED_AMOUNT" && (!(d.value > 0) || !["USD", "LRD", "EUR", "GBP"].includes(d.currency)))
+            return "Enter a positive scholarship amount and select its currency.";
+        }
         if (draft.type === "JOB") {
           if (draft.location.trim().length < 2) return "Enter the work location.";
           if (!draft.jobDetails?.compensationType) return "Choose the compensation type.";
