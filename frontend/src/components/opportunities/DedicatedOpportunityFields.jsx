@@ -6,7 +6,7 @@ const JOB_LEVELS = ["NO_EXPERIENCE", "ENTRY", "JUNIOR", "MID", "SENIOR", "MANAGE
 const EDUCATION = ["NOT_SPECIFIED", "NO_FORMAL_EDUCATION", "HIGH_SCHOOL", "CERTIFICATE", "DIPLOMA", "ASSOCIATE", "BACHELORS", "MASTERS", "DOCTORATE"];
 const STUDY_LEVELS = ["HIGH_SCHOOL", "TVET", "CERTIFICATE", "DIPLOMA", "UNDERGRADUATE", "MASTERS", "PHD", "POSTDOCTORAL"];
 const FUNDING = ["FULLY_FUNDED", "PARTIALLY_FUNDED", "FIXED_AMOUNT", "TUITION_WAIVER", "STIPEND", "OTHER"];
-const labelFor = value => value.replaceAll("_", " ").replace(/\b\w/g, character => character.toUpperCase());
+const labelFor = value => value.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, character => character.toUpperCase());
 const textList = value => (value || []).join("\n");
 
 function Choice({ label, value, values, update, required = false, multi = false }) {
