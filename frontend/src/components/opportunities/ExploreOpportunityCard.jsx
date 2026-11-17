@@ -133,7 +133,7 @@ function FeaturedOpportunityCard({ opportunity, organization, profile, detail, p
     <div className="bw-challenge-divider" role="separator" aria-hidden="true" />
     <div className="bw-challenge-actions">
       <Link className="bw-timeline-opportunity-cta bw-challenge-participate" to={detail}>
-        {isChallenge ? "Take Part" : "Apply"}
+        {isChallenge ? "Take Part" : OPPORTUNITY_TYPES.JOB.action}
       </Link>
       <div className="bw-challenge-secondary">
         <button type="button" aria-label={"Share " + label} title={"Share " + label} onClick={() => void share()}>
