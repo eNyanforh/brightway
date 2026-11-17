@@ -165,6 +165,10 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(mainJob.getByRole("button", { name: "Unsave job" })).toHaveAttribute("aria-pressed", "true");
   const sidebarJob = sidebar.getByRole("article", { name: "Job: Research Internship" });
   await expect(sidebarJob.locator("time")).toContainText(/\d+ days remaining/);
+  // Right-rail jobs must keep the same visible category gradient as main Explore jobs.
+  const mainJobGradient = await mainJob.evaluate(element => getComputedStyle(element).backgroundImage);
+  expect(mainJobGradient).toContain("linear-gradient");
+  await expect(sidebarJob).toHaveCSS("background-image", mainJobGradient);
   await expect(mainJob.locator(".bw-job-card")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   expect(await card.evaluate(el => getComputedStyle(el).backgroundImage))
     .toBe(await mainChallenge.evaluate(el => getComputedStyle(el).backgroundImage));
