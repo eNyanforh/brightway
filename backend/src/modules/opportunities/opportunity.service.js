@@ -77,6 +77,9 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
   async function openOpportunity(db, opportunityId) {
     const row = await opportunity(db, opportunityId);
     if (row.status !== "PUBLISHED" || row.deadline <= now()) throw fail(409, "This opportunity is no longer accepting applications.");
+    if (row.type === "SCHOLARSHIP" && row.scholarshipSpecification?.applicationsOpen &&
+        row.scholarshipSpecification.applicationsOpen > now().toISOString().slice(0, 10))
+      throw fail(409, "Applications for this scholarship have not opened yet.");
     return row;
   }
   async function ownedApplication(db, actor, applicationId) {
@@ -204,6 +207,17 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
       });
       if (result.count !== pending.length) throw conflict();
     }
+  }
+  async function verifyJobReviewers(db, organizationId, data) {
+    const ids = data.type === "JOB" ? (data.jobSpecification?.reviewerIds || []) : [];
+    if (!ids.length) return;
+    const rows = await db.organizationMembership.findMany({
+      where: { id: { in: ids }, organizationId, enabled: true },
+      select: { id: true, role: true, permissions: true },
+    });
+    if (rows.length !== ids.length || rows.some(member =>
+      member.role !== "PRIMARY_ADMIN" && !member.permissions.includes("organization.applications.review")))
+      throw fail(400, "Select only active organization staff with application review permission.");
   }
   async function syncCollaborators(db, ownerOrganizationId, opportunityId, collaboratorIds) {
     if (collaboratorIds.includes(ownerOrganizationId))
@@ -484,6 +498,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         const prior = await db.opportunity.findUnique({ where: { organizationId_authorId_requestKey: { organizationId: orgId, authorId: actor.accountId, requestKey } } });
         if (prior) { if (prior.inputHash !== hash) throw conflict(); return opportunity(db, prior.id, orgId); }
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
+        await verifyJobReviewers(db, orgId, data);
         const { collaboratorIds, ...persisted } = data;
         persisted.jobDetails = data.jobDetails ?? Prisma.DbNull;
         persisted.jobSpecification = data.jobSpecification ?? Prisma.DbNull;
@@ -507,6 +522,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
             !isDeepStrictEqual(row.postRequirements, data.postRequirements) || row.type !== data.type))
           throw fail(409, "The type, post requirements, and application questions are locked after first publication.");
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
+        await verifyJobReviewers(db, orgId, data);
         const { collaboratorIds, ...persisted } = data;
         persisted.jobDetails = data.jobDetails ?? Prisma.DbNull;
         persisted.jobSpecification = data.jobSpecification ?? Prisma.DbNull;
@@ -546,6 +562,13 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
           row.type === "CHALLENGE" ? row.postRequirements : []);
         const submit = data.action === "SUBMIT";
         if (submit && !data.shareProfile) throw fail(400, "Confirm sharing your application and professional profile with this organization.");
+        if (submit && row.type === "JOB" && row.jobSpecification?.applicationLimit) {
+          const submitted = await db.opportunityApplication.count({
+            where: { opportunityId: row.id, submittedAt: { not: null }, status: { not: "WITHDRAWN" } },
+          });
+          if (submitted >= row.jobSpecification.applicationLimit)
+            throw fail(409, "This job vacancy has reached its application limit.");
+        }
         if (submit && row.type === "CHALLENGE")
           await validatePublishedChallengePosts(db, actor, row.postRequirements, data.answers);
         const snapshot = submit ? await profileSnapshot(db, actor) : null;
