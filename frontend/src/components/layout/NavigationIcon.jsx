@@ -43,6 +43,12 @@ export default function NavigationIcon({
       );
       break;
 
+    case "briefcase":
+      shape = <><rect x="3" y="7" width="18" height="14" rx="2" /><path d="M8 7V4h8v3M3 13h18m-11-2h4v4h-4z" /></>;
+      break;
+    case "wallet":
+      shape = <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9h18M15 13h6v5h-6a2.5 2.5 0 0 1 0-5Z" /></>;
+      break;
     case "work":
       shape = <><path d="M4 21V3h11v18M15 9h5v12M2 21h20M8 21v-4h3v4M7 7h1m3 0h1M7 11h1m3 0h1M17 13h1m-1 4h1" /></>;
       break;
