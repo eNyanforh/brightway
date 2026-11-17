@@ -44,6 +44,14 @@ test("Scholarship rejects impossible eligibility age range", () => {
 test("Opportunity details reject unknown properties", () => {
   assert.throws(() => opportunityInput.parse({ ...base, details: { secretExternalLink: "https://example.com" } }));
 });
+test("Scholarship rejects unsupported currency codes", () => {
+  const result = opportunityInput.safeParse({ ...base,
+    type: "SCHOLARSHIP", jobDetails: null,
+    details: { category: "RESEARCH", fundingType: "FIXED_AMOUNT", currency: "INVALID",
+      value: 1000, academicLevels: ["MASTERS"] },
+  });
+  assert.equal(result.success, false);
+});
 test("Legacy opportunities without metadata remain valid", () => {
   const result = opportunityInput.parse(base);
   assert.deepEqual(result.details, {});
