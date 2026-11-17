@@ -61,6 +61,18 @@ test("pre-registered learners see the agreed waiting flow without making academi
   await expect(page.getByRole("button", { name: "Open my Campus", exact: true })).toHaveCount(0); expect(state.academicReads).toBe(0); await layout(page); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });
 
+test("selecting a pre-registered school opens its institutional waiting dialog", async ({ page }) => {
+  const state = await fixture(page, "LEARNER");
+  await page.goto("/learning?view=campus&campus=" + organizationId);
+  const dialog = page.getByRole("dialog", { name: "Synthetic Grade School" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Your registration has been confirmed");
+  await expect(dialog.getByRole("link", { name: "Come Later" })).toHaveAttribute("href", "/explore");
+  expect(state.academicReads).toBe(0);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpected).toEqual([]);
+});
+
 test("teachers cannot reach registration through a copied Campus module URL", async ({ page }) => {
   const state = await fixture(page, "STAFF"); await page.goto("/campus/" + organizationId + "/registrations");
   await expect(page.getByRole("heading", { name: "Academic workspace unavailable" })).toBeVisible();
