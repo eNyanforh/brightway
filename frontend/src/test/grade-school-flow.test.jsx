@@ -33,6 +33,16 @@ describe("Grade School academic workspace", () => {
     expect(within(report).getByText("89%")).toBeTruthy();
     expect(api.report).toHaveBeenCalledWith("school", "registration", expect.any(AbortSignal));
   });
+  it("separates authorized teacher scheduling from attendance and grading workflows", async () => {
+    api.setup.mockResolvedValue(setup()); api.subject.mockResolvedValue({ offering, students: [r], attendance: [], assessments: [] });
+    mount(<GradeSchoolWorkspace campusId="school" module="teaching" />);
+    await screen.findByRole("region", { name: "Selected subject" });
+    expect(screen.getByRole("form", { name: "Save teacher assignment" })).toBeTruthy();
+    expect(screen.getByText("Timetable")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Open attendance session" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Create assessment" })).toBeNull();
+    expect(screen.queryByText("Subject gradebook · finalized assessments")).toBeNull();
+  });
   it("teachers see assigned subjects without academic administration or student registration tools", async () => {
     api.setup.mockResolvedValue(setup(false)); api.subject.mockResolvedValue({ offering, students: [r], attendance: [], assessments: [] });
     mount(<GradeSchoolWorkspace campusId="school" />);
