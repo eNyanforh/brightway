@@ -1,4 +1,5 @@
 import { JOB_TYPES, JOB_COMPENSATION_TYPES, formatJobSalary } from "../../../../shared/opportunities.mjs";
+import "./challenge-sidebar-card.css";
 
 export default function JobDetailsSummary({ details, className = "" }) {
   if (!details) return null;
