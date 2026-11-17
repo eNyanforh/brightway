@@ -9,6 +9,7 @@ import NavigationIcon from "../layout/NavigationIcon";
 import VerificationBadge from "../VerificationBadge";
 import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
 import ChallengeCoHosts from "./ChallengeCoHosts";
+import JobDetailsSummary from "./JobDetailsSummary";
 import "./challenge-sidebar-card.css";
 
 // A shared presentation for all published opportunities on the right rail and catalog.
@@ -60,6 +61,7 @@ export default function ChallengeSidebarCard({ opportunity }) {
         </span>
       </div>
       {description && <p className="bw-rail-challenge-description">{description}</p>}
+      {opportunity.type === "JOB" && <JobDetailsSummary details={opportunity.jobDetails} />}
       {isChallenge && <ChallengeCoHosts collaborators={opportunity.collaborators} compact />}
       <div className="bw-rail-challenge-meta">
         {isChallenge ? <div className="bw-rail-challenge-prize" aria-label="Challenge prize">
