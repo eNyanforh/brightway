@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useAuth } from "../../auth/useAuth";
 import { OPPORTUNITY_TYPES, QUESTION_TYPES } from "../../../../shared/opportunities.mjs";
 import {
   CHALLENGE_TOPIC_OPTIONS, MAX_CHALLENGE_TOPICS, CHALLENGE_PRIZE_TYPES,
@@ -110,7 +111,17 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
 }
 
 export default function OpportunityEditor({ organizationId, opportunity, onSaved, onClose }) {
-  const [draft, setDraft] = useState(() => initialDraft(opportunity));
+  const { account } = useAuth();
+  const draftKey = "brightway:opportunity-draft:" + account.id + ":" + organizationId;
+  const [draft, setDraft] = useState(() => {
+    if (opportunity) return initialDraft(opportunity);
+    try {
+      const recovered = JSON.parse(window.sessionStorage.getItem(draftKey) || "null");
+      if (["JOB", "SCHOLARSHIP"].includes(recovered?.type))
+        return { ...blank(), ...recovered };
+    } catch { /* Private browsing may not permit session storage. */ }
+    return blank();
+  });
   const [collaborators, setCollaborators] = useState(() =>
     (opportunity?.collaborators || []).map(item => ({
       organizationId: item.organizationId, organization: item.organization, state: item.state,
@@ -141,6 +152,11 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     return () => { request.current?.abort(); uploadController.current?.abort(); previous?.focus(); };
   }, []);
   useEffect(() => { if (step > 0) dialog.current?.querySelector("#bw-op-step-heading")?.focus(); }, [step]);
+  useEffect(() => {
+    if (opportunity || !["JOB", "SCHOLARSHIP"].includes(draft.type)) return;
+    try { window.sessionStorage.setItem(draftKey, JSON.stringify(draft)); }
+    catch { /* An unavailable browser session store does not block editing. */ }
+  }, [draft, opportunity, draftKey]);
   function field(key, value) {
     setDraft(old => {
       if (key === "details" && ["JOB", "SCHOLARSHIP"].includes(old.type)) {
@@ -157,7 +173,10 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
       i === index ? { ...question, ...changes } : question) }));
   }
   function close() {
-    if (!busy && !uploading && window.confirm("Close this editor and discard unsaved changes?")) onClose();
+    if (!busy && !uploading && window.confirm("Close this editor and discard unsaved changes?")) {
+      try { window.sessionStorage.removeItem(draftKey); } catch { /* Ignore disabled storage. */ }
+      onClose();
+    }
   }
   function changeType(type) {
     if (lockedForm) return;
@@ -317,7 +336,10 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         ? await api.status(organizationId, saved.id,
           { expectedVersion: saved.version, status: "PUBLISHED" }, controller.signal)
         : saved;
-      if (!controller.signal.aborted) onSaved(completed);
+      if (!controller.signal.aborted) {
+        try { window.sessionStorage.removeItem(draftKey); } catch { /* Ignore disabled storage. */ }
+        onSaved(completed);
+      }
     } catch (cause) { if (!controller.signal.aborted) setError(cause); }
     finally { if (!controller.signal.aborted) { lock.current = false; setBusy(false); } }
   }
@@ -347,6 +369,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
             ? (opportunity ? "Edit " : "Create a ") + OPPORTUNITY_TYPES[draft.type].label
             : opportunity ? "Edit your opportunity" : "Create an opportunity"}</h2>
           <p>{singlePageComposer ? "Cover, details, deadline and applications" : dedicatedComposer ? "Step " + step + " of 6 · " + steps[step] : "Step " + (step + 1) + " of " + steps.length}</p>
+          {dedicatedComposer && !opportunity && <p className="bw-op-wizard-help">Progress is kept in this browser tab until you save it to BrightWay.</p>}
         </div>
         <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
       </header>
