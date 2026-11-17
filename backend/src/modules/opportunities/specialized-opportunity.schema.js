@@ -55,7 +55,7 @@ export const scholarshipSpecificationInput = z.strictObject({
   booksMaterials: z.boolean().default(false),
   otherBenefits: entries(20),
   studyCountry: field(120), studyRegion: field(120),
-  hostInstitution: field(160), programs: entries(20),
+  hostInstitution: field(160), hostInstitutionId: z.uuid().nullable().default(null), programs: entries(20),
   programDurationMonths: optionalNumber(240), academicIntake: field(7),
   eligibleCountries: z.array(text(120).min(2)).min(1).max(250),
   minimumEducation: field(120), academicRequirement: field(300),
