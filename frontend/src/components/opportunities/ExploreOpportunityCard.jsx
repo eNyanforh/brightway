@@ -10,6 +10,7 @@ import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
 import { challengeDeadlineReminder, opportunityDaysRemaining } from "./challenge-deadline";
 import { CHALLENGE_COVER_IMAGES, DEFAULT_CHALLENGE_COVER, challengeCardPrize } from "../../../../shared/challenges.mjs";
 import ChallengeCoHosts from "./ChallengeCoHosts";
+import JobDetailsSummary from "./JobDetailsSummary";
 
 const EXPLORE_OPPORTUNITY_CATEGORIES = Object.freeze({
   JOB: "Jobs & Internships",
@@ -109,6 +110,7 @@ function FeaturedOpportunityCard({ opportunity, organization, profile, detail, p
           </div>
         </> : <>
           {opportunity.description && <p className="bw-job-description">{opportunity.description}</p>}
+          <JobDetailsSummary details={opportunity.jobDetails} />
           <div className="bw-job-facts">
             {opportunity.location && <span><NavigationIcon name="pin" size={14} />{opportunity.location}</span>}
             <span><NavigationIcon name="work" size={14} />{mode}</span>
