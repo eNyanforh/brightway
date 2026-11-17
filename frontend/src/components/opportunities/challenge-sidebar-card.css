@@ -298,3 +298,29 @@
 .bw-op-challenge-topic input { accent-color: #175cd3; }
 .bw-op-challenge-topic:has(input:checked) { border-color: #175cd3; background: #eff8ff; color: #124aa9; }
 .bw-op-challenge-topic:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+
+/* Employment details are compact and wrap without overflowing narrow right rails. */
+.bw-job-details-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  min-width: 0;
+  color: #344054;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.bw-job-details-summary > span { overflow-wrap: anywhere; }
+.bw-job-detail-type,
+.bw-job-detail-compensation {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #ffffffb8;
+  font-weight: 650;
+}
+.bw-job-detail-salary {
+  min-width: 0;
+  color: #162c44;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}

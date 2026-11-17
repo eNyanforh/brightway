@@ -1,4 +1,4 @@
-import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
+import { OPPORTUNITY_TYPES, JOB_TYPES, JOB_COMPENSATION_TYPES, JOB_SALARY_PERIODS } from "../../../../shared/opportunities.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityDateTimePicker from "./OpportunityDateTimePicker";
@@ -101,6 +101,58 @@ export default function StandardOpportunityComposer({
           </label>
         </div>
       </section>
+      {draft.type === "JOB" && <section className="bw-op-challenge-section" aria-labelledby="bw-job-details">
+        <h4 id="bw-job-details">Employment and compensation</h4>
+        <div className="bw-op-field-row">
+          <label>Job type
+            <select required value={draft.jobDetails?.type || ""}
+              onChange={e => field("jobDetails", { ...draft.jobDetails, type: e.target.value,
+                compensationType: draft.jobDetails?.compensationType || "PAID",
+                salaryMin: draft.jobDetails?.salaryMin ?? null, salaryMax: draft.jobDetails?.salaryMax ?? null,
+                salaryCurrency: draft.jobDetails?.salaryCurrency || null,
+                salaryPeriod: draft.jobDetails?.salaryPeriod || null })}>
+              <option value="">Select job type</option>
+              {Object.entries(JOB_TYPES).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+            </select>
+          </label>
+          <label>Compensation
+            <select required value={draft.jobDetails?.compensationType || ""}
+              onChange={e => field("jobDetails", { ...draft.jobDetails,
+                type: draft.jobDetails?.type || "",
+                compensationType: e.target.value,
+                salaryMin: null, salaryMax: null, salaryCurrency: null, salaryPeriod: null })}>
+              <option value="">Select compensation</option>
+              {Object.entries(JOB_COMPENSATION_TYPES).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+            </select>
+          </label>
+        </div>
+        {["PAID", "STIPEND"].includes(draft.jobDetails?.compensationType) && <>
+          <p>Salary range is optional. Enter both amounts when the employer discloses pay.</p>
+          <div className="bw-op-field-row">
+            {["salaryMin", "salaryMax"].map((key, index) => <label key={key}>{index ? "Maximum salary" : "Minimum salary"}
+              <input type="number" min="0" max="1000000000" step="0.01"
+                value={draft.jobDetails?.[key] ?? ""}
+                onChange={e => field("jobDetails", { ...draft.jobDetails, [key]: e.target.value === "" ? null : Number(e.target.value) })} />
+            </label>)}
+          </div>
+          <div className="bw-op-field-row">
+            <label>Currency
+              <select value={draft.jobDetails?.salaryCurrency || ""}
+                onChange={e => field("jobDetails", { ...draft.jobDetails, salaryCurrency: e.target.value || null })}>
+                <option value="">Select currency</option>
+                {["USD", "LRD", "EUR", "GBP"].map(value => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+            <label>Pay period
+              <select value={draft.jobDetails?.salaryPeriod || ""}
+                onChange={e => field("jobDetails", { ...draft.jobDetails, salaryPeriod: e.target.value || null })}>
+                <option value="">Select period</option>
+                {Object.entries(JOB_SALARY_PERIODS).map(([value, label]) => <option key={value} value={value}>Per {label}</option>)}
+              </select>
+            </label>
+          </div>
+        </>}
+      </section>}
       <section className="bw-op-challenge-section" aria-labelledby="bw-standard-deadline">
         <h4 id="bw-standard-deadline">{draft.type === "EVENT" ? "Registration deadline" : "Application deadline"}</h4>
         <OpportunityDateTimePicker value={draft.deadline}

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { OPPORTUNITY_TYPES, QUESTION_TYPES } from "../../../../shared/opportunities.mjs";
+import { OPPORTUNITY_TYPES, QUESTION_TYPES, JOB_TYPES, JOB_COMPENSATION_TYPES, JOB_SALARY_PERIODS } from "../../../../shared/opportunities.mjs";
 import { CHALLENGE_COVER_IMAGES, CHALLENGE_TOPIC_OPTIONS, DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS, CHALLENGE_PRIZE_TYPES, CHALLENGE_PRIZE_CURRENCIES, CHALLENGE_MEDIA_KINDS, MAX_CHALLENGE_SPONSORS, MAX_CHALLENGE_COLLABORATORS, MAX_CHALLENGE_PRIZES } from "../../../../shared/challenges.mjs";
 import { fail } from "../network/network.schema.js";
 import { CHALLENGE_POST_TYPES, MAX_CHALLENGE_POST_TYPES, countChallengeWords } from "../../../../shared/challenge-submissions.mjs";
@@ -52,9 +52,25 @@ const postRequirement = z.discriminatedUnion("type", [
     maxPages: z.number().int().min(1).max(100),
   }),
 ]);
+const jobDetailsInput = z.strictObject({
+  type: z.enum(Object.keys(JOB_TYPES)),
+  compensationType: z.enum(Object.keys(JOB_COMPENSATION_TYPES)),
+  salaryMin: z.number().min(0).max(1000000000).nullable(),
+  salaryMax: z.number().min(0).max(1000000000).nullable(),
+  salaryCurrency: z.enum(["USD", "LRD", "EUR", "GBP"]).nullable(),
+  salaryPeriod: z.enum(Object.keys(JOB_SALARY_PERIODS)).nullable(),
+}).superRefine((value, context) => {
+  const amountProvided = value.salaryMin !== null || value.salaryMax !== null;
+  if (amountProvided && (!["PAID", "STIPEND"].includes(value.compensationType) ||
+      value.salaryMin === null || value.salaryMax === null ||
+      !value.salaryCurrency || !value.salaryPeriod || value.salaryMin > value.salaryMax)) {
+    context.addIssue({ code: "custom", message: "Enter a complete, valid salary range with currency and pay period." });
+  }
+});
 export const opportunityInput = z.strictObject({
   type: z.enum(Object.keys(OPPORTUNITY_TYPES)), title: text(160).min(3), description: text(12000).min(30),
   location: text(180).min(2), workMode: z.enum(["IN_PERSON", "REMOTE", "HYBRID"]),
+  jobDetails: jobDetailsInput.nullish().transform(value => value ?? null),
   prize: text(120).nullish().transform(value => value ?? ""),
   prizes: z.array(z.union([typedPrize, legacyPrize])).max(MAX_CHALLENGE_PRIZES).default([]),
   postRequirements: z.array(postRequirement).max(MAX_CHALLENGE_POST_TYPES)
