@@ -10,6 +10,7 @@ import VerificationBadge from "../VerificationBadge";
 import ChallengeParticipantFacepile from "./ChallengeParticipantFacepile";
 import ChallengeCoHosts from "./ChallengeCoHosts";
 import JobDetailsSummary from "./JobDetailsSummary";
+import { scholarshipSummary } from "./scholarship-summary";
 import "./challenge-sidebar-card.css";
 
 // A shared presentation for all published opportunities on the right rail and catalog.
@@ -62,6 +63,13 @@ export default function ChallengeSidebarCard({ opportunity }) {
       </div>
       {description && <p className="bw-rail-challenge-description">{description}</p>}
       {opportunity.type === "JOB" && <JobDetailsSummary details={opportunity.jobDetails} />}
+      {opportunity.type === "SCHOLARSHIP" && <div className="bw-rail-scholarship-summary">
+        {scholarshipSummary(opportunity.details) && <strong>{scholarshipSummary(opportunity.details)}</strong>}
+        {Array.isArray(opportunity.details?.academicLevels) && opportunity.details.academicLevels.length > 0 &&
+          <span>{opportunity.details.academicLevels.map(level => level.replaceAll("_", " ")).join(", ")}</span>}
+        {Array.isArray(opportunity.details?.eligibleCountries) && opportunity.details.eligibleCountries.length > 0 &&
+          <span>Eligible: {opportunity.details.eligibleCountries.join(", ")}</span>}
+      </div>
       {isChallenge && <ChallengeCoHosts collaborators={opportunity.collaborators} compact />}
       <div className="bw-rail-challenge-meta">
         {isChallenge ? <div className="bw-rail-challenge-prize" aria-label="Challenge prize">
