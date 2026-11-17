@@ -18,7 +18,7 @@ export function requiredDocumentLabels(type, details = {}) {
   const defaults = Object.entries(DOCUMENT_FIELDS[type] || {})
     .filter(([key]) => details[key] === true).map(([, label]) => label);
   const additional = Array.isArray(details.additionalDocuments) ? details.additionalDocuments : [];
-  return [...new Set([...defaults, ...additional.map(v => String(v).trim()).filter(Boolean)])].slice(0, 12);
+  return [...new Set([...defaults, ...additional.map(v => String(v).trim()).filter(Boolean)])];
 }
 export function isAutoDocumentQuestion(question) {
   return question?.type === "FILE_UPLOAD" && question?.label?.startsWith(REQUIRED_DOCUMENT_PREFIX);
