@@ -92,8 +92,8 @@ test("members discover four opportunity types, save and submit an application, a
   await page.goto("/opportunities");
   await expect(page.getByRole("article", { name: "Job: " + initialOpportunity.title }).getByRole("heading", { name: initialOpportunity.title }).getByRole("link")).toBeVisible();
   await expect(page.locator(".bw-op-grid > article")).toHaveCount(4);
-  await expect(page.locator(".bw-op-card")).toHaveCount(3);
-  await expect(page.locator(".bw-rail-challenge-card")).toHaveCount(1);
+  await expect(page.locator(".bw-rail-opportunity-card")).toHaveCount(3);
+  await expect(page.locator(".bw-rail-challenge-card")).toHaveCount(4);
   await noOverflow(page);
   await page.screenshot({ path: `/tmp/brightway-opportunities-${testInfo.project.name}.png`, fullPage: true });
   await page.getByRole("article", { name: "Job: " + initialOpportunity.title }).getByRole("heading", { name: initialOpportunity.title }).getByRole("link").click();
