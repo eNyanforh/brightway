@@ -166,7 +166,7 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(mainJob.getByRole("button", { name: "Save job" })).toBeVisible();
   await mainJob.getByRole("button", { name: "Save job" }).click();
   await expect(mainJob.getByRole("button", { name: "Unsave job" })).toHaveAttribute("aria-pressed", "true");
-  const sidebarJob = sidebar.getByRole("article", { name: "Job: Research Internship" });
+  const sidebarJob = sidebar.getByRole("article", { name: "Job Vacancy: Research Internship" });
   await expect(sidebarJob.locator("time")).toContainText(/\d+ days remaining/);
   await expect(sidebarJob.getByLabel("Job type and compensation")).toContainText("Internship");
   await expect(sidebarJob.getByLabel("Job type and compensation")).toContainText("Paid");
@@ -1987,8 +1987,8 @@ test("published opportunities join the main Explore feed and remain separate fro
 test("main Explore feed displays the four reference gradient categories with white opportunity cards", async ({ page }) => {
   const organizationId = "55555555-5555-4555-8555-555555555555";
   const categories = [
-    { type: "JOB", label: "Job", heading: "Job Vacancy", action: "Apply Now" },
-    { type: "SCHOLARSHIP", label: "Scholarship", heading: "Scholarships", action: "Apply" },
+    { type: "JOB", label: "Job Vacancy", heading: "Job Vacancy", action: "Apply Now" },
+    { type: "SCHOLARSHIP", label: "Scholarship", heading: "Scholarships", action: "Apply Now" },
     { type: "CHALLENGE", label: "Challenge", heading: "Challenge - Part take to Earn", action: "Participate" },
     { type: "EVENT", label: "Event", heading: "Events", action: "Register" },
   ];
