@@ -33,3 +33,12 @@ test("TVET administrators preserve fee drafts after conflicts",async({page})=>{c
 test("pre-enrolled TVET learners get Come Later without academic reads",async({page})=>{const s=await fixture(page,"PRE_REGISTERED");await page.goto("/learning?view=campus");await expect(page.getByText(/Welcome, Synthetic!/)).toBeVisible();await expect(page.getByRole("link",{name:"Come Later",exact:true})).toHaveAttribute("href","/explore");expect(s.reads).toBe(0);await layout(page);clean(s);});
 test("completed TVET learners can open their printable private certificate",async({page})=>{const s=await fixture(page,"COMPLETED");await page.goto("/learning?view=campus");await page.getByRole("button",{name:"Open my Campus",exact:true}).click();await page.getByRole("navigation",{name:"TVET Campus sections"}).getByRole("button",{name:"Certificate",exact:true}).click();await expect(page.getByRole("heading",{name:"Certificate of Automotive Competence",exact:true})).toBeVisible();await expect(page.getByRole("button",{name:"Print learner record",exact:true})).toBeVisible();await layout(page);clean(s);});
 test("TVET sponsors confirm, view authorized records and revoke their relationship",async({page})=>{const s=await fixture(page,"SPONSOR");await page.goto("/learning?view=guardians");await page.getByRole("button",{name:"Confirm learner relationship",exact:true}).click();await page.getByRole("button",{name:"View November intake learner record",exact:true}).click();await expect(page.getByRole("region",{name:"TVET learner record"})).toBeVisible();await page.getByRole("button",{name:"Back to campuses",exact:true}).click();await page.getByRole("button",{name:"Revoke my learner relationship",exact:true}).click();await expect(page.getByRole("region",{name:"TVET learner record"})).toHaveCount(0);expect(s.supportStatus).toBe("REVOKED");await layout(page);clean(s);});
+
+
+test("a teaching-only TVET instructor cannot open completion and certificate administration", async ({ page }) => {
+ const s = await fixture(page, "STAFF");
+ await page.goto("/campus/" + organizationId + "/tvet-certificates");
+ await expect(page.getByRole("heading", { name: "Academic workspace unavailable" })).toBeVisible();
+ await expect(page.getByRole("button", { name: "Issue training certificate" })).toHaveCount(0);
+ expect(s.reads).toBe(0); clean(s);
+});
