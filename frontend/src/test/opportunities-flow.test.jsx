@@ -173,7 +173,7 @@ it("Jobs use the same cover, details and CTA structure as Challenges without Cha
   render(<MemoryRouter><aside className="bw-explore-right"><ChallengeSidebarCard opportunity={fullTimePaid} /></aside></MemoryRouter>);
   const card = screen.getByRole("article", { name: "Job Vacancy: Research assistant" });
   expect(card.classList.contains("bw-rail-opportunity-job")).toBe(true);
-  const cover = within(card).getByRole("link", { name: "View job: Research assistant" });
+  const cover = within(card).getByRole("link", { name: "View job vacancy: Research assistant" });
   expect(cover.querySelector(".bw-rail-opportunity-cover-fallback")).toBeTruthy();
   expect(within(card).getByRole("heading", { name: opp.title })).toBeTruthy();
   expect(within(card).getByText("Monrovia")).toBeTruthy();
