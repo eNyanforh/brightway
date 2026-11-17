@@ -1,3 +1,4 @@
+import { countries } from "../learning/countries";
 import { useId } from "react";
 
 const JOB_CATEGORIES = ["Technology", "Education", "Healthcare", "Finance", "Agriculture", "Engineering", "Administration", "Research", "Marketing", "Hospitality", "Other"];
@@ -18,9 +19,9 @@ function Choice({ label, value, values, update, required = false, multi = false 
     <option value="">Select {label.toLowerCase()}</option>{values.map(v => <option key={v} value={v}>{labelFor(v)}</option>)}
   </select></label>;
 }
-function Entry({ label, value, update, type = "text", required = false, min, max, placeholder }) {
+function Entry({ label, value, update, type = "text", required = false, min, max, placeholder, options, listId }) {
   return <label>{label}<input type={type} value={value ?? ""} required={required} min={min} max={max}
-    placeholder={placeholder || ""} onChange={e => update(type === "number" ? (e.target.value === "" ? null : Number(e.target.value)) : ["date", "month"].includes(type) ? (e.target.value || undefined) : e.target.value)} /></label>;
+    list={options?.length ? listId : undefined} placeholder={placeholder || ""} onChange={e => update(type === "number" ? (e.target.value === "" ? null : Number(e.target.value)) : ["date", "month"].includes(type) ? (e.target.value || undefined) : e.target.value)} />{options?.length ? <datalist id={listId}>{options.map(item => <option key={item} value={item}/>)}</datalist> : null}</label>;
 }
 function Many({ label, value, update, hint }) {
   return <label>{label}<textarea rows={3} value={textList(value)}
@@ -50,7 +51,7 @@ export default function DedicatedOpportunityFields({ type, details, onChange, se
       <div className="bw-op-field-row">{input("Number of vacancies", "vacancies", { type: "number", min: 1 })}{input("Expected start date", "startDate", { type: "date" })}</div>
     </Section>}
     {(section === "all" || section === 2) && <Section title="2. Location and benefits">
-      <div className="bw-op-field-row">{input("Country", "country")}{input("County / State", "region")}</div>
+      <div className="bw-op-field-row">{input("Country", "country", { options: countries.map(row => row.name), listId: headingId + "-country" })}{input("County / State", "region")}</div>
       <div className="bw-op-field-row">{input("City", "city")}{input("Work address (optional)", "address")}</div>
       {many("Additional benefits", "benefits", "Health insurance\nTransport allowance\nTraining")}
     </Section>}
@@ -99,7 +100,7 @@ export default function DedicatedOpportunityFields({ type, details, onChange, se
       {many("Other benefits", "benefits")}
     </Section>}
     {(section === "all" || section === 3) && <Section title="3. Study destination and institution">
-      <div className="bw-op-field-row">{input("Study country", "studyCountry")}{input("City or region", "studyRegion")}</div>
+      <div className="bw-op-field-row">{input("Study country", "studyCountry", { options: countries.map(row => row.name), listId: headingId + "-study-country" })}{input("City or region", "studyRegion")}</div>
       {input("Host institution", "institution", { placeholder: "Institution name" })}
       {many("Programs or courses", "programs")}
       <div className="bw-op-field-row">{input("Program duration (months)", "programMonths", { type: "number", min: 1 })}
