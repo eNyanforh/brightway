@@ -1,3 +1,4 @@
+import DedicatedOpportunityFields from "./DedicatedOpportunityFields";
 import { OPPORTUNITY_TYPES, JOB_TYPES, JOB_COMPENSATION_TYPES, JOB_SALARY_PERIODS } from "../../../../shared/opportunities.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import NavigationIcon from "../layout/NavigationIcon";
@@ -153,6 +154,8 @@ export default function StandardOpportunityComposer({
           </div>
         </>}
       </section>}
+      {["JOB", "SCHOLARSHIP"].includes(draft.type) && <DedicatedOpportunityFields type={draft.type}
+        details={draft.details} onChange={value => field("details", value)} />}
       <section className="bw-op-challenge-section" aria-labelledby="bw-standard-deadline">
         <h4 id="bw-standard-deadline">{draft.type === "EVENT" ? "Registration deadline" : "Application deadline"}</h4>
         <OpportunityDateTimePicker value={draft.deadline}
