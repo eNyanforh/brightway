@@ -1,0 +1,14 @@
+/* Dedicated Job Vacancy and Scholarship creation sections */
+.bw-op-dedicated-details { display: grid; gap: 1.25rem; min-width: 0; }
+.bw-op-dedicated-details > h3 { font-size: 1.1rem; margin: .25rem 0 0; }
+.bw-op-details-section { display: grid; gap: .85rem; }
+.bw-op-details-section > h4 { margin-bottom: .15rem; }
+.bw-op-details-section > label { display: grid; gap: .4rem; min-width: 0; }
+.bw-op-details-section textarea { min-height: 5rem; resize: vertical; width: 100%; }
+.bw-op-detail-choices { display: flex; flex-wrap: wrap; gap: .6rem 1rem; padding: .65rem 0; }
+.bw-op-detail-choices > label { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.5rem; }
+.bw-op-detail-choices input[type="checkbox"] { width: 1.15rem; height: 1.15rem; flex-shrink: 0; }
+@media (max-width: 640px) {
+  .bw-op-detail-choices { flex-direction: column; }
+  .bw-op-dedicated-details .bw-op-field-row { display: grid; grid-template-columns: 1fr; }
+}
