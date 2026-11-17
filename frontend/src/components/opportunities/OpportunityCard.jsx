@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
+import { OPPORTUNITY_TYPES, jobEmploymentLabel, jobSalaryLabel } from "../../../../shared/opportunities.mjs";
 import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityOrganization from "./OpportunityOrganization";
 import ChallengeCoHosts from "./ChallengeCoHosts";
@@ -18,6 +18,11 @@ export default function OpportunityCard({ opportunity: o }) {
       {o.type === "CHALLENGE" && <ChallengeCoHosts collaborators={o.collaborators} compact />}
       <h3><Link to={`/opportunities/${o.id}`}>{o.title}</Link></h3>
       {o.type !== "CHALLENGE" && <p className="bw-op-location"><NavigationIcon name="pin" size={15} />{o.location}</p>}
+      {o.type === "JOB" && (jobEmploymentLabel(o.jobDetails) || jobSalaryLabel(o.jobDetails)) &&
+        <div className="bw-op-job-facts">
+          {jobEmploymentLabel(o.jobDetails) && <span>{jobEmploymentLabel(o.jobDetails)}</span>}
+          {jobSalaryLabel(o.jobDetails) && <span>{jobSalaryLabel(o.jobDetails)}</span>}
+        </div>}
       <p className="bw-op-preview">{o.description}</p>
       <div className="bw-op-card-bottom"><span>Closes {new Date(o.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span><Link to={`/opportunities/${o.id}`}>{type.action}<NavigationIcon name="chevron-right" size={14} /></Link></div>
     </div>
