@@ -527,8 +527,8 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         if (row.version !== data.expectedVersion) throw conflict();
         if (!input.opportunityTransitions[row.status].includes(data.status)) throw fail(409, "This opportunity cannot move to that status.");
         if (data.status === "PUBLISHED" && row.deadline <= now()) throw fail(409, "Set a future deadline before publishing.");
-        if (data.status === "PUBLISHED" && !row.publishedAt) {
-          const issues = opportunityPublicationIssues(row);
+        if (data.status === "PUBLISHED" && (!row.publishedAt || Object.keys(row.details || {}).length > 0)) {
+          const issues = opportunityPublicationIssues(row, +now());
           if (issues.length) throw fail(400, issues[0]);
         }
         await db.opportunity.update({ where: { id: row.id }, data: { status: data.status, version: { increment: 1 }, ...(data.status === "PUBLISHED" && !row.publishedAt ? { publishedAt: now() } : {}) } });
