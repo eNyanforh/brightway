@@ -4,6 +4,7 @@ import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityOrganization from "./OpportunityOrganization";
 import ChallengeCoHosts from "./ChallengeCoHosts";
 import JobDetailsSummary from "./JobDetailsSummary";
+import { scholarshipSummary } from "./OpportunityExtendedDetails";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./opportunities.css";
 export default function OpportunityCard({ opportunity: o }) {
@@ -20,6 +21,11 @@ export default function OpportunityCard({ opportunity: o }) {
       <h3><Link to={`/opportunities/${o.id}`}>{o.title}</Link></h3>
       {o.type !== "CHALLENGE" && <p className="bw-op-location"><NavigationIcon name="pin" size={15} />{o.location}</p>}
       {o.type === "JOB" && <JobDetailsSummary details={o.jobDetails} />}
+      {o.type === "SCHOLARSHIP" && <div className="bw-op-scholarship-summary">
+        {scholarshipSummary(o.details) && <strong>{scholarshipSummary(o.details)}</strong>}
+        {Array.isArray(o.details?.academicLevels) && o.details.academicLevels.length > 0 &&
+          <span>{o.details.academicLevels.map(level => level.replaceAll("_", " ")).join(", ")}</span>}
+      </div>}
       <p className="bw-op-preview">{o.description}</p>
       <div className="bw-op-card-bottom"><span>Closes {new Date(o.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span><Link to={`/opportunities/${o.id}`}>{type.action}<NavigationIcon name="chevron-right" size={14} /></Link></div>
     </div>
