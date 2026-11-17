@@ -1,4 +1,4 @@
-import { scholarshipSummary } from "./OpportunityExtendedDetails";
+import { scholarshipSummary } from "./scholarship-summary";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
@@ -191,6 +191,13 @@ export default function ExploreOpportunityCard({ opportunity, onSavedChange }) {
           <div className="bw-timeline-opportunity-body">
             <h3><Link to={detail}>{opportunity.title}</Link></h3>
             <p className="bw-timeline-opportunity-description">{opportunity.description}</p>
+            {opportunity.type === "SCHOLARSHIP" && <div className="bw-op-scholarship-summary">
+              {scholarshipSummary(opportunity.details) && <strong>{scholarshipSummary(opportunity.details)}</strong>}
+              {Array.isArray(opportunity.details?.academicLevels) && opportunity.details.academicLevels.length > 0 &&
+                <span>{opportunity.details.academicLevels.map(level => level.replaceAll("_", " ")).join(", ")}</span>}
+              {Array.isArray(opportunity.details?.eligibleCountries) && opportunity.details.eligibleCountries.length > 0 &&
+                <span>Eligibility: {opportunity.details.eligibleCountries.join(", ")}</span>}
+            </div>}
             <div className="bw-timeline-opportunity-meta">
               <span><NavigationIcon name="pin" size={15} />{opportunity.location}</span>
               <span><NavigationIcon name="calendar" size={15} /><RemainingDeadline
