@@ -77,7 +77,7 @@ function Review({ draft }) {
   ];
   return <section className="bw-op-challenge-section" aria-label="Review opportunity">
     <h4>Preview before saving</h4>
-    <p>Review the listing and document requirements. The opportunity is saved as a draft and published separately from the organization's dashboard.</p>
+    <p>Review the listing and document requirements. You may save a draft or publish directly to BrightWay.</p>
     <div className="bw-op-wizard-review">
       <strong>{draft.title}</strong><p>{draft.description}</p>
       <dl><div><dt>Location</dt><dd>{draft.location}</dd></div>
