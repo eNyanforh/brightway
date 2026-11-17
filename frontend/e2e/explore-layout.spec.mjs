@@ -153,6 +153,7 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(mainJob.locator(".bw-challenge-overview")).toBeVisible();
   await expect(mainJob.locator(".bw-challenge-cover-link")).toHaveAttribute("href", "/opportunities/" + job.id);
   await expect(mainJob.locator(".bw-job-cover-fallback")).toBeVisible();
+  await expect(mainJob.locator(".bw-job-cover-fallback")).toContainText("Job Vacancy");
   await expect(mainJob.getByRole("heading", { name: "Research Internship" })).toBeVisible();
   await expect(mainJob.getByText(job.description)).toBeVisible();
   await expect(mainJob.getByText(job.location, { exact: true })).toBeVisible();
@@ -1986,7 +1987,7 @@ test("published opportunities join the main Explore feed and remain separate fro
 test("main Explore feed displays the four reference gradient categories with white opportunity cards", async ({ page }) => {
   const organizationId = "55555555-5555-4555-8555-555555555555";
   const categories = [
-    { type: "JOB", label: "Job", heading: "Jobs & Internships", action: "Apply Now" },
+    { type: "JOB", label: "Job", heading: "Job Vacancy", action: "Apply Now" },
     { type: "SCHOLARSHIP", label: "Scholarship", heading: "Scholarships", action: "Apply" },
     { type: "CHALLENGE", label: "Challenge", heading: "Challenge - Part take to Earn", action: "Participate" },
     { type: "EVENT", label: "Event", heading: "Events", action: "Register" },
