@@ -479,7 +479,7 @@ test("organization publishers create and publish a form, and reviewers send an a
   await editor.getByLabel("Job type").selectOption("INTERNSHIP");
   await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Work location").fill("Monrovia");
-  await editor.getByLabel("Compensation", { exact: true }).selectOption("PAID");
+  await editor.getByRole("combobox", { name: /Compensation/i }).selectOption("PAID");
   await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Job responsibilities").fill("Conduct research");
   await editor.getByLabel("Required qualifications").fill("High school");
