@@ -45,6 +45,6 @@ export default function GradeSchoolWorkspace({ campusId, module = null }) {
         <ul className="bw-school-items">{data.offerings.map(o => <li key={o.id}><strong>{o.subject.name}</strong><span>{o.section.schoolClass.name} / {o.section.name} · {o.mode.toLowerCase()}</span></li>)}</ul>{!periodId && <p className="bw-school-help">Create an academic year and period to begin.</p>}</section>
     </div>}
     {["students", "reports"].includes(activeTab) && <SchoolStudents key={campusId + ":" + periodId + ":" + activeTab} campusId={campusId} data={data} sections={sections} busy={busy} run={run} revision={revision} mode={activeTab} />}
-    {["teaching", "attendance", "assessments"].includes(activeTab) && <SchoolTeaching key={campusId + ":" + periodId + ":" + activeTab} campusId={campusId} data={data} busy={busy} run={run} revision={revision} mode={activeTab === "teaching" ? "all" : activeTab} />}
+    {["teaching", "attendance", "assessments"].includes(activeTab) && <SchoolTeaching key={campusId + ":" + periodId + ":" + activeTab} campusId={campusId} data={data} busy={busy} run={run} revision={revision} mode={activeTab === "teaching" ? (module ? "schedules" : "all") : activeTab} />}
   </section>;
 }
