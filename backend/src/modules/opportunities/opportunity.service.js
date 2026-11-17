@@ -16,7 +16,7 @@ const MANAGE = "organization.opportunities.manage", REVIEW = "organization.appli
 const publicOrganization = { status: "ACTIVE", request: { status: "APPROVED" }, profileReadyAt: { not: null }, profilePhotoId: { not: null }, username: { not: null }, profileSetupStep: 5 };
 const organizationSelect = { id: true, name: true, username: true, profilePhotoId: true, verifiedAt: true };
 const collaboratorSelect = { organizationId: true, state: true, organization: { select: organizationSelect } };
-const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, jobDetails: true, prize: true, prizes: true, postRequirements: true, sponsorLogoIds: true, backgroundAssetId: true, titleAssetId: true, coverAssetId: true, topics: true, coverImage: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect },
+const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, jobDetails: true, details: true, prize: true, prizes: true, postRequirements: true, sponsorLogoIds: true, backgroundAssetId: true, titleAssetId: true, coverAssetId: true, topics: true, coverImage: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect },
   collaborators: { where: { state: "ACCEPTED", organization: publicOrganization }, select: collaboratorSelect } };
 const managedOpportunitySelect = { ...opportunitySelect, collaborators: { select: collaboratorSelect } };
 const fileSelect = { id: true, questionId: true, contentType: true, size: true, createdAt: true };
@@ -158,13 +158,13 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
   // legacy work-mode/location fields cannot redirect someone to an external site.
   function prepareOpportunity(data) {
     if (data.type !== "CHALLENGE") return {
-      ...data, jobDetails: data.type === "JOB" ? data.jobDetails : null, prizes: [], sponsorLogoIds: [], backgroundAssetId: null,
+      ...data, jobDetails: data.type === "JOB" ? data.jobDetails : null, details: ["JOB", "SCHOLARSHIP"].includes(data.type) ? data.details : {}, prizes: [], sponsorLogoIds: [], backgroundAssetId: null,
       titleAssetId: null, collaboratorIds: [], postRequirements: [], maxApplicants: null,
     };
     const displayPrize = data.prizes.length
       ? data.prizes.map(challengePrizeValue).join(" · ").slice(0, 120)
       : data.prize;
-    return { ...data, jobDetails: null, maxApplicants: null, location: "BrightWay", workMode: "REMOTE", prize: displayPrize };
+    return { ...data, jobDetails: null, details: {}, maxApplicants: null, location: "BrightWay", workMode: "REMOTE", prize: displayPrize };
   }
   function selectedAssets(data) {
     // A cover photo is supported for every opportunity type. Only Challenges
