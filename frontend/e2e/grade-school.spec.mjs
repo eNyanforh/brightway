@@ -68,3 +68,15 @@ test("teachers cannot reach registration through a copied Campus module URL", as
   await expect(campusNavigation(page).getByRole("link", { name: "Student registration" })).toHaveCount(0);
   expect(state.academicReads).toBe(0); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });
+
+
+test("a teaching-only staff member cannot open Grade School results through a deep link", async ({ page }) => {
+  const state = await fixture(page, "STAFF");
+  await page.goto("/campus/" + organizationId + "/reports");
+  await expect(page.getByRole("heading", { name: "Academic workspace unavailable" })).toBeVisible();
+  await expect(campusNavigation(page).getByRole("link", { name: "Results & reports" })).toHaveCount(0);
+  await expect(page.getByRole("table", { name: "Registered students" })).toHaveCount(0);
+  expect(state.academicReads).toBe(0);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpected).toEqual([]);
+});
