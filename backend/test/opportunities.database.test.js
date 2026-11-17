@@ -35,7 +35,21 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     const org = await db.organization.create({ data: { requestId: r.id, name: r.name, type: "COMPANY", offersTraining: false, verifiedAt: now(), memberships: { create: { accountId: owner.id, role: "PRIMARY_ADMIN" } } } }); organizations.push(org.id);
     return seedOrganizationProfile(db, org.id, now());
   }
-  const listing = (type, questions = []) => ({ type, title: "Research assistant " + type, description: "Help our team improve community education and research outcomes.", location: "Monrovia, Liberia", workMode: "IN_PERSON", deadline: "2030-02-01T12:00:00Z", questions, requestKey: randomUUID() });
+  const listing = (type, questions = []) => ({
+    type, title: "Research assistant " + type,
+    description: "Help our team improve community education and research outcomes.",
+    location: "Monrovia, Liberia", workMode: "IN_PERSON",
+    deadline: "2030-02-01T12:00:00Z", questions, requestKey: randomUUID(),
+    ...(type === "JOB" ? {
+      jobDetails: { type: "FULL_TIME", compensationType: "PAID", salaryMin: null,
+        salaryMax: null, salaryCurrency: null, salaryPeriod: null },
+      details: { category: "Research", experienceLevel: "ENTRY",
+        responsibilities: ["Conduct community research"], requiredQualifications: ["Data collection skills"] },
+    } : type === "SCHOLARSHIP" ? {
+      details: { category: "RESEARCH", academicLevels: ["MASTERS"], fundingType: "FULLY_FUNDED",
+        eligibleCountries: ["Liberia"], selectionCriteria: ["Academic merit"] },
+    } : {}),
+  });
   const payload = (opp, answers = {}, expectedVersion = 0, action = "SUBMIT") => ({
     action, shareProfile: action === "SUBMIT", expectedOpportunityVersion: opp.version, expectedVersion,
     answers: { ...Object.fromEntries((opp.postRequirements || [])
