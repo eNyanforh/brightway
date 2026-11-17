@@ -378,21 +378,33 @@ export default function OpportunityEditor({ organizationId, organization, opport
     <section ref={dialog} tabIndex={-1} role="dialog" aria-modal="true"
       aria-labelledby="op-editor-title" className="bw-op-editor bw-op-wizard">
       <header className="bw-op-wizard-header">
-        <div><p className="bw-op-wizard-kicker">{opportunity ? "EDIT OPPORTUNITY" : "CREATE OPPORTUNITY"}</p>
-          <h2 id="op-editor-title">{singlePageComposer
-            ? (opportunity ? "Edit " : "Create a ") + OPPORTUNITY_TYPES[draft.type].label
+        <div>
+          {!dedicatedComposer && <p className="bw-op-wizard-kicker">{opportunity ? "EDIT OPPORTUNITY" : "CREATE OPPORTUNITY"}</p>}
+          <h2 id="op-editor-title">{dedicatedComposer
+            ? (opportunity ? "Edit " : "Create ") + OPPORTUNITY_TYPES[draft.type].label
+            : singlePageComposer ? (opportunity ? "Edit " : "Create a ") + OPPORTUNITY_TYPES[draft.type].label
             : opportunity ? "Edit your opportunity" : "Create an opportunity"}</h2>
-          <p>{singlePageComposer ? "Cover, details, deadline and applications" : dedicatedComposer ? "Step " + step + " of 6 · " + steps[step] : "Step " + (step + 1) + " of " + steps.length}</p>
-          {dedicatedComposer && !opportunity && <p className="bw-op-wizard-help">Progress is kept in this browser tab until you save it to BrightWay.</p>}
+          <p>{dedicatedComposer ? "Step " + step + " of 6 — " + stepName
+            : singlePageComposer ? "Cover, details, deadline and applications" : "Step " + (step + 1) + " of " + steps.length}</p>
         </div>
-        <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
+        <div className="bw-op-dedicated-header-actions">
+          {dedicatedComposer && <span className="bw-op-dedicated-status">{opportunity?.status === "PAUSED" ? "Paused" : opportunity?.status === "PUBLISHED" ? "Published" : "Draft"}</span>}
+          <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
+        </div>
       </header>
-      {!singlePageComposer && <nav className="bw-op-wizard-progress" aria-label="Creation progress">
+      {dedicatedComposer ? <nav className="bw-op-dedicated-progress" aria-label="Creation progress">
+        {DEDICATED_STEPS[draft.type].map((label, index) => <span key={label}
+          className={index + 1 <= step ? "is-filled" : ""}
+          title={"Step " + (index + 1) + ": " + label}
+          aria-label={"Step " + (index + 1) + ": " + label}
+          aria-current={index + 1 === step ? "step" : undefined} />)}
+      </nav> : !singlePageComposer && <nav className="bw-op-wizard-progress" aria-label="Creation progress">
         {steps.map((label, index) => <span key={label} className={index === step ? "is-current" : index < step ? "is-complete" : ""}
           aria-current={index === step ? "step" : undefined}><span>{index + 1}</span>{label}</span>)}
       </nav>}
       <form onSubmit={submit}>
         {error && <div className="bw-op-wizard-error" role="alert">{error.message}</div>}
+        {dedicatedComposer && draftNotice && <p className="bw-op-dedicated-draft-notice" role="status">{draftNotice}</p>}
         <fieldset className={"bw-op-editor-fields bw-op-wizard-fields" + (singlePageComposer ? " is-challenge-composer" : "")} disabled={locked}>
           {dedicatedComposer ? <DedicatedOpportunityWizard draft={draft} field={field} step={step}
             organization={organization} opportunity={opportunity} locked={locked} uploading={uploading} upload={upload}
