@@ -17,7 +17,7 @@ const mount = (engine, status, permissions = [], role = "STAFF") => render(
 describe("engine-specific Campus module navigation", () => {
   it("provides distinct, routable entries, not generic Academics-only tabs", () => {
     expect(Object.keys(CAMPUS_MODULE_BY_SECTION)).toHaveLength(12);
-    expect(new Set(Object.keys(CAMPUS_MODULE_BY_SECTION)).size).toBe(10);
+    expect(new Set(Object.keys(CAMPUS_MODULE_BY_SECTION)).size).toBe(12);
     expect(CAMPUS_MODULES.GRADE_SCHOOL.every(row => row.engine === undefined)).toBe(true);
     expect(CAMPUS_MODULE_BY_SECTION.attendance.engine).toBe("GRADE_SCHOOL");
     expect(CAMPUS_MODULE_BY_SECTION["tvet-attendance"].engine).toBe("TVET");
