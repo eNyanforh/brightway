@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import GradeSchoolWorkspace from "../components/grade-school/GradeSchoolWorkspace";
 import MyCampus from "../components/grade-school/MyCampus";
+import StudentCampusContexts from "../components/grade-school/StudentCampusContexts";
 import { schoolApi as api } from "../api/grade-school";
 vi.mock("../api/grade-school", () => ({ schoolApi: Object.fromEntries(["setup", "admissions", "configure", "registrations", "register", "subject", "submit", "createSession", "myCampus", "myReport", "guardians", "guardianReport", "guardianDecision", "status", "report", "guardian", "assign"].map(key => [key, vi.fn()])) }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -95,6 +96,18 @@ describe("Grade School academic workspace", () => {
     api.setup.mockResolvedValue(setup()); api.configure.mockRejectedValue(Object.assign(new Error("Permission revoked"), { status: 403 }));
     const user = mount(<GradeSchoolWorkspace campusId="school" />); await screen.findByLabelText("Subject name"); await user.type(screen.getByLabelText("Subject name"), "History"); await user.click(screen.getByRole("button", { name: "Add subject" })); await screen.findByText("Permission revoked"); expect(screen.queryByLabelText("Subject name")).toBeNull();
   });
+});
+it("opens the selected student institution and its pre-registration waiting context", async () => {
+  api.myCampus.mockResolvedValue({ items: [
+    { id: "one", campusId: "school-a", schoolName: "School A", status: "PRE_REGISTERED" },
+    { id: "two", campusId: "school-b", schoolName: "School B", status: "ACTIVE" },
+  ] });
+  mount(<StudentCampusContexts />);
+  const links = await screen.findAllByRole("link", { name: "View student Campus" });
+  expect(links.map(link => link.getAttribute("href"))).toEqual([
+    "/learning?view=campus&campus=school-a",
+    "/learning?view=campus&campus=school-b",
+  ]);
 });
 describe("learner and guardian Campus access", () => {
   it("pre-registered students see the school's welcome and Come Later without requesting academic data", async () => {
