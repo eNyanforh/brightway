@@ -139,9 +139,9 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(sidebar.locator(".bw-rail-opportunity-job")).toHaveCount(1);
   await expect(sidebar.locator(".bw-rail-opportunity-scholarship")).toHaveCount(1);
   await expect(sidebar.locator(".bw-rail-opportunity-event")).toHaveCount(1);
-  await expect(sidebar.getByRole("link", { name: "Research Internship" })).toHaveAttribute("href", "/opportunities/" + job.id);
-  await expect(sidebar.getByRole("link", { name: "Student Research Scholarship" })).toHaveAttribute("href", "/opportunities/" + scholarship.id);
-  await expect(sidebar.getByRole("link", { name: "Career Discovery Event" })).toHaveAttribute("href", "/opportunities/" + event.id);
+  await expect(sidebar.getByRole("article", { name: "Job: Research Internship" }).getByRole("heading", { name: "Research Internship" }).getByRole("link")).toHaveAttribute("href", "/opportunities/" + job.id);
+  await expect(sidebar.getByRole("article", { name: "Scholarship: Student Research Scholarship" }).getByRole("heading", { name: "Student Research Scholarship" }).getByRole("link")).toHaveAttribute("href", "/opportunities/" + scholarship.id);
+  await expect(sidebar.getByRole("article", { name: "Event: Career Discovery Event" }).getByRole("heading", { name: "Career Discovery Event" }).getByRole("link")).toHaveAttribute("href", "/opportunities/" + event.id);
   const card = sidebar.getByRole("article", { name: "Challenge: Community Innovation Challenge" });
   await expect(card).toBeVisible();
   await expect(sidebar.getByRole("article")).toHaveCount(4);
@@ -1966,9 +1966,9 @@ test("published opportunities join the main Explore feed and remain separate fro
   await expect(card).toBeVisible();
   await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
   await expect(card.getByRole("img", { name: "Community Research Institute profile picture" })).toHaveAttribute("src", /\/api\/v1\/organizations\//);
-  await expect(card.locator(".bw-post-publisher-name").getByRole("link", { name: "Community Research Institute" })).toHaveAttribute("href", "/organizations/" + organizationId);
+  await expect(card.locator(".bw-challenge-organization-name").getByRole("link", { name: "Community Research Institute" })).toHaveAttribute("href", "/organizations/" + organizationId);
   await expect(card.getByRole("link", { name: "Research assistant opportunity" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
-  await expect(card.getByRole("link", { name: "Apply on BrightWay" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
+  await expect(card.locator(".bw-timeline-opportunity-cta").getByRole("link", { name: "Apply" })).toHaveAttribute("href", "/opportunities/" + opportunityId);
   await expect(card.getByRole("button", { name: "Post options" })).toHaveCount(0);
   await expect(card.getByRole("button", { name: "Like" })).toHaveCount(0);
   await page.getByRole("navigation", { name: "Explore feed" }).getByRole("button", { name: "Saved" }).click();
@@ -2010,7 +2010,7 @@ test("main Explore feed displays the four reference gradient categories with whi
     await expect(card.getByRole("link", { name: "See all" })).toHaveAttribute("href", "/opportunities?type=" + category.type);
     await expect(card.locator(".bw-timeline-opportunity-card")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     await expect(card.getByRole("img", { name: "Verified organization" })).toBeVisible();
-    await expect(card.getByRole("link", { name: category.type === "CHALLENGE" ? "Take Part" : category.action + " on BrightWay" }))
+    await expect(card.getByRole("link", { name: category.type === "CHALLENGE" ? "Take Part" : category.type === "JOB" ? "Apply" : category.action + " on BrightWay" }))
       .toHaveAttribute("href", /\/opportunities\/66666666-/);
     const background = await card.evaluate(element => getComputedStyle(element).backgroundImage);
     expect(background).toContain("linear-gradient");
