@@ -178,6 +178,11 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(mainJob.locator(".bw-job-detail-compensation")).toHaveCSS("background-color", "rgb(223, 245, 233)");
   await expect(sidebarJob.getByLabel("Job type and compensation")).toContainText("US$200–US$500/month");
   await expect(mainJob.getByLabel("Job type and compensation")).toContainText("US$200–US$500/month");
+  // Keep a small, consistent gap between description and job metadata in both Explore layouts.
+  await expect(mainJob.locator(".bw-job-description + .bw-job-details-summary"))
+    .toHaveCSS("margin-top", "5px");
+  await expect(sidebarJob.locator(".bw-rail-challenge-description + .bw-job-details-summary"))
+    .toHaveCSS("margin-top", "5px");
   // Right-rail jobs must keep the same visible category gradient as main Explore jobs.
   const mainJobGradient = await mainJob.evaluate(element => getComputedStyle(element).backgroundImage);
   expect(mainJobGradient).toContain("linear-gradient");
