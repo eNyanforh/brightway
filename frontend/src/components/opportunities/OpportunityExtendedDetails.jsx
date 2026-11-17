@@ -1,3 +1,4 @@
+import "./dedicated-opportunity-fields.css";
 import { JOB_TYPES, JOB_COMPENSATION_TYPES, formatJobSalary } from "../../../../shared/opportunities.mjs";
 import { requiredDocumentLabels } from "../../../../shared/opportunity-documents.mjs";
 
