@@ -90,13 +90,13 @@ test("Opportunities page intro is unboxed and aligned to the page edges", async 
 test("members discover four opportunity types, save and submit an application, and withdraw", async ({ page }, testInfo) => {
   const state = await fixture(page);
   await page.goto("/opportunities");
-  await expect(page.getByRole("link", { name: initialOpportunity.title })).toBeVisible();
+  await expect(page.getByRole("article", { name: "Job: " + initialOpportunity.title }).getByRole("heading", { name: initialOpportunity.title }).getByRole("link")).toBeVisible();
   await expect(page.locator(".bw-op-grid > article")).toHaveCount(4);
   await expect(page.locator(".bw-op-card")).toHaveCount(3);
   await expect(page.locator(".bw-rail-challenge-card")).toHaveCount(1);
   await noOverflow(page);
   await page.screenshot({ path: `/tmp/brightway-opportunities-${testInfo.project.name}.png`, fullPage: true });
-  await page.getByRole("link", { name: initialOpportunity.title }).click();
+  await page.getByRole("article", { name: "Job: " + initialOpportunity.title }).getByRole("heading", { name: initialOpportunity.title }).getByRole("link").click();
   await page.getByLabel("Can you join our team?").selectOption("false");
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Draft saved");
@@ -396,6 +396,8 @@ test("organization publishers create and publish a form, and reviewers send an a
   await expect(editor.locator(".bw-op-standard-poster strong")).toHaveText("Data internship");
   await editor.getByLabel("Description", { exact: true }).fill("Build skills in field research, data quality, and community engagement.");
   await editor.getByLabel("Location", { exact: true }).fill("Monrovia");
+  await editor.getByLabel("Job type", { exact: true }).selectOption("INTERNSHIP");
+  await editor.getByLabel("Compensation", { exact: true }).selectOption("PAID");
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
   await editor.getByRole("button", { name: "+ Add question" }).click();
   await editor.getByLabel("Question 1 text").fill("Why would you like to join?");
