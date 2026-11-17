@@ -69,7 +69,7 @@ export default function ChallengeSidebarCard({ opportunity }) {
           <span>{opportunity.details.academicLevels.map(level => level.replaceAll("_", " ")).join(", ")}</span>}
         {Array.isArray(opportunity.details?.eligibleCountries) && opportunity.details.eligibleCountries.length > 0 &&
           <span>Eligible: {opportunity.details.eligibleCountries.join(", ")}</span>}
-      </div>
+      </div>}
       {isChallenge && <ChallengeCoHosts collaborators={opportunity.collaborators} compact />}
       <div className="bw-rail-challenge-meta">
         {isChallenge ? <div className="bw-rail-challenge-prize" aria-label="Challenge prize">
