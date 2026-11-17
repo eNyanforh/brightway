@@ -18,7 +18,7 @@ test("paid internships persist typed salary details and render accurate ranges",
   const value = opportunityInput.parse({ ...basic(), jobDetails: paid() });
   assert.deepEqual(value.jobDetails, paid());
   assert.equal(jobEmploymentLabel(value.jobDetails), "Internship");
-  assert.equal(jobSalaryLabel(value.jobDetails), "US$500–1,200 / month");
+  assert.equal(jobSalaryLabel(value.jobDetails), "Paid · US$500–1,200 / month");
 });
 test("unpaid internships have no salary, and existing jobs without details remain valid", () => {
   const unpaid = { ...paid(), compensation: "UNPAID", salaryMin: null, salaryMax: null };
