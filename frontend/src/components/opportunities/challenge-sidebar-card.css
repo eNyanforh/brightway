@@ -298,3 +298,9 @@
 .bw-op-challenge-topic input { accent-color: #175cd3; }
 .bw-op-challenge-topic:has(input:checked) { border-color: #175cd3; background: #eff8ff; color: #124aa9; }
 .bw-op-challenge-topic:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+
+.bw-rail-opportunity-job .bw-rail-opportunity-facts > .bw-job-salary {
+  flex-basis: 100%;
+  font-weight: 750;
+  color: #25354c;
+}
