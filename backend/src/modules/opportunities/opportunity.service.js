@@ -458,7 +458,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
       const { saved } = input.parse(input.saveInput, body), oppId = id(opportunityId);
       return ownerWork(actor, async db => {
         const row = await db.opportunity.findFirst({
-          where: { id: oppId, type: "CHALLENGE", status: "PUBLISHED", organization: publicOrganization },
+          where: { id: oppId, status: "PUBLISHED", deadline: { gt: now() }, organization: publicOrganization },
           select: { id: true },
         });
         if (!row) throw unavailable();
