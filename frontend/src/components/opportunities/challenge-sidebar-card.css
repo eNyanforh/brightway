@@ -228,7 +228,8 @@
 
 /* Jobs, scholarships and events reuse the Challenge cover → details → CTA layout.
    An authored cover is shown when available; otherwise use first-party type artwork. */
-.bw-rail-opportunity-job { background: linear-gradient(135deg, #e9efff, #b5cffb); }
+/* Match the job category gradient used in Explore's main feed. */
+.bw-rail-opportunity-job { background: var(--explore-job-gradient, linear-gradient(135deg, #a1c4fd 0%, #f9c2fb 100%)); }
 .bw-rail-opportunity-scholarship { background: linear-gradient(135deg, #f2eafe, #d7baf6); }
 .bw-rail-opportunity-event { background: linear-gradient(135deg, #fff0cf, #fad4a1); }
 .bw-rail-opportunity-card .bw-rail-challenge-cover { background: #e8edf7; }
