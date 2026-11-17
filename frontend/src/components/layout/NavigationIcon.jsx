@@ -178,6 +178,9 @@ export default function NavigationIcon({
     case "answer":
       shape = <><path d="M21 12a8 8 0 0 1-8 8H4l2-4a8 8 0 1 1 15-4Z" /><path d="m9 12 2 2 4-4" /></>;
       break;
+    case "save":
+      shape = <><path d="M4 3h13l4 4v14H3V3h1Z"/><path d="M7 3v7h10V3M7 21v-8h10v8M10 6h4" /></>;
+      break;
     case "bookmark":
       shape = <path d="M6 4h12v17l-6-4-6 4Z" />;
       break;
