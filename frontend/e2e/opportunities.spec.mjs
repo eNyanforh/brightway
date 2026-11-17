@@ -418,6 +418,43 @@ test("Scholarship publishing uses six structured steps and a native application 
   await noOverflow(page); expect(state.errors).toEqual([]);
 });
 
+
+test("organization publishers can directly publish a scholarship with native required documents", async ({ page }) => {
+  const state = await fixture(page);
+  await page.goto(base + "/opportunities");
+  await page.getByRole("button", { name: "+ Create opportunity" }).click();
+  const editor = page.getByRole("dialog");
+  await editor.getByRole("radio", { name: /Scholarship/ }).click();
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByLabel("Scholarship title").fill("Liberia research scholarship");
+  await editor.getByLabel("Description", { exact: true }).fill("Support postgraduate students conducting high-impact research in Liberia.");
+  await editor.getByLabel("Scholarship category").selectOption("RESEARCH");
+  await editor.getByRole("group", { name: "Academic levels" }).getByRole("checkbox", { name: "Masters" }).check();
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByLabel("Funding type").selectOption("FIXED_AMOUNT");
+  await editor.getByLabel("Currency").selectOption("USD");
+  await editor.getByLabel("Scholarship value").fill("1000");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByLabel("Study destination").fill("Monrovia, Liberia");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByLabel("Eligible countries").fill("Liberia");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByLabel("Selection criteria").fill("Academic achievement");
+  await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByText("Academic transcript")).toBeVisible();
+  await expect(editor.getByText("Personal statement")).toBeVisible();
+  await editor.getByRole("button", { name: "Publish Scholarship" }).click();
+  await expect(editor).toHaveCount(0);
+  expect(state.drafts).toHaveLength(1);
+  expect(state.drafts[0].status).toBe("PUBLISHED");
+  expect(state.drafts[0].details.value).toBe(1000);
+  expect(state.drafts[0].details.currency).toBe("USD");
+  expect(state.drafts[0].questions.filter(q => q.type === "FILE_UPLOAD" && q.required)).toHaveLength(2);
+  expect(state.errors).toEqual([]);
+  await noOverflow(page);
+});
+
 test("organization publishers create and publish a form, and reviewers send an applicant decision", async ({ page, isMobile }, testInfo) => {
   const state = await fixture(page);
   state.application = { id: aid, opportunity: state.opportunity, status: "SUBMITTED", version: 1, answers: { [qid]: false }, files: [], events: [], submittedAt: "2026-11-11T12:00:00Z", profileSnapshot: { name: "Synthetic Applicant", headline: "Data analyst", location: {}, skills: ["Data"], interests: ["Education"], credentials: [] }, opportunitySnapshot: { title: state.opportunity.title, organization: organization.name, questions: state.opportunity.questions } };
