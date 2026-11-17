@@ -32,7 +32,7 @@ export default function SchoolStudents({ campusId, data, sections, busy, run, re
   const [page, setPage] = useState(null), [error, setError] = useState(null), [q, setQ] = useState(""), [cursor, setCursor] = useState(""), [history, setHistory] = useState([]), [selected, setSelected] = useState(null), [report, setReport] = useState(null);
   const life = useRef(null);
   useEffect(() => { const c = new AbortController(); life.current = c;
-    api.registrations(campusId, { periodId: data.periodId, q, cursor }, c.signal).then(result => { if (!c.signal.aborted) { setPage({ result, q, cursor }); setError(null); } }).catch(e => { if (!c.signal.aborted) { setError(e); setPage(null); } });
+    api.registrations(campusId, { periodId: data.periodId, q, cursor }, c.signal).then(result => { if (!c.signal.aborted) { setPage({ result, q, cursor }); setError(null); } }).catch(e => { if (!c.signal.aborted) { setError(e); setPage(null); if ([401, 403, 404].includes(e.status)) onAccessLost?.(e); } });
     return () => c.abort();
   }, [campusId, data.periodId, q, cursor, revision]);
   const current = page?.q === q && page.cursor === cursor ? page.result : null;
