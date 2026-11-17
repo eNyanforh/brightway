@@ -14,7 +14,7 @@ const display = name => name ? name.replaceAll("_", " ").replace(/\b\w/g, l => l
 const currency = (value, code) => code && value != null
   ? new Intl.NumberFormat("en-US", { style: "currency", currency: code, maximumFractionDigits: 2 }).format(value) : null;
 
-function EmploymentFields({ draft, field }) {
+function EmploymentFields({ draft, field, jobTypeOnly = false }) {
   const details = draft.jobDetails || {};
   const update = changes => field("jobDetails", { ...details, ...changes });
   const salary = ["PAID", "STIPEND"].includes(details.compensationType);
@@ -24,13 +24,13 @@ function EmploymentFields({ draft, field }) {
       <label>Job type <select value={details.type || ""} required onChange={e => update({ type: e.target.value })}>
         <option value="">Select job type</option>{Object.entries(JOB_TYPES).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
       </select></label>
-      <label>Compensation <select value={details.compensationType || ""} required onChange={e => update({
+      {!jobTypeOnly && <label>Compensation <select value={details.compensationType || ""} required onChange={e => update({
         compensationType: e.target.value, salaryMin: null, salaryMax: null, salaryCurrency: null, salaryPeriod: null,
       })}><option value="">Select compensation</option>
         {Object.entries(JOB_COMPENSATION_TYPES).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
-      </select></label>
+      </select></label>}
     </div>
-    {salary && <><p>Salary disclosure is optional. If disclosed, provide both amounts, a currency and a period.</p>
+    {!jobTypeOnly && salary && <><p>Salary disclosure is optional. If disclosed, provide both amounts, a currency and a period.</p>
       <div className="bw-op-field-row">
         <label>Minimum salary <input type="number" min="0" step="0.01" value={details.salaryMin ?? ""} onChange={e => update({ salaryMin: e.target.value === "" ? null : Number(e.target.value) })} /></label>
         <label>Maximum salary <input type="number" min="0" step="0.01" value={details.salaryMax ?? ""} onChange={e => update({ salaryMax: e.target.value === "" ? null : Number(e.target.value) })} /></label>
@@ -142,7 +142,7 @@ export default function DedicatedOpportunityWizard({ draft, field, step, questio
             placeholder={scholarship ? "Explain the scholarship, purpose and selection process." : "Describe the role, team and impact."}
             onChange={v => field("description", v)} />
         </section>
-        {!scholarship && <EmploymentFields draft={draft} field={field} />}
+        {!scholarship && <EmploymentFields draft={draft} field={field} jobTypeOnly />}
         <DedicatedOpportunityFields type={draft.type} details={details} onChange={v => field("details", v)} section={1} locked={Boolean(opportunity?.publishedAt)}/>
       </>}
       {step === 2 && <>
