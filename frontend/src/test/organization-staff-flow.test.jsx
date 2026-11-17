@@ -37,7 +37,7 @@ it("offers active Campus teaching and academic permissions as working staff gran
   const campusCatalog = [...catalog,
     { key: "organization.campus.academics.manage", label: "Manage Campus academic operations" },
     { key: "organization.campus.teach", label: "Teach assigned Campus subjects" }];
-  const activeContext = { ...context, permissionCatalog: campusCatalog };
+  const activeContext = { ...context, permissions: [...context.permissions, "organization.campus.academics.manage", "organization.campus.teach"], permissionCatalog: campusCatalog };
   const f = mount(url => url.endsWith("/staff") ? reply(staff) : reply(activeContext));
   await openInvite(f);
   const dialog = screen.getByRole("dialog");
