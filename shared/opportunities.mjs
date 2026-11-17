@@ -12,6 +12,7 @@ export const JOB_TYPES = Object.freeze({
   FREELANCE: "Freelance",
   TEMPORARY: "Temporary",
   VOLUNTEER: "Volunteer",
+  APPRENTICESHIP: "Apprenticeship",
 });
 export const JOB_COMPENSATION_TYPES = Object.freeze({
   PAID: "Paid",
@@ -21,6 +22,8 @@ export const JOB_COMPENSATION_TYPES = Object.freeze({
 });
 export const JOB_SALARY_PERIODS = Object.freeze({
   HOUR: "hour",
+  DAY: "day",
+  WEEK: "week",
   MONTH: "month",
   YEAR: "year",
 });
