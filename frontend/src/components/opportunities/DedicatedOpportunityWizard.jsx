@@ -128,13 +128,17 @@ function JobLocationAndSalary({ draft, field }) {
       <div className="bw-op-dedicated-salary-group">
         <span>Salary Range <small>(optional)</small></span>
         <div className="bw-op-dedicated-salary-inputs">
-          <label>Minimum salary
-            <input type="number" min="0" max="1000000000" step="0.01"
+          <label className="bw-op-dedicated-money-field">
+            <span className="bw-op-dedicated-visually-hidden">Minimum salary</span>
+            <span className="bw-op-dedicated-money-prefix" aria-hidden="true">{job.salaryCurrency === "USD" ? "US$" : job.salaryCurrency === "LRD" ? "L$" : job.salaryCurrency || ""}</span>
+            <input aria-label="Minimum salary" type="number" min="0" max="1000000000" step="0.01"
               value={job.salaryMin ?? ""} placeholder="500"
               onChange={e => updateJob({ salaryMin: e.target.value === "" ? null : Number(e.target.value) })}/>
           </label>
-          <label>Maximum salary
-            <input type="number" min="0" max="1000000000" step="0.01"
+          <label className="bw-op-dedicated-money-field">
+            <span className="bw-op-dedicated-visually-hidden">Maximum salary</span>
+            <span className="bw-op-dedicated-money-prefix" aria-hidden="true">{job.salaryCurrency === "USD" ? "US$" : job.salaryCurrency === "LRD" ? "L$" : job.salaryCurrency || ""}</span>
+            <input aria-label="Maximum salary" type="number" min="0" max="1000000000" step="0.01"
               value={job.salaryMax ?? ""} placeholder="800"
               onChange={e => updateJob({ salaryMax: e.target.value === "" ? null : Number(e.target.value) })}/>
           </label>
@@ -250,7 +254,7 @@ export default function DedicatedOpportunityWizard({ draft, field, step, questio
     <Preview draft={draft} organization={organization || opportunity?.organization}
       locked={locked} uploading={uploading} upload={upload}/>
     <div className="bw-op-dedicated-form-column">
-      <h3 id="bw-op-step-heading" tabIndex={-1} className="bw-op-dedicated-section-heading">{title}</h3>
+      <h3 id="bw-op-step-heading" tabIndex={-1} className="bw-op-dedicated-section-heading" data-step={step}>{title}</h3>
       {step === 1 && (scholarship ? <>
         <label className="bw-op-dedicated-title-input">Scholarship title
           <input autoFocus required minLength={3} maxLength={160} value={draft.title}
