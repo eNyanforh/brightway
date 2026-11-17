@@ -25,8 +25,13 @@ const choices = [
   ["CHALLENGE", "Challenge", "Launch a competition hosted on BrightWay."],
   ["EVENT", "Event", "Invite people to an event."],
 ];
+const newJobDetails = () => ({
+  employmentType: "FULL_TIME", compensation: "PAID", salaryMin: null,
+  salaryMax: null, currency: "USD", payPeriod: "MONTH",
+});
 const blank = () => ({
   type: "", title: "", description: "", location: "", workMode: "IN_PERSON",
+  jobDetails: newJobDetails(),
   prize: "", prizes: [], collaboratorIds: [], sponsorLogoIds: [], backgroundAssetId: null,
   titleAssetId: null, coverAssetId: null, postRequirements: [], topics: [],
   deadline: "", questions: [],
@@ -41,6 +46,7 @@ function initialDraft(opportunity) {
   if (!opportunity) return blank();
   const initial = Object.fromEntries(Object.entries(blank()).map(([key, value]) =>
     [key, opportunity[key] ?? value]));
+  initial.jobDetails = { ...newJobDetails(), ...(opportunity.jobDetails || {}) };
   if (opportunity.type === "CHALLENGE" && !initial.prizes.length && opportunity.prize) {
     initial.prizes = [{ type: "OTHER", description: opportunity.prize }];
   }
@@ -142,6 +148,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     if (lockedForm) return;
     setDraft(old => ({
       ...old, type,
+      jobDetails: type === "JOB" ? { ...newJobDetails(), ...(old.type === "JOB" ? old.jobDetails : {}) } : {},
       ...(type === "CHALLENGE"
         ? { location: "BrightWay", workMode: "REMOTE" }
         : old.type === "CHALLENGE" ? { location: "", workMode: "IN_PERSON" } : {}),
@@ -178,6 +185,11 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         item.maxImages > 4 || item.minImages > item.maxImages;
       return item.maxPages < 1 || item.maxPages > 100;
     })) return "Check each post type's minimum and maximum requirements.";
+    if (draft.type === "JOB" && singlePageComposer && draft.jobDetails.compensation !== "UNPAID" &&
+        (!Number.isFinite(draft.jobDetails.salaryMin) || draft.jobDetails.salaryMin <= 0 ||
+         !Number.isFinite(draft.jobDetails.salaryMax) || draft.jobDetails.salaryMax < draft.jobDetails.salaryMin)) {
+      return "Enter a valid minimum and maximum salary for this paid job.";
+    }
     if (singlePageComposer || steps[step]?.endsWith("Applications")) {
       if (!draft.deadline || !Number.isFinite(new Date(draft.deadline).getTime()) ||
           new Date(draft.deadline).getTime() <= Date.now()) return "Choose a future deadline.";
@@ -206,6 +218,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         ...draft,
         location: challenge ? "BrightWay" : draft.location,
         workMode: challenge ? "REMOTE" : draft.workMode,
+        jobDetails: draft.type === "JOB" ? draft.jobDetails : {},
         // The structured prizes are canonical. Removing every prize must not
         // silently restore a legacy reward from a previous save.
         prize: "",
