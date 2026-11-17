@@ -43,6 +43,15 @@ describe("Grade School academic workspace", () => {
     expect(screen.queryByRole("button", { name: "Create assessment" })).toBeNull();
     expect(screen.queryByText("Subject gradebook · finalized assessments")).toBeNull();
   });
+  it("clears all private school records when a student report loses authorization", async () => {
+    api.setup.mockResolvedValue(setup()); api.registrations.mockResolvedValue({ items: [r], guardians: [], nextCursor: null });
+    api.report.mockRejectedValue(Object.assign(new Error("School access revoked"), { status: 403 }));
+    const user = mount(<GradeSchoolWorkspace campusId="school" module="reports" />);
+    await user.click(await screen.findByRole("button", { name: "View report" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("School access revoked"));
+    expect(screen.queryByRole("table", { name: "Registered students" })).toBeNull();
+    expect(screen.queryByText("Synthetic Academy")).toBeNull();
+  });
   it("teachers see assigned subjects without academic administration or student registration tools", async () => {
     api.setup.mockResolvedValue(setup(false)); api.subject.mockResolvedValue({ offering, students: [r], attendance: [], assessments: [] });
     mount(<GradeSchoolWorkspace campusId="school" />);
