@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { opportunitiesApi as api } from "../api/opportunities";
 import { useAuth } from "../auth/useAuth";
-import { OPPORTUNITY_TYPES, APPLICATION_STATUSES, OPPORTUNITY_STATUSES } from "../../../shared/opportunities.mjs";
+import { OPPORTUNITY_TYPES, APPLICATION_STATUSES, OPPORTUNITY_STATUSES, jobEmploymentLabel, jobSalaryLabel } from "../../../shared/opportunities.mjs";
 import OpportunityOrganization from "../components/opportunities/OpportunityOrganization";
 import ApplicationQuestions from "../components/opportunities/ApplicationQuestions";
 import ApplicationHistory from "../components/opportunities/ApplicationHistory";
@@ -77,6 +77,10 @@ function Detail({ id, applicationRoute }) {
         <div className="bw-op-detail-meta">
           {!challenge && <span>{opportunity.location}</span>}
           {!challenge && <span>{opportunity.workMode.replaceAll("_", " ")}</span>}
+          {opportunity.type === "JOB" && jobEmploymentLabel(opportunity.jobDetails) &&
+            <span>{jobEmploymentLabel(opportunity.jobDetails)}</span>}
+          {opportunity.type === "JOB" && jobSalaryLabel(opportunity.jobDetails) &&
+            <span>{jobSalaryLabel(opportunity.jobDetails)}</span>}
           <span>Deadline: {new Date(opportunity.deadline).toLocaleString("en-GB")}</span>
           {challenge && <span>{challengeDeadlineReminder(opportunity.deadline)}</span>}
         </div>
