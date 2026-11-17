@@ -77,10 +77,10 @@ function Detail({ id, applicationRoute }) {
         <div className="bw-op-detail-meta">
           {!challenge && <span>{opportunity.location}</span>}
           {!challenge && <span>{opportunity.workMode.replaceAll("_", " ")}</span>}
-          {opportunity.type === "JOB" && jobEmploymentLabel(opportunity.jobDetails) &&
-            <span>{jobEmploymentLabel(opportunity.jobDetails)}</span>}
-          {opportunity.type === "JOB" && jobSalaryLabel(opportunity.jobDetails) &&
-            <span>{jobSalaryLabel(opportunity.jobDetails)}</span>}
+          {opportunity.type === "JOB" && <>
+            <span>{jobEmploymentLabel(opportunity.jobDetails) || "Type not specified"}</span>
+            <span>{jobSalaryLabel(opportunity.jobDetails) || "Salary not listed"}</span>
+          </>}
           <span>Deadline: {new Date(opportunity.deadline).toLocaleString("en-GB")}</span>
           {challenge && <span>{challengeDeadlineReminder(opportunity.deadline)}</span>}
         </div>
