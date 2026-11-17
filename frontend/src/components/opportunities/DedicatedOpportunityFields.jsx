@@ -112,7 +112,8 @@ export default function DedicatedOpportunityFields({ type, details, onChange, se
       <div className="bw-op-field-row">{input("Minimum age (if applicable)", "minAge", { type: "number", min: 0 })}
         {input("Maximum age (if applicable)", "maxAge", { type: "number", min: 0 })}</div>
       {input("Minimum GPA or grade (if applicable)", "academicPerformance")}
-      {input("Required work experience (months)", "experienceMonths", { type: "number", min: 0 })}
+      {toggle("Work experience required", "workExperienceRequired")}
+      {val("workExperienceRequired") && input("Required work experience (months)", "experienceMonths", { type: "number", min: 0 })}
       {many("Language requirements", "languages")}
       {toggle("Financial need evidence required", "financialNeedRequired")}
       {many("Additional eligibility criteria", "eligibilityCriteria")}
