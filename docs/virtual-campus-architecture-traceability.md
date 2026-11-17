@@ -84,3 +84,9 @@ Scope: route-level navigation alignment, role/engine visibility, and preserving 
 - On 401/403/404 from a student registration/report or TVET learner/report, cached sensitive rows are removed and the institutional workspace is invalidated. Personal/guardian report and guardian-decision errors also clear cached access context.
 - The new automated tests check route uniqueness, dedicated results/certificate views, schedule-only boundaries, permission revocation, school-specific selection and browser denial of copied privileged Campus links.
 - CI jobs may be superseded by subsequent commits; only successful checks for the final PR HEAD satisfy the evidence gate. Browser tests use synthetic route fixtures; live institution UAT and a browser-to-real-database end-to-end test remain separate release blockers.
+
+## Branch integration with main — November 17, 2026
+
+- Original Campus implementation at `0d0c58695f0f5aff90d9b35e3ba940a4a65e3434` passed GitHub Actions: [browser acceptance (228 cases, 218 passed, 10 skipped)](https://github.com/eNyanforh/brightway/actions/runs/44073984264), [Node 22/24 regressions, PostgreSQL, lint/build](https://github.com/eNyanforh/brightway/actions/runs/44073984356), and [private staging packaging](https://github.com/eNyanforh/brightway/actions/runs/44073984273).
+- Since those checks, `main` gained approved opportunity editor changes (through PR #173) that conflicted with old browser test selectors. This integration brings all main production changes into the Campus feature branch. Latest main versions of opportunity-facing tests are retained; the Campus and TVET navigation tests retain PR #167's engine-specific selectors and permission coverage.
+- **Evidence gate:** CI for the new merged branch head must pass independently before the founder reviews the PR. Production data-flow pilot and access-revocation tests remain mandatory release gates. This branch merge does not deploy or merge into `main`.

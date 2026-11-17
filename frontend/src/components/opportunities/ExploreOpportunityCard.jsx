@@ -1,3 +1,4 @@
+import { scholarshipSummary, scholarshipLevelLabel } from "./scholarship-summary";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
@@ -13,7 +14,7 @@ import ChallengeCoHosts from "./ChallengeCoHosts";
 import JobDetailsSummary from "./JobDetailsSummary";
 
 const EXPLORE_OPPORTUNITY_CATEGORIES = Object.freeze({
-  JOB: "Jobs & Internships",
+  JOB: "Job Vacancy",
   SCHOLARSHIP: "Scholarships",
   CHALLENGE: "Challenge - Part take to Earn",
   EVENT: "Events",
@@ -125,7 +126,7 @@ function FeaturedOpportunityCard({ opportunity, organization, profile, detail, p
       <Link className="bw-challenge-cover-link" to={detail} aria-label={"Open " + opportunity.title}>
         {cover ? <img className="bw-challenge-cover-photo" src={cover} alt="" loading="lazy" />
           : <span className="bw-job-cover-fallback" aria-hidden="true">
-              <NavigationIcon name="work" size={32} /><span>Jobs & Internships</span>
+              <NavigationIcon name="work" size={32} /><span>Job Vacancy</span>
             </span>}
       </Link>
     </div>
@@ -133,7 +134,7 @@ function FeaturedOpportunityCard({ opportunity, organization, profile, detail, p
     <div className="bw-challenge-divider" role="separator" aria-hidden="true" />
     <div className="bw-challenge-actions">
       <Link className="bw-timeline-opportunity-cta bw-challenge-participate" to={detail}>
-        {isChallenge ? "Take Part" : "Apply"}
+        {isChallenge ? "Take Part" : OPPORTUNITY_TYPES.JOB.action}
       </Link>
       <div className="bw-challenge-secondary">
         <button type="button" aria-label={"Share " + label} title={"Share " + label} onClick={() => void share()}>
@@ -190,13 +191,20 @@ export default function ExploreOpportunityCard({ opportunity, onSavedChange }) {
           <div className="bw-timeline-opportunity-body">
             <h3><Link to={detail}>{opportunity.title}</Link></h3>
             <p className="bw-timeline-opportunity-description">{opportunity.description}</p>
+            {opportunity.type === "SCHOLARSHIP" && <div className="bw-op-scholarship-summary">
+              {scholarshipSummary(opportunity.details) && <strong>{scholarshipSummary(opportunity.details)}</strong>}
+              {Array.isArray(opportunity.details?.academicLevels) && opportunity.details.academicLevels.length > 0 &&
+                <span>{opportunity.details.academicLevels.map(scholarshipLevelLabel).join(", ")}</span>}
+              {Array.isArray(opportunity.details?.eligibleCountries) && opportunity.details.eligibleCountries.length > 0 &&
+                <span>Eligibility: {opportunity.details.eligibleCountries.join(", ")}</span>}
+            </div>}
             <div className="bw-timeline-opportunity-meta">
               <span><NavigationIcon name="pin" size={15} />{opportunity.location}</span>
               <span><NavigationIcon name="calendar" size={15} /><RemainingDeadline
                 deadline={opportunity.deadline} formattedDeadline={formattedDeadline} /></span>
             </div>
             <div className="bw-timeline-opportunity-actions">
-              <Link className="bw-timeline-opportunity-cta" to={detail}>{type.action} on BrightWay <NavigationIcon name="chevron-right" size={17} /></Link>
+              <Link className="bw-timeline-opportunity-cta" to={detail}>{type.action} <NavigationIcon name="chevron-right" size={17} /></Link>
             </div>
           </div>
         </div>

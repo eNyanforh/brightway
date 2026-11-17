@@ -6,6 +6,7 @@ import { JOB_TYPES, JOB_COMPENSATION_TYPES, formatJobSalary, OPPORTUNITY_TYPES, 
 import OpportunityOrganization from "../components/opportunities/OpportunityOrganization";
 import ApplicationQuestions from "../components/opportunities/ApplicationQuestions";
 import ApplicationHistory from "../components/opportunities/ApplicationHistory";
+import OpportunityExtendedDetails from "../components/opportunities/OpportunityExtendedDetails";
 import { CHALLENGE_PRIZE_TYPES, challengePrizeValue } from "../../../shared/challenges.mjs";
 import { challengeDeadlineReminder } from "../components/opportunities/challenge-deadline";
 import ChallengeCoHosts from "../components/opportunities/ChallengeCoHosts";
@@ -51,7 +52,10 @@ function Detail({ id, applicationRoute }) {
       return api.upload(saved.id, { expectedVersion: saved.version, questionId }, file, signal);
     });
   }
-  const open = opportunity?.status === "PUBLISHED" && new Date(opportunity.deadline) > new Date();
+  const opensAt = opportunity?.type === "SCHOLARSHIP" && opportunity?.details?.openingDate ?
+    new Date(opportunity.details.openingDate + "T00:00:00Z") : null;
+  const open = opportunity?.status === "PUBLISHED" && new Date(opportunity.deadline) > new Date() &&
+    (!opensAt || opensAt <= new Date());
   const editable = open && (!app || app.status === "DRAFT");
   const blocked = busy || [401, 404, 409].includes(error?.status);
   const questions = app?.opportunitySnapshot?.questions || opportunity?.questions || [];
@@ -77,6 +81,8 @@ function Detail({ id, applicationRoute }) {
         <div className="bw-op-detail-meta">
           {!challenge && <span>{opportunity.location}</span>}
           {!challenge && <span>{opportunity.workMode.replaceAll("_", " ")}</span>}
+          {opportunity.type === "SCHOLARSHIP" && opportunity.details?.fundingType &&
+            <span>{opportunity.details.fundingType.replaceAll("_", " ")}</span>}
           {opportunity.type === "JOB" && opportunity.jobDetails && <>
             {JOB_TYPES[opportunity.jobDetails.type] && <span>{JOB_TYPES[opportunity.jobDetails.type]}</span>}
             {JOB_COMPENSATION_TYPES[opportunity.jobDetails.compensationType] &&
@@ -98,8 +104,11 @@ function Detail({ id, applicationRoute }) {
       </section>}
       <div className="bw-op-detail-layout"><div>
         <section className="bw-op-surface"><h2>About this opportunity</h2><p className="bw-op-description">{app?.opportunitySnapshot?.description || opportunity.description}</p></section>
+        <OpportunityExtendedDetails opportunity={app?.opportunitySnapshot ? { ...opportunity, ...app.opportunitySnapshot } : opportunity} />
         <section className="bw-op-surface"><div className="bw-op-section-title"><h2>{editable ? "Your application" : "Application details"}</h2>{app && <span className={`bw-op-status bw-op-status-${app.status.toLowerCase()}`}>{APPLICATION_STATUSES[app.status]}</span>}</div>
-          {!open && !app && <p>This opportunity is no longer accepting applications.</p>}
+          {!open && !app && <p>{opensAt && opensAt > new Date()
+            ? "Applications open on " + opensAt.toLocaleDateString("en-GB") + "."
+            : "This opportunity is no longer accepting applications."}</p>}
           {!editable && app?.feedback && <div className="bw-op-feedback"><h3>Update from the organization</h3><p>{app.feedback}</p></div>}
           {(editable || app) && <>
             {editable && <p>Save a draft at any time. Required questions are marked with an asterisk.</p>}

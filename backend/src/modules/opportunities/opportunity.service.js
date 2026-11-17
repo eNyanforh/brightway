@@ -11,12 +11,14 @@ import { fail } from "../network/network.schema.js";
 import * as input from "./opportunity.schema.js";
 import { processPhoto, processCoverPhoto } from "../photos/photo.image.js";
 import { challengePrizeValue } from "../../../../shared/challenges.mjs";
+import { opportunityPublicationIssues } from "../../../../shared/opportunity-readiness.mjs";
+import { requiredDocumentLabels } from "../../../../shared/opportunity-documents.mjs";
 
 const MANAGE = "organization.opportunities.manage", REVIEW = "organization.applications.review";
 const publicOrganization = { status: "ACTIVE", request: { status: "APPROVED" }, profileReadyAt: { not: null }, profilePhotoId: { not: null }, username: { not: null }, profileSetupStep: 5 };
 const organizationSelect = { id: true, name: true, username: true, profilePhotoId: true, verifiedAt: true };
 const collaboratorSelect = { organizationId: true, state: true, organization: { select: organizationSelect } };
-const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, jobDetails: true, prize: true, prizes: true, postRequirements: true, sponsorLogoIds: true, backgroundAssetId: true, titleAssetId: true, coverAssetId: true, topics: true, coverImage: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect },
+const opportunitySelect = { id: true, type: true, title: true, description: true, location: true, workMode: true, jobDetails: true, details: true, prize: true, prizes: true, postRequirements: true, sponsorLogoIds: true, backgroundAssetId: true, titleAssetId: true, coverAssetId: true, topics: true, coverImage: true, deadline: true, questions: true, version: true, status: true, publishedAt: true, createdAt: true, organizationId: true, organization: { select: organizationSelect },
   collaborators: { where: { state: "ACCEPTED", organization: publicOrganization }, select: collaboratorSelect } };
 const managedOpportunitySelect = { ...opportunitySelect, collaborators: { select: collaboratorSelect } };
 const fileSelect = { id: true, questionId: true, contentType: true, size: true, createdAt: true };
@@ -77,6 +79,9 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
   async function openOpportunity(db, opportunityId) {
     const row = await opportunity(db, opportunityId);
     if (row.status !== "PUBLISHED" || row.deadline <= now()) throw fail(409, "This opportunity is no longer accepting applications.");
+    if (row.type === "SCHOLARSHIP" && row.details?.openingDate &&
+        new Date(row.details.openingDate + "T00:00:00Z") > now())
+      throw fail(409, "Scholarship applications have not opened yet.");
     return row;
   }
   async function ownedApplication(db, actor, applicationId) {
@@ -158,13 +163,13 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
   // legacy work-mode/location fields cannot redirect someone to an external site.
   function prepareOpportunity(data) {
     if (data.type !== "CHALLENGE") return {
-      ...data, jobDetails: data.type === "JOB" ? data.jobDetails : null, prizes: [], sponsorLogoIds: [], backgroundAssetId: null,
+      ...data, jobDetails: data.type === "JOB" ? data.jobDetails : null, details: ["JOB", "SCHOLARSHIP"].includes(data.type) ? data.details : {}, prizes: [], sponsorLogoIds: [], backgroundAssetId: null,
       titleAssetId: null, collaboratorIds: [], postRequirements: [], maxApplicants: null,
     };
     const displayPrize = data.prizes.length
       ? data.prizes.map(challengePrizeValue).join(" · ").slice(0, 120)
       : data.prize;
-    return { ...data, jobDetails: null, maxApplicants: null, location: "BrightWay", workMode: "REMOTE", prize: displayPrize };
+    return { ...data, jobDetails: null, details: {}, maxApplicants: null, location: "BrightWay", workMode: "REMOTE", prize: displayPrize };
   }
   function selectedAssets(data) {
     // A cover photo is supported for every opportunity type. Only Challenges
@@ -453,7 +458,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
       const { saved } = input.parse(input.saveInput, body), oppId = id(opportunityId);
       return ownerWork(actor, async db => {
         const row = await db.opportunity.findFirst({
-          where: { id: oppId, type: "CHALLENGE", status: "PUBLISHED", organization: publicOrganization },
+          where: { id: oppId, status: "PUBLISHED", deadline: { gt: now() }, organization: publicOrganization },
           select: { id: true },
         });
         if (!row) throw unavailable();
@@ -500,7 +505,9 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         if (row.version !== expectedVersion) throw conflict();
         if (!["DRAFT", "PAUSED"].includes(row.status)) throw fail(409, "Pause this opportunity before editing it.");
         if (row.publishedAt && (!isDeepStrictEqual(row.questions, data.questions) ||
-            !isDeepStrictEqual(row.postRequirements, data.postRequirements) || row.type !== data.type))
+            !isDeepStrictEqual(row.postRequirements, data.postRequirements) || row.type !== data.type ||
+            !isDeepStrictEqual(requiredDocumentLabels(row.type, row.details || {}),
+              requiredDocumentLabels(data.type, data.details || {}))))
           throw fail(409, "The type, post requirements, and application questions are locked after first publication.");
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
         const { collaboratorIds, ...persisted } = data;
@@ -520,6 +527,10 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         if (row.version !== data.expectedVersion) throw conflict();
         if (!input.opportunityTransitions[row.status].includes(data.status)) throw fail(409, "This opportunity cannot move to that status.");
         if (data.status === "PUBLISHED" && row.deadline <= now()) throw fail(409, "Set a future deadline before publishing.");
+        if (data.status === "PUBLISHED" && (!row.publishedAt || Object.keys(row.details || {}).length > 0)) {
+          const issues = opportunityPublicationIssues(row, +now());
+          if (issues.length) throw fail(400, issues[0]);
+        }
         await db.opportunity.update({ where: { id: row.id }, data: { status: data.status, version: { increment: 1 }, ...(data.status === "PUBLISHED" && !row.publishedAt ? { publishedAt: now() } : {}) } });
         await audit(db, actor, orgId, "OPPORTUNITY_" + data.status, row.id);
         return opportunity(db, row.id, orgId);
@@ -539,6 +550,14 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         input.validateAnswers(row.questions, data.answers, previous?.files || [], data.action === "SUBMIT",
           row.type === "CHALLENGE" ? row.postRequirements : []);
         const submit = data.action === "SUBMIT";
+        if (submit && row.type === "JOB" && row.details?.applicationLimit != null) {
+          const activeApplications = await db.opportunityApplication.count({
+            where: { opportunityId: oppId, submittedAt: { not: null },
+              status: { not: "WITHDRAWN" } },
+          });
+          if (activeApplications >= row.details.applicationLimit)
+            throw fail(409, "This Job Vacancy has reached its application limit.");
+        }
         if (submit && !data.shareProfile) throw fail(400, "Confirm sharing your application and professional profile with this organization.");
         if (submit && row.type === "CHALLENGE")
           await validatePublishedChallengePosts(db, actor, row.postRequirements, data.answers);
@@ -546,7 +565,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         const saved = { answers: data.answers,
           ...(submit ? { publicParticipant: row.type === "CHALLENGE" && data.publicParticipant } : {}),
           ...(submit ? { status: "SUBMITTED", submittedAt: now(), profileSnapshot: snapshot,
-          opportunitySnapshot: { title: row.title, type: row.type, organization: row.organization.name, questions: row.questions, description: row.description, location: row.location, workMode: row.workMode, jobDetails: row.jobDetails, prize: row.prize, prizes: row.prizes, postRequirements: row.postRequirements, version: row.version, deadline: row.deadline.toISOString() } } : {}) };
+          opportunitySnapshot: { title: row.title, type: row.type, organization: row.organization.name, questions: row.questions, description: row.description, location: row.location, workMode: row.workMode, jobDetails: row.jobDetails, details: row.details, prize: row.prize, prizes: row.prizes, postRequirements: row.postRequirements, version: row.version, deadline: row.deadline.toISOString() } } : {}) };
         const app = previous ? await db.opportunityApplication.update({ where: { id: previous.id }, data: { ...saved, version: { increment: 1 } } })
           : await db.opportunityApplication.create({ data: { opportunityId: oppId, applicantId: actor.accountId, ...saved } });
         if (submit) await event(db, actor, { ...app, status: previous?.status || "DRAFT" }, "SUBMITTED");
