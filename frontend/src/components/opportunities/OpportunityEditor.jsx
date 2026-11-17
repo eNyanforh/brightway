@@ -13,6 +13,9 @@ import ChallengeCollaboratorPicker from "./ChallengeCollaboratorPicker";
 import ChallengePostTypes from "./ChallengePostTypes";
 import ChallengeComposer from "./ChallengeComposer";
 import StandardOpportunityComposer from "./StandardOpportunityComposer";
+import SpecializedOpportunityComposer from "./SpecializedOpportunityComposer";
+import { blankJobSpecification, blankScholarshipSpecification, validateDedicatedStep } from "./specialized-opportunity-config";
+import "./specialized-opportunity.css";
 import { CHALLENGE_POST_TYPES, describeChallengePostType } from "../../../../shared/challenge-submissions.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./challenge-sidebar-card.css";
@@ -27,7 +30,7 @@ const choices = [
 ];
 const blank = () => ({
   type: "", title: "", description: "", location: "", workMode: "IN_PERSON",
-  jobDetails: null,
+  jobDetails: null, jobSpecification: null, scholarshipSpecification: null,
   prize: "", prizes: [], collaboratorIds: [], sponsorLogoIds: [], backgroundAssetId: null,
   titleAssetId: null, coverAssetId: null, postRequirements: [], topics: [],
   deadline: "", questions: [],
@@ -106,23 +109,39 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
 }
 
 export default function OpportunityEditor({ organizationId, opportunity, onSaved, onClose }) {
-  const [draft, setDraft] = useState(() => initialDraft(opportunity));
+  const draftKey = "bw:opportunity:composer:" + organizationId + ":" + (opportunity?.id || "new");
+  function localDraft() {
+    if (opportunity?.publishedAt) return null;
+    try {
+      const cached = JSON.parse(localStorage.getItem(draftKey) || "null");
+      return cached && ["JOB", "SCHOLARSHIP"].includes(cached.draft?.type) &&
+        Date.now() - cached.savedAt < 7 * 86400000 ? cached : null;
+    } catch { return null; }
+  }
+  const [draft, setDraft] = useState(() => localDraft()?.draft || initialDraft(opportunity));
   const [collaborators, setCollaborators] = useState(() =>
     (opportunity?.collaborators || []).map(item => ({
       organizationId: item.organizationId, organization: item.organization, state: item.state,
     })));
-  const [step, setStep] = useState(0), [busy, setBusy] = useState(false);
+  const [step, setStep] = useState(() => localDraft()?.step || 0), [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(""), [error, setError] = useState(null);
   const requestKey = useRef(crypto.randomUUID()), request = useRef(null);
   const uploadController = useRef(null), lock = useRef(false), dialog = useRef(null);
+  const publishImmediately = useRef(false);
   const lockedForm = Boolean(opportunity?.publishedAt);
   const challenge = draft.type === "CHALLENGE";
-  const singlePageComposer = step > 0 && Boolean(draft.type);
+  const dedicatedType = ["JOB", "SCHOLARSHIP"].includes(draft.type);
+  const dedicatedComposer = dedicatedType && step > 0;
+  const singlePageComposer = step > 0 && (challenge || draft.type === "EVENT");
   const challengeComposer = challenge && singlePageComposer;
   const standardComposer = singlePageComposer && !challenge;
   const steps = challenge
     ? ["Opportunity type", "Challenge details", "Prizes & collaborators", "Cover photo", "Post types", "Applications", "Review"]
-    : ["Opportunity type", "Opportunity details", "Applications", "Review"];
+    : dedicatedType
+      ? ["Opportunity type", ...(draft.type === "JOB"
+        ? ["Job information", "Location & salary", "Qualifications", "Applications", "Recruitment", "Review"]
+        : ["Scholarship information", "Funding & benefits", "Study destination", "Eligibility", "Applications", "Review"])]
+      : ["Opportunity type", "Opportunity details", "Applications", "Review"];
   const last = steps.length - 1;
 
   useEffect(() => {
@@ -131,18 +150,27 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     return () => { request.current?.abort(); uploadController.current?.abort(); previous?.focus(); };
   }, []);
   useEffect(() => { if (step > 0) dialog.current?.querySelector("#bw-op-step-heading")?.focus(); }, [step]);
+  useEffect(() => {
+    if (!dedicatedType || opportunity?.publishedAt) return;
+    try { localStorage.setItem(draftKey, JSON.stringify({ draft, step, savedAt: Date.now() })); }
+    catch { /* Storage may be disabled; the editor still works. */ }
+  }, [draft, step, dedicatedType, draftKey, opportunity?.publishedAt]);
   function field(key, value) { setDraft(old => ({ ...old, [key]: value })); }
   function changeQuestion(index, changes) {
     setDraft(old => ({ ...old, questions: old.questions.map((question, i) =>
       i === index ? { ...question, ...changes } : question) }));
   }
   function close() {
-    if (!busy && !uploading && window.confirm("Close this editor and discard unsaved changes?")) onClose();
+    if (!busy && !uploading && window.confirm(dedicatedType ? "Close this editor? Your form is saved locally on this device." : "Close this editor and discard unsaved changes?")) onClose();
   }
   function changeType(type) {
     if (lockedForm) return;
     setDraft(old => ({
       ...old, type,
+      ...(old.type !== type ? { questions: [], jobDetails: type === "JOB" ?
+        { type: "", compensationType: "", salaryMin: null, salaryMax: null, salaryCurrency: null, salaryPeriod: null } : null,
+        jobSpecification: type === "JOB" ? blankJobSpecification() : null,
+        scholarshipSpecification: type === "SCHOLARSHIP" ? blankScholarshipSpecification() : null } : {}),
       ...(type === "CHALLENGE"
         ? { location: "BrightWay", workMode: "REMOTE" }
         : old.type === "CHALLENGE" ? { location: "", workMode: "IN_PERSON" } : {}),
@@ -167,6 +195,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   }
   function validateStep() {
     if (step === 0 && !draft.type) return "Choose which opportunity you want to offer.";
+    if (dedicatedComposer) return validateDedicatedStep(draft, step);
     if (challenge && (challengeComposer || steps[step] === "Cover photo") && !draft.coverAssetId &&
         !opportunity?.backgroundAssetId && !opportunity?.titleAssetId)
       return "Upload a Challenge cover photo to continue.";
@@ -215,6 +244,8 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         location: challenge ? "BrightWay" : draft.location,
         workMode: challenge ? "REMOTE" : draft.workMode,
         jobDetails: draft.type === "JOB" ? draft.jobDetails : null,
+        jobSpecification: draft.type === "JOB" ? draft.jobSpecification : null,
+        scholarshipSpecification: draft.type === "SCHOLARSHIP" ? draft.scholarshipSpecification : null,
         // The structured prizes are canonical. Removing every prize must not
         // silently restore a legacy reward from a previous save.
         prize: "",
@@ -227,11 +258,18 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         coverAssetId: draft.coverAssetId,
         deadline: new Date(draft.deadline).toISOString(),
       };
-      const saved = opportunity
+      let saved = opportunity
         ? await api.edit(organizationId, opportunity.id,
           { ...body, expectedVersion: opportunity.version }, controller.signal)
         : await api.create(organizationId, { ...body, requestKey: requestKey.current }, controller.signal);
-      if (!controller.signal.aborted) onSaved(saved);
+      if (publishImmediately.current && dedicatedType) {
+        saved = await api.status(organizationId, saved.id,
+          { expectedVersion: saved.version, status: "PUBLISHED" }, controller.signal);
+      }
+      if (!controller.signal.aborted) {
+        if (dedicatedType) { try { localStorage.removeItem(draftKey); } catch { /* optional */ } }
+        onSaved(saved);
+      }
     } catch (cause) { if (!controller.signal.aborted) setError(cause); }
     finally { if (!controller.signal.aborted) { lock.current = false; setBusy(false); } }
   }
@@ -242,7 +280,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const locked = busy || Boolean(uploading) || error?.status === 409 ||
     [401, 403, 404].includes(error?.status);
 
-  return <div className={"bw-op-overlay bw-op-wizard-overlay" + (singlePageComposer ? " bw-op-challenge-overlay" : "") + (standardComposer ? " bw-op-standard-overlay" : "")} onKeyDown={e => {
+  return <div className={"bw-op-overlay bw-op-wizard-overlay" + ((singlePageComposer || dedicatedComposer) ? " bw-op-challenge-overlay" : "") + (standardComposer ? " bw-op-standard-overlay" : "") + (dedicatedComposer ? " bw-op-dedicated-overlay" : "")} onKeyDown={e => {
     if (e.key === "Escape") { e.preventDefault(); close(); }
     if (e.key === "Tab" && dialog.current) {
       const nodes = [...dialog.current.querySelectorAll(
@@ -257,10 +295,10 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
       aria-labelledby="op-editor-title" className="bw-op-editor bw-op-wizard">
       <header className="bw-op-wizard-header">
         <div><p className="bw-op-wizard-kicker">{opportunity ? "EDIT OPPORTUNITY" : "CREATE OPPORTUNITY"}</p>
-          <h2 id="op-editor-title">{singlePageComposer
+          <h2 id="op-editor-title">{(singlePageComposer || dedicatedComposer)
             ? (opportunity ? "Edit " : "Create a ") + OPPORTUNITY_TYPES[draft.type].label
             : opportunity ? "Edit your opportunity" : "Create an opportunity"}</h2>
-          <p>{singlePageComposer ? "Cover, details, deadline and applications" : "Step " + (step + 1) + " of " + steps.length}</p>
+          <p>{singlePageComposer ? "Cover, details, deadline and applications" : dedicatedComposer ? "Step " + step + " of 6 · Changes saved on this device" : "Step " + (step + 1) + " of " + steps.length}</p>
         </div>
         <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
       </header>
@@ -270,13 +308,18 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
       </nav>}
       <form onSubmit={submit}>
         {error && <div className="bw-op-wizard-error" role="alert">{error.message}</div>}
-        <fieldset className={"bw-op-editor-fields bw-op-wizard-fields" + (singlePageComposer ? " is-challenge-composer" : "")} disabled={locked}>
+        <fieldset className={"bw-op-editor-fields bw-op-wizard-fields" + ((singlePageComposer || dedicatedComposer) ? " is-challenge-composer" : "")} disabled={locked}>
           {challengeComposer ? <ChallengeComposer draft={draft} field={field}
             organizationId={organizationId} collaborators={collaborators}
             setCollaborators={setCollaborators} locked={locked} lockedForm={lockedForm}
             uploading={uploading} upload={upload}
             questions={<QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
               lockedForm={lockedForm} busy={busy} />} /> :
+            dedicatedComposer ? <SpecializedOpportunityComposer draft={draft} field={field} step={step}
+              organizationId={organizationId} opportunity={opportunity} locked={locked} lockedForm={lockedForm}
+              uploading={uploading} upload={upload}
+              questions={<QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
+                lockedForm={lockedForm} busy={busy} />} /> :
             standardComposer ? <StandardOpportunityComposer draft={draft} field={field}
               opportunity={opportunity} locked={locked} uploading={uploading} upload={upload}
               questions={<QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
@@ -408,15 +451,20 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         </fieldset>
         <footer className="bw-op-wizard-footer">
           <button className="bw-op-secondary" type="button" disabled={busy || Boolean(uploading)}
-            onClick={() => singlePageComposer && opportunity ? close() : step ? (setError(null), setStep(current => current - 1)) : close()}>
+            onClick={() => singlePageComposer && opportunity ? close() : step ? (publishImmediately.current = false, setError(null), setStep(current => current - 1)) : close()}>
             {singlePageComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
           </button>
           <span className="bw-op-wizard-footer-hint">{opportunity ? "Editing saved listing" : "Saved as draft until you publish"}</span>
           <button className="bw-op-primary" type="submit"
+            onClick={() => { publishImmediately.current = false; }}
             disabled={locked || (step === 0 && !draft.type)}>
             {busy ? "Saving…" : singlePageComposer || step === last ? opportunity ? "Save changes" : "Save draft" : "Continue"}
             {!busy && !singlePageComposer && step !== last && <NavigationIcon name="chevron-right" size={16} />}
           </button>
+          {dedicatedComposer && step === last && <button className="bw-op-primary" type="submit"
+            disabled={locked} onClick={() => { publishImmediately.current = true; }}>
+            {busy ? "Publishing…" : "Publish Now"}
+          </button>}
         </footer>
       </form>
     </section>

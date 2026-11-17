@@ -1,0 +1,152 @@
+/* Job Vacancy and Scholarship creation. Scoped to the existing opportunity wizard. */
+.bw-op-dedicated-composer .bw-op-challenge-cover-column { top: 90px; }
+.bw-op-dedicated-composer .bw-op-challenge-cover-stage { aspect-ratio: 1.2; }
+.bw-op-dedicated-fields {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 16px; align-items: start; padding: 12px 0 16px;
+}
+.bw-op-dedicated-fields > .is-wide { grid-column: 1 / -1; }
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-field {
+  display: flex; flex-direction: column; min-width: 0; gap: 7px;
+  font-size: 12px; color: #475467; font-weight: 650;
+}
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-field > input,
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-field > select,
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-field > textarea {
+  min-height: 44px; width: 100%; padding: 10px 12px; border: 1px solid #d0d5dd;
+  border-radius: 8px; font: inherit; font-size: 14px; color: #101828; background: #fff;
+}
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-field > input:focus,
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-field > select:focus,
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-field > textarea:focus {
+  outline: 2px solid #9fc9ff; outline-offset: 1px; border-color: #2684ef;
+}
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-field > textarea { resize: vertical; min-height: 110px; }
+.bw-op-dedicated-composer .bw-op-challenge-main > h3 { margin-bottom: 14px; }
+.bw-op-dedicated-composer .bw-op-challenge-section { margin-top: 12px; }
+.bw-op-dedicated-composer .bw-op-challenge-questions { padding-top: 15px; }
+.bw-dedicated-tags { padding: 10px; border: 1px solid #d0d5dd; border-radius: 9px; min-width: 0; }
+.bw-dedicated-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.bw-dedicated-chips:empty { display: none; }
+.bw-dedicated-chips span {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px;
+  border: 1px solid #dbeafe; border-radius: 99px; background: #eff6ff;
+  color: #175cd3; font-size: 11px; font-weight: 600; overflow-wrap: anywhere;
+}
+.bw-dedicated-chips button {
+  width: 24px; height: 24px; display: grid; place-items: center;
+  border: 0; background: transparent; color: inherit; cursor: pointer;
+}
+.bw-dedicated-tag-entry { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-tag-entry input {
+  width: 100%; min-width: 0; min-height: 42px; padding: 8px 10px;
+  border: 1px solid #d0d5dd; border-radius: 7px; background: #fff;
+  color: #101828; font-size: 13px;
+}
+.bw-dedicated-tag-entry button, .bw-dedicated-extra button {
+  min-height: 42px; padding: 8px 13px; border: 1px solid #d0d5dd;
+  border-radius: 7px; color: #101828; background: #fff; font-weight: 650; cursor: pointer;
+}
+.bw-dedicated-tag-entry button:disabled { opacity: .55; cursor: not-allowed; }
+.bw-dedicated-multi { position: relative; border: 1px solid #d0d5dd; border-radius: 8px; color: #101828; }
+.bw-dedicated-multi > summary { padding: 13px; cursor: pointer; font-size: 13px; }
+.bw-dedicated-multi-panel {
+  max-height: 245px; overflow: auto; padding: 10px; border-top: 1px solid #eaecf0; background: #fff;
+}
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-multi-panel > input {
+  width: 100%; min-height: 42px; padding: 8px; border: 1px solid #d0d5dd;
+  border-radius: 6px; color: #101828;
+}
+.bw-dedicated-multi-option { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: 13px; cursor: pointer; }
+.bw-dedicated-multi-option input { width: 17px; height: 17px; }
+.bw-dedicated-switch {
+  display: flex; align-items: center; gap: 10px; min-height: 44px;
+  padding: 8px 10px; border: 1px solid #eaecf0; border-radius: 8px;
+  font-size: 13px; font-weight: 550; color: #101828; cursor: pointer;
+}
+.bw-dedicated-switch input { width: 18px; height: 18px; accent-color: #175cd3; }
+.bw-dedicated-documents > p, .bw-dedicated-reviewers > p { font-size: 12px; color: #667085; line-height: 1.5; }
+.bw-dedicated-doc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bw-dedicated-extra {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 0; color: #475467; font-size: 13px;
+}
+.bw-dedicated-preview-details { padding: 18px 0; display: grid; gap: 9px; }
+.bw-dedicated-preview-details > span { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #667085; }
+.bw-dedicated-preview-details > strong { color: #101828; font-size: 18px; line-height: 1.3; }
+.bw-dedicated-preview-details p { margin: 0; font-size: 12px; line-height: 1.4; color: #475467; }
+.bw-dedicated-preview-details small { font-size: 11px; color: #667085; }
+.bw-dedicated-apply-preview { text-align: center; border-radius: 8px; background: #101828; color: white; font-weight: 650; padding: 12px; font-size: 13px; }
+.bw-dedicated-review {
+  display: grid; gap: 12px; padding: 18px; border: 1px solid #eaecf0;
+  border-radius: 11px; background: #fcfcfd;
+}
+.bw-dedicated-review img { width: 100%; max-height: 190px; object-fit: cover; border-radius: 8px; }
+.bw-dedicated-review > strong { font-size: 21px; color: #101828; }
+.bw-dedicated-review p { color: #475467; margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.bw-dedicated-review dl { display: grid; gap: 8px; margin: 0; }
+.bw-dedicated-review dl > div { display: grid; grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr); gap: 8px; padding: 9px 0; border-bottom: 1px solid #eaecf0; }
+.bw-dedicated-review dt { color: #667085; font-size: 12px; }
+.bw-dedicated-review dd { margin: 0; color: #101828; font-size: 13px; overflow-wrap: anywhere; }
+.bw-dedicated-reviewers { margin-top: 18px; }
+.bw-dedicated-reviewers label { display: flex; gap: 9px; padding: 7px 0; font-size: 13px; }
+.bw-dedicated-hint { font-size: 12px; line-height: 1.55; color: #667085; }
+@media (max-width: 800px) {
+  .bw-op-dedicated-composer { grid-template-columns: 1fr; }
+  .bw-op-dedicated-composer .bw-op-challenge-cover-column { position: static; }
+  .bw-op-dedicated-composer .bw-op-challenge-cover-stage { max-height: 210px; aspect-ratio: 16 / 9; }
+  .bw-op-dedicated-composer .bw-dedicated-preview-details { padding-bottom: 0; }
+}
+@media (max-width: 540px) {
+  .bw-op-dedicated-composer .bw-dedicated-fields,
+  .bw-op-dedicated-composer .bw-dedicated-doc-grid { grid-template-columns: 1fr; }
+  .bw-op-dedicated-composer { padding-inline: 16px; }
+  .bw-op-dedicated-overlay .bw-op-wizard-progress { padding-inline: 16px; }
+  .bw-dedicated-review dl > div { grid-template-columns: 1fr; }
+}
+
+.bw-dedicated-funding {
+  display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 0; color: #475467; font-size: 13px;
+}
+.bw-dedicated-funding > span:first-child {
+  border-radius: 7px; background: #f4ebff; color: #6941c6;
+  font-weight: 650; padding: 5px 8px; font-size: 12px;
+}
+.bw-dedicated-funding > strong { font-size: 14px; color: #101828; }
+.bw-dedicated-funding.is-compact { padding: 5px 0; font-size: 11px; }
+.bw-dedicated-funding.is-compact > strong { font-size: 12px; }
+.bw-dedicated-detail .bw-dedicated-detail-attributes {
+  margin: 14px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px;
+}
+.bw-dedicated-detail-attributes > div { padding-bottom: 8px; border-bottom: 1px solid #eaecf0; }
+.bw-dedicated-detail-attributes dt { font-size: 12px; color: #667085; }
+.bw-dedicated-detail-attributes dd { margin: 4px 0 0; color: #101828; font-size: 13px; overflow-wrap: anywhere; }
+.bw-dedicated-detail-group { padding: 12px 0; border-top: 1px solid #eaecf0; }
+.bw-dedicated-detail-group > h3 { font-size: 15px; margin: 0 0 7px; }
+.bw-dedicated-detail-group ul { padding-left: 20px; margin: 0; }
+.bw-dedicated-detail-group li { margin: 5px 0; }
+.bw-dedicated-detail-group p { white-space: pre-wrap; }
+.bw-dedicated-benefits { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; }
+.bw-dedicated-benefits span { border-radius: 8px; background: #f2f4f7; padding: 7px 9px; font-size: 12px; color: #344054; }
+@media (max-width: 640px) { .bw-dedicated-detail .bw-dedicated-detail-attributes { grid-template-columns: 1fr; } }
+
+.bw-dedicated-institution { position: relative; display: grid; gap: 8px; }
+.bw-op-dedicated-overlay .bw-op-editor .bw-dedicated-institution input {
+  width: 100%; min-height: 44px; padding: 10px 12px;
+  border: 1px solid #d0d5dd; border-radius: 8px; font-size: 13px; background: #fff; color: #101828;
+}
+.bw-dedicated-institution-results {
+  list-style: none; padding: 4px; margin: 0; border: 1px solid #eaecf0;
+  border-radius: 9px; box-shadow: 0 8px 20px rgba(16,24,40,.08); background: #fff;
+  max-height: 245px; overflow: auto;
+}
+.bw-dedicated-institution-results li { margin: 0; padding: 0; }
+.bw-dedicated-institution-results button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  width: 100%; padding: 10px; border: 0; border-radius: 7px; text-align: left;
+  background: #fff; cursor: pointer; color: #101828;
+}
+.bw-dedicated-institution-results button:hover { background: #f2f4f7; }
+.bw-dedicated-institution-results strong { font-size: 13px; }
+.bw-dedicated-institution-results span { font-size: 11px; color: #667085; }
