@@ -1,4 +1,4 @@
-import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
+import { OPPORTUNITY_TYPES, JOB_EMPLOYMENT_TYPES, JOB_COMPENSATION_TYPES, JOB_PAY_PERIODS, JOB_SALARY_CURRENCIES } from "../../../../shared/opportunities.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityDateTimePicker from "./OpportunityDateTimePicker";
@@ -34,6 +34,9 @@ export default function StandardOpportunityComposer({
   const labels = copy[draft.type];
   if (!type || !labels) return null;
   const coverUrl = draft.coverAssetId ? api.challengeAssetUrl(draft.coverAssetId) : null;
+  const isJob = draft.type === "JOB";
+  const job = draft.jobDetails || {};
+  const updateJob = (key, value) => field("jobDetails", { ...job, [key]: value });
 
   return <div className="bw-op-challenge-composer bw-op-standard-composer">
     <aside className="bw-op-challenge-cover-column" aria-label={type.label + " cover"}>
@@ -101,6 +104,56 @@ export default function StandardOpportunityComposer({
           </label>
         </div>
       </section>
+      {isJob && <section className="bw-op-challenge-section bw-op-job-details" aria-labelledby="bw-standard-job-terms">
+        <h4 id="bw-standard-job-terms">Employment & compensation</h4>
+        <div className="bw-op-field-row">
+          <label>Job type
+            <select value={job.employmentType || "FULL_TIME"} onChange={e => updateJob("employmentType", e.target.value)}>
+              {Object.entries(JOB_EMPLOYMENT_TYPES).map(([value, label]) =>
+                <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label>Compensation
+            <select value={job.compensation || "PAID"} onChange={e => field("jobDetails", {
+              ...job, compensation: e.target.value,
+              salaryMin: e.target.value === "UNPAID" ? null : job.salaryMin,
+              salaryMax: e.target.value === "UNPAID" ? null : job.salaryMax,
+            })}>
+              {Object.entries(JOB_COMPENSATION_TYPES).map(([value, label]) =>
+                <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+        </div>
+        {job.compensation !== "UNPAID" ? <>
+          <div className="bw-op-field-row">
+            <label>Minimum salary
+              <input type="number" min="0.01" max="1000000000" step="0.01" required
+                value={job.salaryMin ?? ""} placeholder="e.g. 500"
+                onChange={e => updateJob("salaryMin", e.target.value === "" ? null : Number(e.target.value))} />
+            </label>
+            <label>Maximum salary
+              <input type="number" min="0.01" max="1000000000" step="0.01" required
+                value={job.salaryMax ?? ""} placeholder="e.g. 1000"
+                onChange={e => updateJob("salaryMax", e.target.value === "" ? null : Number(e.target.value))} />
+            </label>
+          </div>
+          <div className="bw-op-field-row">
+            <label>Currency
+              <select value={job.currency || "USD"} onChange={e => updateJob("currency", e.target.value)}>
+                {Object.entries(JOB_SALARY_CURRENCIES).map(([value, symbol]) =>
+                  <option key={value} value={value}>{value} ({symbol})</option>)}
+              </select>
+            </label>
+            <label>Pay period
+              <select value={job.payPeriod || "MONTH"} onChange={e => updateJob("payPeriod", e.target.value)}>
+                {Object.entries(JOB_PAY_PERIODS).map(([value, label]) =>
+                  <option key={value} value={value}>{label === "one-time" ? "One-time" : "Per " + label}</option>)}
+              </select>
+            </label>
+          </div>
+          <p className="bw-op-job-pay-help">Enter the actual offered range, using the same currency and pay period for both amounts.</p>
+        </> : <p className="bw-op-job-pay-help">This role is unpaid. No salary range will appear on the listing.</p>}
+      </section>}
       <section className="bw-op-challenge-section" aria-labelledby="bw-standard-deadline">
         <h4 id="bw-standard-deadline">{draft.type === "EVENT" ? "Registration deadline" : "Application deadline"}</h4>
         <OpportunityDateTimePicker value={draft.deadline}
