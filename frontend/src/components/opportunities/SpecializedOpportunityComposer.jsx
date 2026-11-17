@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { JOB_TYPES, JOB_COMPENSATION_TYPES, JOB_SALARY_PERIODS, formatJobSalary } from "../../../../shared/opportunities.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import { staffApi } from "../../api/organization-staff";
+import { searchDirectory } from "../../api/directory-search";
 import { blankJobSpecification, blankScholarshipSpecification } from "./specialized-opportunity-config";
 import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityDateTimePicker from "./OpportunityDateTimePicker";
@@ -117,7 +118,7 @@ const scholarshipFields = [
   [
     F("spec.studyCountry", "Study country", "country"),
     F("spec.studyRegion", "Study region / city", "text"),
-    F("spec.hostInstitution", "Host institution", "text", { placeholder: "Institution name (BrightWay lookup can be added)" }),
+    F("spec.hostInstitution", "Host institution", "institution"),
     F("workMode", "Study mode", "select", { required: true, options: MODES }),
     F("location", "Location shown on card", "text", { required: true, placeholder: "e.g. Liberia, Worldwide or Online" }),
     F("spec.programs", "Programs / courses", "tags", { wide: true }),
@@ -185,6 +186,40 @@ function MultiPicker({ value = [], options, onChange, label }) {
       {value.length > 0 && <div className="bw-dedicated-chips">{value.map(v => <span key={v}>{normalized.find(o => o.value === v)?.label || v}</span>)}</div>}
     </div>
   </details>;
+}
+function HostInstitutionLookup({ value, selectedId, onChange, onPick }) {
+  const [results, setResults] = useState([]), [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (selectedId || value.trim().length < 2) return;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setLoading(true); setError("");
+      try {
+        const result = await searchDirectory(value.trim().slice(0, 80), "organizations", null, controller.signal);
+        if (!controller.signal.aborted) setResults((result.items || []).filter(row => row.kind === "organizations"));
+      } catch {
+        if (!controller.signal.aborted) setError("BrightWay lookup unavailable. You can enter the institution manually.");
+      } finally { if (!controller.signal.aborted) setLoading(false); }
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [value, selectedId]);
+  return <div className="bw-dedicated-institution">
+    <input type="text" maxLength={160} value={value} aria-label="Host institution"
+      placeholder="Search BrightWay or enter an institution name"
+      onChange={e => { setResults([]); onChange(e.target.value); }} />
+    {selectedId && <p className="bw-dedicated-hint">Linked to a BrightWay organization. Edit the name to use manual entry.</p>}
+    {loading && <p className="bw-dedicated-hint" role="status">Searching BrightWay organizations…</p>}
+    {error && <p className="bw-dedicated-hint" role="status">{error}</p>}
+    {!selectedId && results.length > 0 && <ul className="bw-dedicated-institution-results"
+      aria-label="Matching BrightWay organizations">
+      {results.slice(0, 8).map(item => <li key={item.href}>
+        <button type="button" onClick={() => { onPick(item); setResults([]); }}>
+          <strong>{item.name}</strong><span>@{item.username}{item.verified ? " · Verified" : ""}</span>
+        </button>
+      </li>)}
+    </ul>}
+  </div>;
 }
 function Reviewers({ organizationId, value, onChange }) {
   const [staff, setStaff] = useState([]), [error, setError] = useState("");
@@ -282,6 +317,10 @@ function Field({ config, draft, spec, write }) {
         <option key={v} value={v}>{name}</option>)}
     </select> :
     kind === "multi" ? <MultiPicker label={label} value={Array.isArray(value) ? value : []} options={options} onChange={change} /> :
+    kind === "institution" ? <HostInstitutionLookup value={val} selectedId={spec.hostInstitutionId}
+      onChange={change} onPick={item => write("spec.hostInstitutionPick", {
+        name: item.name, id: item.href.split("/").at(-1),
+      })} /> :
     kind === "tags" ? <TagEditor value={Array.isArray(value) ? value : []} onChange={change} maxLength={maxLength} /> :
     kind === "suggest" || kind === "country" ? <>
       <input required={required} type="text" value={val} placeholder={placeholder || "Search or enter a value"}
@@ -321,7 +360,13 @@ export default function SpecializedOpportunityComposer({
   const summary = job ? salary || jobInfo.join(" · ") : [FUNDING[spec.fundingType], spec.scholarshipValue === null ? "" :
     (CURRENCIES[spec.currency] || "") + Number(spec.scholarshipValue).toLocaleString("en-US")].filter(Boolean).join(" · ");
   function write(path, value) {
-    if (path.startsWith("spec.")) field(key, { ...spec, [path.slice(5)]: value });
+    if (path === "spec.hostInstitutionPick") field(key, {
+      ...spec, hostInstitution: value.name, hostInstitutionId: value.id,
+    });
+    else if (path === "spec.hostInstitution") field(key, {
+      ...spec, hostInstitution: value, hostInstitutionId: null,
+    });
+    else if (path.startsWith("spec.")) field(key, { ...spec, [path.slice(5)]: value });
     else if (path.startsWith("jobDetails.")) {
       const name = path.slice(11);
       const next = { type: "", compensationType: "", salaryMin: null, salaryMax: null, salaryCurrency: null,
