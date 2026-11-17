@@ -28,7 +28,7 @@ function RegistrationForm({ campusId, data, sections, busy, run }) {
   </form>;
 }
 const transitions = { PRE_REGISTERED: [["ACTIVE", "Activate registration"], ["FORMER", "Mark former"]], ACTIVE: [["SUSPENDED", "Suspend registration"], ["FORMER", "Mark former"]], SUSPENDED: [["ACTIVE", "Restore registration"], ["FORMER", "Mark former"]], FORMER: [] };
-export default function SchoolStudents({ campusId, data, sections, busy, run, revision, mode = "students" }) {
+export default function SchoolStudents({ campusId, data, sections, busy, run, revision, mode = "students", onAccessLost }) {
   const [page, setPage] = useState(null), [error, setError] = useState(null), [q, setQ] = useState(""), [cursor, setCursor] = useState(""), [history, setHistory] = useState([]), [selected, setSelected] = useState(null), [report, setReport] = useState(null);
   const life = useRef(null);
   useEffect(() => { const c = new AbortController(); life.current = c;
@@ -37,7 +37,7 @@ export default function SchoolStudents({ campusId, data, sections, busy, run, re
   }, [campusId, data.periodId, q, cursor, revision]);
   const current = page?.q === q && page.cursor === cursor ? page.result : null;
   const student = current?.items.find(r => r.id === selected);
-  async function readReport(r) { const c = life.current; try { const value = await api.report(campusId, r.id, c.signal); if (!c.signal.aborted) { setReport(value); setError(null); } } catch (e) { if (!c.signal.aborted) { setReport(null); setError(e); if ([401, 403, 404].includes(e.status)) { setPage(null); setSelected(null); } } } }
+  async function readReport(r) { const c = life.current; try { const value = await api.report(campusId, r.id, c.signal); if (!c.signal.aborted) { setReport(value); setError(null); } } catch (e) { if (!c.signal.aborted) { setReport(null); setError(e); if ([401, 403, 404].includes(e.status)) { setPage(null); setSelected(null); onAccessLost?.(e); } } } }
   return <div className="bw-school-students">{mode !== "reports" && <section className="bw-school-card"><RegistrationForm campusId={campusId} data={data} sections={sections} busy={busy} run={run} /></section>}
     <section className="bw-school-card"><div className="bw-school-section-heading"><div><h4>{mode === "reports" ? "Results & reporting" : "Student registrations"}</h4><p>{mode === "reports" ? "Open finalized student records for the selected academic period." : "Placement and access are specific to the selected academic period."}</p></div><form className="bw-school-search" onSubmit={e => { e.preventDefault(); setQ(new FormData(e.currentTarget).get("q").trim()); setCursor(""); setHistory([]); setSelected(null); setReport(null); }}><label>Find a student<input name="q" maxLength={80} placeholder="Name or username" disabled={busy} /></label><button type="submit" disabled={busy}>Search</button></form></div>
       {error && <p role="alert">{error.message}</p>}{!current && !error && <p role="status">Loading student registrations…</p>}
