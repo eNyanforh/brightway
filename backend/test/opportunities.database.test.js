@@ -116,6 +116,19 @@ test("opportunities isolate tenants and private files, enforce completion, seria
     }
     assert.deepEqual(new Set((await service.browse(applicant.actor, {})).items.filter(o => o.organizationId === org.id).map(o => o.type)), new Set(["JOB", "SCHOLARSHIP", "CHALLENGE", "EVENT"]));
     assert.equal((await service.browse(applicant.actor, { type: "SCHOLARSHIP" })).items.filter(o => o.organizationId === org.id).length, 1);
+    // Every published opportunity category supports private save/unsave, not just Challenges.
+    const catalog = [opp, ...otherListings];
+    for (const row of catalog) {
+      assert.deepEqual(await service.saveOpportunity(applicant.actor, row.id, { saved: true }), { saved: true });
+      assert.equal((await service.browse(applicant.actor, { saved: "true" })).items
+        .some(item => item.id === row.id && item.saved), true, row.type + " should appear in saved results");
+    }
+    assert.equal((await service.browse(applicant.actor, { saved: "true" })).items.length, catalog.length);
+    assert.deepEqual(await service.saveOpportunity(applicant.actor, opp.id, { saved: false }), { saved: false });
+    assert.equal((await service.browse(applicant.actor, { saved: "true" })).items.some(item => item.id === opp.id), false);
+    const unpublished = await service.create(owner.actor, org.id, listing("JOB"));
+    await assert.rejects(service.saveOpportunity(applicant.actor, unpublished.id, { saved: true }), { status: 404 },
+      "private draft jobs must not be bookmarkable by the public");
     const publishedChallenge = (await service.browse(applicant.actor, { type: "CHALLENGE" })).items
       .find(o => o.organizationId === org.id);
     assert.deepEqual(publishedChallenge.topics, ["Education", "Technology"]);
