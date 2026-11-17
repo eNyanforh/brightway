@@ -1,3 +1,4 @@
+import { scholarshipSummary } from "./OpportunityExtendedDetails";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
@@ -196,7 +197,7 @@ export default function ExploreOpportunityCard({ opportunity, onSavedChange }) {
                 deadline={opportunity.deadline} formattedDeadline={formattedDeadline} /></span>
             </div>
             <div className="bw-timeline-opportunity-actions">
-              <Link className="bw-timeline-opportunity-cta" to={detail}>{type.action} on BrightWay <NavigationIcon name="chevron-right" size={17} /></Link>
+              <Link className="bw-timeline-opportunity-cta" to={detail}>{type.action} <NavigationIcon name="chevron-right" size={17} /></Link>
             </div>
           </div>
         </div>
