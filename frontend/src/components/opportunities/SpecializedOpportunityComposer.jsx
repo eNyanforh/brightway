@@ -331,7 +331,8 @@ function Field({ config, draft, spec, write }) {
   if (kind === "toggle") return <label className="bw-dedicated-switch">
     <input type="checkbox" checked={Boolean(value)} onChange={e => change(e.target.checked)} /><span>{label}</span>
   </label>;
-  return <label className={"bw-dedicated-field" + (config.wide ? " is-wide" : "")}>{label}{required && " *"}
+  const Wrapper = ["description", "deadline", "tags", "multi"].includes(kind) ? "div" : "label";
+  return <Wrapper className={"bw-dedicated-field" + (config.wide ? " is-wide" : "")}>{label}{required && " *"}
     {kind === "description" ? <OpportunityDescriptionField value={val} onChange={change}
       placeholder="Explain responsibilities, purpose, and important details." /> :
     kind === "deadline" ? <OpportunityDateTimePicker value={val} onChange={change} /> :
@@ -361,7 +362,7 @@ function Field({ config, draft, spec, write }) {
       maxLength={maxLength} placeholder={placeholder} value={val}
       onChange={e => change(kind === "integer" || kind === "money" || kind === "percent" ?
         e.target.value === "" ? null : Number(e.target.value) : e.target.value)} />}
-  </label>;
+  </Wrapper>;
 }
 
 export default function SpecializedOpportunityComposer({
