@@ -299,13 +299,6 @@
 .bw-op-challenge-topic:has(input:checked) { border-color: #175cd3; background: #eff8ff; color: #124aa9; }
 .bw-op-challenge-topic:has(input:disabled) { opacity: .45; cursor: not-allowed; }
 
-/* Slightly separate job descriptions from employment/pay badges in Explore.
-   Only the directly adjacent row is affected; other card spacing is unchanged. */
-.bw-explore .bw-job-description + .bw-job-details-summary,
-.bw-explore-right .bw-rail-challenge-description + .bw-job-details-summary {
-  margin-top: 5px;
-}
-
 /* Give Explore employment and pay labels visible surfaces on both white feed
    cards and gradient right-rail cards, without changing other opportunity types. */
 .bw-explore .bw-job-details-summary .bw-job-detail-type,
