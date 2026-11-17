@@ -125,7 +125,9 @@ it("the right-rail Challenge card stacks its cover, details and Partake action",
 });
 
 it("Jobs use the same cover, details and CTA structure as Challenges without Challenge-only data", () => {
-  render(<MemoryRouter><aside className="bw-explore-right"><ChallengeSidebarCard opportunity={opp} /></aside></MemoryRouter>);
+  const fullTimePaid = { ...opp, jobDetails: { type: "FULL_TIME", compensationType: "PAID",
+    salaryMin: 400, salaryMax: 800, salaryCurrency: "USD", salaryPeriod: "MONTH" } };
+  render(<MemoryRouter><aside className="bw-explore-right"><ChallengeSidebarCard opportunity={fullTimePaid} /></aside></MemoryRouter>);
   const card = screen.getByRole("article", { name: "Job: Research assistant" });
   expect(card.classList.contains("bw-rail-opportunity-job")).toBe(true);
   const cover = within(card).getByRole("link", { name: "View job: Research assistant" });
@@ -133,6 +135,9 @@ it("Jobs use the same cover, details and CTA structure as Challenges without Cha
   expect(within(card).getByRole("heading", { name: opp.title })).toBeTruthy();
   expect(within(card).getByText("Monrovia")).toBeTruthy();
   expect(within(card).getByText("In person")).toBeTruthy();
+  expect(within(card).getByText("Full-time").classList.contains("bw-job-detail-type")).toBe(true);
+  expect(within(card).getByText("Paid").classList.contains("bw-job-detail-compensation")).toBe(true);
+  expect(within(card).getByText("US$400–US$800/month")).toBeTruthy();
   expect(within(card).getByRole("link", { name: "Apply Now", exact: true }).getAttribute("href")).toBe("/opportunities/" + id);
   expect(card.querySelector(".bw-rail-challenge-prize")).toBeNull();
   expect(card.querySelector(".bw-challenge-participants")).toBeNull();
