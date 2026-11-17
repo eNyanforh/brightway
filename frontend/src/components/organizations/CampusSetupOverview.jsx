@@ -1,7 +1,7 @@
 import CampusBilling from "../billing/CampusBilling";
 import TvetWorkspace from "../tvet/TvetWorkspace";
 import GradeSchoolWorkspace from "../grade-school/GradeSchoolWorkspace";
-import { CAMPUS_MODULE_BY_SECTION } from "../grade-school/campus-modules";
+import { CAMPUS_MODULE_BY_SECTION, canAccessCampusModule } from "../grade-school/campus-modules";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import WorkspaceIcon from "../workspace/WorkspaceIcon";
@@ -126,7 +126,7 @@ export default function CampusSetupOverview({ organization, section = "all", onC
       <article className="bw-campus-entry-card"><span className="bw-campus-overline">LEARNING OPERATIONS</span><h3>{campus?.engine ? label[campus.engine] : "Choose your academic engine"}</h3><p>{active ? "Manage your classes, student records, attendance, and outcomes." : "Academic tools become available after Campus activation."}</p><Link to={active ? `/campus/${id}/${academicEntry}` : `/campus/${id}/setup`}>{active ? "Open academic operations" : "Continue setup"}</Link></article>
       <article className="bw-campus-entry-card"><span className="bw-campus-overline">CAMPUS COMMUNICATION</span><h3>Announcements</h3><p>Share updates with authorized staff and active learners.</p><Link to={active ? `/campus/${id}/announcements` : `/campus/${id}/setup`}>{active ? "Open announcements" : "Activate Campus first"}</Link></article>
     </div>}
-    {academicRoute && (active && matchingEngine && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p))
+    {academicRoute && (active && matchingEngine && (!module || canAccessCampusModule(module, data.permissions)) && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p))
       ? (campus.engine === "TVET"
           ? <TvetWorkspace key={id} campusId={id} module={module?.view || null} />
           : <GradeSchoolWorkspace key={id} campusId={id} module={module?.view || null} />)
