@@ -23,6 +23,10 @@ export function opportunityPublicationIssues(opportunity, currentTime = Date.now
     need(populated(d.category), "Select a scholarship category.");
     need(list(d.academicLevels), "Select at least one academic level.");
     need(populated(d.fundingType), "Select a funding type.");
+    if (d.fundingType === "FIXED_AMOUNT") {
+      need(Number.isFinite(d.value) && d.value > 0, "Enter a positive scholarship amount.");
+      need(["USD", "LRD", "EUR", "GBP"].includes(d.currency), "Select a currency for the fixed scholarship amount.");
+    }
     need(list(d.eligibleCountries), "Enter at least one eligible country, or Worldwide.");
     need(list(d.selectionCriteria), "Enter at least one selection criterion.");
     if (d.openingDate && opportunity.deadline &&
