@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { opportunitiesApi as api } from "../../api/opportunities";
-import { OPPORTUNITY_TYPES, OPPORTUNITY_STATUSES } from "../../../../shared/opportunities.mjs";
+import { OPPORTUNITY_TYPES, OPPORTUNITY_STATUSES, jobEmploymentLabel, jobSalaryLabel } from "../../../../shared/opportunities.mjs";
 import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityEditor from "./OpportunityEditor";
 import ChallengeCollaborationInvites from "./ChallengeCollaborationInvites";
@@ -218,6 +218,10 @@ export default function OrganizationOpportunities({ organization, disabled = fal
               <span><NavigationIcon name="pin" size={15} />{o.location}</span>
               <span><NavigationIcon name="calendar" size={15} />Closes {dateLabel(o.deadline)}</span>
               <span><NavigationIcon name="opportunities" size={15} />{o.workMode === "REMOTE" ? "Online" : o.workMode === "HYBRID" ? "Hybrid" : "In person"}</span>
+              {o.type === "JOB" && <>
+                <span><NavigationIcon name="briefcase" size={15} />{jobEmploymentLabel(o.jobDetails) || "Type not specified"}</span>
+                <span><NavigationIcon name="wallet" size={15} />{jobSalaryLabel(o.jobDetails) || "Salary not listed"}</span>
+              </>}
             </div>
             <div className="bw-op-managed-bottom">
               <div className="bw-op-managed-summary">
