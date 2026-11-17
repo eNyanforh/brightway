@@ -133,7 +133,7 @@ it("Jobs use the same cover, details and CTA structure as Challenges without Cha
   expect(within(card).getByRole("heading", { name: opp.title })).toBeTruthy();
   expect(within(card).getByText("Monrovia")).toBeTruthy();
   expect(within(card).getByText("In person")).toBeTruthy();
-  expect(within(card).getByRole("link", { name: "Apply" }).getAttribute("href")).toBe("/opportunities/" + id);
+  expect(within(card).getByRole("link", { name: "Apply Now", exact: true }).getAttribute("href")).toBe("/opportunities/" + id);
   expect(card.querySelector(".bw-rail-challenge-prize")).toBeNull();
   expect(card.querySelector(".bw-challenge-participants")).toBeNull();
   const layout = [...card.querySelectorAll(".bw-rail-challenge-cover, .bw-rail-challenge-details, .bw-rail-challenge-cta")];
