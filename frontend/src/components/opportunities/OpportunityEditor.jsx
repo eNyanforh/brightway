@@ -27,6 +27,7 @@ const choices = [
 ];
 const blank = () => ({
   type: "", title: "", description: "", location: "", workMode: "IN_PERSON",
+  jobDetails: null,
   prize: "", prizes: [], collaboratorIds: [], sponsorLogoIds: [], backgroundAssetId: null,
   titleAssetId: null, coverAssetId: null, postRequirements: [], topics: [],
   deadline: "", questions: [],
@@ -194,6 +195,13 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     const problem = validateStep();
     if (problem) { setError(new Error(problem)); return; }
     if (!singlePageComposer && step < last) { setStep(current => current + 1); return; }
+    if (draft.type === "JOB" && (!draft.jobDetails?.type || !draft.jobDetails?.compensationType ||
+        ((draft.jobDetails.salaryMin !== null || draft.jobDetails.salaryMax !== null) &&
+          (draft.jobDetails.salaryMin === null || draft.jobDetails.salaryMax === null ||
+            !draft.jobDetails.salaryCurrency || !draft.jobDetails.salaryPeriod ||
+            draft.jobDetails.salaryMin > draft.jobDetails.salaryMax)))) {
+      setError(new Error("Choose a job type and compensation, and enter a valid salary range if disclosed.")); return;
+    }
     if (!draft.type || draft.title.trim().length < 3 || draft.description.trim().length < 30 ||
         !draft.deadline || !Number.isFinite(new Date(draft.deadline).getTime()) ||
         new Date(draft.deadline).getTime() <= Date.now()) {
@@ -206,6 +214,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         ...draft,
         location: challenge ? "BrightWay" : draft.location,
         workMode: challenge ? "REMOTE" : draft.workMode,
+        jobDetails: draft.type === "JOB" ? draft.jobDetails : null,
         // The structured prizes are canonical. Removing every prize must not
         // silently restore a legacy reward from a previous save.
         prize: "",
