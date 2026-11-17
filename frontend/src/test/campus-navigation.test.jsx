@@ -16,7 +16,7 @@ const mount = (engine, status, permissions = [], role = "STAFF") => render(
 
 describe("engine-specific Campus module navigation", () => {
   it("provides distinct, routable entries, not generic Academics-only tabs", () => {
-    expect(Object.keys(CAMPUS_MODULE_BY_SECTION)).toHaveLength(10);
+    expect(Object.keys(CAMPUS_MODULE_BY_SECTION)).toHaveLength(12);
     expect(new Set(Object.keys(CAMPUS_MODULE_BY_SECTION)).size).toBe(10);
     expect(CAMPUS_MODULES.GRADE_SCHOOL.every(row => row.engine === undefined)).toBe(true);
     expect(CAMPUS_MODULE_BY_SECTION.attendance.engine).toBe("GRADE_SCHOOL");
@@ -25,6 +25,7 @@ describe("engine-specific Campus module navigation", () => {
     const nav = within(screen.getByRole("navigation", { name: "Campus tools" }));
     expect(nav.getByRole("link", { name: "Student registration" }).getAttribute("href")).toBe(`/campus/${campusId}/registrations`);
     expect(nav.getByRole("link", { name: "Subject attendance" }).getAttribute("href")).toBe(`/campus/${campusId}/attendance`);
+    expect(nav.getByRole("link", { name: "Results & reports" }).getAttribute("href")).toBe(`/campus/${campusId}/reports`);
     expect(nav.queryByRole("link", { name: "Competency assessments" })).toBeNull();
     expect(nav.queryByRole("link", { name: "Academics", exact: true })).toBeNull();
   });
@@ -36,6 +37,7 @@ describe("engine-specific Campus module navigation", () => {
     expect(nav.getByRole("link", { name: "Competency assessments" })).toBeTruthy();
     expect(nav.queryByRole("link", { name: "Programs & intakes" })).toBeNull();
     expect(nav.queryByRole("link", { name: "Learners & completion" })).toBeNull();
+    expect(nav.queryByRole("link", { name: "Completion & certificates" })).toBeNull();
     expect(canAccessCampusModule(CAMPUS_MODULE_BY_SECTION["tvet-learners"], [teacher])).toBe(false);
     expect(canAccessCampusModule(CAMPUS_MODULE_BY_SECTION["tvet-attendance"], [academicAdmin])).toBe(true);
   });
