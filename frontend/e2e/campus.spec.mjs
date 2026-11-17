@@ -65,12 +65,13 @@ function fixture(eligible = true) {
   return { serve, requests, errors };
 }
 
-test("Campus setup requires explicit activation before staff announcements, and pausing revokes them", async ({ page }) => {
+test("Campus setup requires explicit activation before staff announcements, and pausing revokes them", async ({ page, isMobile }) => {
   const f = fixture();
   const browserErrors = []; page.on("pageerror", e => browserErrors.push(e.message));
   page.on("dialog", dialog => dialog.accept());
   await page.route("**/*", f.serve);
   await page.goto(campusWorkspace + "/setup");
+  const campusNav = page.getByRole("navigation", { name: isMobile ? "Mobile Campus navigation" : "Campus tools" });
   await expect(page.getByRole("heading", { name: "Virtual Campus", exact: true })).toBeVisible();
   await expect(page.getByText("Not configured", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Activate Campus" })).toHaveCount(0);
@@ -79,17 +80,17 @@ test("Campus setup requires explicit activation before staff announcements, and 
   await expect(page.getByText("Setup", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Campus announcements" })).toHaveCount(0);
   await page.getByRole("button", { name: "Activate Campus" }).click();
-  await page.getByRole("navigation", { name: "Campus tools" }).getByRole("link", { name: "Announcements" }).click();
+  await campusNav.getByRole("link", { name: "Announcements" }).click();
   await expect(page.getByRole("heading", { name: "Campus announcements" })).toBeVisible();
   await expect(page.getByLabel("Announcement audience", { exact: true })).toHaveValue("STAFF");
   await page.getByLabel("Announcement title").fill("Academic term update");
   await page.getByLabel("Announcement details").fill("Staff planning begins next Monday.");
   await page.getByRole("button", { name: "Publish announcement" }).click();
   await expect(page.getByRole("heading", { name: "Academic term update" })).toBeVisible();
-  await page.getByRole("navigation", { name: "Campus tools" }).getByRole("link", { name: "Campus setup" }).click();
+  await campusNav.getByRole("link", { name: "Campus setup" }).click();
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   await expect(page.getByText("Paused", { exact: true }).first()).toBeVisible();
-  await page.getByRole("navigation", { name: "Campus tools" }).getByRole("link", { name: "Announcements" }).click();
+  await campusNav.getByRole("link", { name: "Announcements" }).click();
   await expect(page.getByRole("heading", { name: "Campus announcements" })).toHaveCount(0);
   expect(f.requests.map(r => r.action)).toEqual(["setup", "activate", "publish", "pause"]);
   expect(f.errors).toEqual([]); expect(browserErrors).toEqual([]);
@@ -107,12 +108,12 @@ test("Verified headquarters without a verified Liberia operating site cannot con
 });
 
 
-test("the legacy organization Campus URL redirects to a dedicated Campus workspace", async ({ page }) => {
+test("the legacy organization Campus URL redirects to a dedicated Campus workspace", async ({ page, isMobile }) => {
   const f = fixture();
   await page.route("**/*", f.serve);
   await page.goto(campusPath);
   await expect(page).toHaveURL(campusWorkspace);
-  await expect(page.getByRole("navigation", { name: "Campus tools" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: isMobile ? "Mobile Campus navigation" : "Campus tools" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Organization tools" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Begin Campus setup" })).toHaveAttribute("href", campusWorkspace + "/setup");
   expect(f.errors).toEqual([]);
