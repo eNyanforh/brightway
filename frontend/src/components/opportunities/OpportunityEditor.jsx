@@ -117,7 +117,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     })));
   const [step, setStep] = useState(0), [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(""), [error, setError] = useState(null);
-  const requestKey = useRef(crypto.randomUUID()), request = useRef(null);
+  const requestKey = useRef(crypto.randomUUID()), request = useRef(null), persisted = useRef(opportunity || null);
   const uploadController = useRef(null), lock = useRef(false), dialog = useRef(null);
   const lockedForm = Boolean(opportunity?.publishedAt);
   const challenge = draft.type === "CHALLENGE";
@@ -283,6 +283,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         new Date(draft.deadline).getTime() <= Date.now()) {
       setError(new Error("Check the required details and future deadline before saving.")); return;
     }
+    const publishOnSave = dedicatedComposer && step === last && e.nativeEvent?.submitter?.value === "publish";
     lock.current = true; setBusy(true);
     const controller = new AbortController(); request.current = controller;
     try {
@@ -306,11 +307,17 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         coverAssetId: draft.coverAssetId,
         deadline: new Date(draft.deadline).toISOString(),
       };
-      const saved = opportunity
-        ? await api.edit(organizationId, opportunity.id,
-          { ...body, expectedVersion: opportunity.version }, controller.signal)
+      const current = persisted.current;
+      const saved = current
+        ? await api.edit(organizationId, current.id,
+          { ...body, expectedVersion: current.version }, controller.signal)
         : await api.create(organizationId, { ...body, requestKey: requestKey.current }, controller.signal);
-      if (!controller.signal.aborted) onSaved(saved);
+      persisted.current = saved;
+      const completed = publishOnSave
+        ? await api.status(organizationId, saved.id,
+          { expectedVersion: saved.version, status: "PUBLISHED" }, controller.signal)
+        : saved;
+      if (!controller.signal.aborted) onSaved(completed);
     } catch (cause) { if (!controller.signal.aborted) setError(cause); }
     finally { if (!controller.signal.aborted) { lock.current = false; setBusy(false); } }
   }
@@ -495,11 +502,18 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
             {singlePageComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
           </button>
           <span className="bw-op-wizard-footer-hint">{opportunity ? "Editing saved listing" : "Saved as draft until you publish"}</span>
-          <button className="bw-op-primary" type="submit"
+          {dedicatedComposer && step === last ? <>
+            <button className="bw-op-secondary" type="submit" name="intent" value="draft" disabled={locked}>
+              {busy ? "Saving…" : opportunity ? "Save changes" : "Save draft"}
+            </button>
+            <button className="bw-op-primary" type="submit" name="intent" value="publish" disabled={locked}>
+              {busy ? "Publishing…" : "Publish " + (draft.type === "JOB" ? "Job Vacancy" : "Scholarship")}
+            </button>
+          </> : <button className="bw-op-primary" type="submit"
             disabled={locked || (step === 0 && !draft.type)}>
             {busy ? "Saving…" : singlePageComposer || step === last ? opportunity ? "Save changes" : "Save draft" : "Continue"}
             {!busy && !singlePageComposer && step !== last && <NavigationIcon name="chevron-right" size={16} />}
-          </button>
+          </button>}
         </footer>
       </form>
     </section>
