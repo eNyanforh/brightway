@@ -483,6 +483,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         if (prior) { if (prior.inputHash !== hash) throw conflict(); return opportunity(db, prior.id, orgId); }
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
         const { collaboratorIds, ...persisted } = data;
+        persisted.jobDetails = data.jobDetails ?? Prisma.DbNull;
         const row = await db.opportunity.create({ data: { ...persisted, deadline: new Date(data.deadline), organizationId: orgId, authorId: actor.accountId, requestKey, inputHash: hash }, select: { id: true } });
         await bindChallengeAssets(db, actor, orgId, row.id, data);
         await syncCollaborators(db, orgId, row.id, collaboratorIds);
@@ -503,6 +504,7 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
           throw fail(409, "The type, post requirements, and application questions are locked after first publication.");
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
         const { collaboratorIds, ...persisted } = data;
+        persisted.jobDetails = data.jobDetails ?? Prisma.DbNull;
         await bindChallengeAssets(db, actor, orgId, row.id, data);
         await syncCollaborators(db, orgId, row.id, collaboratorIds);
         await db.opportunity.update({ where: { id: row.id }, data: { ...persisted, deadline: new Date(data.deadline), version: { increment: 1 } } });
