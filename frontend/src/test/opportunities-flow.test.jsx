@@ -268,11 +268,11 @@ it("paid internships show their job type and salary range on Explore's rail and 
   } };
   const { unmount } = render(<MemoryRouter><ChallengeSidebarCard opportunity={paidInternship} /></MemoryRouter>);
   expect(screen.getByText("Internship")).toBeTruthy();
-  expect(screen.getByText("US$500–1,200 / month")).toBeTruthy();
+  expect(screen.getByText("Paid · US$500–1,200 / month")).toBeTruthy();
   unmount();
   render(<MemoryRouter><OpportunityCard opportunity={paidInternship} /></MemoryRouter>);
   expect(screen.getByText("Internship")).toBeTruthy();
-  expect(screen.getByText("US$500–1,200 / month")).toBeTruthy();
+  expect(screen.getByText("Paid · US$500–1,200 / month")).toBeTruthy();
 });
 
 it("unpaid job listings never display an invented salary", () => {
