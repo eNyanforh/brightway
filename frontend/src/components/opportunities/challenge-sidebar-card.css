@@ -299,6 +299,25 @@
 .bw-op-challenge-topic:has(input:checked) { border-color: #175cd3; background: #eff8ff; color: #124aa9; }
 .bw-op-challenge-topic:has(input:disabled) { opacity: .45; cursor: not-allowed; }
 
+/* Give Explore employment and pay labels visible surfaces on both white feed
+   cards and gradient right-rail cards, without changing other opportunity types. */
+.bw-explore .bw-job-details-summary .bw-job-detail-type,
+.bw-explore-right .bw-job-details-summary .bw-job-detail-type {
+  border: 1px solid #bdd3ff;
+  border-radius: 7px;
+  background: #e2edff;
+  color: #173c74;
+  font-weight: 750;
+}
+.bw-explore .bw-job-details-summary .bw-job-detail-compensation,
+.bw-explore-right .bw-job-details-summary .bw-job-detail-compensation {
+  border: 1px solid #a5dbc4;
+  border-radius: 7px;
+  background: #dff5e9;
+  color: #176045;
+  font-weight: 750;
+}
+
 /* Employment details are compact and wrap without overflowing narrow right rails. */
 .bw-job-details-summary {
   display: flex;
