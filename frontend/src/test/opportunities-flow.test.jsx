@@ -131,12 +131,13 @@ it("Scholarship creation presents its separate funding and eligibility forms", a
   await user.type(screen.getByRole("textbox", { name: /Scholarship title/ }), "Research Scholarship");
   await user.type(screen.getByLabelText("Description"), "A scholarship to help students conduct research in Liberia.");
   await user.selectOptions(screen.getByRole("combobox", { name: /Scholarship category/ }), "Research");
-  await user.click(screen.getByText("Academic levels *"));
+  await user.click(screen.getByText("Select academic levels"));
   await user.click(screen.getByRole("checkbox", { name: "Undergraduate" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
   expect(screen.getByRole("heading", { name: "Funding & benefits" })).toBeTruthy();
   await user.selectOptions(screen.getByRole("combobox", { name: /Funding type/ }), "FULL");
   expect(screen.getByRole("checkbox", { name: "Accommodation included" })).toBeTruthy();
+  localStorage.clear();
 });
 
 it("the right-rail Challenge card stacks its cover, details and Partake action", () => {
