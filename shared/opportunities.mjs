@@ -35,7 +35,7 @@ export function jobSalaryLabel(details) {
     ? prefix + format(salaryMin)
     : prefix + format(salaryMin) + "–" + format(salaryMax);
   return (details.compensation === "STIPEND" ? "Stipend: " : "") +
-    range + " / " + JOB_PAY_PERIODS[payPeriod];
+    range + (payPeriod === "ONE_TIME" ? " (one-time)" : " / " + JOB_PAY_PERIODS[payPeriod]);
 }
 
 export const QUESTION_TYPES = Object.freeze({
