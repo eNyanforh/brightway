@@ -85,6 +85,8 @@ it("the publisher creates a Job with the shared single-page composer and saves a
   expect(screen.getByText("Data internship", { selector: ".bw-op-standard-poster strong" })).toBeTruthy();
   await user.type(screen.getByLabelText("Description", { exact: true }), "Learn research and data quality skills with our team.");
   await user.type(screen.getByLabelText("Location"), "Monrovia");
+  await user.selectOptions(screen.getByLabelText("Job type"), "INTERNSHIP");
+  await user.selectOptions(screen.getByLabelText("Compensation"), "PAID");
 
   await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
   await user.click(screen.getByRole("button", { name: "+ Add question" }));
