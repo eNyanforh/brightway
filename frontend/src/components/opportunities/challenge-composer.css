@@ -260,7 +260,7 @@
    No stock imagery: the editable poster previews the actual listing title
    until an optional, privately uploaded cover is attached. */
 .bw-op-standard-composer .bw-op-standard-preview-stage {
-  background: #161c28;
+  background: #151515;
   color: #fff;
 }
 .bw-op-standard-poster {
@@ -275,7 +275,7 @@
   padding: clamp(22px, 3vw, 36px);
   box-sizing: border-box;
   color: #fff;
-  background: linear-gradient(150deg, #171e2b 5%, #30343f 100%);
+  background: linear-gradient(150deg, #0c0c0c 5%, #313131 100%);
 }
 .bw-op-standard-poster-symbol {
   display: inline-grid;
