@@ -8,10 +8,12 @@ export const CAMPUS_MODULES = Object.freeze({
     { section: "teaching", label: "Teachers & schedules", icon: "calendar", access: "teach", view: "teaching" },
     { section: "attendance", label: "Subject attendance", icon: "applications", access: "teach", view: "attendance" },
     { section: "assessments", label: "Assessments & grades", icon: "awards", access: "teach", view: "assessments" },
+    { section: "reports", label: "Results & reports", icon: "analytics", access: "manage", view: "reports" },
   ],
   TVET: [
     { section: "tvet-programs", label: "Programs & intakes", icon: "learning", access: "manage", view: "setup" },
     { section: "tvet-learners", label: "Learners & completion", icon: "admissions", access: "manage", view: "learners" },
+    { section: "tvet-certificates", label: "Completion & certificates", icon: "awards", access: "manage", view: "certificates" },
     { section: "tvet-instructors", label: "Instructors & schedules", icon: "calendar", access: "teach", view: "training" },
     { section: "tvet-attendance", label: "Session attendance", icon: "applications", access: "teach", view: "attendance" },
     { section: "tvet-assessments", label: "Competency assessments", icon: "awards", access: "teach", view: "assessments" },
