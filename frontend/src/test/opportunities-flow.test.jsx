@@ -85,6 +85,12 @@ it("the publisher creates a Job with the shared single-page composer and saves a
   expect(screen.getByText("Data internship", { selector: ".bw-op-standard-poster strong" })).toBeTruthy();
   await user.type(screen.getByLabelText("Description", { exact: true }), "Learn research and data quality skills with our team.");
   await user.type(screen.getByLabelText("Location"), "Monrovia");
+  await user.selectOptions(screen.getByLabelText("Job type"), "INTERNSHIP");
+  await user.selectOptions(screen.getByLabelText("Compensation"), "STIPEND");
+  await user.type(screen.getByLabelText("Minimum salary"), "350");
+  await user.type(screen.getByLabelText("Maximum salary"), "600");
+  await user.selectOptions(screen.getByLabelText("Currency"), "LRD");
+  await user.selectOptions(screen.getByLabelText("Pay period"), "WEEK");
 
   await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
   await user.click(screen.getByRole("button", { name: "+ Add question" }));
@@ -95,6 +101,10 @@ it("the publisher creates a Job with the shared single-page composer and saves a
   await waitFor(() => expect(saved).toHaveBeenCalled());
   const body = JSON.parse(fetch.mock.calls[0][1].body);
   expect(body.questions[0]).toMatchObject({ label: "Tell us about your experience", type: "SHORT_ANSWER", required: true });
+  expect(body.jobDetails).toEqual({
+    employmentType: "INTERNSHIP", compensation: "STIPEND", salaryMin: 350,
+    salaryMax: 600, currency: "LRD", payPeriod: "WEEK",
+  });
   expect(body).not.toHaveProperty("applicationUrl");
 });
 it("the right-rail Challenge card stacks its cover, details and Partake action", () => {
@@ -248,4 +258,29 @@ it("application decisions appear in Notifications with All and Unread views", as
   await user.click(screen.getByRole("button", { name: "Unread", exact: true })); await screen.findByRole("link", { name: opp.title });
   expect(fetch.mock.calls.at(-1)[0]).toContain("view=unread"); await user.click(screen.getByRole("button", { name: "Mark read", exact: true }));
   await waitFor(() => expect(screen.queryByRole("link", { name: opp.title })).toBeNull());
+});
+
+
+it("paid internships show their job type and salary range on Explore's rail and catalog", () => {
+  const paidInternship = { ...opp, jobDetails: {
+    employmentType: "INTERNSHIP", compensation: "PAID", salaryMin: 500,
+    salaryMax: 1200, currency: "USD", payPeriod: "MONTH",
+  } };
+  const { unmount } = render(<MemoryRouter><ChallengeSidebarCard opportunity={paidInternship} /></MemoryRouter>);
+  expect(screen.getByText("Internship")).toBeTruthy();
+  expect(screen.getByText("Paid · US$500–1,200 / month")).toBeTruthy();
+  unmount();
+  render(<MemoryRouter><OpportunityCard opportunity={paidInternship} /></MemoryRouter>);
+  expect(screen.getByText("Internship")).toBeTruthy();
+  expect(screen.getByText("Paid · US$500–1,200 / month")).toBeTruthy();
+});
+
+it("unpaid job listings never display an invented salary", () => {
+  const unpaidJob = { ...opp, jobDetails: {
+    employmentType: "INTERNSHIP", compensation: "UNPAID",
+    salaryMin: null, salaryMax: null, currency: "USD", payPeriod: "MONTH",
+  } };
+  render(<MemoryRouter><ChallengeSidebarCard opportunity={unpaidJob} /></MemoryRouter>);
+  expect(screen.getByText("Unpaid")).toBeTruthy();
+  expect(screen.queryByText(/US\$/)).toBeNull();
 });

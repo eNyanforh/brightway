@@ -534,3 +534,11 @@
   .bw-op-description-format { display: none; }
   .bw-op-calendar { width: 100%; padding: 10px; }
 }
+
+/* Salary inputs share the existing responsive two-column editor grid. */
+.bw-op-standard-main .bw-op-job-pay-help {
+  margin: 7px 0 0;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.45;
+}

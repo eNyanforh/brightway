@@ -4,6 +4,40 @@ export const OPPORTUNITY_TYPES = Object.freeze({
   CHALLENGE: { label: "Challenge", plural: "Challenges", action: "Participate", icon: "awards" },
   EVENT: { label: "Event", plural: "Events", action: "Register", icon: "calendar" },
 });
+// Employment type and compensation are separate: an internship may be paid, stipended or unpaid.
+export const JOB_EMPLOYMENT_TYPES = Object.freeze({
+  FULL_TIME: "Full-time", PART_TIME: "Part-time", INTERNSHIP: "Internship",
+  CONTRACT: "Contract", FREELANCE: "Freelance", TEMPORARY: "Temporary",
+});
+export const JOB_COMPENSATION_TYPES = Object.freeze({ PAID: "Paid", STIPEND: "Stipend", UNPAID: "Unpaid" });
+export const JOB_PAY_PERIODS = Object.freeze({
+  HOUR: "hour", WEEK: "week", MONTH: "month", YEAR: "year", ONE_TIME: "one-time",
+});
+export const JOB_SALARY_CURRENCIES = Object.freeze({
+  USD: "US$", LRD: "L$", EUR: "€", GBP: "£", GHS: "GH₵", NGN: "₦",
+});
+export function jobEmploymentLabel(details) {
+  return JOB_EMPLOYMENT_TYPES[details?.employmentType] || null;
+}
+export function jobSalaryLabel(details) {
+  if (!details || !JOB_COMPENSATION_TYPES[details.compensation]) return null;
+  if (details.compensation === "UNPAID") return "Unpaid";
+  const { salaryMin, salaryMax, currency, payPeriod } = details;
+  if (typeof salaryMin !== "number" || typeof salaryMax !== "number" ||
+      !JOB_SALARY_CURRENCIES[currency] || !JOB_PAY_PERIODS[payPeriod]) {
+    return details.compensation === "STIPEND" ? "Stipend · amount not listed" : "Salary not listed";
+  }
+  const format = value => new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 2,
+  }).format(value);
+  const prefix = JOB_SALARY_CURRENCIES[currency];
+  const range = salaryMin === salaryMax
+    ? prefix + format(salaryMin)
+    : prefix + format(salaryMin) + "–" + format(salaryMax);
+  return (details.compensation === "STIPEND" ? "Stipend · " : "Paid · ") +
+    range + (payPeriod === "ONE_TIME" ? " (one-time)" : " / " + JOB_PAY_PERIODS[payPeriod]);
+}
+
 export const QUESTION_TYPES = Object.freeze({
   SHORT_ANSWER: "Short answer", LONG_ANSWER: "Long answer", YES_NO: "Yes / No",
   SINGLE_CHOICE: "Single choice", MULTIPLE_CHOICE: "Multiple choice", FILE_UPLOAD: "File upload",

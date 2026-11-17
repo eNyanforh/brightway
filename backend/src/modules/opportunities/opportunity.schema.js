@@ -52,9 +52,31 @@ const postRequirement = z.discriminatedUnion("type", [
     maxPages: z.number().int().min(1).max(100),
   }),
 ]);
+// Existing records and older API clients may omit jobDetails; new job entries
+// with details must provide a complete, internally consistent compensation range.
+const jobDetailsInput = z.union([
+  z.strictObject({}),
+  z.strictObject({
+    employmentType: z.enum(["FULL_TIME", "PART_TIME", "INTERNSHIP", "CONTRACT", "FREELANCE", "TEMPORARY"]),
+    compensation: z.enum(["PAID", "STIPEND", "UNPAID"]),
+    salaryMin: z.number().finite().positive().max(1000000000).nullable(),
+    salaryMax: z.number().finite().positive().max(1000000000).nullable(),
+    currency: z.enum(["USD", "LRD", "EUR", "GBP", "GHS", "NGN"]),
+    payPeriod: z.enum(["HOUR", "WEEK", "MONTH", "YEAR", "ONE_TIME"]),
+  }).superRefine((details, ctx) => {
+    if (details.compensation === "UNPAID") {
+      if (details.salaryMin !== null || details.salaryMax !== null)
+        ctx.addIssue({ code: "custom", message: "Unpaid jobs cannot have a salary range." });
+    } else if (details.salaryMin === null || details.salaryMax === null ||
+               details.salaryMin > details.salaryMax) {
+      ctx.addIssue({ code: "custom", message: "Enter a valid minimum and maximum salary." });
+    }
+  }),
+]);
 export const opportunityInput = z.strictObject({
   type: z.enum(Object.keys(OPPORTUNITY_TYPES)), title: text(160).min(3), description: text(12000).min(30),
   location: text(180).min(2), workMode: z.enum(["IN_PERSON", "REMOTE", "HYBRID"]),
+  jobDetails: jobDetailsInput.default({}),
   prize: text(120).nullish().transform(value => value ?? ""),
   prizes: z.array(z.union([typedPrize, legacyPrize])).max(MAX_CHALLENGE_PRIZES).default([]),
   postRequirements: z.array(postRequirement).max(MAX_CHALLENGE_POST_TYPES)

@@ -123,7 +123,8 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   };
   const otherChallenge = { ...challenge, id: "66666666-6666-4666-8666-666666666666", title: "Another Innovation Challenge" };
   const job = { ...challenge, id: "88888888-8888-4888-8888-888888888888", type: "JOB",
-    title: "Research Internship", description: "Gain practical experience.", location: "Monrovia, Liberia" };
+    title: "Research Internship", description: "Gain practical experience.", location: "Monrovia, Liberia",
+    jobDetails: { employmentType: "INTERNSHIP", compensation: "PAID", salaryMin: 500, salaryMax: 1200, currency: "USD", payPeriod: "MONTH" } };
   const scholarship = { ...challenge, id: "99999999-9999-4999-8999-999999999999", type: "SCHOLARSHIP",
     title: "Student Research Scholarship", description: "Support advanced study." };
   const event = { ...challenge, id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", type: "EVENT",
@@ -165,6 +166,10 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(mainJob.getByRole("button", { name: "Unsave job" })).toHaveAttribute("aria-pressed", "true");
   const sidebarJob = sidebar.getByRole("article", { name: "Job: Research Internship" });
   await expect(sidebarJob.locator("time")).toContainText(/\d+ days remaining/);
+  await expect(sidebarJob).toContainText("Internship");
+  await expect(sidebarJob).toContainText("US$500–1,200 / month");
+  await expect(mainJob).toContainText("Internship");
+  await expect(mainJob).toContainText("US$500–1,200 / month");
   // Right-rail jobs must keep the same visible category gradient as main Explore jobs.
   const mainJobGradient = await mainJob.evaluate(element => getComputedStyle(element).backgroundImage);
   expect(mainJobGradient).toContain("linear-gradient");

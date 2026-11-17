@@ -1542,3 +1542,10 @@
     padding-top: 0;
   }
 }
+
+/* Separate compensation terms from location and working arrangement without adding a card. */
+.bw-explore .bw-job-facts > .bw-job-salary {
+  flex-basis: 100%;
+  font-weight: 700;
+  color: #25354c;
+}

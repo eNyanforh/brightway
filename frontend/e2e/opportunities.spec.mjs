@@ -396,6 +396,11 @@ test("organization publishers create and publish a form, and reviewers send an a
   await expect(editor.locator(".bw-op-standard-poster strong")).toHaveText("Data internship");
   await editor.getByLabel("Description", { exact: true }).fill("Build skills in field research, data quality, and community engagement.");
   await editor.getByLabel("Location", { exact: true }).fill("Monrovia");
+  await editor.getByLabel("Job type").selectOption("INTERNSHIP");
+  await editor.getByLabel("Minimum salary").fill("600");
+  await editor.getByLabel("Maximum salary").fill("1100");
+  await editor.getByLabel("Currency").selectOption("USD");
+  await editor.getByLabel("Pay period").selectOption("MONTH");
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
   await editor.getByRole("button", { name: "+ Add question" }).click();
   await editor.getByLabel("Question 1 text").fill("Why would you like to join?");
