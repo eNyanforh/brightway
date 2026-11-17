@@ -1,4 +1,4 @@
-import { scholarshipSummary } from "./scholarship-summary";
+import { scholarshipSummary, scholarshipLevelLabel } from "./scholarship-summary";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { OPPORTUNITY_TYPES } from "../../../../shared/opportunities.mjs";
@@ -194,7 +194,7 @@ export default function ExploreOpportunityCard({ opportunity, onSavedChange }) {
             {opportunity.type === "SCHOLARSHIP" && <div className="bw-op-scholarship-summary">
               {scholarshipSummary(opportunity.details) && <strong>{scholarshipSummary(opportunity.details)}</strong>}
               {Array.isArray(opportunity.details?.academicLevels) && opportunity.details.academicLevels.length > 0 &&
-                <span>{opportunity.details.academicLevels.map(level => level.replaceAll("_", " ")).join(", ")}</span>}
+                <span>{opportunity.details.academicLevels.map(scholarshipLevelLabel).join(", ")}</span>}
               {Array.isArray(opportunity.details?.eligibleCountries) && opportunity.details.eligibleCountries.length > 0 &&
                 <span>Eligibility: {opportunity.details.eligibleCountries.join(", ")}</span>}
             </div>}
