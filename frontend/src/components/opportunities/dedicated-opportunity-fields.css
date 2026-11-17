@@ -1,5 +1,5 @@
 /* Dedicated Job Vacancy and Scholarship creation sections */
-.bw-op-dedicated-details { display: grid; gap: 0; min-width: 0; }
+.bw-op-dedicated-details { display: grid; gap: 1.25rem; min-width: 0; }
 .bw-op-dedicated-details > h3 { font-size: 1.1rem; margin: .25rem 0 0; }
 .bw-op-details-section { display: grid; gap: .85rem; }
 .bw-op-details-section > h4 { margin-bottom: .15rem; }
