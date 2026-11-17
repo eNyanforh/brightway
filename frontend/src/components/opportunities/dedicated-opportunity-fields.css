@@ -434,3 +434,15 @@
   pointer-events: none;
 }
 .bw-op-dedicated-money-field input { padding-left: 46px !important; }
+
+@media (max-width: 560px) {
+  .bw-op-dedicated-overlay .bw-op-wizard-footer { flex-wrap: wrap; }
+  .bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-dedicated-save { margin-right: auto; }
+  .bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-primary {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
+  .bw-op-dedicated-overlay .bw-op-wizard-footer .bw-op-dedicated-footer-space { display: none; }
+  .bw-op-dedicated-form-column .bw-op-field-row { grid-template-columns: 1fr; }
+}
