@@ -4,7 +4,7 @@ import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityOrganization from "./OpportunityOrganization";
 import ChallengeCoHosts from "./ChallengeCoHosts";
 import JobDetailsSummary from "./JobDetailsSummary";
-import { scholarshipSummary } from "./OpportunityExtendedDetails";
+import { scholarshipSummary } from "./scholarship-summary";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./opportunities.css";
 export default function OpportunityCard({ opportunity: o }) {
