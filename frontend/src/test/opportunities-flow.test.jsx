@@ -129,10 +129,13 @@ it("creates a scholarship with funding, eligibility and required document upload
   await user.type(screen.getByLabelText("Selection criteria"), "Academic merit");
   await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  await user.click(screen.getByRole("button", { name: "Save draft" }));
+  await user.click(screen.getByRole("button", { name: "Publish Scholarship" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
   const body = JSON.parse(fetch.mock.calls[0][1].body);
   expect(body.type).toBe("SCHOLARSHIP");
+  expect(fetch.mock.calls).toHaveLength(2);
+  expect(fetch.mock.calls[1][0]).toContain("/status");
+  expect(JSON.parse(fetch.mock.calls[1][1].body)).toMatchObject({ status: "PUBLISHED" });
   expect(body.details).toMatchObject({ category: "RESEARCH", fundingType: "FULLY_FUNDED", academicLevels: ["MASTERS"], eligibleCountries: ["Liberia"] });
   expect(body.questions.some(q => q.label === "Required document: Academic transcript" && q.required)).toBe(true);
   expect(body.questions.some(q => q.label === "Required document: Personal statement" && q.required)).toBe(true);
