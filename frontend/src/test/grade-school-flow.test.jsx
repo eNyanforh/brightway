@@ -28,7 +28,7 @@ describe("Grade School academic workspace", () => {
     await screen.findByRole("heading", { name: "Results & reporting" });
     expect(screen.queryByRole("form", { name: "Register a student" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Manage student" })).toBeNull();
-    await user.click(screen.getByRole("button", { name: "View report" }));
+    await user.click(await screen.findByRole("button", { name: "View report" }));
     const report = await screen.findByRole("region", { name: "Student academic report" });
     expect(within(report).getByText("89%")).toBeTruthy();
     expect(api.report).toHaveBeenCalledWith("school", "registration", expect.any(AbortSignal));
