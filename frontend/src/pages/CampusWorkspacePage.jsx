@@ -71,7 +71,7 @@ export default function CampusWorkspacePage() {
 
   if (!id) return <Navigate to="/work" replace />;
   if (!validSections.has(section)) return <Navigate to={`/campus/${id}`} replace />;
-  const ready = view?.id === id ? view.context : null;
+  const ready = view?.id === id && view.context.accountId === account?.id ? view.context : null;
   const error = failure?.id === id ? failure.error : null;
   if (error) return <section className="bw-campus-workspace-page bw-campus-access-state"><h1>Virtual Campus</h1><p role="alert">{error.message}</p><button type="button" onClick={refresh}>Retry Campus access</button><p><Link to="/work">Back to My Workspace</Link></p></section>;
   if (!ready) return <p role="status">Checking Virtual Campus access…</p>;
