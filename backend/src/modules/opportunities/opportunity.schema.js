@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { jobSpecificationInput, scholarshipSpecificationInput, validateDocumentQuestions } from "./specialized-opportunity.schema.js";
 import { OPPORTUNITY_TYPES, QUESTION_TYPES, JOB_TYPES, JOB_COMPENSATION_TYPES, JOB_SALARY_PERIODS } from "../../../../shared/opportunities.mjs";
 import { CHALLENGE_COVER_IMAGES, CHALLENGE_TOPIC_OPTIONS, DEFAULT_CHALLENGE_COVER, MAX_CHALLENGE_TOPICS, CHALLENGE_PRIZE_TYPES, CHALLENGE_PRIZE_CURRENCIES, CHALLENGE_MEDIA_KINDS, MAX_CHALLENGE_SPONSORS, MAX_CHALLENGE_COLLABORATORS, MAX_CHALLENGE_PRIZES } from "../../../../shared/challenges.mjs";
 import { fail } from "../network/network.schema.js";
@@ -71,6 +72,8 @@ export const opportunityInput = z.strictObject({
   type: z.enum(Object.keys(OPPORTUNITY_TYPES)), title: text(160).min(3), description: text(12000).min(30),
   location: text(180).min(2), workMode: z.enum(["IN_PERSON", "REMOTE", "HYBRID"]),
   jobDetails: jobDetailsInput.nullish().transform(value => value ?? null),
+  jobSpecification: jobSpecificationInput.nullish().transform(value => value ?? null),
+  scholarshipSpecification: scholarshipSpecificationInput.nullish().transform(value => value ?? null),
   prize: text(120).nullish().transform(value => value ?? ""),
   prizes: z.array(z.union([typedPrize, legacyPrize])).max(MAX_CHALLENGE_PRIZES).default([]),
   postRequirements: z.array(postRequirement).max(MAX_CHALLENGE_POST_TYPES)
@@ -91,6 +94,13 @@ export const opportunityInput = z.strictObject({
   deadline: z.iso.datetime({ offset: true }),
   questions: z.array(question).max(20).refine(q => new Set(q.map(v => v.id)).size === q.length)
     .refine(q => q.filter(v => v.type === "FILE_UPLOAD").length <= 5),
+}).superRefine((data, context) => {
+  if (data.type !== "JOB" && data.jobSpecification)
+    context.addIssue({ code: "custom", path: ["jobSpecification"], message: "Job details belong to job vacancies only." });
+  if (data.type !== "SCHOLARSHIP" && data.scholarshipSpecification)
+    context.addIssue({ code: "custom", path: ["scholarshipSpecification"], message: "Scholarship details belong to scholarships only." });
+  validateDocumentQuestions(data.jobSpecification, data.questions, context, "jobSpecification");
+  validateDocumentQuestions(data.scholarshipSpecification, data.questions, context, "scholarshipSpecification");
 });
 export const collaboratorSearchInput = z.strictObject({
   q: z.string().trim().min(2).max(80),
