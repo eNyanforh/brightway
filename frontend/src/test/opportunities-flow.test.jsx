@@ -171,7 +171,7 @@ it("Jobs use the same cover, details and CTA structure as Challenges without Cha
   const fullTimePaid = { ...opp, jobDetails: { type: "FULL_TIME", compensationType: "PAID",
     salaryMin: 400, salaryMax: 800, salaryCurrency: "USD", salaryPeriod: "MONTH" } };
   render(<MemoryRouter><aside className="bw-explore-right"><ChallengeSidebarCard opportunity={fullTimePaid} /></aside></MemoryRouter>);
-  const card = screen.getByRole("article", { name: "Job: Research assistant" });
+  const card = screen.getByRole("article", { name: "Job Vacancy: Research assistant" });
   expect(card.classList.contains("bw-rail-opportunity-job")).toBe(true);
   const cover = within(card).getByRole("link", { name: "View job: Research assistant" });
   expect(cover.querySelector(".bw-rail-opportunity-cover-fallback")).toBeTruthy();
@@ -196,13 +196,13 @@ it("Jobs and Challenges share the same card layout in compact Explore and the Op
   const { unmount } = render(<AuthContext.Provider value={{ account: { id: "owner" } }}>
     <MemoryRouter><aside className="bw-explore-right"><OpportunityBrowser compact /></aside></MemoryRouter>
   </AuthContext.Provider>);
-  const job = await screen.findByRole("article", { name: "Job: Research assistant" });
+  const job = await screen.findByRole("article", { name: "Job Vacancy: Research assistant" });
   const challengeCard = screen.getByRole("article", { name: "Challenge: Student innovation challenge" });
   expect(job.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
   expect(challengeCard.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
   unmount();
   mount(<OpportunitiesPage />, "/opportunities");
-  const catalogJob = await screen.findByRole("article", { name: "Job: Research assistant" });
+  const catalogJob = await screen.findByRole("article", { name: "Job Vacancy: Research assistant" });
   const catalogChallenge = screen.getByRole("article", { name: "Challenge: Student innovation challenge" });
   expect(catalogJob.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
   expect(catalogChallenge.querySelector(".bw-rail-challenge-cover")).toBeTruthy();
@@ -211,7 +211,7 @@ it("Jobs and Challenges share the same card layout in compact Explore and the Op
 it("Job cards show uploaded covers when the publisher provides one", () => {
   const jobWithCover = { ...opp, coverAssetId: "88888888-8888-4888-8888-888888888888" };
   render(<MemoryRouter><ChallengeSidebarCard opportunity={jobWithCover} /></MemoryRouter>);
-  const article = screen.getByRole("article", { name: "Job: Research assistant" });
+  const article = screen.getByRole("article", { name: "Job Vacancy: Research assistant" });
   expect(article.querySelector(".bw-rail-challenge-photo").getAttribute("src")).toContain("/challenge-assets/");
   expect(article.querySelector(".bw-rail-opportunity-cover-fallback")).toBeNull();
 });
