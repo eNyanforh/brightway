@@ -93,7 +93,7 @@ const scholarshipDetailsExtended = z.strictObject({
   studyCountry: detailString, studyRegion: detailString, institution: detailString,
   programs: detailList, programMonths: detailNumber, intake: detailDate,
   eligibleCountries: detailList, education: detailString, minAge: detailNumber, maxAge: detailNumber,
-  academicPerformance: detailString, experienceMonths: detailNumber,
+  academicPerformance: detailString, workExperienceRequired: z.boolean().optional(), experienceMonths: detailNumber,
   languages: detailList, financialNeedRequired: z.boolean().optional(),
   eligibilityCriteria: detailList, openingDate: detailDate, announcementDate: detailDate,
   requireTranscript: z.boolean().optional(), requireStatement: z.boolean().optional(),
