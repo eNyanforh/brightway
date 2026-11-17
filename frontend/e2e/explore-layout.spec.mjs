@@ -160,7 +160,7 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(mainJob.locator("time")).toContainText(/\d+ days remaining/);
   await expect(mainJob.locator(".bw-challenge-prize")).toHaveCount(0);
   await expect(mainJob.locator(".bw-challenge-participants")).toHaveCount(0);
-  await expect(mainJob.getByRole("link", { name: "Apply", exact: true })).toHaveAttribute("href", "/opportunities/" + job.id);
+  await expect(mainJob.getByRole("link", { name: "Apply Now", exact: true })).toHaveAttribute("href", "/opportunities/" + job.id);
   await expect(mainJob.getByRole("button", { name: "Share job" })).toBeVisible();
   await expect(mainJob.getByRole("button", { name: "Save job" })).toBeVisible();
   await mainJob.getByRole("button", { name: "Save job" }).click();
@@ -169,6 +169,12 @@ test("Explore right sidebar shows open opportunities from multiple types with Ch
   await expect(sidebarJob.locator("time")).toContainText(/\d+ days remaining/);
   await expect(sidebarJob.getByLabel("Job type and compensation")).toContainText("Internship");
   await expect(sidebarJob.getByLabel("Job type and compensation")).toContainText("Paid");
+  await expect(sidebarJob.getByRole("link", { name: "Apply Now", exact: true }))
+    .toHaveAttribute("href", "/opportunities/" + job.id);
+  await expect(sidebarJob.locator(".bw-job-detail-type")).toHaveCSS("background-color", "rgb(226, 237, 255)");
+  await expect(sidebarJob.locator(".bw-job-detail-compensation")).toHaveCSS("background-color", "rgb(223, 245, 233)");
+  await expect(mainJob.locator(".bw-job-detail-type")).toHaveCSS("background-color", "rgb(226, 237, 255)");
+  await expect(mainJob.locator(".bw-job-detail-compensation")).toHaveCSS("background-color", "rgb(223, 245, 233)");
   await expect(sidebarJob.getByLabel("Job type and compensation")).toContainText("US$200–US$500/month");
   await expect(mainJob.getByLabel("Job type and compensation")).toContainText("US$200–US$500/month");
   // Right-rail jobs must keep the same visible category gradient as main Explore jobs.
@@ -1980,7 +1986,7 @@ test("published opportunities join the main Explore feed and remain separate fro
 test("main Explore feed displays the four reference gradient categories with white opportunity cards", async ({ page }) => {
   const organizationId = "55555555-5555-4555-8555-555555555555";
   const categories = [
-    { type: "JOB", label: "Job", heading: "Jobs & Internships", action: "Apply" },
+    { type: "JOB", label: "Job", heading: "Jobs & Internships", action: "Apply Now" },
     { type: "SCHOLARSHIP", label: "Scholarship", heading: "Scholarships", action: "Apply" },
     { type: "CHALLENGE", label: "Challenge", heading: "Challenge - Part take to Earn", action: "Participate" },
     { type: "EVENT", label: "Event", heading: "Events", action: "Register" },
