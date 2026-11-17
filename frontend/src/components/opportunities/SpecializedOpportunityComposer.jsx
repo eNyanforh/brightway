@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { JOB_TYPES, JOB_COMPENSATION_TYPES, JOB_SALARY_PERIODS, formatJobSalary } from "../../../../shared/opportunities.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import { staffApi } from "../../api/organization-staff";
@@ -271,14 +271,14 @@ function Reviewers({ organizationId, value, onChange }) {
     {!staff.length && !error && <p>There are no available reviewers in the first staff page.</p>}
   </div>;
 }
-function DocumentRequirements({ draft, field, specKey }) {
+function DocumentRequirements({ draft, field, specKey, lockedForm }) {
   const spec = draft[specKey] || {}, docMap = spec.documentQuestionIds || {};
   const kind = draft.type, docs = DOCUMENTS[kind];
   function toggle(key, label, checked) {
     const questionId = docMap[key] || crypto.randomUUID();
     const nextMap = { ...docMap }, nextQuestions = draft.questions.filter(q => q.id !== questionId);
     if (checked) {
-      if (nextQuestions.filter(q => q.type === "FILE_UPLOAD").length >= 10) return;
+      if (nextQuestions.length >= 20 || nextQuestions.filter(q => q.type === "FILE_UPLOAD").length >= 10) return;
       nextMap[key] = questionId;
       nextQuestions.push({ id: questionId, label, type: "FILE_UPLOAD", required: true, options: [] });
     } else delete nextMap[key];
@@ -290,7 +290,7 @@ function DocumentRequirements({ draft, field, specKey }) {
     const label = extra.trim();
     const key = "extra:" + label;
     if (!label || label.length > 120 || (spec.additionalDocuments || []).includes(label) ||
-      draft.questions.filter(q => q.type === "FILE_UPLOAD").length >= 10) return;
+      draft.questions.length >= 20 || draft.questions.filter(q => q.type === "FILE_UPLOAD").length >= 10) return;
     const id = crypto.randomUUID();
     field(specKey, { ...spec, additionalDocuments: [...(spec.additionalDocuments || []), label],
       documentQuestionIds: { ...docMap, [key]: id } });
@@ -300,6 +300,7 @@ function DocumentRequirements({ draft, field, specKey }) {
   return <section className="bw-op-challenge-section bw-dedicated-documents">
     <h4>Application documents</h4>
     <p>Every selected document becomes a secure file-upload question in the BrightWay application.</p>
+    <fieldset disabled={lockedForm} className="bw-dedicated-doc-fieldset">
     <div className="bw-dedicated-doc-grid">{docs.map(([key, label]) => <label key={key} className="bw-dedicated-switch">
       <input type="checkbox" checked={Boolean(docMap[key])}
         disabled={!docMap[key] && draft.questions.filter(q => q.type === "FILE_UPLOAD").length >= 10}
@@ -315,8 +316,9 @@ function DocumentRequirements({ draft, field, specKey }) {
     <div className="bw-dedicated-tag-entry">
       <input aria-label="Additional document name" maxLength={120} placeholder="Add another required document" value={extra}
         onChange={e => setExtra(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addExtra(); } }} />
-      <button type="button" disabled={!extra.trim() || (spec.additionalDocuments || []).length >= 10} onClick={addExtra}>Add</button>
+      <button type="button" disabled={!extra.trim() || draft.questions.filter(q => q.type === "FILE_UPLOAD").length >= 10 || draft.questions.length >= 20 || (spec.additionalDocuments || []).length >= 10} onClick={addExtra}>Add</button>
     </div>
+    </fieldset>
   </section>;
 }
 function Field({ config, draft, spec, write }) {
@@ -431,7 +433,7 @@ export default function SpecializedOpportunityComposer({
         <div className="bw-dedicated-fields">{fields[step].map(config => <Field key={config.key} config={config}
           draft={draft} spec={spec} write={write} />)}</div>
         {((job && step === 4) || (!job && step === 5)) && <>
-          <DocumentRequirements draft={draft} field={field} specKey={key} />
+          <DocumentRequirements draft={draft} field={field} specKey={key} lockedForm={lockedForm} />
           <section className="bw-op-challenge-section bw-op-challenge-questions">{questions}</section>
           <p className="bw-op-challenge-native"><NavigationIcon name="security" size={18} />
             Applications, screening answers and attachments stay on BrightWay.</p>
