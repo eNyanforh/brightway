@@ -13,7 +13,7 @@ import ChallengeCoHosts from "./ChallengeCoHosts";
 import JobDetailsSummary from "./JobDetailsSummary";
 
 const EXPLORE_OPPORTUNITY_CATEGORIES = Object.freeze({
-  JOB: "Jobs & Internships",
+  JOB: "Job Vacancy",
   SCHOLARSHIP: "Scholarships",
   CHALLENGE: "Challenge - Part take to Earn",
   EVENT: "Events",
@@ -125,7 +125,7 @@ function FeaturedOpportunityCard({ opportunity, organization, profile, detail, p
       <Link className="bw-challenge-cover-link" to={detail} aria-label={"Open " + opportunity.title}>
         {cover ? <img className="bw-challenge-cover-photo" src={cover} alt="" loading="lazy" />
           : <span className="bw-job-cover-fallback" aria-hidden="true">
-              <NavigationIcon name="work" size={32} /><span>Jobs & Internships</span>
+              <NavigationIcon name="work" size={32} /><span>Job Vacancy</span>
             </span>}
       </Link>
     </div>
