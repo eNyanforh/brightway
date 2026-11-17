@@ -380,34 +380,33 @@ for (const [type, label] of [["EVENT", "Event"]]) {
   });
 }
 
-test("Scholarship uses the approved responsive cover-left composer with all structured fields", async ({ page, isMobile }) => {
+test("Scholarship publishing uses six structured steps and a native application form", async ({ page, isMobile }) => {
   const state = await fixture(page);
   await page.goto(base + "/opportunities");
   await page.getByRole("button", { name: "+ Create opportunity" }).click();
   const editor = page.getByRole("dialog");
   await editor.getByRole("radio", { name: /Scholarship/ }).click();
   await editor.getByRole("button", { name: "Continue" }).click();
-  await expect(editor.getByRole("heading", { name: "Create your Scholarship" })).toBeVisible();
-  await expect(editor.getByRole("navigation", { name: "Creation progress" })).toHaveCount(0);
-  const cover = editor.locator(".bw-op-standard-preview-stage");
-  const [coverBox, formBox] = await Promise.all([
-    cover.boundingBox(), editor.locator(".bw-op-standard-main").boundingBox(),
-  ]);
-  if (isMobile) expect(formBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height - 1);
-  else expect(formBox.x).toBeGreaterThanOrEqual(coverBox.x + coverBox.width - 1);
+  await expect(editor.getByRole("navigation", { name: "Creation progress" })).toBeVisible();
   await editor.getByLabel("Scholarship title").fill("Scholarship for young researchers");
   await editor.getByLabel("Description", { exact: true }).fill("Support young researchers with development, learning, and meaningful career opportunities.");
   await editor.getByLabel("Scholarship category").selectOption("RESEARCH");
-  await editor.getByRole("group", { name: "Academic levels" }).getByRole("checkbox", { name: "Masters" }).check();
+  await editor.getByLabel("Masters").check();
+  const cover = editor.locator(".bw-op-standard-preview-stage");
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCXUAAAAASUVORK5CYII=", "base64");
   await editor.getByLabel("Opportunity cover photo").setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: png });
   await expect.poll(() => state.assets.length).toBe(1);
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Funding type").selectOption("FULLY_FUNDED");
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Study mode").selectOption("HYBRID");
   await editor.getByLabel("Study destination").fill("Monrovia, Liberia");
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Eligible countries").fill("Liberia");
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Selection criteria").fill("Academic merit");
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByRole("button", { name: "Save draft" }).click();
   await expect(editor).toHaveCount(0);
   const saved = state.drafts[0];
@@ -419,7 +418,8 @@ test("Scholarship uses the approved responsive cover-left composer with all stru
   await noOverflow(page); expect(state.errors).toEqual([]);
 });
 
-test("organization publishers directly publish Scholarship with native required documents", async ({ page }) => {
+
+test("organization publishers can directly publish a scholarship with native required documents", async ({ page }) => {
   const state = await fixture(page);
   await page.goto(base + "/opportunities");
   await page.getByRole("button", { name: "+ Create opportunity" }).click();
@@ -430,15 +430,20 @@ test("organization publishers directly publish Scholarship with native required 
   await editor.getByLabel("Description", { exact: true }).fill("Support postgraduate students conducting high-impact research in Liberia.");
   await editor.getByLabel("Scholarship category").selectOption("RESEARCH");
   await editor.getByRole("group", { name: "Academic levels" }).getByRole("checkbox", { name: "Masters" }).check();
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Funding type").selectOption("FIXED_AMOUNT");
   await editor.getByLabel("Currency").selectOption("USD");
   await editor.getByLabel("Scholarship value").fill("1000");
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Study destination").fill("Monrovia, Liberia");
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Eligible countries").fill("Liberia");
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Selection criteria").fill("Academic achievement");
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
-  await expect(editor.getByText(/Required documents:/)).toContainText("Academic transcript");
-  await expect(editor.getByText(/Required documents:/)).toContainText("Personal statement");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByText("Academic transcript")).toBeVisible();
+  await expect(editor.getByText("Personal statement")).toBeVisible();
   await editor.getByRole("button", { name: "Publish Scholarship" }).click();
   await expect(editor).toHaveCount(0);
   expect(state.drafts).toHaveLength(1);
@@ -458,8 +463,8 @@ test("organization publishers create and publish a form, and reviewers send an a
   const editor = page.getByRole("dialog");
   await editor.getByRole("radio", { name: /Job/ }).click();
   await editor.getByRole("button", { name: "Continue" }).click();
-  await expect(editor.getByRole("heading", { name: "Create your Job Vacancy" })).toBeVisible();
-  await expect(editor.getByRole("navigation", { name: "Creation progress" })).toHaveCount(0);
+  await expect(editor.getByRole("heading", { name: "Job information", exact: true })).toBeVisible();
+  await expect(editor.getByRole("navigation", { name: "Creation progress" })).toBeVisible();
   const [coverBox, formBox] = await Promise.all([
     editor.locator(".bw-op-standard-preview-stage").boundingBox(),
     editor.locator(".bw-op-standard-main").boundingBox(),
@@ -472,13 +477,18 @@ test("organization publishers create and publish a form, and reviewers send an a
   await editor.getByLabel("Job category").selectOption("Research");
   await editor.getByLabel("Experience level").selectOption("ENTRY");
   await editor.getByLabel("Job type").selectOption("INTERNSHIP");
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Work location").fill("Monrovia");
   await editor.getByRole("combobox", { name: /Compensation/i }).selectOption("PAID");
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Job responsibilities").fill("Conduct research");
   await editor.getByLabel("Required qualifications").fill("High school");
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
   await editor.getByRole("button", { name: "+ Add question" }).click();
   await editor.getByLabel("Question 2 text").fill("Why would you like to join?");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(editor).toHaveCount(0);
   page.once("dialog", d => d.accept()); await page.getByRole("button", { name: "Publish", exact: true }).click(); await expect(page.locator(".bw-op-managed-card")).toContainText("Published");
