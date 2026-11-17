@@ -77,7 +77,7 @@ export default function StandardOpportunityComposer({
       <h3 id="bw-op-step-heading" tabIndex={-1}>
         {opportunity ? "Edit" : "Create"} your {type.label}
       </h3>
-      <label className="bw-op-challenge-title-field">Title
+      <label className="bw-op-challenge-title-field">{draft.type === "JOB" ? "Job title" : draft.type === "SCHOLARSHIP" ? "Scholarship title" : "Title"}
         <input required autoFocus minLength={3} maxLength={160}
           value={draft.title} placeholder={labels.placeholder}
           onChange={e => field("title", e.target.value)} />
@@ -90,14 +90,14 @@ export default function StandardOpportunityComposer({
       <section className="bw-op-challenge-section" aria-labelledby="bw-standard-details">
         <h4 id="bw-standard-details">{type.label} details</h4>
         <div className="bw-op-field-row">
-          <label>Format
+          <label>{draft.type === "JOB" ? "Work mode" : draft.type === "SCHOLARSHIP" ? "Study mode" : "Format"}
             <select value={draft.workMode} onChange={e => field("workMode", e.target.value)}>
               <option value="IN_PERSON">In person</option>
               <option value="REMOTE">Remote</option>
               <option value="HYBRID">Hybrid</option>
             </select>
           </label>
-          <label>Location
+          <label>{draft.type === "JOB" ? "Work location" : draft.type === "SCHOLARSHIP" ? "Study destination" : "Location"}
             <input required minLength={2} maxLength={180} value={draft.location}
               placeholder={labels.location} onChange={e => field("location", e.target.value)} />
           </label>
@@ -167,7 +167,7 @@ export default function StandardOpportunityComposer({
       </section>
       <p className="bw-op-challenge-native">
         <NavigationIcon name="security" size={18} />
-        Applications are submitted on BrightWay. Save your draft here, then publish it from the organization workspace.
+        Applications and documents stay on BrightWay. Save an unpublished draft or publish directly from this form.
       </p>
     </div>
   </div>;
