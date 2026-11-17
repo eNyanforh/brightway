@@ -24,7 +24,7 @@ async function fixture(page) {
     if (path === "/api/v1/profile/me") return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
     if (path === "/api/v1/work/access") return reply({ hasWork: true });
     if (path === "/api/v1" + base) return reply({ accountId: "11111111-1111-4111-8111-111111111111", organization, permissions, membership: { role: "PRIMARY_ADMIN" }, staffVersion: 1, permissionCatalog: [], workspace: organizationWorkspace(organization, permissions, "PRIMARY_ADMIN"), setup: { organization, required: false, canEdit: true, version: 5 } });
-    if (path === "/api/v1/opportunities") return reply({ items: [state.opportunity, ...["SCHOLARSHIP", "CHALLENGE", "EVENT"].map((type, i) => ({ ...state.opportunity, id: `${id.slice(0,-1)}${i}`, type, title: ["Student scholarship", "Community innovation challenge", "Research open day"][i] }))].filter(o => !url.searchParams.get("type") || o.type === url.searchParams.get("type")), nextCursor: null });
+    if (path === "/api/v1/opportunities") return reply({ items: [state.opportunity, ...["SCHOLARSHIP", "CHALLENGE", "EVENT"].map((type, i) => ({ ...state.opportunity, id: `${id.slice(0,-1)}${i}`, type, title: ["Student scholarship", "Community innovation challenge", "Research open day"][i], ...(type === "SCHOLARSHIP" ? { details: { fundingType: "FULLY_FUNDED", academicLevels: ["MASTERS"], eligibleCountries: ["Liberia"] } } : {}) }))].filter(o => !url.searchParams.get("type") || o.type === url.searchParams.get("type")), nextCursor: null });
     if (path === "/api/v1/opportunities/" + id) return reply({ opportunity: state.opportunity, application: state.application && { id: aid } });
     if (path === "/api/v1/opportunities/" + id + "/application") {
       const body = request.postDataJSON();
@@ -94,6 +94,10 @@ test("members discover four opportunity types, save and submit an application, a
   await expect(page.locator(".bw-op-grid > article")).toHaveCount(4);
   await expect(page.locator(".bw-rail-opportunity-card")).toHaveCount(3);
   await expect(page.locator(".bw-rail-challenge-card:not(.bw-rail-opportunity-card)")).toHaveCount(1);
+  const scholarship = page.locator(".bw-rail-opportunity-scholarship");
+  await expect(scholarship).toContainText("Fully Funded");
+  await expect(scholarship).toContainText("Masters");
+  await expect(scholarship).toContainText("Eligible: Liberia");
   await noOverflow(page);
   await page.screenshot({ path: `/tmp/brightway-opportunities-${testInfo.project.name}.png`, fullPage: true });
   await page.getByRole("link", { name: initialOpportunity.title, exact: true }).click();
