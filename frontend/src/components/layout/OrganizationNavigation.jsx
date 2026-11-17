@@ -8,8 +8,9 @@ export default function OrganizationNavigation({ acting, mobile = false, id, ope
   const plannedIcons = { posts: "post", opportunities: "opportunities", applications: "applications", programs: "learning", admissions: "admissions" };
   const campusSetup = acting?.workspace?.campusSetup;
   const items = ready.filter(item => !item.external);
-  if (mobile) return <nav className="bw-mobile-navigation bw-org-mobile-navigation" style={{ gridTemplateColumns: `repeat(${items.length + 1}, minmax(70px, 1fr))`, overflowX: "auto" }} aria-label="Mobile organization navigation">
+  if (mobile) return <nav className="bw-mobile-navigation bw-org-mobile-navigation" style={{ gridTemplateColumns: `repeat(${items.length + (campusSetup ? 2 : 1)}, minmax(70px, 1fr))`, overflowX: "auto" }} aria-label="Mobile organization navigation">
     {items.map(item => <NavLink key={item.key} end={item.key === "dashboard"} to={item.to} onClick={onNavigate}>{({ isActive }) => <><span className="bw-mobile-navigation-icon"><NavigationIcon name={item.icon} active={isActive} /></span><span className="bw-mobile-navigation-label">{item.shortLabel || item.label}</span></>}</NavLink>)}
+    {campusSetup && <Link to={campusSetup.to} onClick={onNavigate}><span className="bw-mobile-navigation-icon"><NavigationIcon name="learning" /></span><span className="bw-mobile-navigation-label">Virtual Campus</span></Link>}
     <Link to="/work" onClick={onNavigate}><span className="bw-mobile-navigation-icon"><NavigationIcon name="network" /></span><span className="bw-mobile-navigation-label">Workspaces</span></Link>
   </nav>;
   return <aside id={id} className={`bw-design-sidebar bw-org-sidebar${open ? " bw-design-sidebar-open" : ""}`} aria-label="Organization navigation">
