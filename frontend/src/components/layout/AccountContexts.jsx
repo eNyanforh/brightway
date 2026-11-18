@@ -38,7 +38,7 @@ export function AccountContextFacepile({ contexts, activeContext, personalPhotoI
         const active = context.key === activeKey;
         const to = context.to || `/organization-workspace/${encodeURIComponent(context.id)}`;
         const label = context.type === "personal" ? "personal account" :
-          context.type === "school" ? `${context.name} school campus` : `${context.name} organization workspace`;
+          context.type === "school" ? `${context.name} school campus` : context.to?.startsWith("/campus/") ? `${context.name} Virtual Campus workspace` : `${context.name} organization workspace`;
         return <Link key={context.key} to={to}
           className="bw-context-facepile-link"
           style={{ zIndex: ordered.length - index }}
@@ -72,7 +72,7 @@ export function AccountContextChoices({ contexts, activeContext, loading, error,
         onClick={() => onSelect(context.to)} aria-current={active ? "page" : undefined}>
         <ContextAvatar context={context} />
         <span className="bw-context-choice-label"><strong>{context.name}</strong>
-          <small>{context.type === "school" ? "Student campus" : "Organization workspace"}</small></span>
+          <small>{context.type === "school" ? "Student campus" : context.to?.startsWith("/campus/") ? "Virtual Campus workspace" : "Organization workspace"}</small></span>
         {active && <span className="bw-context-current">Current</span>}
       </button>;
     })}

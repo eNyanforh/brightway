@@ -22,7 +22,7 @@ function fixture(eligible = true) {
       productEnabled: true, supportedEngines: ["GRADE_SCHOOL", "TVET"],
       reasons: eligible ? [] : ["A verified operating location in Liberia is required."] },
     campus, canSetup: eligible, canManage: true, canAnnounce: campus?.status === "ACTIVE",
-    permissions: campus?.status === "ACTIVE" ? ["organization.campus.manage", "organization.campus.announcements.manage"] : [],
+    permissions: campus?.status === "ACTIVE" ? ["organization.campus.manage", "organization.campus.announcements.manage", "organization.campus.academics.manage"] : [],
   });
   const serve = async route => {
     const bg = backgroundMessaging(route); if (bg) return bg;
@@ -53,6 +53,8 @@ function fixture(eligible = true) {
       if (!campus || body.expectedVersion !== campus.version) return reply("Campus changed.", 409);
       campus = { ...campus, version: 3, status: "PAUSED", storedStatus: "PAUSED" }; return reply({ status: "PAUSED", version: 3 });
     }
+    if (path === "/api/v1" + campusPath + "/grade-school" && method === "GET")
+      return reply({ campusId: organizationId, displayName: org.name, canManage: true, periodId: null, years: [], classes: [], subjects: [], offerings: [] });
     if (path === "/api/v1" + campusPath + "/announcements" && method === "GET")
       return reply({ organizationId, items: announcements, nextCursor: null });
     if (path === "/api/v1" + campusPath + "/announcements" && method === "POST") {
@@ -80,6 +82,8 @@ test("Campus setup requires explicit activation before staff announcements, and 
   await expect(page.getByText("Setup", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Campus announcements" })).toHaveCount(0);
   await page.getByRole("button", { name: "Activate Campus" }).click();
+  await expect(page.getByRole("dialog", { name: /Set up your school Campus/ })).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "Finish later" }).click();
   await campusNavigation(page).getByRole("link", { name: "Announcements" }).click();
   await expect(page.getByRole("heading", { name: "Campus announcements" })).toBeVisible();
   await expect(page.getByLabel("Announcement audience", { exact: true })).toHaveValue("STAFF");

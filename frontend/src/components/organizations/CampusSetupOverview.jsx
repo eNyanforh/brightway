@@ -3,9 +3,10 @@ import TvetWorkspace from "../tvet/TvetWorkspace";
 import GradeSchoolWorkspace from "../grade-school/GradeSchoolWorkspace";
 import { CAMPUS_MODULE_BY_SECTION, canAccessCampusModule } from "../grade-school/campus-modules";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import WorkspaceIcon from "../workspace/WorkspaceIcon";
 import { campusApi } from "../../api/campus";
+import CampusSetupWizard from "./CampusSetupWizard";
 import "./campus.css";
 
 const label = { GRADE_SCHOOL: "Grade School", TVET: "Technical and Vocational Education (TVET)" };
@@ -22,7 +23,11 @@ function Status({ campus, eligible }) {
 
 export default function CampusSetupOverview({ organization, section = "all", onCampusSnapshot }) {
   const id = organization.id;
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const firstPrompt = useRef(false);
+  const dismissWizard = useCallback(() => setWizardOpen(false), []);
   const [form, setForm] = useState({ engine: organization.type === "SCHOOL" ? "GRADE_SCHOOL" : "TVET", displayName: organization.name, contactEmail: "" });
   const [draft, setDraft] = useState(emptyAnnouncement);
   const [announcements, setAnnouncements] = useState([]);
@@ -55,6 +60,20 @@ export default function CampusSetupOverview({ organization, section = "all", onC
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [load]);
+
+  useEffect(() => {
+    // The first actionable screen for a newly verified school or TVET is Campus setup,
+    // never a generic organization dashboard or an inactive academic module.
+    if (!firstPrompt.current && data?.eligible && data.canSetup &&
+        (!data.campus || data.campus.storedStatus === "SETUP")) {
+      firstPrompt.current = true;
+      setWizardOpen(true);
+    }
+  }, [data]);
+  const finishWizard = useCallback(engine => {
+    setWizardOpen(false);
+    navigate("/campus/" + id + "/" + (engine === "TVET" ? "tvet-programs" : "school-setup"));
+  }, [id, navigate]);
 
   async function run(work, message) {
     if (inFlight.current) return;
@@ -112,6 +131,8 @@ export default function CampusSetupOverview({ organization, section = "all", onC
   const canRead = active && (data.permissions.length > 0 || data.canAnnounce);
   const mayPublish = active && data.canAnnounce;
   return <section className="bw-campus-root" aria-labelledby="campus-heading">
+    {wizardOpen && data.canSetup && data.eligible && <CampusSetupWizard organization={organization} snapshot={data}
+      onRefresh={load} onDismiss={dismissWizard} onFinish={finishWizard} />}
     <header className="bw-campus-hero">
       <div><p className="bw-campus-kicker">BRIGHTWAY / DIGITAL CAMPUS</p><h2 id="campus-heading">Virtual Campus</h2>
         <p>{section === "setup" ? "Configure your academic engine, campus identity and activation in your dedicated workspace." : academicRoute ? "Manage authorized academic operations in this dedicated Campus module." : section === "billing" ? "Review Campus usage and payments securely." : section === "announcements" ? "Communicate with your authorized campus staff and learners." : "A dedicated workspace for your school or training operations, separate from the organization dashboard."}</p>
@@ -151,7 +172,10 @@ export default function CampusSetupOverview({ organization, section = "all", onC
 
         {(section === "setup" || section === "all") && data.canManage && <section className="bw-campus-panel" aria-labelledby="campus-configuration">
           <div className="bw-campus-panel-heading"><div><span className="bw-campus-overline">02 / CAMPUS SETUP</span><h3 id="campus-configuration">{canConfigure ? "Configure your Campus" : "Campus settings"}</h3></div></div>
-          <form className="bw-campus-form" onSubmit={save}>
+          {data.canSetup && <button type="button" className="bw-campus-wizard-launch" onClick={() => setWizardOpen(true)} disabled={wizardOpen}>
+            {active ? "Review guided academic setup" : "Open Campus setup wizard"}
+          </button>}
+          {!wizardOpen && <form className="bw-campus-form" onSubmit={save}>
             {canConfigure && <label>Academic engine
               <select value={form.engine} onChange={e => setForm(s => ({ ...s, engine: e.target.value }))} disabled={busy}>
                 {data.eligibility.supportedEngines.map(engine => <option key={engine} value={engine}>{label[engine]}</option>)}
@@ -161,13 +185,13 @@ export default function CampusSetupOverview({ organization, section = "all", onC
             <label>Campus display name<input value={form.displayName} maxLength={160} required onChange={e => setForm(s => ({ ...s, displayName: e.target.value }))} disabled={busy || !canEditSettings && !canConfigure} /></label>
             <label>Contact email (optional)<input type="email" maxLength={254} value={form.contactEmail} onChange={e => setForm(s => ({ ...s, contactEmail: e.target.value }))} disabled={busy || !canEditSettings && !canConfigure} /></label>
             {(canConfigure || canEditSettings) && <button type="submit" disabled={busy || !data.eligible}>{busy ? "Saving…" : canConfigure ? "Save Campus setup" : "Save settings"}</button>}
-          </form>
+          </form>}
           {!campus && <p className="bw-campus-help">Saving configuration creates a Setup record, not an active Campus. No students are registered and no charges are generated.</p>}
-          {campus?.storedStatus === "SETUP" && data.canSetup && <div className="bw-campus-transition"><div><strong>Ready to activate?</strong><p>Activation enables scoped Campus permissions and announcements. Grade School academic operations become available to authorized staff.</p></div>
+          {!wizardOpen && campus?.storedStatus === "SETUP" && data.canSetup && <div className="bw-campus-transition"><div><strong>Ready to activate?</strong><p>Activation enables scoped Campus permissions and announcements. Grade School academic operations become available to authorized staff.</p></div>
             <button type="button" disabled={busy || !data.eligible} onClick={() => run(() => campusApi.activate(id, campus.version), "Virtual Campus activated.")}>Activate Campus</button></div>}
-          {campus?.storedStatus === "ACTIVE" && data.canSetup && <div className="bw-campus-transition"><div><strong>Pause Campus</strong><p>Immediately disables academic, billing and announcement privileges until resumed.</p></div>
+          {!wizardOpen && campus?.storedStatus === "ACTIVE" && data.canSetup && <div className="bw-campus-transition"><div><strong>Pause Campus</strong><p>Immediately disables academic, billing and announcement privileges until resumed.</p></div>
             <button type="button" className="bw-campus-muted-button" disabled={busy} onClick={() => { if (window.confirm("Pause Virtual Campus access for all organization staff?")) void run(() => campusApi.pause(id, campus.version), "Campus paused. Staff permissions are no longer effective."); }}>Pause</button></div>}
-          {campus?.storedStatus === "PAUSED" && data.canSetup && <div className="bw-campus-transition"><div><strong>Campus paused</strong><p>Verify location and product availability again before resuming.</p></div>
+          {!wizardOpen && campus?.storedStatus === "PAUSED" && data.canSetup && <div className="bw-campus-transition"><div><strong>Campus paused</strong><p>Verify location and product availability again before resuming.</p></div>
             <button type="button" disabled={busy || !data.eligible} onClick={() => run(() => campusApi.resume(id, campus.version), "Campus resumed.")}>Resume Campus</button></div>}
           {state === "BLOCKED" && <p className="bw-campus-help">Your Campus remains blocked even though its stored status was Active. Restore verified eligibility before resuming Campus operations.</p>}
         </section>}

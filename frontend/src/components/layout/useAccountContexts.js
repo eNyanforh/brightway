@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { staffApi } from "../../api/organization-staff";
+import { organizationEntryPath } from "../organizations/campus-entry";
 import { schoolApi } from "../../api/grade-school";
 
 function resolveContexts(directory, campus) {
   const organizations = (Array.isArray(directory?.items) ? directory.items : [])
     .filter(row => row?.id && row?.name)
     .map(row => ({ key: `org:${row.id}`, id: row.id, type: "organization",
-      name: row.name, photoId: row.photoId || null, to: `/organization-workspace/${row.id}` }));
+      name: row.name, photoId: row.photoId || null, to: organizationEntryPath(row) }));
   const seen = new Set();
   const schools = (Array.isArray(campus?.items) ? campus.items : [])
     .filter(row => row?.campusId && row?.schoolName &&
