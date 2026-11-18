@@ -1,0 +1,186 @@
+/*
+ * BrightWay Core Design reference adoption (November 2026).
+ * Opt-in authenticated shell only. No sample content, permissions, or data changes.
+ * Proxima Nova is used only when already installed/licensed on the client.
+ */
+.bw-core-design {
+  --bw-core-blue: #175cd3;
+  --bw-core-blue-hover: #124ba9;
+  --bw-core-ink: #111111;
+  --bw-core-muted: #616b79;
+  --bw-core-border: #e6e8ec;
+  --bw-core-canvas: #f8f9fb;
+  background: var(--bw-core-canvas);
+  color: var(--bw-core-ink);
+  font-family: "Proxima Nova", "Avenir Next", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+}
+.bw-core-design .bw-design-header,
+.bw-core-design .bw-design-sidebar { font-family: inherit; }
+.bw-core-design .bw-design-header {
+  border-bottom: 1px solid var(--bw-core-border);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .025);
+}
+.bw-core-design .bw-design-header-inner {
+  max-width: 1360px;
+  min-height: 74px;
+  padding-block: 10px;
+}
+.bw-core-design .bw-design-brand {
+  color: #080808;
+  letter-spacing: -.065em;
+  font-weight: 850;
+}
+.bw-core-design .bw-design-brand-wordmark { color: #080808; }
+.bw-core-design .bw-design-search {
+  border: 1px solid var(--bw-core-border);
+  border-radius: 12px;
+  background: #f4f5f7;
+  color: #5e6671;
+}
+.bw-core-design .bw-design-search:focus-within {
+  border-color: #175cd3;
+  background: #fff;
+  outline: 2px solid rgba(23, 92, 211, .16);
+  outline-offset: 0;
+}
+.bw-core-design .bw-design-search input::placeholder { color: #69717c; }
+.bw-core-design .bw-design-utility.bw-design-mobile-action {
+  display: inline-flex;
+  color: #252525;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+.bw-core-design .bw-design-utility.bw-design-mobile-action:hover,
+.bw-core-design .bw-design-utility.bw-design-mobile-action:focus-visible {
+  background: #edf3ff;
+  color: var(--bw-core-blue);
+}
+.bw-core-design .bw-design-utility[aria-label="Search BrightWay"] { display: none; }
+.bw-core-design .bw-design-layout {
+  max-width: 1360px;
+  background: transparent;
+}
+.bw-core-design .bw-design-sidebar-nav a,
+.bw-core-design .bw-design-sidebar-nav button {
+  color: #171717;
+  font-weight: 600;
+  border-radius: 12px;
+}
+.bw-core-design .bw-design-sidebar-nav a:hover { background: #eef3fc; }
+.bw-core-design .bw-design-sidebar-nav a[aria-current="page"],
+.bw-core-design .bw-design-sidebar-nav a.bw-design-sidebar-active {
+  color: var(--bw-core-blue);
+  background: #e9f1ff;
+  font-weight: 760;
+}
+.bw-core-design .bw-design-sidebar-organization h3 { color: #111; }
+.bw-core-design .bw-design-sidebar-organization p,
+.bw-core-design .bw-design-sidebar-footer { color: var(--bw-core-muted); }
+.bw-core-design .bw-context-facepile-link[aria-current="true"] .bw-context-avatar,
+.bw-core-design .bw-context-facepile-link[aria-current="true"] .bw-picture {
+  outline: 2px solid var(--bw-core-blue);
+  outline-offset: 1px;
+}
+.bw-core-design .bw-context-facepile-link:focus-visible {
+  outline: 3px solid var(--bw-core-blue);
+}
+.bw-core-design .bw-explore {
+  --explore-ink: #111;
+  --explore-muted: #626a75;
+  --explore-border: #e5e8ed;
+}
+.bw-core-design .bw-explore .bw-explore-billboard {
+  border-color: #175cd3;
+  background: #175cd3;
+}
+.bw-core-design .bw-explore .bw-billboard-slide {
+  background: linear-gradient(110deg, #175cd3, #3d83ec);
+}
+.bw-core-design .bw-explore .bw-billboard-winners {
+  background: linear-gradient(110deg, #101010, #175cd3);
+}
+.bw-core-design .bw-explore .bw-billboard-campus {
+  background: linear-gradient(110deg, #175cd3, #4a92f7);
+}
+.bw-core-design .bw-explore .bw-billboard-cta { color: #124ba9; }
+.bw-core-design .bw-explore .bw-billboard-art { color: #fff; }
+.bw-core-design .bw-module-right { --rail-ink: #111; --rail-muted: #626a75; }
+
+@media (max-width: 700px) {
+  .bw-core-design .bw-design-header-inner,
+  .bw-core-design .bw-design-header--personal .bw-design-header-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-height: 60px;
+    padding: 8px 10px;
+  }
+  .bw-core-design .bw-design-brand,
+  .bw-core-design .bw-design-header--personal .bw-design-brand {
+    display: flex;
+    flex: 0 0 34px;
+    width: 34px;
+    min-width: 34px;
+    margin-right: auto;
+  }
+  .bw-core-design .bw-design-brand-wordmark { display: none; }
+  .bw-core-design .bw-design-brand-logo { width: 34px; height: 34px; }
+  .bw-core-design .bw-design-account,
+  .bw-core-design .bw-design-header--personal .bw-design-account {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0;
+    margin-left: 0;
+  }
+  .bw-core-design .bw-design-utility.bw-design-mobile-action,
+  .bw-core-design .bw-design-header--personal .bw-design-utility.bw-design-mobile-action {
+    display: inline-flex;
+    width: 38px;
+    height: 44px;
+    padding: 8px;
+  }
+  .bw-core-design .bw-design-utility[aria-label="Search BrightWay"] {
+    display: inline-flex;
+  }
+  .bw-core-design .bw-design-header--personal .bw-header-profile {
+    order: initial;
+    flex: 0 0 auto;
+  }
+  .bw-core-design .bw-context-facepile-wrap { max-width: 77px; }
+  .bw-core-design .bw-header-profile > button {
+    min-width: 38px;
+    width: 38px;
+    min-height: 44px;
+    height: 44px;
+  }
+  .bw-core-design .bw-design-search-wrap,
+  .bw-core-design .bw-design-header--personal .bw-design-search-wrap {
+    display: none;
+  }
+  .bw-core-design .bw-design-search-wrap--mobile-open,
+  .bw-core-design .bw-design-header--personal .bw-design-search-wrap--mobile-open {
+    display: block;
+    order: 3;
+    flex: 1 0 100%;
+    width: 100%;
+    max-width: none;
+    margin: 4px 0 0;
+  }
+  .bw-core-design .bw-design-search-wrap--mobile-open .bw-design-search { display: flex; height: 44px; }
+  .bw-core-design .bw-design-layout { padding: 16px 12px calc(88px + env(safe-area-inset-bottom, 0px)); }
+  .bw-core-design:has(.bw-explore) { background: #fff; }
+  .bw-core-design .bw-explore { --explore-border: #e7e7e7; }
+}
+@media (max-width: 370px) {
+  .bw-core-design .bw-design-header-inner,
+  .bw-core-design .bw-design-header--personal .bw-design-header-inner { padding-inline: 6px; gap: 1px; }
+  .bw-core-design .bw-context-facepile-wrap { max-width: 57px; }
+  .bw-core-design .bw-design-utility.bw-design-mobile-action { width: 34px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bw-core-design .bw-design-header *,
+  .bw-core-design .bw-design-sidebar * { transition: none !important; }
+}
