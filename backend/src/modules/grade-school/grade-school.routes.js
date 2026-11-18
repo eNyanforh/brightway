@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { createRequireAuth, createSessionCookieConfig, requireTrustedOrigin } from "../auth/session.http.js";
-import { fail } from "./grade-school.schema.js";
 import { maskUnexpectedServiceError } from "../../middleware/maskServiceError.js";
 
 export function createGradeSchoolRoutes({ school, tvet, sessions, clientUrl, nodeEnv }) {
