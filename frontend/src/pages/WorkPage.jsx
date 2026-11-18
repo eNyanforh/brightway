@@ -1,4 +1,5 @@
 import StudentCampusContexts from "../components/grade-school/StudentCampusContexts";
+import { organizationEntryPath } from "../components/organizations/campus-entry";
 import { subscribeFocus } from "../auth/focus-refresh";
 import { organizationPictureUrl } from "../api/organization-profile";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -115,7 +116,7 @@ function Work({ actor }) {
             {row.decisionReason && <div className="bw-work-decision"><span>BrightWay feedback</span><p>{row.decisionReason}</p></div>}
             <footer className="bw-work-card-footer">
               <p className="bw-work-card-note"><WorkspaceIcon name={tab === "approved" ? "shield" : tab === "invitations" ? "building" : "shield"} size={16} />{tab === "approved" ? "Your access follows your organization role" : tab === "invitations" ? "Join using your existing BrightWay account" : tab === "history" ? "Saved in your private request history" : "Only you and authorized reviewers can see this request"}</p>
-              <div className="bw-work-actions">{tab === "approved" ? <Link className="bw-org-workspace-entry" to={`/organization-workspace/${row.id}`}>Manage<WorkspaceIcon name="arrow" size={17} /></Link>
+              <div className="bw-work-actions">{tab === "approved" ? <Link className="bw-org-workspace-entry" to={organizationEntryPath(row)}>Manage<WorkspaceIcon name="arrow" size={17} /></Link>
                 : tab === "invitations" ? <><button className="bw-work-secondary" disabled={disabled} aria-label={`Decline invitation from ${name}`} onClick={() => void action(() => staffApi.respond(row.id, { expectedVersion: row.version, decision: "DECLINE" }))}>Decline</button><button className="bw-work-primary" disabled={disabled} aria-label={`Accept invitation from ${name}`} onClick={() => void action(() => staffApi.respond(row.id, { expectedVersion: row.version, decision: "ACCEPT" }), true)}>Accept invitation<WorkspaceIcon name="arrow" size={16} /></button></>
                   : pending(row.status) && <><Link className="bw-work-edit" aria-disabled={disabled} to={`/work/requests/${row.id}/edit`} onClick={event => { if (disabled) event.preventDefault(); }}><WorkspaceIcon name="edit" size={16} />Edit</Link><button className="bw-work-text-danger" disabled={disabled} onClick={event => { abortTrigger.current = event.currentTarget; setConfirm(row); }}>Abort</button></>}</div>
             </footer>
