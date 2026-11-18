@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import GradeSchoolWorkspace from "../components/grade-school/GradeSchoolWorkspace";
 import MyCampus from "../components/grade-school/MyCampus";
+import StudentCampusContexts from "../components/grade-school/StudentCampusContexts";
 import { schoolApi as api } from "../api/grade-school";
 vi.mock("../api/grade-school", () => ({ schoolApi: Object.fromEntries(["setup", "admissions", "configure", "registrations", "register", "subject", "submit", "createSession", "myCampus", "myReport", "guardians", "guardianReport", "guardianDecision", "status", "report", "guardian", "assign"].map(key => [key, vi.fn()])) }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -20,6 +21,37 @@ describe("Grade School academic workspace", () => {
     await user.click(screen.getByRole("button", { name: "Add subject" }));
     await screen.findByRole("alert"); expect(screen.getByLabelText("Subject name").value).toBe("History");
     expect(api.configure).toHaveBeenCalledWith("school", "subjects", { name: "History", passingMark: 50 });
+  });
+  it("opens finalized Grade School reports from a dedicated admin module without registration controls", async () => {
+    api.setup.mockResolvedValue(setup()); api.registrations.mockResolvedValue({ items: [r], guardians: [], nextCursor: null });
+    api.report.mockResolvedValue({ schoolName: "Synthetic Academy", registration: r, subjects: [{ offering, grade: { percent: 89, outcome: "PASS" }, assessments: [], attendance: [] }], announcements: [] });
+    const user = mount(<GradeSchoolWorkspace campusId="school" module="reports" />);
+    await screen.findByRole("heading", { name: "Results & reporting" });
+    expect(screen.queryByRole("form", { name: "Register a student" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Manage student" })).toBeNull();
+    await user.click(await screen.findByRole("button", { name: "View report" }));
+    const report = await screen.findByRole("region", { name: "Student academic report" });
+    expect(within(report).getByText("89%")).toBeTruthy();
+    expect(api.report).toHaveBeenCalledWith("school", "registration", expect.any(AbortSignal));
+  });
+  it("separates authorized teacher scheduling from attendance and grading workflows", async () => {
+    api.setup.mockResolvedValue(setup()); api.subject.mockResolvedValue({ offering, students: [r], attendance: [], assessments: [] });
+    mount(<GradeSchoolWorkspace campusId="school" module="teaching" />);
+    await screen.findByRole("region", { name: "Selected subject" });
+    expect(screen.getByRole("form", { name: "Assign a teacher" })).toBeTruthy();
+    expect(screen.getByText("Timetable")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Open attendance session" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Create assessment" })).toBeNull();
+    expect(screen.queryByText("Subject gradebook · finalized assessments")).toBeNull();
+  });
+  it("clears all private school records when a student report loses authorization", async () => {
+    api.setup.mockResolvedValue(setup()); api.registrations.mockResolvedValue({ items: [r], guardians: [], nextCursor: null });
+    api.report.mockRejectedValue(Object.assign(new Error("School access revoked"), { status: 403 }));
+    const user = mount(<GradeSchoolWorkspace campusId="school" module="reports" />);
+    await user.click(await screen.findByRole("button", { name: "View report" }));
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("School access revoked"));
+    expect(screen.queryByRole("table", { name: "Registered students" })).toBeNull();
+    expect(screen.queryByText("Synthetic Academy")).toBeNull();
   });
   it("teachers see assigned subjects without academic administration or student registration tools", async () => {
     api.setup.mockResolvedValue(setup(false)); api.subject.mockResolvedValue({ offering, students: [r], attendance: [], assessments: [] });
@@ -64,6 +96,18 @@ describe("Grade School academic workspace", () => {
     api.setup.mockResolvedValue(setup()); api.configure.mockRejectedValue(Object.assign(new Error("Permission revoked"), { status: 403 }));
     const user = mount(<GradeSchoolWorkspace campusId="school" />); await screen.findByLabelText("Subject name"); await user.type(screen.getByLabelText("Subject name"), "History"); await user.click(screen.getByRole("button", { name: "Add subject" })); await screen.findByText("Permission revoked"); expect(screen.queryByLabelText("Subject name")).toBeNull();
   });
+});
+it("opens the selected student institution and its pre-registration waiting context", async () => {
+  api.myCampus.mockResolvedValue({ items: [
+    { id: "one", campusId: "school-a", schoolName: "School A", status: "PRE_REGISTERED" },
+    { id: "two", campusId: "school-b", schoolName: "School B", status: "ACTIVE" },
+  ] });
+  mount(<StudentCampusContexts />);
+  const links = await screen.findAllByRole("link", { name: "View student Campus" });
+  expect(links.map(link => link.getAttribute("href"))).toEqual([
+    "/learning?view=campus&campus=school-a",
+    "/learning?view=campus&campus=school-b",
+  ]);
 });
 describe("learner and guardian Campus access", () => {
   it("pre-registered students see the school's welcome and Come Later without requesting academic data", async () => {

@@ -483,7 +483,7 @@ it("the organization menu exposes planned tools while the mobile navigation incl
   await f.user.click(toggle); await f.user.click(within(screen.getByRole("navigation", { name: "Organization tools" })).getByRole("link", { name: "Dashboard" }));
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" });
-  expect(within(mobile).getAllByRole("link")).toHaveLength(6); expect(within(mobile).queryByRole("button", { name: /Coming soon/ })).toBeNull();
+  expect(within(mobile).getAllByRole("link")).toHaveLength(7); expect(within(mobile).getByRole("link", { name: "Virtual Campus" }).getAttribute("href")).toBe(`/campus/${id}/setup`); expect(within(mobile).queryByRole("button", { name: /Coming soon/ })).toBeNull();
 });
 
 it("keeps the same organization navigation mounted while switching tabs and clears it only on confirmed access loss", async () => {

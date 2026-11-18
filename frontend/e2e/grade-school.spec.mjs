@@ -3,6 +3,7 @@ import { backgroundMessaging } from "./support/background-messaging.mjs";
 import { organizationWorkspace } from "../../shared/organization-workspace.mjs";
 const organizationId = "55555555-5555-4555-8555-555555555555", accountId = "44444444-4444-4444-8444-444444444444";
 const base = "/organization-workspace/" + organizationId, schoolPath = base + "/campus/grade-school";
+const campusNavigation = page => page.getByRole("navigation", { name: page.viewportSize().width <= 700 ? "Mobile Campus navigation" : "Campus tools" });
 async function fixture(page, role = "PRIMARY_ADMIN") {
   const permissions = role === "PRIMARY_ADMIN" ? ["organization.campus.academics.manage", "organization.campus.teach"] : ["organization.campus.teach"];
   const organization = { id: organizationId, name: "Synthetic Grade School", type: "SCHOOL", offersTraining: false, campus: { status: "ACTIVE", engine: "GRADE_SCHOOL", active: true } };
@@ -38,9 +39,9 @@ async function fixture(page, role = "PRIMARY_ADMIN") {
 }
 const layout = async page => expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 test("Grade School staff save subject attendance as draft, then finalize a complete register once", async ({ page }) => {
-  const state = await fixture(page); await page.goto("/campus/" + organizationId + "/academics");
-  await expect(page.getByRole("button", { name: "Academic setup", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Teaching & attendance", exact: true }).click(); await page.getByRole("button", { name: "Edit attendance", exact: true }).click();
+  const state = await fixture(page); await page.goto("/campus/" + organizationId + "/attendance");
+  await expect(campusNavigation(page).getByRole("link", { name: "Subject attendance" })).toBeVisible();
+  await page.getByRole("button", { name: "Edit attendance", exact: true }).click();
   await page.getByRole("button", { name: "Submit final attendance", exact: true }).click(); await expect(page.getByRole("alert")).toContainText("Complete every student's record"); expect(state.submits).toHaveLength(0);
   await page.getByLabel("Attendance for Synthetic Learner").selectOption("ABSENT"); await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(page.getByText("Draft saved. Student results and guardian alerts remain unpublished.", { exact: true })).toBeVisible(); expect(state.alerts).toBe(0);
@@ -49,7 +50,7 @@ test("Grade School staff save subject attendance as draft, then finalize a compl
   expect(state.alerts).toBe(1); expect(state.submits.map(r => r.finalize)).toEqual([false, true]); await layout(page); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });
 test("assigned teachers use organization Campus without academic setup or student administration", async ({ page }) => {
-  const state = await fixture(page, "STAFF"); await page.goto("/campus/" + organizationId + "/academics");
+  const state = await fixture(page, "STAFF"); await page.goto("/campus/" + organizationId + "/attendance");
   await expect(page.getByRole("heading", { name: "Subject attendance", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Academic setup", exact: true })).toHaveCount(0); await expect(page.getByRole("button", { name: "Students & guardians", exact: true })).toHaveCount(0); await expect(page.getByLabel("Teacher username", { exact: true })).toHaveCount(0);
   await layout(page); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
@@ -58,4 +59,36 @@ test("pre-registered learners see the agreed waiting flow without making academi
   const state = await fixture(page, "LEARNER"); await page.goto("/learning?view=campus");
   await expect(page.getByText(/Welcome, Synthetic!/)).toBeVisible(); await expect(page.getByRole("link", { name: "Come Later", exact: true })).toHaveAttribute("href", "/explore");
   await expect(page.getByRole("button", { name: "Open my Campus", exact: true })).toHaveCount(0); expect(state.academicReads).toBe(0); await layout(page); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
+});
+
+test("selecting a pre-registered school opens its institutional waiting dialog", async ({ page }) => {
+  const state = await fixture(page, "LEARNER");
+  await page.goto("/learning?view=campus&campus=" + organizationId);
+  const dialog = page.getByRole("dialog", { name: "Synthetic Grade School" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Your registration has been confirmed");
+  await expect(dialog.getByRole("link", { name: "Come Later" })).toHaveAttribute("href", "/explore");
+  expect(state.academicReads).toBe(0);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpected).toEqual([]);
+});
+
+test("teachers cannot reach registration through a copied Campus module URL", async ({ page }) => {
+  const state = await fixture(page, "STAFF"); await page.goto("/campus/" + organizationId + "/registrations");
+  await expect(page.getByRole("heading", { name: "Academic workspace unavailable" })).toBeVisible();
+  await expect(page.getByRole("form", { name: "Register a student" })).toHaveCount(0);
+  await expect(campusNavigation(page).getByRole("link", { name: "Student registration" })).toHaveCount(0);
+  expect(state.academicReads).toBe(0); expect(state.errors).toEqual([]); expect(state.unexpected).toEqual([]);
+});
+
+
+test("a teaching-only staff member cannot open Grade School results through a deep link", async ({ page }) => {
+  const state = await fixture(page, "STAFF");
+  await page.goto("/campus/" + organizationId + "/reports");
+  await expect(page.getByRole("heading", { name: "Academic workspace unavailable" })).toBeVisible();
+  await expect(campusNavigation(page).getByRole("link", { name: "Results & reports" })).toHaveCount(0);
+  await expect(page.getByRole("table", { name: "Registered students" })).toHaveCount(0);
+  expect(state.academicReads).toBe(0);
+  expect(state.errors).toEqual([]);
+  expect(state.unexpected).toEqual([]);
 });

@@ -58,7 +58,15 @@ jobs:
           npx --no-install prisma generate
       - name: Prepare check logs
         run: mkdir -p check-results
+      - name: Validate real-institution smoke runner syntax
+        run: node --check scripts/campus-institution-smoke.mjs
+      - name: Runtime dependency audit
+        run: npm audit --omit=dev --audit-level=moderate 2>&1 | tee check-results/runtime-audit.log
       - name: Dependency security audit
+        id: dependency_audit
+        # Continue functional checks even if an upstream advisory has no available fix.
+        # The final audit gate still fails the job; security is never silently waived.
+        continue-on-error: true
         run: npm audit --audit-level=moderate 2>&1 | tee check-results/audit.log
       - name: Backend regression
         run: npm run test --workspace backend 2>&1 | tee check-results/backend.log
@@ -77,6 +85,11 @@ jobs:
         env:
           DIRECT_URL: postgresql://brightway:ci-only-password@127.0.0.1:5432/brightway_ci_test
         run: npx --no-install prisma migrate deploy
+      - name: Enforce dependency audit gate
+        if: ${{ always() && steps.dependency_audit.outcome == 'failure' }}
+        run: |
+          echo "::error::Dependency audit failed. Check the uploaded audit.log and resolve all advisories before merge."
+          exit 1
       - name: Record the exact source revision
         if: always()
         run: |

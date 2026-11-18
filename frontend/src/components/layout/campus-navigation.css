@@ -3,7 +3,11 @@
 .bw-campus-sidebar-heading h2{margin:9px 0 5px;color:#191919;font-size:18px;line-height:1.35;overflow-wrap:anywhere}
 .bw-campus-sidebar-heading p{margin:0;color:#697386;font-size:12px}
 .bw-campus-sidebar .bw-design-sidebar-nav a{min-height:44px}
-.bw-campus-mobile-navigation{grid-template-columns:repeat(5,minmax(0,1fr))}
+.bw-campus-sidebar .bw-campus-nav-entry{min-width:0}
+.bw-campus-sidebar .bw-campus-nav-entry>a{display:flex;align-items:center;gap:12px;min-height:44px}
+.bw-campus-nav-group{margin:18px 14px 7px;font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:800;color:#6b7280}
+.bw-campus-mobile-navigation{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(90px,1fr);overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin}
+.bw-campus-mobile-navigation a{min-height:54px}
 .bw-campus-mobile-navigation .bw-mobile-navigation-label{font-size:10px;text-align:center}
 .bw-campus-shell .bw-app-content{max-width:none;width:100%;box-sizing:border-box}
 .bw-campus-shell .bw-design-layout{min-width:0}

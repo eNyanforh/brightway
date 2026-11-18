@@ -1,6 +1,7 @@
 import CampusBilling from "../billing/CampusBilling";
 import TvetWorkspace from "../tvet/TvetWorkspace";
 import GradeSchoolWorkspace from "../grade-school/GradeSchoolWorkspace";
+import { CAMPUS_MODULE_BY_SECTION, canAccessCampusModule } from "../grade-school/campus-modules";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import WorkspaceIcon from "../workspace/WorkspaceIcon";
@@ -19,7 +20,7 @@ function Status({ campus, eligible }) {
   </span>;
 }
 
-export default function CampusSetupOverview({ organization, section = "all" }) {
+export default function CampusSetupOverview({ organization, section = "all", onCampusSnapshot }) {
   const id = organization.id;
   const [data, setData] = useState(null);
   const [form, setForm] = useState({ engine: organization.type === "SCHOOL" ? "GRADE_SCHOOL" : "TVET", displayName: organization.name, contactEmail: "" });
@@ -33,6 +34,7 @@ export default function CampusSetupOverview({ organization, section = "all" }) {
     const snapshot = await campusApi.read(id, signal);
     if (signal?.aborted) return;
     setData(snapshot);
+    onCampusSnapshot?.(snapshot);
     if (!preserveForm) setForm({
       engine: snapshot.campus?.engine || (organization.type === "SCHOOL" ? "GRADE_SCHOOL" : "TVET"),
       displayName: snapshot.campus?.displayName || organization.name,
@@ -45,7 +47,7 @@ export default function CampusSetupOverview({ organization, section = "all" }) {
       setAnnouncements(feed.items); setNextCursor(feed.nextCursor);
     } else { setAnnouncements([]); setNextCursor(null); }
     return snapshot;
-  }, [id, organization.name, organization.type, section]);
+  }, [id, organization.name, organization.type, section, onCampusSnapshot]);
   useEffect(() => {
     const controller = new AbortController();
     Promise.resolve().then(() => { if (!controller.signal.aborted) return load(controller.signal); })
@@ -98,6 +100,12 @@ export default function CampusSetupOverview({ organization, section = "all" }) {
   if (!data) return <section className="bw-campus-root"><p role="alert">{error || "Virtual Campus is unavailable."}</p><button type="button" onClick={() => { setLoading(true); load().catch(e => setError(safeError(e))).finally(() => setLoading(false)); }}>Retry</button></section>;
 
   const campus = data.campus, state = campus?.status || "NOT_CONFIGURED";
+  const module = CAMPUS_MODULE_BY_SECTION[section];
+  const academicRoute = section === "academics" || Boolean(module);
+  const matchingEngine = !module || campus?.engine === module.engine;
+  const academicEntry = campus?.engine === "TVET"
+    ? (data.permissions.includes("organization.campus.academics.manage") ? "tvet-programs" : "tvet-instructors")
+    : (data.permissions.includes("organization.campus.academics.manage") ? "school-setup" : "teaching");
   const canConfigure = data.canSetup && (!campus || campus.storedStatus === "SETUP");
   const canEditSettings = campus && data.canManage && (data.eligible || data.canSetup);
   const active = state === "ACTIVE";
@@ -106,7 +114,7 @@ export default function CampusSetupOverview({ organization, section = "all" }) {
   return <section className="bw-campus-root" aria-labelledby="campus-heading">
     <header className="bw-campus-hero">
       <div><p className="bw-campus-kicker">BRIGHTWAY / DIGITAL CAMPUS</p><h2 id="campus-heading">Virtual Campus</h2>
-        <p>{section === "setup" ? "Configure your academic engine, campus identity and activation in your dedicated workspace." : section === "academics" ? "Manage academic years, classes and learning operations with scoped access." : section === "billing" ? "Review Campus usage and payments securely." : section === "announcements" ? "Communicate with your authorized campus staff and learners." : "A dedicated workspace for your school or training operations, separate from the organization dashboard."}</p>
+        <p>{section === "setup" ? "Configure your academic engine, campus identity and activation in your dedicated workspace." : academicRoute ? "Manage authorized academic operations in this dedicated Campus module." : section === "billing" ? "Review Campus usage and payments securely." : section === "announcements" ? "Communicate with your authorized campus staff and learners." : "A dedicated workspace for your school or training operations, separate from the organization dashboard."}</p>
         <div className="bw-campus-tags"><Status campus={campus} eligible={data.eligible} />
           {campus?.engine && <span className="bw-campus-engine">{label[campus.engine]}</span>}</div></div>
       <div className="bw-campus-hero-mark" aria-hidden="true"><WorkspaceIcon name="learning" size={38} /></div>
@@ -115,12 +123,14 @@ export default function CampusSetupOverview({ organization, section = "all" }) {
     {notice && <p className="bw-campus-message bw-campus-success" role="status">{notice}</p>}
     {section === "overview" && <div className="bw-campus-entry-grid" aria-label="Campus workspace overview">
       <article className="bw-campus-entry-card"><span className="bw-campus-overline">CAMPUS STATUS</span><h3>{statusText[state] || state}</h3><p>{data.eligible ? "Your organization meets the currently verified Campus eligibility checks." : "Eligibility must be restored before Campus activation."}</p><Link to={`/campus/${id}/setup`}>{campus ? "Review Campus setup" : "Begin Campus setup"}</Link></article>
-      <article className="bw-campus-entry-card"><span className="bw-campus-overline">LEARNING OPERATIONS</span><h3>{campus?.engine ? label[campus.engine] : "Choose your academic engine"}</h3><p>{active ? "Manage your classes, student records, attendance, and outcomes." : "Academic tools become available after Campus activation."}</p><Link to={active ? `/campus/${id}/academics` : `/campus/${id}/setup`}>{active ? "Open academics" : "Continue setup"}</Link></article>
+      <article className="bw-campus-entry-card"><span className="bw-campus-overline">LEARNING OPERATIONS</span><h3>{campus?.engine ? label[campus.engine] : "Choose your academic engine"}</h3><p>{active ? "Manage your classes, student records, attendance, and outcomes." : "Academic tools become available after Campus activation."}</p><Link to={active ? `/campus/${id}/${academicEntry}` : `/campus/${id}/setup`}>{active ? "Open academic operations" : "Continue setup"}</Link></article>
       <article className="bw-campus-entry-card"><span className="bw-campus-overline">CAMPUS COMMUNICATION</span><h3>Announcements</h3><p>Share updates with authorized staff and active learners.</p><Link to={active ? `/campus/${id}/announcements` : `/campus/${id}/setup`}>{active ? "Open announcements" : "Activate Campus first"}</Link></article>
     </div>}
-    {section === "academics" && (active && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p))
-      ? (campus.engine === "TVET" ? <TvetWorkspace key={id} campusId={id} /> : <GradeSchoolWorkspace key={id} campusId={id} />)
-      : <div className="bw-campus-workspace-empty" role="status"><h3>Academic workspace unavailable</h3><p>Activate the Campus and use an authorized teaching or academic-management account before managing learner records.</p><Link to={`/campus/${id}/setup`}>Campus setup</Link></div>)}
+    {academicRoute && (active && matchingEngine && (!module || canAccessCampusModule(module, data.permissions)) && data.permissions.some(p => ["organization.campus.academics.manage", "organization.campus.teach"].includes(p))
+      ? (campus.engine === "TVET"
+          ? <TvetWorkspace key={id} campusId={id} module={module?.view || null} />
+          : <GradeSchoolWorkspace key={id} campusId={id} module={module?.view || null} />)
+      : <div className="bw-campus-workspace-empty" role="status"><h3>Academic workspace unavailable</h3><p>{!matchingEngine ? "This link belongs to a different Campus academic engine." : "Activate the Campus and use an authorized teaching or academic-management account before managing learner records."}</p><Link to={`/campus/${id}`}>Campus overview</Link></div>)}
     {section === "billing" && (active && data.permissions.includes("organization.campus.billing.manage")
       ? <section className="bw-campus-panel" aria-label="Campus billing & payments"><CampusBilling key={id} campusId={id} /></section>
       : <div className="bw-campus-workspace-empty" role="status"><h3>Billing is not available</h3><p>Billing requires an active Campus and authorized billing access.</p><Link to={`/campus/${id}`}>Campus overview</Link></div>)}

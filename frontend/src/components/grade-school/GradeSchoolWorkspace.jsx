@@ -7,7 +7,7 @@ import CampusWorkspaceStats from "./CampusWorkspaceStats";
 import "./grade-school.css";
 const option = (value, label) => ({ value, label });
 const values = form => Object.fromEntries(form);
-export default function GradeSchoolWorkspace({ campusId }) {
+export default function GradeSchoolWorkspace({ campusId, module = null }) {
   const [snapshot, setSnapshot] = useState(null), [period, setPeriod] = useState(""), [tab, setTab] = useState("setup"), [revision, setRevision] = useState(0);
   const [error, setError] = useState(null), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false);
   const lock = useRef(false), life = useRef(null);
@@ -25,13 +25,13 @@ export default function GradeSchoolWorkspace({ campusId }) {
     finally { lock.current = false; if (!current?.signal.aborted) setBusy(false); }
   }
   if (!data) return <section className="bw-school-root"><h3>Grade School management</h3>{error ? <div role="alert"><p>{error.message}</p><button type="button" onClick={() => setRevision(v => v + 1)}>Retry school access</button></div> : <p role="status">Loading academic workspace…</p>}</section>;
-  const periodId = data.periodId, activeTab = !data.canManage && ["setup", "students"].includes(tab) ? "teaching" : tab;
+  const periodId = data.periodId, requestedTab = module || tab, activeTab = !data.canManage && ["setup", "students", "reports"].includes(requestedTab) ? "teaching" : requestedTab;
   const periods = data.years.flatMap(y => y.periods.map(p => option(p.id, y.name + " / " + p.name)));
   const sections = data.classes.flatMap(c => c.sections.map(v => option(v.id, c.name + " / " + v.name)));
   function configure(kind, form, transform = values) { return run(() => api.configure(campusId, kind, transform(form))); }
   return <section className="bw-school-root" aria-label="Grade School management"><header className="bw-school-heading"><div><p className="bw-school-eyebrow">GRADE SCHOOL / ACADEMICS</p><h3>{data.displayName}</h3><p>Every class, lesson and result belongs to an academic period.</p></div><span className="bw-school-role">{data.canManage ? "Academic administration" : "Assigned teaching"}</span></header>
     <CampusWorkspaceStats engine="GRADE_SCHOOL" data={data} />
-    <div className="bw-school-toolbar"><nav aria-label="School management views">{[...(data.canManage ? [["setup", "Academic setup"], ["students", "Students & guardians"]] : []), ["teaching", "Teaching & attendance"]].map(([key, label]) => <button key={key} type="button" disabled={busy} aria-pressed={activeTab === key} onClick={() => { setTab(key); setNotice(""); }}>{label}</button>)}</nav><label>Academic period<select value={periodId || ""} disabled={busy} onChange={e => setPeriod(e.target.value)}><option value="" disabled>Select a period</option>{periods.map(p => <option value={p.value} key={p.value}>{p.label}</option>)}</select></label><button type="button" disabled={busy} onClick={() => { setNotice(""); setRevision(v => v + 1); }}>Refresh academics</button></div>
+    <div className="bw-school-toolbar">{!module && <nav aria-label="School management views">{[...(data.canManage ? [["setup", "Academic setup"], ["students", "Students & guardians"]] : []), ["teaching", "Teaching & attendance"]].map(([key, label]) => <button key={key} type="button" disabled={busy} aria-pressed={activeTab === key} onClick={() => { setTab(key); setNotice(""); }}>{label}</button>)}</nav>}<label>Academic period<select value={periodId || ""} disabled={busy} onChange={e => setPeriod(e.target.value)}><option value="" disabled>Select a period</option>{periods.map(p => <option value={p.value} key={p.value}>{p.label}</option>)}</select></label><button type="button" disabled={busy} onClick={() => { setNotice(""); setRevision(v => v + 1); }}>Refresh academics</button></div>
     {error && <p className="bw-school-feedback bw-school-error" role="alert">{error.message}</p>}{notice && <p className="bw-school-feedback" role="status">{notice}</p>}
     {activeTab === "setup" && <div className="bw-school-setup-grid">
       <section className="bw-school-card"><span className="bw-school-step">01 / SUBJECTS</span><SchoolForm title="Subjects & courses" description="Set the percentage needed to pass each subject." busy={busy} action="Add subject" fields={[{ name: "name", label: "Subject name", maxLength: 120 }, { name: "passingMark", label: "Passing mark (%)", type: "number", min: 0, max: 100, step: "any", value: 50 }]} onSubmit={f => configure("subjects", f, f => ({ name: f.get("name"), passingMark: Number(f.get("passingMark")) }))} /><ul className="bw-school-items">{data.subjects.map(s => <li key={s.id}><strong>{s.name}</strong><span>Pass {s.passingMark}%</span></li>)}</ul></section>
@@ -44,7 +44,7 @@ export default function GradeSchoolWorkspace({ campusId }) {
       <section className="bw-school-card"><span className="bw-school-step">04 / PERIOD SUBJECTS</span><SchoolForm key={periodId} title="Subject offerings" description="Offer subjects to a section for the selected period. Assign teachers in Teaching & attendance." busy={busy || !periodId} action="Offer subject" fields={[{ name: "sectionId", label: "Section", options: sections }, { name: "subjectId", label: "Subject", options: data.subjects.map(s => option(s.id, s.name)) }, { name: "mode", label: "Subject requirement", options: [option("COMPULSORY", "Compulsory"), option("ELECTIVE", "Elective")] }]} onSubmit={f => configure("offerings", f, f => ({ ...values(f), periodId }))} />
         <ul className="bw-school-items">{data.offerings.map(o => <li key={o.id}><strong>{o.subject.name}</strong><span>{o.section.schoolClass.name} / {o.section.name} · {o.mode.toLowerCase()}</span></li>)}</ul>{!periodId && <p className="bw-school-help">Create an academic year and period to begin.</p>}</section>
     </div>}
-    {activeTab === "students" && <SchoolStudents key={campusId + ":" + periodId} campusId={campusId} data={data} sections={sections} busy={busy} run={run} revision={revision} />}
-    {activeTab === "teaching" && <SchoolTeaching key={campusId + ":" + periodId} campusId={campusId} data={data} busy={busy} run={run} revision={revision} />}
+    {["students", "reports"].includes(activeTab) && <SchoolStudents key={campusId + ":" + periodId + ":" + activeTab} campusId={campusId} data={data} sections={sections} busy={busy} run={run} revision={revision} mode={activeTab} onAccessLost={cause => { setSnapshot(null); setError(cause); }} />}
+    {["teaching", "attendance", "assessments"].includes(activeTab) && <SchoolTeaching key={campusId + ":" + periodId + ":" + activeTab} campusId={campusId} data={data} busy={busy} run={run} revision={revision} mode={activeTab === "teaching" ? (module ? "schedules" : "all") : activeTab} />}
   </section>;
 }
