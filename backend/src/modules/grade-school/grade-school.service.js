@@ -367,9 +367,9 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
         const items = [];
         for (const r of rows) {
           // A Prisma interactive transaction owns one PostgreSQL client. Never
-          // dispatch concurrent billing reads against that client (pg@9 rejects it).
+          // dispatch concurrent billing reads against that client (deprecated by pg).
           const billing = await registrationBilling(db, r, now());
-          items.push({ billing, id: r.id, campusId: r.campusId, schoolName: r.student.campus.displayName, photoId: r.student.campus.organization?.profilePhotoId ?? null, status: r.status, available: available.get(r.campusId), id: r.id, campusId: r.campusId, schoolName: r.student.campus.displayName, photoId: r.student.campus.organization?.profilePhotoId ?? null, status: r.status, available: available.get(r.campusId),
+          items.push({ billing, id: r.id, campusId: r.campusId, schoolName: r.student.campus.displayName, photoId: r.student.campus.organization?.profilePhotoId ?? null, status: r.status, available: available.get(r.campusId),
           studentStatus: r.student.status, period: r.period.name, year: r.period.year.name, section: r.section.schoolClass.name + " / " + r.section.name,
           message: r.status === "PRE_REGISTERED" ? `Welcome, ${r.student.account.person.firstName}! Your registration has been confirmed by the school. Your Campus access is currently being finalized. Please be patient while the administration completes the process. You will receive full access once your registration is fully activated. — ${r.student.campus.displayName} Administration.` : null });
         }
