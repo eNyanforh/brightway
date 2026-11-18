@@ -39,6 +39,10 @@ function fixture() {
     if (path === "/api/v1/auth/me") return reply({ account: { id: accountId, username: "school_admin", person: { firstName: "Campus", lastName: "Admin" } } });
     if (path === "/api/v1/profile/me") return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
     if (path === "/api/v1/work/access") return reply({ hasWork: true });
+    if (path === "/api/v1/my-campus" && method === "GET") return reply({ items: [] });
+    if (path === "/api/v1/my-workspace" && method === "GET")
+      return reply({ tab: "approved", search: "", counts: { approved: 1, pending: 0, invitations: 0, history: 0 },
+        items: [{ ...organization, role: "PRIMARY_ADMIN" }], nextCursor: null });
     if (path === "/api/v1" + work) return reply(context());
     if (path === root && method === "GET") return reply(info());
     if (path === root + "/setup" && method === "PUT") {
@@ -224,4 +228,16 @@ test("first modal sets up TVET programs, intakes, sections, modules and instruct
   await expect(page).toHaveURL(campusUrl + "/tvet-programs");
   expect(f.requests.map(r => r.action)).toEqual(["campus.setup", "campus.activate", "programs", "intakes", "sections", "modules", "instructor"]);
   expect(f.unexpected).toEqual([]); expect(pageErrors).toEqual([]);
+});
+
+test("approved school primary administrator opens the first Campus setup modal from My Workspace", async ({ page }) => {
+  const f = fixture();
+  await page.route("**/*", f.serve);
+  await page.goto("/work");
+  const entry = page.getByRole("link", { name: "Manage", exact: true });
+  await expect(entry).toHaveAttribute("href", campusUrl);
+  await entry.click();
+  await expect(page).toHaveURL(campusUrl);
+  await expect(page.getByRole("dialog", { name: /Set up your school Campus/ })).toBeVisible();
+  expect(f.unexpected).toEqual([]);
 });
