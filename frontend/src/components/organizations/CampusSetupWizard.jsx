@@ -95,7 +95,7 @@ export default function CampusSetupWizard({ organization, snapshot, onRefresh, o
   }, [onDismiss]);
 
   useEffect(() => {
-    if (!active) { setAcademic(null); return; }
+    if (!active) return; // Academic data is rendered only for an ACTIVE Campus.
     const controller = new AbortController();
     const api = engine === "TVET" ? tvetApi : schoolApi;
     const selected = engine === "TVET" ? intakeId : periodId;
