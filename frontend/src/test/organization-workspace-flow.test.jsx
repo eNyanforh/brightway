@@ -46,11 +46,20 @@ function mount(path = base, handler = () => reply(context)) {
   </Route></Routes></MemoryRouter></AuthContext.Provider>);
   return { fetch, user: userEvent.setup() };
 }
-it("an approved organization in My Workspace opens its private administrator workspace instead of the public profile", async () => {
-  const f = mount("/work", url => url.includes("/my-workspace") ? reply({ tab: "approved", search: "", counts: { approved: 1, pending: 0, invitations: 0, history: 0 }, items: [{ ...organization, role: "PRIMARY_ADMIN" }] }) : reply(context));
-  const entry = await screen.findByRole("link", { name: "Manage" }); expect(entry.getAttribute("href")).toBe(base);
-  await f.user.click(entry); expect(screen.queryByRole("heading", { name: "Switch account" })).toBeNull(); await screen.findByRole("heading", { name: organization.name, level: 1 });
-  await screen.findByRole("navigation", { name: "Organization tools" });
+it("a primary school administrator enters the dedicated Campus with its first-run setup modal", async () => {
+  const campus = { organizationId: id, campus: null, canSetup: true, canManage: true, eligible: true, canAnnounce: false,
+    permissions: [], eligibility: { eligible: true, verifiedOrganization: true, verifiedLiberiaOperation: true,
+      productEnabled: true, supportedEngines: ["GRADE_SCHOOL"], reasons: [] } };
+  const f = mount("/work", url => url.includes("/my-workspace")
+    ? reply({ tab: "approved", search: "", counts: { approved: 1, pending: 0, invitations: 0, history: 0 }, items: [{ ...organization, role: "PRIMARY_ADMIN" }] })
+    : url.endsWith(base + "/campus") ? reply(campus) : reply(context));
+  const entry = await screen.findByRole("link", { name: "Manage" });
+  expect(entry.getAttribute("href")).toBe(`/campus/${id}`);
+  await f.user.click(entry);
+  await screen.findByRole("heading", { name: organization.name, level: 1 });
+  await screen.findByRole("navigation", { name: "Campus tools" });
+  await screen.findByRole("dialog", { name: /Set up your school Campus/ });
+  expect(screen.queryByRole("navigation", { name: "Organization tools" })).toBeNull();
   expect(document.querySelector(".bw-design-personal")).toBeNull();
   expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/staff"))).toBe(false);
 });
