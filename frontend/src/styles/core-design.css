@@ -149,7 +149,7 @@
     order: initial;
     flex: 0 0 auto;
   }
-  .bw-core-design .bw-context-facepile-wrap { max-width: 77px; }
+  .bw-core-design .bw-context-facepile-wrap { max-width: 105px; }
   .bw-core-design .bw-header-profile > button {
     min-width: 38px;
     width: 38px;
@@ -177,7 +177,7 @@
 @media (max-width: 370px) {
   .bw-core-design .bw-design-header-inner,
   .bw-core-design .bw-design-header--personal .bw-design-header-inner { padding-inline: 6px; gap: 1px; }
-  .bw-core-design .bw-context-facepile-wrap { max-width: 57px; }
+  .bw-core-design .bw-context-facepile-wrap { max-width: 89px; }
   .bw-core-design .bw-design-utility.bw-design-mobile-action { width: 34px; }
 }
 @media (prefers-reduced-motion: reduce) {
