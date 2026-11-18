@@ -22,7 +22,6 @@ const flows = {
 const message = error => error?.message || "Campus setup could not be saved. Check your connection and retry.";
 const asMoney = value => Math.round(Number(value) * 100);
 const options = items => items.map(item => <option key={item.id} value={item.id}>{item.name}</option>);
-const field = (name, type = "text") => ({ name, type });
 const sectionsFor = data => (data.classes || []).flatMap(group => group.sections.map(section => ({
   ...section, name: group.name + " / " + section.name,
 })));
@@ -63,7 +62,6 @@ export default function CampusSetupWizard({ organization, snapshot, onRefresh, o
   const [academic, setAcademic] = useState(null);
   const [periodId, setPeriodId] = useState("");
   const [intakeId, setIntakeId] = useState("");
-  const [plannedSubjects, setPlannedSubjects] = useState({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
