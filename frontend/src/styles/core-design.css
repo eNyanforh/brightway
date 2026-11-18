@@ -3,7 +3,7 @@
  * Opt-in authenticated shell only. No sample content, permissions, or data changes.
  * Proxima Nova is used only when already installed/licensed on the client.
  */
-.bw-core-design {
+.bw-app-shell.bw-core-design {
   --bw-core-blue: #175cd3;
   --bw-core-blue-hover: #124ba9;
   --bw-core-ink: #111111;
