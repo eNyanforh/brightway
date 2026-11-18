@@ -75,3 +75,7 @@
 .bw-campus-form button:hover:not(:disabled),.bw-campus-announcement-form button:hover:not(:disabled){background:#303030;color:#fff}
 .bw-campus-hero+.bw-campus-message{margin-top:0}
 @media(max-width:520px){.bw-campus-hero{padding:23px 20px}.bw-campus-root .bw-school-mode-tabs{display:flex;overflow-x:auto;white-space:nowrap}.bw-campus-root .bw-school-mode-tabs button{flex:0 0 auto}}
+
+.bw-campus-wizard-launch{min-height:44px;padding:11px 16px;margin:0 0 17px;background:#171717;border:1px solid #171717;border-radius:10px;color:#fff;font-weight:750;font-size:13px;cursor:pointer}
+.bw-campus-wizard-launch:hover:not(:disabled){background:#303030}
+.bw-campus-wizard-launch:disabled{opacity:.55}
