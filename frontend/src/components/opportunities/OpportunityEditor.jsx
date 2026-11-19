@@ -195,7 +195,6 @@ export default function OpportunityEditor({ organizationId, organization, opport
     // Do not load an unrelated scholarship draft while creating another type.
     if (opportunity || draft.type !== "SCHOLARSHIP") return;
     const controller = new AbortController();
-    setDraftLoaded(false);
     api.getScholarshipDraft(organizationId, controller.signal)
       .then(result => {
         if (controller.signal.aborted || result.draft?.type !== "SCHOLARSHIP") return;
@@ -260,6 +259,10 @@ export default function OpportunityEditor({ organizationId, organization, opport
   }
   function changeType(type) {
     if (lockedForm) return;
+    if (type === "SCHOLARSHIP" && draft.type !== "SCHOLARSHIP") {
+      setDraftLoaded(false);
+      setAutosaveStatus("loading");
+    }
     setDraft(old => ({
       ...old, type,
       ...(old.type !== type ? {
