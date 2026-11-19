@@ -137,7 +137,7 @@ export default function JobCreationStudio({
         <div className="bw-job-studio-preview-content">
           <span className="bw-job-studio-category-label">JOB VACANCY</span>
           <h5>{title}</h5>
-          <p className="bw-job-studio-preview-org">Your organization</p>
+          <p className="bw-job-studio-preview-org">{organizationName || "Your organization"}</p>
           <div className="bw-job-studio-preview-facts">
             {draft.location && <span><NavigationIcon name="pin" size={14}/>{draft.location}</span>}
             <span><NavigationIcon name="opportunities" size={14}/>{pretty(draft.workMode === "IN_PERSON" ? "On-site" : draft.workMode)}</span>
