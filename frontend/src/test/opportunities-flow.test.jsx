@@ -82,6 +82,16 @@ it("saves a four-step Job Vacancy with grouped fields, multi-select options and 
   expect(screen.getByLabelText("Live job listing preview").querySelector(".bw-job-studio-preview-card")).toBeTruthy();
   expect(screen.getByText("Candidate view")).toBeTruthy();
   expect(screen.getByRole("navigation", { name: "Job creation steps" })).toBeTruthy();
+  const progress = screen.getByRole("progressbar", { name: "Job creation progress" });
+  expect(progress.getAttribute("aria-valuenow")).toBe("1");
+  const previewButton = screen.getByRole("button", { name: "Preview job listing" });
+  await user.click(previewButton);
+  const previewDialog = screen.getByRole("dialog", { name: "Live job listing preview" });
+  expect(previewDialog.getAttribute("aria-modal")).toBe("true");
+  expect(screen.getByRole("button", { name: "Close job preview" })).toBe(document.activeElement);
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog", { name: "Live job listing preview" })).toBeNull();
+  expect(previewButton).toBe(document.activeElement);
   await user.type(screen.getByLabelText("Job Title"), "Data internship");
   await user.type(screen.getByLabelText("Description", { exact: true }), "Learn research and data quality skills with our team.");
   await user.click(screen.getByText("Choose job categories"));

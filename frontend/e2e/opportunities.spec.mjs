@@ -504,6 +504,11 @@ test("organization publishers create and publish a form, and reviewers send an a
   await editor.getByLabel("Internship").check();
   await editor.getByLabel("Country").fill("Liberia");
   await editor.getByLabel("City / Town").fill("Monrovia");
+  // Retain an actual screenshot of the approved Job Studio in the CI browser report.
+  await testInfo.attach("job-studio-details-" + testInfo.project.name, {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
   await editor.getByRole("button", { name: "Continue" }).click();
   await expect(editor.getByRole("heading", { name: "Pay & Requirements" })).toBeVisible();
   await expect(editor.getByLabel("Opportunity cover photo")).toHaveCount(0);
