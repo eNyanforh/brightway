@@ -28,3 +28,27 @@
 .bw-op-scholarship-summary { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin: .6rem 0; }
 .bw-op-scholarship-summary > * { font-size: .875rem; }
 @media (max-width: 768px) { .bw-op-dedicated-wizard .bw-op-challenge-cover-column { position: static; } }
+
+/* Compact job publisher: grouped essentials with optional details on demand. */
+.bw-op-job-group { display: grid; gap: .85rem; }
+.bw-op-job-group > h4 { margin: 0; }
+.bw-op-job-group > label { display: grid; gap: .4rem; min-width: 0; }
+.bw-op-job-hint { margin: 0; font-size: .86rem; color: var(--bw-text-muted, #777); line-height: 1.45; }
+.bw-op-compact-picker { display: grid; gap: .55rem; border: 0; }
+.bw-op-compact-picker legend { font-size: .98rem; font-weight: 600; }
+.bw-op-compact-picker .bw-op-job-selected { font-size: .9rem; overflow-wrap: anywhere; color: var(--bw-text-muted, #666); }
+.bw-op-compact-picker details { border: 1px solid var(--bw-border, #dedede); border-radius: .7rem; padding: .8rem; min-width: 0; }
+.bw-op-compact-picker summary { cursor: pointer; font-weight: 600; }
+.bw-op-compact-picker input[type="search"] { margin-top: .65rem; width: 100%; }
+.bw-op-compact-picker .bw-op-detail-choices { max-height: 14rem; overflow: auto; }
+.bw-op-job-advanced { border: 1px solid var(--bw-border, #ddd); border-radius: .8rem; margin: 1rem 0; overflow: hidden; }
+.bw-op-job-advanced > summary { cursor: pointer; font-weight: 650; padding: .95rem 1rem; }
+.bw-op-job-advanced > summary span { color: var(--bw-text-muted, #777); font-size: .82rem; font-weight: 400; margin-left: .45rem; }
+.bw-op-job-advanced-body { display: grid; gap: 1rem; padding: 0 1rem 1rem; }
+.bw-op-job-map { display: grid; gap: .65rem; min-width: 0; }
+.bw-op-job-map gmp-place-autocomplete { display: block; width: 100%; }
+.bw-op-job-map-canvas { width: 100%; height: 240px; border-radius: .7rem; background: var(--bw-surface-secondary, #f4f4f4); }
+@media (max-width: 640px) {
+ .bw-op-compact-picker .bw-op-detail-choices { flex-direction: column; }
+ .bw-op-job-map-canvas { height: 200px; }
+}
