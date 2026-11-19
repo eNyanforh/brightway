@@ -1,6 +1,3 @@
-// Run hourly with the same runtime environment as the API. Safe to retry/overlap.
-import { prisma } from "../src/config/database.js";
-import { createBillingService } from "../src/modules/billing/billing.service.js";
-try { console.log(JSON.stringify(await createBillingService({ prisma }).processNotices())); }
-catch { console.error("Campus billing notice processing failed; retry and inspect the billing audit."); process.exitCode = 1; }
-finally { await prisma.$disconnect(); }
+// Virtual Campus was temporarily retired. Retain this no-op entry point so
+// any previously configured scheduler cannot issue more notices or charges.
+console.info("Virtual Campus billing is disabled.");

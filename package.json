@@ -2,7 +2,7 @@
   "name": "brightway",
   "version": "0.1.0",
   "private": true,
-  "description": "BrightWay global professional, education, opportunity and Virtual Campus platform",
+  "description": "BrightWay global professional, education and opportunity platform",
   "workspaces": [
     "frontend",
     "backend"

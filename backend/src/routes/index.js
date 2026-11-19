@@ -1,11 +1,3 @@
-import { createBillingService } from "../modules/billing/billing.service.js";
-import { createBillingRoutes } from "../modules/billing/billing.routes.js";
-import { createTvetService } from "../modules/tvet/tvet.service.js";
-import { createTvetRoutes } from "../modules/tvet/tvet.routes.js";
-import { createGradeSchoolService } from "../modules/grade-school/grade-school.service.js";
-import { createGradeSchoolRoutes } from "../modules/grade-school/grade-school.routes.js";
-import { createCampusService } from "../modules/campus/campus.service.js";
-import { createCampusRoutes } from "../modules/campus/campus.routes.js";
 import { createMessagingService } from "../modules/messaging/messaging.service.js";
 import { createMessagingRoutes } from "../modules/messaging/messaging.routes.js";
 import { createMessageStorage } from "../modules/messaging/messaging.storage.js";
@@ -93,10 +85,6 @@ router.use(createOpportunityRoutes({ opportunities: createOpportunityService({
   prisma, storage: createApplicationStorage(), imageStorage: createPostMediaStorage(),
 }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createLearningRoutes({ learning: createLearningService({ prisma, storage: createApplicationStorage() }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-router.use(createCampusRoutes({ campus: createCampusService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-const tvet = createTvetService({ prisma });
-router.use(createTvetRoutes({ tvet, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
-router.use(createGradeSchoolRoutes({ tvet, school: createGradeSchoolService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const network = createNetworkService({ prisma });
 router.use(createNetworkRoutes({ network, following: createFollowingService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createNotificationsRoutes({ notifications: createNotificationsService({ prisma }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
@@ -113,7 +101,6 @@ const photos = createPhotoService({ prisma, storage: photoStorage });
 router.use(createOrganizationPostRoutes({ posts: publicPosts, photos, media: postMedia, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const managementCases = createManagementCases({ prisma });
 const authentication = createManagementAuth({ prisma, sender: createManagementEmail() });
-router.use(createBillingRoutes({ billing: createBillingService({ prisma }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManagementAuthRoutes({ authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createMessagingRoutes({ messaging: createMessagingService({ prisma, storage: createMessageStorage() }), notifications: createNotificationsService({ prisma }), sessions, authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 router.use(createManagementOperationsRoutes({ operations: createManagementOperations({ prisma }), cases: managementCases, postModeration: createMemberPostModeration({ prisma }), authentication, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
