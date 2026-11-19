@@ -550,13 +550,13 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         input.validateAnswers(row.questions, data.answers, previous?.files || [], data.action === "SUBMIT",
           row.type === "CHALLENGE" ? row.postRequirements : []);
         const submit = data.action === "SUBMIT";
-        if (submit && row.type === "JOB" && row.details?.applicationLimit != null) {
+        if (submit && ["JOB", "SCHOLARSHIP"].includes(row.type) && row.details?.applicationLimit != null) {
           const activeApplications = await db.opportunityApplication.count({
             where: { opportunityId: oppId, submittedAt: { not: null },
               status: { not: "WITHDRAWN" } },
           });
           if (activeApplications >= row.details.applicationLimit)
-            throw fail(409, "This Job Vacancy has reached its application limit.");
+            throw fail(409, "This opportunity has reached its application limit.");
         }
         if (submit && !data.shareProfile) throw fail(400, "Confirm sharing your application and professional profile with this organization.");
         if (submit && row.type === "CHALLENGE")
