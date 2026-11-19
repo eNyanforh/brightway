@@ -689,3 +689,96 @@
 .bw-op-creation-overlay.bw-op-job-studio-overlay .bw-job-studio-form .bw-op-job-advanced{margin:0;border:1px solid var(--job-line);}
 .bw-op-creation-overlay.bw-op-job-studio-overlay .bw-job-studio-form label:not(.bw-op-checkbox){margin-bottom:0;}
 @media(max-width:620px){.bw-op-creation-overlay.bw-op-job-studio-overlay .bw-job-studio-form > :is(.bw-op-job-group,.bw-op-compact-picker,.bw-job-studio-media){padding:19px 17px;}}
+
+
+/* Job Studio polish: scoped to the approved four-stage publishing workspace. */
+.bw-op-creation-overlay.bw-op-job-studio-overlay {
+  --job-ink: #171717;
+  --job-muted: #666b73;
+  --job-line: #e7e7e9;
+  --job-highlight: #171717;
+  background: #f8f8f9;
+}
+.bw-op-creation-overlay.bw-op-job-studio-overlay .bw-op-wizard,
+.bw-op-creation-overlay.bw-op-job-studio-overlay .bw-op-wizard-fields {
+  background: #f8f8f9;
+}
+.bw-job-studio-step.is-active {
+  border-color: #d9dade;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 4%);
+}
+.bw-job-studio-stage-header > h3 {
+  color: #171717;
+  text-wrap: balance;
+}
+.bw-job-studio-form > .bw-op-challenge-title-field,
+.bw-job-studio-form .bw-op-job-group,
+.bw-job-studio-form .bw-op-compact-picker,
+.bw-job-studio-form .bw-job-studio-media,
+.bw-job-studio-form .bw-op-job-advanced {
+  box-shadow: 0 2px 10px rgb(0 0 0 / 2%);
+}
+.bw-job-studio-form :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea):hover:not(:disabled) {
+  border-color: #9ca3af;
+}
+.bw-job-studio-form :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea):focus-visible {
+  border-color: #171717;
+  outline: 2px solid #171717;
+  outline-offset: 2px;
+}
+.bw-job-studio-form .bw-op-job-group > h4,
+.bw-job-studio-form .bw-op-compact-picker > h4 {
+  color: #171717;
+}
+.bw-job-studio-token {
+  background: #f3f3f4;
+  border-color: #dedee2;
+}
+.bw-job-studio-preview-card {
+  border-color: #e5e5e7;
+  box-shadow: 0 9px 28px rgb(0 0 0 / 5%);
+}
+.bw-job-studio-preview-art {
+  background: linear-gradient(150deg, #151515, #363636);
+}
+.bw-job-studio-preview-cta,
+.bw-job-studio-step.is-active .bw-job-studio-step-number,
+.bw-job-studio-step.is-complete .bw-job-studio-step-number {
+  background: #171717;
+  border-color: #171717;
+}
+.bw-job-studio-form :is(input,select,textarea):disabled {
+  background: #f5f5f6;
+  color: #666b73;
+  cursor: not-allowed;
+}
+.bw-job-studio-step:focus-visible,
+.bw-job-studio-preview-toggle:focus-visible,
+.bw-job-studio-preview-close:focus-visible {
+  outline: 2px solid #171717;
+  outline-offset: 3px;
+}
+@media (max-width: 1279px) {
+  .bw-job-studio-preview.is-mobile-open {
+    overscroll-behavior: contain;
+  }
+  .bw-job-studio-preview.is-mobile-open .bw-job-studio-preview-close {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (max-width: 620px) {
+  .bw-job-studio-stage-header { margin-bottom: 23px; }
+  .bw-job-studio-form { gap: 12px; }
+  .bw-job-studio-media-row { flex-wrap: wrap; }
+  .bw-job-studio-media-mini {
+    flex-basis: 112px;
+    width: 112px;
+    height: 63px;
+  }
+  .bw-job-studio-media-action { flex: 1 1 165px; }
+  .bw-job-studio-upload,
+  .bw-job-studio-remove { min-height: 44px; }
+  .bw-job-studio-preview.is-mobile-open { width: 100%; }
+  .bw-job-studio-preview-content { padding: 19px 17px; }
+}
