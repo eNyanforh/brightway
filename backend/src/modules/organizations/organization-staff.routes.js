@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { createRequireAuth, createSessionCookieConfig, requireTrustedOrigin } from "../auth/session.http.js";
+import { maskUnexpectedServiceError } from "../../middleware/maskServiceError.js";
 export function createOrganizationStaffRoutes({ staff, sessions, clientUrl, nodeEnv, limiter }) {
   const router = Router(), auth = createRequireAuth({ sessions, cookieName: createSessionCookieConfig(nodeEnv).name }), origin = requireTrustedOrigin(clientUrl);
   const limits = limiter ?? rateLimit({ windowMs: 900000, limit: 80, standardHeaders: "draft-8", legacyHeaders: false, keyGenerator: req => req.auth.account.id });
   router.use(["/organization-workspace", "/organization-invitations", "/my-workspace"], (req, res, next) => { res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); next(); }, auth);
-  const handle = fn => async (req, res, next) => { try { res.json({ success: true, data: await fn(req, req.auth.account.id, req.auth.sessionId) }); } catch (e) { next(e.status >= 400 && e.status <= 599 ? e : Object.assign(Error("Organization staffing is temporarily unavailable."), { status: 503 })); } };
+  const handle = fn => async (req, res, next) => { try { res.json({ success: true, data: await fn(req, req.auth.account.id, req.auth.sessionId) }); } catch (e) { next(maskUnexpectedServiceError(e, "Organization staffing is temporarily unavailable.", req.route?.path || "unknown")); } };
   router.get("/my-workspace", handle((r, a, s) => staff.directory(a, s, r.query)));
   router.get("/organization-workspace", handle((r, a, s) => staff.home(a, s, r.query)));
   router.get("/organization-workspace/:orgId", handle((r, a, s) => staff.context(a, s, r.params.orgId)));
@@ -17,7 +18,7 @@ export function createOrganizationStaffRoutes({ staff, sessions, clientUrl, node
     try {
       const bytes = await staff.photo(req.auth.account.id, req.auth.sessionId, req.params.orgId, req.params.accountId, req.params.photoId);
       res.set({ "Content-Type": "image/webp", "X-Content-Type-Options": "nosniff", "Content-Disposition": 'inline; filename="staff-photo.webp"' }).send(bytes);
-    } catch (e) { next(e.status >= 400 && e.status <= 599 ? e : Object.assign(Error("Staff photos are temporarily unavailable."), { status: 503 })); }
+    } catch (e) { next(maskUnexpectedServiceError(e, "Staff photos are temporarily unavailable.", req.route?.path || "unknown")); }
   });
   router.post("/organization-workspace/:orgId/invitations", origin, limits, handle((r, a, s) => staff.invite(a, s, r.params.orgId, r.body)));
   router.post("/organization-workspace/:orgId/invitations/:id/cancel", origin, limits, handle((r, a, s) => staff.cancel(a, s, r.params.orgId, r.params.id, r.body)));

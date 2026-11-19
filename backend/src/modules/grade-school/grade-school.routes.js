@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { createRequireAuth, createSessionCookieConfig, requireTrustedOrigin } from "../auth/session.http.js";
-import { fail } from "./grade-school.schema.js";
+import { maskUnexpectedServiceError } from "../../middleware/maskServiceError.js";
 
 export function createGradeSchoolRoutes({ school, tvet, sessions, clientUrl, nodeEnv }) {
   const router = Router(), path = "/organization-workspace/:organizationId/campus/grade-school";
@@ -13,7 +13,7 @@ export function createGradeSchoolRoutes({ school, tvet, sessions, clientUrl, nod
   const actor = req => ({ accountId: req.auth.account.id, sessionId: req.auth.sessionId });
   const respond = (fn, status = 200) => async (req, res, next) => {
     try { res.status(status).json({ success: true, data: await fn(req, actor(req)) }); }
-    catch (e) { next(e.status ? e : fail(503, "School operations are temporarily unavailable. Keep your work and retry.")); }
+    catch (e) { next(maskUnexpectedServiceError(e, "School operations are temporarily unavailable. Keep your work and retry.", req.route?.path || "unknown")); }
   };
   router.get(path, read, respond((r, a) => school.setup(a, r.params.organizationId, r.query)));
   router.get(path + "/admissions", read, respond((r, a) => school.acceptedAdmissions(a, r.params.organizationId, r.query)));
