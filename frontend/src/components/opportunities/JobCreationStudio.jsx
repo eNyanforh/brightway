@@ -16,7 +16,7 @@ const pretty = value => String(value || "").replaceAll("_", " ").toLowerCase().r
 const first = items => Array.isArray(items) && items.length > 0 ? items[0] : "";
 
 export default function JobCreationStudio({
-  draft, field, step, onGoStep, questions, locked, uploading, upload, opportunity,
+  draft, field, step, onGoStep, questions, locked, uploading, upload,
 }) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const data = draft.details || {};
@@ -84,7 +84,7 @@ export default function JobCreationStudio({
       <div className="bw-job-studio-stage-header">
         <div className="bw-job-studio-stage-meta">
           <span className="bw-job-studio-overline">JOB VACANCY</span>
-          <span className="bw-job-studio-step-count">STEP {step} OF 4</span>
+          <span className="bw-job-studio-step-count">Step {step} of 4</span>
         </div>
         <div className="bw-job-studio-progress-track" aria-label={step + " of 4 steps"}>
           <div style={{ width: progress * 25 + "%" }}/>
