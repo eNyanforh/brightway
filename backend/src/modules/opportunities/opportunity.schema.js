@@ -92,6 +92,15 @@ const jobDetailsExtended = z.strictObject({
 });
 const scholarshipDetailsExtended = z.strictObject({
   category: detailString, academicLevels: detailList, fieldsOfStudy: detailList,
+  shortSummary: text(160).optional(), targetDiscipline: detailString,
+  awardDuration: z.enum(["ONE_TIME", "SEMESTER", "RENEWABLE"]).optional(), renewalConditions: detailString,
+  eligibilityPriority: z.record(z.string(), z.enum(["REQUIRED", "PREFERRED"])).optional(),
+  targetGender: z.enum(["ALL", "WOMEN", "MEN", "OTHER"]).optional(),
+  reviewStartDate: detailDate, reviewEndDate: detailDate, interviewDate: detailDate, applicationLimit: detailNumber,
+  selectionMethod: z.enum(["SINGLE_REVIEWER", "COMMITTEE", "SCORING_RUBRIC"]).optional(),
+  scoringRubric: z.array(z.strictObject({
+    id: identifier, label: text(120), weight: z.number().int().min(0).max(100),
+  })).max(10).optional(),
   awardsAvailable: detailNumber, fundingType: detailString, currency: z.enum(["", "USD", "LRD", "EUR", "GBP"]).optional(),
   value: detailNumber, fundingMonths: detailNumber, tuitionPercent: z.number().min(0).max(100).nullable().optional(),
   livingAllowance: z.boolean().optional(), accommodation: z.boolean().optional(), travelSupport: z.boolean().optional(),
@@ -110,6 +119,10 @@ const scholarshipDetailsExtended = z.strictObject({
 }).superRefine((data, ctx) => {
   if (data.minAge != null && data.maxAge != null && data.minAge > data.maxAge)
     ctx.addIssue({ code: "custom", message: "Minimum eligible age must not exceed maximum age." });
+  if (data.awardsAvailable != null && (!Number.isInteger(data.awardsAvailable) || data.awardsAvailable < 1))
+    ctx.addIssue({ code: "custom", message: "Number of scholarships must be a positive whole number." });
+  if (data.applicationLimit != null && (!Number.isInteger(data.applicationLimit) || data.applicationLimit < 1))
+    ctx.addIssue({ code: "custom", message: "Maximum applicants must be a positive whole number." });
   if (data.fundingType && !["FULLY_FUNDED", "PARTIALLY_FUNDED", "FIXED_AMOUNT", "TUITION_WAIVER", "STIPEND", "OTHER"].includes(data.fundingType))
     ctx.addIssue({ code: "custom", message: "Choose a valid scholarship funding type." });
 });
