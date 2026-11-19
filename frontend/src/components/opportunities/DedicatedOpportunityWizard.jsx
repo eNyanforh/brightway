@@ -83,7 +83,7 @@ export default function DedicatedOpportunityWizard({ draft, field, step, questio
         {coverUrl ? <img src={coverUrl} alt="Opportunity cover preview" /> : <div className="bw-op-standard-poster">
           <span className="bw-op-standard-poster-symbol"><NavigationIcon name={type.icon} size={30}/></span>
           <span className="bw-op-standard-poster-kind">{draft.type === "JOB" ? "Job Vacancy" : "Scholarship"}</span>
-          <strong>{draft.title || "Opportunity title"}</strong>
+          <strong>BRIGHTWAY</strong>
           <small>{scholarship ? display(details.fundingType) : JOB_TYPES[draft.jobDetails?.type] || "Employment"}</small>
         </div>}
         </div>
