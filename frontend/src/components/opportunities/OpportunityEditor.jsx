@@ -186,17 +186,24 @@ export default function OpportunityEditor({ organizationId, organization, opport
     catch { /* An unavailable browser session store does not block editing. */ }
   }, [draft, opportunity, draftKey]);
   useEffect(() => {
-    if (opportunity) return;
+    // Do not load an unrelated scholarship draft while creating another type.
+    if (opportunity || draft.type !== "SCHOLARSHIP") return;
     const controller = new AbortController();
+    setDraftLoaded(false);
     api.getScholarshipDraft(organizationId, controller.signal)
       .then(result => {
         if (controller.signal.aborted || result.draft?.type !== "SCHOLARSHIP") return;
-        setDraft(current => current.type ? current : { ...blank(), ...result.draft });
+        setDraft(current => {
+          // Never overwrite an active editor or a more complete browser recovery.
+          if (current.type !== "SCHOLARSHIP" || current.title.trim() ||
+              current.description.trim() || current.location.trim()) return current;
+          return { ...blank(), ...result.draft };
+        });
       })
       .catch(() => { /* Offline browser recovery stays available. */ })
       .finally(() => { if (!controller.signal.aborted) setDraftLoaded(true); });
     return () => controller.abort();
-  }, [opportunity, organizationId]);
+  }, [opportunity, organizationId, draft.type]);
   useEffect(() => {
     if (opportunity || !draftLoaded || draft.type !== "SCHOLARSHIP" || persisted.current) return;
     const controller = new AbortController();
