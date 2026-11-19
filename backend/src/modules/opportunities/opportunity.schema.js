@@ -77,7 +77,7 @@ const jobDetailsExtended = z.strictObject({
   experienceLevel: detailString, experienceLevels: detailList, vacancies: detailNumber,
   startDate: detailDate, country: detailString, region: detailString, city: detailString, address: detailString,
   locationScope: z.enum(["WORLDWIDE", "SPECIFIC"]).optional(), eligibleCountries: detailList,
-  latitude: z.number().min(-90).max(90).optional(), longitude: z.number().min(-180).max(180).optional(),
+
   negotiable: z.boolean().optional(), amountMode: z.enum(["FIXED", "RANGE"]).optional(),
   benefits: detailList, education: detailString, experienceMonths: detailNumber,
   fieldsOfStudy: detailList, requiredSkills: detailList, preferredSkills: detailList,
