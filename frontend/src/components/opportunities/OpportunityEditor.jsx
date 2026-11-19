@@ -97,12 +97,15 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
       ? "Questions are locked after the Challenge or opportunity has been published."
       : "Optional questions are answered and stored privately on BrightWay. No external application forms."}</p>
     {draft.questions.filter(isAutoDocumentQuestion).length > 0 && <p role="status">Application documents: {draft.questions.filter(isAutoDocumentQuestion).map(q => q.label.replace(/^(Required|Optional) document: /, "")).join(", ")}. These uploads are added automatically to the applicant form.</p>}
-    {draft.questions.map((q, i) => isAutoDocumentQuestion(q) ? null : <fieldset key={q.id} className="bw-op-builder-question" disabled={lockedForm || busy}>
-      <legend>Question {i + 1}</legend>
-      <label>Question text<input aria-label={`Question ${i + 1} text`} required minLength={3} maxLength={300}
+    {draft.questions.map((q, i) => {
+      if (isAutoDocumentQuestion(q)) return null;
+      const questionNumber = draft.questions.slice(0, i + 1).filter(item => !isAutoDocumentQuestion(item)).length;
+      return <fieldset key={q.id} className="bw-op-builder-question" disabled={lockedForm || busy}>
+      <legend>Question {questionNumber}</legend>
+      <label>Question text<input aria-label={`Question ${questionNumber} text`} required minLength={3} maxLength={300}
         value={q.label} onChange={e => changeQuestion(i, { label: e.target.value })} /></label>
       <div className="bw-op-field-row">
-        <label>Answer type<select aria-label={`Question ${i + 1} type`} value={q.type}
+        <label>Answer type<select aria-label={`Question ${questionNumber} type`} value={q.type}
           onChange={e => changeQuestion(i, { type: e.target.value, options: [] })}>
           {Object.entries(QUESTION_TYPES).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
         </select></label>
@@ -110,7 +113,7 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
           onChange={e => changeQuestion(i, { required: e.target.checked })} />Required</label>
       </div>
       {["SINGLE_CHOICE", "MULTIPLE_CHOICE"].includes(q.type) && <label>
-        Choices (one per line, 2–12)<textarea aria-label={`Question ${i + 1} choices`} rows={3} required
+        Choices (one per line, 2–12)<textarea aria-label={`Question ${questionNumber} choices`} rows={3} required
           value={q.options.join("\n")} onChange={e => changeQuestion(i, { options: e.target.value.split("\n") })} />
       </label>}
       {draft.type === "SCHOLARSHIP" && q.type === "LONG_ANSWER" && <label>Essay maximum words (optional)
@@ -125,9 +128,10 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
             onClick={() => move(i, 1)}>Move down</button>
         </>}
         <button type="button" className="bw-op-text-button" onClick={() =>
-          field("questions", draft.questions.filter((_, index) => index !== i))}>Remove question {i + 1}</button>
+          field("questions", draft.questions.filter((_, index) => index !== i))}>Remove question {questionNumber}</button>
       </div>}
-    </fieldset>)}
+    </fieldset>;
+    })}
     {!lockedForm && <button className="bw-op-secondary" type="button" disabled={busy || draft.questions.length >= 20}
       onClick={() => field("questions", [...draft.questions, {
         id: crypto.randomUUID(), label: "", type: "SHORT_ANSWER", required: true, options: [],
