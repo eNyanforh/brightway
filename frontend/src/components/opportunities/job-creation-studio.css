@@ -267,6 +267,7 @@
 }
 .bw-job-studio-form .bw-op-job-group > h4,
 .bw-job-studio-form .bw-job-studio-section-heading h4,
+.bw-job-studio-form .bw-op-compact-picker > h4,
 .bw-job-studio-form .bw-op-compact-picker legend {
   margin: 0;
   padding: 0;
@@ -672,8 +673,16 @@
   .bw-job-studio-upload { padding: 8px 10px; }
   .bw-op-creation-overlay.bw-op-job-studio-overlay .bw-op-wizard-footer { min-height: 74px; padding: 10px 14px max(10px,env(safe-area-inset-bottom)); gap: 7px; }
   .bw-op-creation-overlay.bw-op-job-studio-overlay .bw-op-wizard-footer button { min-width: 0; flex: 1 1 0; padding-inline: 8px; font-size: 12px; min-height: 46px; }
+  .bw-op-creation-overlay.bw-op-job-studio-overlay .bw-op-wizard-footer button[name="intent"][value="publish"] { order: 3; flex: 1 0 100%; min-height: 48px; }
+  .bw-job-studio-form > .bw-op-compact-picker h4 { margin-bottom: 0; }
   .bw-job-studio-preview.is-mobile-open { padding: 15px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bw-job-studio *, .bw-job-studio *::before, .bw-job-studio *::after { animation: none !important; transition: none !important; }
 }
+
+/* Overrides carry the job studio above shared Opportunities editor styles, regardless of CSS import order. */
+.bw-op-creation-overlay.bw-op-job-studio-overlay .bw-job-studio-form :is(.bw-op-job-group,.bw-op-compact-picker,.bw-job-studio-media){border-bottom:1px solid var(--job-line);margin:0;padding:24px;}
+.bw-op-creation-overlay.bw-op-job-studio-overlay .bw-job-studio-form .bw-op-job-advanced{margin:0;border:1px solid var(--job-line);}
+.bw-op-creation-overlay.bw-op-job-studio-overlay .bw-job-studio-form label:not(.bw-op-checkbox){margin-bottom:0;}
+@media(max-width:620px){.bw-op-creation-overlay.bw-op-job-studio-overlay .bw-job-studio-form :is(.bw-op-job-group,.bw-op-compact-picker,.bw-job-studio-media){padding:19px 17px;}}
