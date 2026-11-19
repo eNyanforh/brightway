@@ -140,7 +140,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const steps = challenge
     ? ["Opportunity type", "Challenge details", "Prizes & collaborators", "Cover photo", "Post types", "Applications", "Review"]
     : draft.type === "JOB"
-      ? ["Opportunity type", "Job information", "Location and salary", "Qualifications", "Application settings", "Recruitment and selection", "Preview and save"]
+      ? ["Opportunity type", "Job Details", "Pay & Requirements", "Applications", "Review & Publish"]
       : draft.type === "SCHOLARSHIP"
         ? ["Opportunity type", "Scholarship information", "Funding and benefits", "Study destination", "Eligibility", "Applications and selection", "Preview and save"]
         : ["Opportunity type", "Opportunity details", "Applications", "Review"];
@@ -183,7 +183,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     setDraft(old => ({
       ...old, type,
       ...(old.type !== type ? {
-        details: type === "JOB" ? { requireCv: true } : type === "SCHOLARSHIP" ?
+        details: type === "JOB" ? { requireCv: true, cvStatus: "required", vacancies: 1 } : type === "SCHOLARSHIP" ?
           { requireTranscript: true, requireStatement: true } : {},
         jobDetails: null,
         questions: ["JOB", "SCHOLARSHIP"].includes(type)
@@ -220,47 +220,59 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
       const d = draft.details || {};
       const has = value => typeof value === "string" && value.trim().length > 0;
       const list = value => Array.isArray(value) && value.some(v => typeof v === "string" && v.trim());
-      if (step === 1) {
-        if (draft.title.trim().length < 3 || draft.description.trim().length < 30)
-          return "Enter a title and a description of at least 30 characters.";
-        if (!has(d.category)) return "Select the opportunity category.";
-        if (draft.type === "JOB" && (!draft.jobDetails?.type || !has(d.experienceLevel)))
-          return "Select the job type and experience level.";
-        if (draft.type === "SCHOLARSHIP" && !list(d.academicLevels))
-          return "Select at least one academic level.";
-      }
-      if (step === 2) {
-        if (draft.type === "SCHOLARSHIP") {
+      if (draft.type === "JOB") {
+        const categories = Array.isArray(d.categories) && d.categories.length ? d.categories : d.category ? [d.category] : [];
+        const types = Array.isArray(d.jobTypes) && d.jobTypes.length ? d.jobTypes : draft.jobDetails?.type ? [draft.jobDetails.type] : [];
+        const levels = Array.isArray(d.experienceLevels) && d.experienceLevels.length ? d.experienceLevels : d.experienceLevel ? [d.experienceLevel] : [];
+        if (step === 1) {
+          if (draft.title.trim().length < 3 || draft.description.trim().length < 30)
+            return "Enter a job title and overview of at least 30 characters.";
+          if (!categories.length) return "Select at least one job category.";
+          if (!types.length) return "Select at least one job type.";
+          if (draft.location.trim().length < 2) return "Provide the work location or eligible remote countries.";
+        }
+        if (step === 2) {
+          if (!draft.jobDetails?.compensationType) return "Choose the compensation type.";
+          if (!levels.length) return "Select at least one experience level.";
+          if (levels.includes("NO_EXPERIENCE") && d.experienceMonths > 0) return "No experience required cannot have a positive minimum experience.";
+          if (!d.education) return "Choose the minimum education qualification.";
+          if (!list(d.responsibilities)) return "Add at least one key responsibility.";
+          const j = draft.jobDetails;
+          const hasAmount = j.salaryMin != null || j.salaryMax != null;
+          if (hasAmount && (j.salaryMin == null || j.salaryMax == null || j.salaryMin > j.salaryMax ||
+            !j.salaryCurrency || !j.salaryPeriod)) return "Provide a valid compensation amount, currency and payment frequency.";
+        }
+        if (step === 3 && (!draft.deadline || new Date(draft.deadline).getTime() <= Date.now()))
+          return "Choose a future application deadline.";
+        if (step === last && !lockedForm) {
+          const issues = opportunityPublicationIssues(draft);
+          if (issues.length) return issues[0];
+        }
+      } else {
+        if (step === 1) {
+          if (draft.title.trim().length < 3 || draft.description.trim().length < 30)
+            return "Enter a title and a description of at least 30 characters.";
+          if (!has(d.category)) return "Select the opportunity category.";
+          if (!list(d.academicLevels)) return "Select at least one academic level.";
+        }
+        if (step === 2) {
           if (!has(d.fundingType)) return "Choose the scholarship funding type.";
           if (d.fundingType === "FIXED_AMOUNT" && (!(d.value > 0) || !["USD", "LRD", "EUR", "GBP"].includes(d.currency)))
             return "Enter a positive scholarship amount and select its currency.";
         }
-        if (draft.type === "JOB") {
-          if (draft.location.trim().length < 2) return "Enter the work location.";
-          if (!draft.jobDetails?.compensationType) return "Choose the compensation type.";
-          const job = draft.jobDetails;
-          const hasAmount = job.salaryMin != null || job.salaryMax != null;
-          if (hasAmount && (job.salaryMin == null || job.salaryMax == null || job.salaryMin > job.salaryMax ||
-            !job.salaryCurrency || !job.salaryPeriod)) return "Provide both valid salary amounts, currency and pay period.";
-        }
-      }
-      if (step === 3) {
-        if (draft.type === "JOB" && (!list(d.responsibilities) || !list(d.requiredQualifications)))
-          return "Provide at least one responsibility and one required qualification.";
-        if (draft.type === "SCHOLARSHIP" && draft.location.trim().length < 2)
+        if (step === 3 && draft.location.trim().length < 2)
           return "Enter the study destination or Worldwide.";
-      }
-      if (step === 4 && draft.type === "SCHOLARSHIP" && !list(d.eligibleCountries))
-        return "Enter eligible countries or Worldwide.";
-      if ((step === 4 && draft.type === "JOB") || (step === 5 && draft.type === "SCHOLARSHIP")) {
-        if (!draft.deadline || new Date(draft.deadline).getTime() <= Date.now())
-          return "Choose a future application deadline.";
-        if (draft.type === "SCHOLARSHIP" && !list(d.selectionCriteria))
-          return "Add at least one selection criterion.";
-      }
-      if (step === last && !lockedForm) {
-        const issues = opportunityPublicationIssues(draft);
-        if (issues.length) return issues[0];
+        if (step === 4 && !list(d.eligibleCountries))
+          return "Enter eligible countries or Worldwide.";
+        if (step === 5) {
+          if (!draft.deadline || new Date(draft.deadline).getTime() <= Date.now())
+            return "Choose a future application deadline.";
+          if (!list(d.selectionCriteria)) return "Add at least one selection criterion.";
+        }
+        if (step === last && !lockedForm) {
+          const issues = opportunityPublicationIssues(draft);
+          if (issues.length) return issues[0];
+        }
       }
       if (draft.questions.length > 20 || draft.questions.filter(q => q.type === "FILE_UPLOAD").length > 12)
         return "Use at most 20 questions, including up to 12 document uploads.";
@@ -372,7 +384,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
           <h2 id="op-editor-title">{singlePageComposer
             ? (opportunity ? "Edit " : "Create a ") + OPPORTUNITY_TYPES[draft.type].label
             : opportunity ? "Edit your opportunity" : "Create an opportunity"}</h2>
-          <p>{singlePageComposer ? "Cover, details, deadline and applications" : dedicatedComposer ? "Step " + step + " of 6 · " + steps[step] : "Step " + (step + 1) + " of " + steps.length}</p>
+          <p>{singlePageComposer ? "Cover, details, deadline and applications" : dedicatedComposer ? "Step " + step + " of " + last + " · " + steps[step] : "Step " + (step + 1) + " of " + steps.length}</p>
           {dedicatedComposer && !opportunity && <p className="bw-op-wizard-help">Progress is kept in this browser tab until you save it to BrightWay.</p>}
         </div>
         <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
