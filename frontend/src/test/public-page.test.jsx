@@ -64,7 +64,7 @@ it("switches the reference homepage between individual and school audiences", as
   await screen.findByRole("heading", { name: "Connect with learners globally, empower their growth, and transform potential into results." });
   expect(within(audience).getByRole("link", { name: "For Schools" }).getAttribute("aria-current")).toBe("page");
   expect(screen.getByText("Build direct, trusted relationships with students and graduates.")).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Build Online Campus" }).getAttribute("href")).toBe("/partners#partner-next");
+  expect(screen.getByRole("link", { name: "Partner with BrightWay" }).getAttribute("href")).toBe("/partners#partner-next");
   await user.click(within(audience).getByRole("link", { name: "For Individuals" }));
   await screen.findByRole("heading", { name: /The all-in-one ecosystem/ });
   expect(fetchMock.mock.calls.some(([, options]) => options.method === "POST")).toBe(false);

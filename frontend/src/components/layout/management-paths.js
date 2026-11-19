@@ -1,5 +1,4 @@
 export const managementPaths = {
-  "/management/billing": "/superadmin/billing",
   "/management/official-messages": "/superadmin/official-messages",
   "/management/users": "/superadmin/users",
   "/management/organizations": "/superadmin/directory",

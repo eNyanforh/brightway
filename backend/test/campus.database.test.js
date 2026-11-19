@@ -71,7 +71,9 @@ test("Sprint 9 real-PostgreSQL activation, permission revocation, isolation, not
     const active = await campus.activate(owner.actor, school.id, { expectedVersion: 1 });
     assert.equal(active.version, 2);
     assert.equal((await campus.assertBilling(owner.actor, school.id)).engine, "GRADE_SCHOOL");
-    assert((await staffService.context(worker.id, worker.sessionId, school.id)).permissions.includes(ANNOUNCE));
+    // Historical Campus records remain testable, but retired grants must never
+    // appear in the live organization permission catalog—even when Campus is ACTIVE.
+    assert.equal((await staffService.context(worker.id, worker.sessionId, school.id)).permissions.includes(ANNOUNCE), false);
     await assert.rejects(campus.assertBilling(worker.actor, school.id), { status: 403 });
     await assert.rejects(campus.settings(worker.actor, school.id, { displayName: "No", contactEmail: null, expectedVersion: 2 }), { status: 403 });
     const key = randomUUID(), body = { requestKey: key, title: "Term planning", body: "Meeting this Friday" };

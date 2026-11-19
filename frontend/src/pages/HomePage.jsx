@@ -71,7 +71,7 @@ export default function HomePage() {
         <ol className="bw-how-list">{(schools ? [
           ["Create your personal account.", "Use your own BrightWay account as the starting point."],
           ["Build your personal profile.", "Keep your identity separate from any future school role."],
-          ["School setup comes next.", "School requests and campus activation are planned for a later release."],
+          ["School setup comes next.", "Create a school organization to publish opportunities, programs, and admissions."],
         ] : [
           ["Make your introduction.", "Create an account with your email, personal details, password and profile photo."],
           ["Bring your story together.", "Add your skills, interests, education and experience."],
@@ -79,7 +79,7 @@ export default function HomePage() {
         ]).map(([title, text], index) => <li key={title}><span>0{index + 1}</span><div><h3>{title}</h3><p>{text}</p></div></li>)}</ol>
       </section>
 
-      {schools && <div className="bw-school-partnership-cta"><p>Interested in partnering with us?</p><Link className="bw-public-button" to="/partners#partner-next">Build Online Campus</Link></div>}
+      {schools && <div className="bw-school-partnership-cta"><p>Interested in partnering with us?</p><Link className="bw-public-button" to="/partners#partner-next">Partner with BrightWay</Link></div>}
 
       <section className="bw-marketing-final"><div className="bw-marketing-container"><div><p className="bw-public-eyebrow">{schools ? "FOR THE PEOPLE BEHIND EVERY SCHOOL" : "YOUR NEXT CHAPTER STARTS WITH YOU"}</p><h2>{schools ? "Start with you.\nGrow together." : "Make room for\nwhat comes next."}</h2></div><Link className="bw-public-button bw-public-button-light bw-public-button-large" to={join}>{account ? "Open BrightWay" : schools ? "Create a personal account" : "Join BrightWay"} <span aria-hidden="true">↗</span></Link></div></section>
     </div>

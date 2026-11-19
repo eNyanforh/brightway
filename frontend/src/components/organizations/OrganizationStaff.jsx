@@ -4,9 +4,7 @@ import { staffPhotoUrl } from "../../api/organization-staff";
 import WorkspaceIcon from "../workspace/WorkspaceIcon";
 import "./organization-staff.css";
 const liveKeys = new Set(["organization.profile.manage", "organization.members.manage", "organization.posts.publish", "organization.opportunities.manage", "organization.applications.review", "organization.programs.manage", "organization.admissions.review", "organization.credentials.education.review", "organization.credentials.experience.review"]);
-// Campus grants are included in the backend catalog only for eligible active Campuses.
-// They are operational staff permissions, not planned features.
-const isLivePermission = key => liveKeys.has(key) || key.startsWith("organization.campus.");
+const isLivePermission = key => liveKeys.has(key);
 const MANAGE = "organization.members.manage";
 const tabs = [["all", "All staff", "all"], ["enabled", "Enabled", "enabled"], ["revoked", "Revoked", "revoked"], ["invitations", "Invitations", "pending"]];
 const staffName = person => person.fullName?.trim() || "BrightWay member";
@@ -28,7 +26,9 @@ function StaffDialog({ title, subtitle, children, busy, isBusy, onClose }) {
   </dialog>;
 }
 function Permissions({ catalog, value, onChange, disabled }) {
-  const current = catalog.filter(p => isLivePermission(p.key)), planned = catalog.filter(p => !isLivePermission(p.key));
+  // Ignore retired Campus grants, including stale catalog values during a rolling deploy.
+  const visible = catalog.filter(p => !p.key.startsWith("organization.campus."));
+  const current = visible.filter(p => isLivePermission(p.key)), planned = visible.filter(p => !isLivePermission(p.key));
   const choice = p => <label className="bw-staff-permission" key={p.key}><input type="checkbox" disabled={disabled} checked={value.includes(p.key)} onChange={event => onChange(event.target.checked ? [...value, p.key].sort() : value.filter(key => key !== p.key))} /><span>{p.label}{p.key === MANAGE && <small>Can invite people and manage permissions within their authority.</small>}</span></label>;
   return <fieldset className="bw-staff-permissions" disabled={disabled}><legend>Permissions</legend><p>Members can view the organization workspace and profile. Choose the additional access they need.</p><div>{current.map(choice)}</div>{planned.length > 0 && <details className="bw-staff-planned"><summary>Upcoming capabilities <span>{planned.length}</span></summary><p>These permissions do not activate tools that are not available yet.</p>{planned.map(choice)}</details>}</fieldset>;
 }

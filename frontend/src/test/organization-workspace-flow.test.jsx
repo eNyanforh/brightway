@@ -1,12 +1,11 @@
 import { dashboardFixture } from "./fixtures/organization-dashboard";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { expect, it, vi } from "vitest";
 import { AuthContext } from "../auth/auth-context";
 import AppLayout from "../layouts/AppLayout";
 import OrganizationWorkspacePage from "../pages/OrganizationWorkspacePage";
-import CampusWorkspacePage from "../pages/CampusWorkspacePage";
 import MemberPostsPage from "../pages/MemberPostsPage";
 import ExplorePage from "../pages/ExplorePage";
 import WorkPage from "../pages/WorkPage";
@@ -24,7 +23,7 @@ const available = [
 const postsTool = { key: "posts", label: "Posts", icon: "post", shortLabel: "Posts", to: base + "/posts", sensitive: true };
 available.push(postsTool);
 const planned = [{ key: "opportunities", label: "Opportunities", sprint: 6 }, { key: "applications", label: "Applications", sprint: 6 }, { key: "programs", label: "Programs", sprint: 7 }, { key: "admissions", label: "Admissions", sprint: 7 }];
-const context = { accountId: "owner", organization, permissions: [MANAGE, REVIEW, "organization.posts.publish"], membership: { role: "PRIMARY_ADMIN", version: 1 }, permissionCatalog: [{ key: MANAGE, label: "Manage staff" }, { key: REVIEW, label: "Review education credentials" }], staffVersion: 1, workspace: { available, planned, campusActive: false, campusSetup: { label: "Set up Virtual Campus", to: `/campus/${id}/setup`, status: "NOT_CONFIGURED" } } };
+const context = { accountId: "owner", organization, permissions: [MANAGE, REVIEW, "organization.posts.publish"], membership: { role: "PRIMARY_ADMIN", version: 1 }, permissionCatalog: [{ key: MANAGE, label: "Manage staff" }, { key: REVIEW, label: "Review education credentials" }], staffVersion: 1, workspace: { available, planned } };
 const profile = { version: 1, photo: null, location: {}, skills: [], interests: [] };
 const reply = (data, status = 200) => new Response(JSON.stringify(status < 400 ? { success: true, data } : { success: false, message: data }), { status, headers: { "Content-Type": "application/json" } });
 function mount(path = base, handler = () => reply(context)) {
@@ -34,9 +33,6 @@ function mount(path = base, handler = () => reply(context)) {
     <Route path="/organizations/new" element={<OrganizationRequestsPage />} />
     <Route path="/organization-workspace/:id" element={<OrganizationWorkspacePage />} />
     <Route path="/organization-workspace/:id/profile" element={<OrganizationWorkspacePage section="profile" />} />
-    <Route path="/organization-workspace/:id/campus" element={<Navigate to={`/campus/${id}`} replace />} />
-    <Route path="/campus/:id" element={<CampusWorkspacePage />} />
-    <Route path="/campus/:id/:section" element={<CampusWorkspacePage />} />
     <Route path="/organization-workspace/:id/posts" element={<OrganizationWorkspacePage section="posts" />} />
     <Route path="/organization-workspace/:id/staff" element={<OrganizationWorkspacePage section="staff" />} />
     <Route path="/organization-workspace/:organizationId/credentials" element={<CredentialReviewsPage />} />
@@ -46,23 +42,6 @@ function mount(path = base, handler = () => reply(context)) {
   </Route></Routes></MemoryRouter></AuthContext.Provider>);
   return { fetch, user: userEvent.setup() };
 }
-it("a primary school administrator enters the dedicated Campus with its first-run setup modal", async () => {
-  const campus = { organizationId: id, campus: null, canSetup: true, canManage: true, eligible: true, canAnnounce: false,
-    permissions: [], eligibility: { eligible: true, verifiedOrganization: true, verifiedLiberiaOperation: true,
-      productEnabled: true, supportedEngines: ["GRADE_SCHOOL"], reasons: [] } };
-  const f = mount("/work", url => url.includes("/my-workspace")
-    ? reply({ tab: "approved", search: "", counts: { approved: 1, pending: 0, invitations: 0, history: 0 }, items: [{ ...organization, role: "PRIMARY_ADMIN" }] })
-    : url.endsWith(base + "/campus") ? reply(campus) : reply(context));
-  const entry = await screen.findByRole("link", { name: "Manage" });
-  expect(entry.getAttribute("href")).toBe(`/campus/${id}`);
-  await f.user.click(entry);
-  await screen.findByRole("heading", { name: organization.name, level: 1 });
-  await screen.findByRole("navigation", { name: "Campus tools" });
-  await screen.findByRole("dialog", { name: /Set up your school Campus/ });
-  expect(screen.queryByRole("navigation", { name: "Organization tools" })).toBeNull();
-  expect(document.querySelector(".bw-design-personal")).toBeNull();
-  expect(f.fetch.mock.calls.some(([url]) => url.endsWith("/staff"))).toBe(false);
-});
 it("desktop and mobile organization navigation expose scoped operational tools without personal destinations", async () => {
   mount(); await screen.findByRole("heading", { name: organization.name, level: 1 });
   const nav = await screen.findByRole("navigation", { name: "Organization tools" });
@@ -406,37 +385,6 @@ it("direct organization entry shows workspace loading rather than an account pic
   await screen.findByRole("heading", { name: organization.name, level: 1 });
 });
 
-it("Campus registration opens a separate setup workspace rather than an organization tool", async () => {
-  const eligibility = { eligible: true, verifiedOrganization: true, verifiedLiberiaOperation: true, productEnabled: true,
-    supportedEngines: ["GRADE_SCHOOL", "TVET"], reasons: [] };
-  const f = mount(base, url => url.endsWith("/campus") ? reply({ organizationId: id, campus: null, eligible: true,
-    eligibility, canSetup: true, canManage: true, canAnnounce: false, permissions: [] }) : reply(context));
-  await screen.findByRole("heading", { name: organization.name, level: 1 });
-  const sidebar = screen.getByRole("complementary", { name: "Organization navigation" });
-  const entry = within(sidebar).getByRole("link", { name: "Set up Virtual Campus" });
-  expect(within(screen.getByRole("navigation", { name: "Organization tools" })).queryByRole("link", { name: "Virtual Campus" })).toBeNull();
-  expect(entry.getAttribute("href")).toBe(`/campus/${id}/setup`);
-  await f.user.click(entry);
-  await screen.findByRole("heading", { name: "Virtual Campus", exact: true });
-  expect(screen.getByRole("navigation", { name: "Campus tools" })).toBeTruthy();
-  expect(screen.queryByRole("navigation", { name: "Organization tools" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Save Campus setup" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Activate Campus" })).toBeNull();
-  expect(f.fetch.mock.calls.some(([, options]) => options?.method && options.method !== "GET")).toBe(false);
-});
-it("non-training company administrators cannot enter an unrelated Campus workspace", async () => {
-  const limited = { ...context, organization: { ...organization, type: "COMPANY", offersTraining: false }, workspace: { available: available.slice(0, 2), planned: [], campusActive: false, campusSetup: null } };
-  mount(`/campus/${id}`, () => reply(limited));
-  await screen.findByRole("alert");
-  expect(screen.getByRole("alert").textContent).toMatch(/does not include Virtual Campus access/);
-  expect(screen.queryByRole("navigation", { name: "Organization tools" })).toBeNull();
-});
-it("ordinary staff cannot open a Campus workspace using a copied URL", async () => {
-  mount(`/campus/${id}/setup`, () => reply({ ...context, membership: { role: "STAFF" }, workspace: { available: available.slice(0, 2), planned: [], campusActive: false, campusSetup: null } }));
-  await screen.findByRole("alert");
-  expect(screen.getByRole("alert").textContent).toMatch(/does not include Virtual Campus access/);
-  expect(screen.queryByRole("button", { name: "Save Campus setup" })).toBeNull();
-});
 it("Profile opens inside the organization workspace with verified details and the existing operating location", async () => {
   const f = mount(base, url => url.endsWith(`/organizations/${id}`) ? reply({ ...organization, verified: true, locations: [{ countryCode: "GH", city: "Accra", region: "Greater Accra", address: "Approved address", primary: true }] }) : reply(context));
   await screen.findByRole("heading", { name: "Dashboard", level: 2 });
@@ -492,7 +440,7 @@ it("the organization menu exposes planned tools while the mobile navigation incl
   await f.user.click(toggle); await f.user.click(within(screen.getByRole("navigation", { name: "Organization tools" })).getByRole("link", { name: "Dashboard" }));
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   const mobile = screen.getByRole("navigation", { name: "Mobile organization navigation" });
-  expect(within(mobile).getAllByRole("link")).toHaveLength(7); expect(within(mobile).getByRole("link", { name: "Virtual Campus" }).getAttribute("href")).toBe(`/campus/${id}/setup`); expect(within(mobile).queryByRole("button", { name: /Coming soon/ })).toBeNull();
+  expect(within(mobile).getAllByRole("link")).toHaveLength(6); expect(within(mobile).queryByRole("link", { name: "Virtual Campus" })).toBeNull(); expect(within(mobile).queryByRole("button", { name: /Coming soon/ })).toBeNull();
 });
 
 it("keeps the same organization navigation mounted while switching tabs and clears it only on confirmed access loss", async () => {

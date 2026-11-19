@@ -7,7 +7,7 @@ function ContextAvatar({ context, className = "" }) {
   const initials = context.name.trim().split(/\s+/u).slice(0, 2)
     .map(part => part[0]).join("").toUpperCase();
   return <span className={`bw-context-avatar ${className}`} aria-hidden="true">
-    <span>{initials || (context.type === "school" ? "S" : "O")}</span>
+    <span>{initials || "O"}</span>
     {context.photoId && <img src={organizationPictureUrl(context.id, context.photoId)} alt=""
       loading="lazy" onError={event => { event.currentTarget.hidden = true; }} />}
   </span>;
@@ -16,8 +16,7 @@ function ContextAvatar({ context, className = "" }) {
 /**
  * Each avatar is a real navigation link. The current identity is first (left),
  * and alternatives overlap towards the right. Nothing here grants access:
- * organization and campus links originate from the signed-in user's
- * approved membership/enrollment directory.
+ * organization links originate from the signed-in user's approved membership directory.
  */
 export function AccountContextFacepile({ contexts, activeContext, personalPhotoId, personalName, onNavigate }) {
   const personal = { key: "personal", type: "personal", name: personalName || "Personal account", to: "/explore" };
@@ -37,8 +36,7 @@ export function AccountContextFacepile({ contexts, activeContext, personalPhotoI
       {ordered.map((context, index) => {
         const active = context.key === activeKey;
         const to = context.to || `/organization-workspace/${encodeURIComponent(context.id)}`;
-        const label = context.type === "personal" ? "personal account" :
-          context.type === "school" ? `${context.name} school campus` : context.to?.startsWith("/campus/") ? `${context.name} Virtual Campus workspace` : `${context.name} organization workspace`;
+        const label = context.type === "personal" ? "personal account" : `${context.name} organization workspace`;
         return <Link key={context.key} to={to}
           className="bw-context-facepile-link"
           style={{ zIndex: ordered.length - index }}
@@ -72,12 +70,12 @@ export function AccountContextChoices({ contexts, activeContext, loading, error,
         onClick={() => onSelect(context.to)} aria-current={active ? "page" : undefined}>
         <ContextAvatar context={context} />
         <span className="bw-context-choice-label"><strong>{context.name}</strong>
-          <small>{context.type === "school" ? "Student campus" : context.to?.startsWith("/campus/") ? "Virtual Campus workspace" : "Organization workspace"}</small></span>
+          <small>Organization workspace</small></span>
         {active && <span className="bw-context-current">Current</span>}
       </button>;
     })}
     {loading && <p className="bw-context-feedback" role="status">Checking your active memberships…</p>}
-    {!loading && !contexts.length && <p className="bw-context-feedback">No active organization memberships or school enrollments.</p>}
+    {!loading && !contexts.length && <p className="bw-context-feedback">No active organization memberships.</p>}
     {error && <p className="bw-context-feedback" role="status">Some contexts could not be checked. Reopen the menu to retry.</p>}
   </nav>;
 }

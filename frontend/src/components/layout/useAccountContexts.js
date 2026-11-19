@@ -1,29 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { staffApi } from "../../api/organization-staff";
 import { organizationEntryPath } from "../organizations/campus-entry";
-import { schoolApi } from "../../api/grade-school";
 
-function resolveContexts(directory, campus) {
-  const organizations = (Array.isArray(directory?.items) ? directory.items : [])
+function resolveContexts(directory) {
+  return (Array.isArray(directory?.items) ? directory.items : [])
     .filter(row => row?.id && row?.name)
     .map(row => ({ key: `org:${row.id}`, id: row.id, type: "organization",
       name: row.name, photoId: row.photoId || null, to: organizationEntryPath(row) }));
-  const seen = new Set();
-  const schools = (Array.isArray(campus?.items) ? campus.items : [])
-    .filter(row => row?.campusId && row?.schoolName &&
-      row.status === "ACTIVE" && row.studentStatus === "ACTIVE" && row.available === true)
-    .filter(row => {
-      if (seen.has(row.campusId)) return false;
-      seen.add(row.campusId);
-      return true;
-    })
-    .map(row => ({ key: `school:${row.campusId}`, id: row.campusId, type: "school",
-      name: row.schoolName, photoId: row.photoId || null,
-      to: `/learning?view=campus&campus=${encodeURIComponent(row.campusId)}` }));
-  return [...organizations, ...schools];
 }
 
-/** Read only session-authorized memberships; URLs do not grant workspace access. */
+/** Only active organization memberships appear while Virtual Campus is retired. */
 export function useAccountContexts(accountId) {
   const [snapshot, setSnapshot] = useState({ accountId: null, generation: -1, items: [], error: false });
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -31,21 +17,10 @@ export function useAccountContexts(accountId) {
   useEffect(() => {
     if (!accountId) return undefined;
     const controller = new AbortController();
-    Promise.allSettled([
-      staffApi.directory(controller.signal, { tab: "approved" }),
-      schoolApi.myCampus(controller.signal),
-    ]).then(([organizations, schools]) => {
-      if (controller.signal.aborted) return;
-      const failure = organizations.status === "rejected" || schools.status === "rejected";
-      setSnapshot({
-        accountId,
-        generation: refreshVersion,
-        items: resolveContexts(
-          organizations.status === "fulfilled" ? organizations.value : null,
-          schools.status === "fulfilled" ? schools.value : null,
-        ),
-        error: failure,
-      });
+    staffApi.directory(controller.signal, { tab: "approved" }).then(directory => {
+      if (!controller.signal.aborted) setSnapshot({ accountId, generation: refreshVersion, items: resolveContexts(directory), error: false });
+    }).catch(() => {
+      if (!controller.signal.aborted) setSnapshot({ accountId, generation: refreshVersion, items: [], error: true });
     });
     return () => controller.abort();
   }, [accountId, refreshVersion]);
@@ -57,4 +32,3 @@ export function useAccountContexts(accountId) {
     refresh,
   };
 }
-

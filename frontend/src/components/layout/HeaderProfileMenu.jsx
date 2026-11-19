@@ -17,7 +17,7 @@ export default function HeaderProfileMenu({
   const { account, logout } = useAuth();
   const { contexts, loading: contextsLoading, error: contextsError, refresh: refreshContexts } = useAccountContexts(account?.id);
   const navigate = useNavigate();
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
 
   const [open, setOpen] = useState(false);
   const [mobile, setMobile] = useState(() => window.matchMedia?.("(max-width: 700px)").matches || false);
@@ -39,22 +39,16 @@ export default function HeaderProfileMenu({
     .filter(Boolean)
     .join(" ");
 
-  // The header's primary identity follows the authorized workspace/Campus route.
+  // The header's primary identity follows the authorized organization route.
   // A route parameter alone cannot establish organization or student access.
   const orgId = pathname.startsWith("/organization-workspace/") ? pathname.split("/")[2] : null;
-  const params = new URLSearchParams(search);
-  const campusView = pathname === "/learning" && params.get("view") === "campus";
-  const campusId = campusView ? params.get("campus") : null;
   const orgContext = orgId && contexts.find(context => context.type === "organization" && context.id === orgId);
   const verifiedOrganization = orgId && actingOrganization?.id === orgId
     ? { key: `org:${orgId}`, id: orgId, type: "organization", name: actingOrganization.name,
         photoId: actingOrganization.photoId || actingOrganization.profilePhotoId || null,
         to: `/organization-workspace/${encodeURIComponent(orgId)}` }
     : null;
-  const campusContext = campusView && (campusId
-    ? contexts.find(context => context.type === "school" && context.id === campusId)
-    : contexts.find(context => context.type === "school"));
-  const activeContext = orgId ? orgContext || verifiedOrganization : campusContext || null;
+  const activeContext = orgId ? orgContext || verifiedOrganization : null;
 
   useEffect(() => {
     const query = window.matchMedia?.("(max-width: 700px)");
