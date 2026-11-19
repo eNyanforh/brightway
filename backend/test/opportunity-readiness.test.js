@@ -53,3 +53,20 @@ test("required upload count is bounded and custom documents are not truncated", 
   assert.equal(requiredDocumentLabels("JOB", details).length, 13);
   assert.ok(opportunityPublicationIssues({ ...job(), details }).some(v => /12/i.test(v)));
 });
+
+test("compact job publication accepts multi-select fields and optional additional qualifications", () => {
+  const base = job();
+  base.details = { categories: ["Research", "Education"], experienceLevels: ["ENTRY"],
+    responsibilities: ["Coordinate field data collection"], education: "BACHELORS" };
+  assert.deepEqual(opportunityPublicationIssues(base), []);
+  assert.ok(opportunityPublicationIssues({ ...base, details: { ...base.details, experienceLevels: ["NO_EXPERIENCE"], experienceMonths: 24 } })
+    .some(x => /no experience/i.test(x)));
+});
+test("optional application document questions stay optional and are not counted as mandatory", () => {
+  const base = job();
+  base.details = { ...base.details, requireCv: false, cvStatus: "optional" };
+  const questions = syncDocumentQuestions("JOB", base.details, [], () => "optional-id");
+  assert.deepEqual(questions.map(q => [q.label, q.required]), [["Optional document: CV / résumé", false]]);
+  assert.deepEqual(requiredDocumentLabels("JOB", base.details), []);
+  assert.deepEqual(opportunityPublicationIssues({ ...base, questions }), []);
+});

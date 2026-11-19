@@ -57,7 +57,7 @@ const jobDetailsInput = z.strictObject({
   compensationType: z.enum(Object.keys(JOB_COMPENSATION_TYPES)),
   salaryMin: z.number().min(0).max(1000000000).nullable(),
   salaryMax: z.number().min(0).max(1000000000).nullable(),
-  salaryCurrency: z.enum(["USD", "LRD", "EUR", "GBP"]).nullable(),
+  salaryCurrency: z.string().regex(/^[A-Z]{3}$/).nullable(),
   salaryPeriod: z.enum(Object.keys(JOB_SALARY_PERIODS)).nullable(),
 }).superRefine((value, context) => {
   const amountProvided = value.salaryMin !== null || value.salaryMax !== null;
@@ -73,14 +73,21 @@ const detailNumber = z.number().finite().min(0).max(1000000000).nullable().optio
 const detailDate = z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/).optional();
 const detailList = z.array(text(300).min(1)).max(60).optional();
 const jobDetailsExtended = z.strictObject({
-  category: detailString, experienceLevel: detailString, vacancies: detailNumber,
+  category: detailString, categories: detailList, jobTypes: z.array(z.enum(Object.keys(JOB_TYPES))).max(8).optional(),
+  experienceLevel: detailString, experienceLevels: detailList, vacancies: detailNumber,
   startDate: detailDate, country: detailString, region: detailString, city: detailString, address: detailString,
+  locationScope: z.enum(["WORLDWIDE", "SPECIFIC"]).optional(), eligibleCountries: detailList,
+
+  negotiable: z.boolean().optional(), amountMode: z.enum(["FIXED", "RANGE"]).optional(),
   benefits: detailList, education: detailString, experienceMonths: detailNumber,
   fieldsOfStudy: detailList, requiredSkills: detailList, preferredSkills: detailList,
   certifications: detailList, languages: detailList, responsibilities: detailList,
   requiredQualifications: detailList, preferredQualifications: detailList,
   requireCv: z.boolean().optional(), requireCoverLetter: z.boolean().optional(),
-  requirePortfolio: z.boolean().optional(), additionalDocuments: detailList,
+  requirePortfolio: z.boolean().optional(),
+  cvStatus: z.enum(["required", "optional", "none"]).optional(),
+  coverLetterStatus: z.enum(["required", "optional", "none"]).optional(),
+  portfolioStatus: z.enum(["required", "optional", "none"]).optional(), additionalDocuments: detailList,
   applicationLimit: detailNumber, recruitmentStages: detailList, hiringDate: detailDate,
 });
 const scholarshipDetailsExtended = z.strictObject({

@@ -22,11 +22,11 @@ export default function OpportunityExtendedDetails({ opportunity }) {
   if (opportunity.type === "JOB") return <section className="bw-op-surface bw-op-extended-details">
     <h2>Job details and requirements</h2>
     <Metadata rows={[
-      ["Job category", d.category], ["Job type", JOB_TYPES[opportunity.jobDetails?.type]],
+      ["Job categories", join(d.categories) || d.category], ["Job types", join((d.jobTypes || []).map(x => JOB_TYPES[x] || x)) || JOB_TYPES[opportunity.jobDetails?.type]],
       ["Compensation", JOB_COMPENSATION_TYPES[opportunity.jobDetails?.compensationType]],
       ["Salary", formatJobSalary(opportunity.jobDetails)],
-      ["Experience level", d.experienceLevel ? human(d.experienceLevel) : null],
-      ["Vacancies", d.vacancies], ["Minimum education", d.education && human(d.education)],
+      ["Experience levels", join(d.experienceLevels) || (d.experienceLevel ? human(d.experienceLevel) : null)],
+      ["Vacancies", d.vacancies], ["Minimum education", d.education ? human(d.education) + (d.fieldsOfStudy?.filter(Boolean).length ? " in " + d.fieldsOfStudy.filter(Boolean).join(", ") : "") : null],
       ["Minimum experience", d.experienceMonths != null ? d.experienceMonths + " months" : null],
       ["Expected start", d.startDate], ["Country", d.country], ["County/State", d.region], ["City", d.city],
       ["Work address", d.address], ["Hiring date", d.hiringDate],
@@ -36,7 +36,6 @@ export default function OpportunityExtendedDetails({ opportunity }) {
     <List heading="Preferred qualifications" items={d.preferredQualifications}/>
     <List heading="Required skills" items={d.requiredSkills}/>
     <List heading="Preferred skills" items={d.preferredSkills}/>
-    <List heading="Fields of study" items={d.fieldsOfStudy}/>
     <List heading="Certifications" items={d.certifications}/>
     <List heading="Languages" items={d.languages}/>
     <List heading="Benefits" items={d.benefits}/>

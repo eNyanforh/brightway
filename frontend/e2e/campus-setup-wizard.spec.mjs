@@ -30,9 +30,16 @@ function fixture() {
     workspace: organizationWorkspace(organization, permissions(), "PRIMARY_ADMIN"),
   });
   async function serve(route) {
+    const request = route.request(), url = new URL(request.url()), path = url.pathname;
+    // This fixture owns the approved-school directory response. The generic
+    // background stub deliberately returns an empty directory for other tests.
+    if (request.method() === "GET" && path === "/api/v1/my-workspace")
+      return route.fulfill({ json: { success: true, data: { tab: "approved", search: "",
+        counts: { approved: 1, pending: 0, invitations: 0, history: 0 },
+        items: [{ id: organizationId, name: "Liberia Test Institution", type: "SCHOOL",
+          offersTraining: true, role: "PRIMARY_ADMIN" }], nextCursor: null } } });
     const msg = backgroundMessaging(route);
     if (msg) return msg;
-    const request = route.request(), url = new URL(request.url()), path = url.pathname;
     if (url.origin !== "http://127.0.0.1:4187" || !path.startsWith("/api/")) return route.continue();
     const method = request.method(), body = method === "GET" ? null : request.postDataJSON();
     const reply = (data, status = 200) => route.fulfill({ status, json: status >= 400 ? { success: false, message: data } : { success: true, data } });
@@ -40,9 +47,6 @@ function fixture() {
     if (path === "/api/v1/profile/me") return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
     if (path === "/api/v1/work/access") return reply({ hasWork: true });
     if (path === "/api/v1/my-campus" && method === "GET") return reply({ items: [] });
-    if (path === "/api/v1/my-workspace" && method === "GET")
-      return reply({ tab: "approved", search: "", counts: { approved: 1, pending: 0, invitations: 0, history: 0 },
-        items: [{ ...organization, role: "PRIMARY_ADMIN" }], nextCursor: null });
     if (path === "/api/v1" + work) return reply(context());
     if (path === root && method === "GET") return reply(info());
     if (path === root + "/setup" && method === "PUT") {

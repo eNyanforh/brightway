@@ -69,41 +69,54 @@ it("reviewers keep feedback after a conflict and clear private applications when
   denied = true; await user.click(screen.getByRole("button", { name: "Reload application queue" })); await screen.findByText("Organization access revoked");
   expect(screen.queryByText("Synthetic Applicant")).toBeNull();
 });
-it("publishes a six-step Job Vacancy draft with requirements and native document uploads", async () => {
+it("saves a four-step Job Vacancy with grouped fields, multi-select options and private uploads", async () => {
   const saved = vi.fn();
   const fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT", version: 1 }));
   vi.stubGlobal("fetch", fetch);
   const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
   await user.click(screen.getByRole("radio", { name: /Job/ }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  expect(screen.getByRole("heading", { name: "Job information" })).toBeTruthy();
-  expect(screen.getByRole("navigation", { name: "Creation progress" })).toBeTruthy();
-  await user.type(screen.getByLabelText("Job title"), "Data internship");
+  expect(screen.getByRole("heading", { name: "Job Details" })).toBeTruthy();
+  expect(screen.getByText(/Step 1 of 4/)).toBeTruthy();
+  expect(screen.getByLabelText("Opportunity cover photo")).toBeTruthy();
+  await user.type(screen.getByLabelText("Job Title"), "Data internship");
   await user.type(screen.getByLabelText("Description", { exact: true }), "Learn research and data quality skills with our team.");
-  await user.selectOptions(screen.getByLabelText("Job category"), "Research");
-  await user.selectOptions(screen.getByLabelText("Experience level"), "ENTRY");
-  await user.selectOptions(screen.getByLabelText("Job type"), "INTERNSHIP");
+  await user.click(screen.getByText("Choose job categories"));
+  await user.click(screen.getByLabelText("Research"));
+  await user.click(screen.getByLabelText("Education"));
+  await user.click(screen.getByText("Choose job types"));
+  await user.click(screen.getByLabelText("Internship"));
+  await user.click(screen.getByLabelText("Part-time"));
+  await user.type(screen.getByLabelText("Country"), "Liberia");
+  await user.type(screen.getByLabelText("City / Town"), "Monrovia");
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  await user.type(screen.getByLabelText("Work location"), "Monrovia, Liberia");
-  await user.selectOptions(screen.getByLabelText("Compensation"), "PAID");
-  await user.type(screen.getByLabelText("Minimum salary"), "200");
-  await user.type(screen.getByLabelText("Maximum salary"), "400");
+  expect(screen.getByRole("heading", { name: "Pay & Requirements" })).toBeTruthy();
+  expect(screen.queryByLabelText("Opportunity cover photo")).toBeNull();
+  await user.selectOptions(screen.getByLabelText("Compensation Type"), "PAID");
+  await user.type(screen.getByLabelText("Minimum amount"), "200");
+  await user.type(screen.getByLabelText("Maximum amount"), "400");
   await user.selectOptions(screen.getByLabelText("Currency"), "USD");
-  await user.selectOptions(screen.getByLabelText("Pay period"), "MONTH");
+  await user.selectOptions(screen.getByLabelText("Payment Frequency"), "MONTH");
+  await user.click(screen.getByLabelText("Entry"));
+  await user.selectOptions(screen.getByLabelText("Minimum Education Qualification"), "HIGH_SCHOOL");
+  await user.type(screen.getByLabelText("Responsibilities"), "Support field data collection");
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  await user.type(screen.getByLabelText("Job responsibilities"), "Support field data collection");
-  await user.type(screen.getByLabelText("Required qualifications"), "High school completion");
-  await user.click(screen.getByRole("button", { name: "Continue" }));
-  expect(screen.getByText(/Required documents:/)).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Applications" })).toBeTruthy();
+  await user.selectOptions(screen.getByLabelText("CV / résumé"), "required");
   await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
+  await user.click(screen.getByText(/Advanced options/));
   await user.click(screen.getByRole("button", { name: "+ Add question" }));
   await user.type(screen.getByLabelText("Question 2 text"), "Describe relevant experience");
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("heading", { name: "Review & Publish" })).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Save draft" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
   const body = JSON.parse(fetch.mock.calls[0][1].body);
-  expect(body.details).toMatchObject({ category: "Research", experienceLevel: "ENTRY", requireCv: true });
+  expect(body.details).toMatchObject({
+    category: "Research", categories: ["Research", "Education"],
+    jobTypes: ["INTERNSHIP", "PART_TIME"], experienceLevel: "ENTRY",
+    experienceLevels: ["ENTRY"], education: "HIGH_SCHOOL", requireCv: true,
+  });
   expect(body.jobDetails).toMatchObject({ type: "INTERNSHIP", compensationType: "PAID", salaryMin: 200, salaryMax: 400 });
   expect(body.questions.some(q => q.label === "Required document: CV / résumé" && q.type === "FILE_UPLOAD" && q.required)).toBe(true);
   expect(body.questions.some(q => q.label === "Describe relevant experience")).toBe(true);

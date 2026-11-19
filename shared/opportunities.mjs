@@ -24,8 +24,12 @@ export const JOB_SALARY_PERIODS = Object.freeze({
   HOUR: "hour",
   DAY: "day",
   WEEK: "week",
+  BIWEEK: "two weeks",
   MONTH: "month",
+  QUARTER: "quarter",
   YEAR: "year",
+  ONE_TIME: "one-time payment",
+  PROJECT: "project",
 });
 export function formatJobSalary(details) {
   if (!details || !["PAID", "STIPEND"].includes(details.compensationType)) return null;
@@ -33,7 +37,8 @@ export function formatJobSalary(details) {
   if (!Number.isFinite(salaryMin) || !Number.isFinite(salaryMax) || !salaryCurrency || !salaryPeriod) return null;
   const symbol = { USD: "US$", LRD: "L$", EUR: "€", GBP: "£" }[salaryCurrency] || salaryCurrency + " ";
   const amount = value => new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
-  return symbol + amount(salaryMin) + "–" + symbol + amount(salaryMax) + "/" + JOB_SALARY_PERIODS[salaryPeriod];
+  const value = salaryMin === salaryMax ? symbol + amount(salaryMin) : symbol + amount(salaryMin) + "–" + symbol + amount(salaryMax);
+  return value + (salaryPeriod === "ONE_TIME" ? " (one-time)" : "/" + JOB_SALARY_PERIODS[salaryPeriod]);
 }
 export const QUESTION_TYPES = Object.freeze({
   SHORT_ANSWER: "Short answer", LONG_ANSWER: "Long answer", YES_NO: "Yes / No",
