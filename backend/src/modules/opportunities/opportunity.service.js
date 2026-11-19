@@ -509,6 +509,13 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
             !isDeepStrictEqual(requiredDocumentLabels(row.type, row.details || {}),
               requiredDocumentLabels(data.type, data.details || {}))))
           throw fail(409, "The type, post requirements, and application questions are locked after first publication.");
+        if (row.publishedAt && row.type === "SCHOLARSHIP") {
+          const critical = ["category", "academicLevels", "fundingType", "currency", "value", "awardsAvailable",
+            "eligibleCountries", "minAge", "maxAge", "education", "academicPerformance",
+            "financialNeedRequired", "eligibilityCriteria", "eligibilityPriority", "targetGender"];
+          if (critical.some(key => !isDeepStrictEqual(row.details?.[key] ?? null, data.details?.[key] ?? null)))
+            throw fail(409, "Published scholarship awards and eligibility are locked. Create a new scholarship if these terms must change.");
+        }
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
         const { collaboratorIds, ...persisted } = data;
         persisted.jobDetails = data.jobDetails ?? Prisma.DbNull;
@@ -527,6 +534,8 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         if (row.version !== data.expectedVersion) throw conflict();
         if (!input.opportunityTransitions[row.status].includes(data.status)) throw fail(409, "This opportunity cannot move to that status.");
         if (data.status === "PUBLISHED" && row.deadline <= now()) throw fail(409, "Set a future deadline before publishing.");
+        if (data.status === "PUBLISHED" && row.type === "SCHOLARSHIP" && !row.organization?.verifiedAt)
+          throw fail(403, "Your organization must be verified before publishing a scholarship.");
         if (data.status === "PUBLISHED" && (!row.publishedAt || Object.keys(row.details || {}).length > 0)) {
           const issues = opportunityPublicationIssues(row, +now());
           if (issues.length) throw fail(400, issues[0]);
