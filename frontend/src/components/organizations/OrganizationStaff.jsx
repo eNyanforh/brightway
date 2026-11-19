@@ -4,9 +4,7 @@ import { staffPhotoUrl } from "../../api/organization-staff";
 import WorkspaceIcon from "../workspace/WorkspaceIcon";
 import "./organization-staff.css";
 const liveKeys = new Set(["organization.profile.manage", "organization.members.manage", "organization.posts.publish", "organization.opportunities.manage", "organization.applications.review", "organization.programs.manage", "organization.admissions.review", "organization.credentials.education.review", "organization.credentials.experience.review"]);
-// Campus grants are included in the backend catalog only for eligible active Campuses.
-// They are operational staff permissions, not planned features.
-const isLivePermission = key => liveKeys.has(key) || key.startsWith("organization.campus.");
+const isLivePermission = key => liveKeys.has(key);
 const MANAGE = "organization.members.manage";
 const tabs = [["all", "All staff", "all"], ["enabled", "Enabled", "enabled"], ["revoked", "Revoked", "revoked"], ["invitations", "Invitations", "pending"]];
 const staffName = person => person.fullName?.trim() || "BrightWay member";
