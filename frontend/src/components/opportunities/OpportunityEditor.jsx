@@ -215,6 +215,16 @@ export default function OpportunityEditor({ organizationId, organization, opport
       return { ...old, [key]: value };
     });
   }
+  async function saveIncompleteDraft() {
+    if (busy || uploading || draft.type !== "SCHOLARSHIP") return;
+    setAutosaveStatus("saving");
+    try {
+      await api.saveScholarshipDraft(organizationId, draft);
+      setAutosaveStatus("saved");
+    } catch {
+      setAutosaveStatus("offline");
+    }
+  }
   function changeQuestion(index, changes) {
     setDraft(old => ({ ...old, questions: old.questions.map((question, i) =>
       i === index ? { ...question, ...changes } : question) }));
@@ -636,6 +646,8 @@ export default function OpportunityEditor({ organizationId, organization, opport
             {singlePageComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
           </button>
           <span className="bw-op-wizard-footer-hint">{jobStudio ? (opportunity ? "Editing an existing listing" : "Changes stored in this browser tab") : opportunity ? "Editing saved listing" : draft.type === "SCHOLARSHIP" ? autosaveStatus === "saved" ? "Draft autosaved to BrightWay" : autosaveStatus === "offline" ? "Offline · saved in browser" : "Scholarship draft autosave enabled" : "Changes stored in this browser tab until saved"}</span>
+          {draft.type === "SCHOLARSHIP" && dedicatedComposer && step < last && <button className="bw-op-secondary"
+            type="button" disabled={locked} onClick={saveIncompleteDraft}>Save draft</button>}
           {dedicatedComposer && step === last ? <>
             <button className="bw-op-secondary" type="submit" name="intent" value="draft" disabled={locked}>
               {busy ? "Saving…" : opportunity ? "Save changes" : "Save draft"}
