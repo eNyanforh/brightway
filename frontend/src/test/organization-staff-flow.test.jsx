@@ -33,19 +33,22 @@ it("invites by username with explicit permissions, scope version and one cookie-
   const [, options] = f.fetch.mock.calls.find(([, o]) => o?.method === "POST"); const body = JSON.parse(options.body); expect(body).toMatchObject({ username: "new_staff", permissions: [POSTS], expectedStaffVersion: 1 }); expect(body.idempotencyKey).toBeTruthy(); expect(options.credentials).toBe("include");
   release(reply({ id: inviteId })); await screen.findByText(/Saved. Organization access/);
 });
-it("offers active Campus teaching and academic permissions as working staff grants", async () => {
-  const campusCatalog = [...catalog,
+it("does not display retired Campus permissions even if an outdated server sends them", async () => {
+  const retiredCatalog = [...catalog,
     { key: "organization.campus.academics.manage", label: "Manage Campus academic operations" },
     { key: "organization.campus.teach", label: "Teach assigned Campus subjects" }];
-  const activeContext = { ...context, permissions: [...context.permissions, "organization.campus.academics.manage", "organization.campus.teach"], permissionCatalog: campusCatalog };
-  const f = mount(url => url.endsWith("/staff") ? reply(staff) : reply(activeContext));
+  const staleContext = { ...context, permissions: [...context.permissions, "organization.campus.academics.manage", "organization.campus.teach"], permissionCatalog: retiredCatalog };
+  const f = mount(url => url.endsWith("/staff") ? reply(staff) : reply(staleContext));
   await openInvite(f);
   const dialog = screen.getByRole("dialog");
-  expect(within(dialog).getByLabelText("Manage Campus academic operations")).toBeTruthy();
-  expect(within(dialog).getByLabelText("Teach assigned Campus subjects")).toBeTruthy();
+  expect(within(dialog).queryByLabelText("Manage Campus academic operations")).toBeNull();
+  expect(within(dialog).queryByLabelText("Teach assigned Campus subjects")).toBeNull();
   expect(within(dialog).queryByText("Upcoming capabilities")).toBeNull();
-  await f.user.click(within(dialog).getByLabelText("Teach assigned Campus subjects"));
-  expect(within(dialog).getByLabelText("Teach assigned Campus subjects").checked).toBe(true);
+  await f.user.type(within(dialog).getByLabelText("BrightWay username"), "new_staff");
+  await f.user.click(within(dialog).getByLabelText("Publish posts"));
+  await f.user.click(within(dialog).getByRole("button", { name: "Send invitation" }));
+  const call = f.fetch.mock.calls.find(([, options]) => options?.method === "POST");
+  expect(JSON.parse(call[1].body).permissions).toEqual([POSTS]);
 });
 
 it("ambiguous delivery retries the identical invitation without accepting edits or duplicating grants", async () => {
