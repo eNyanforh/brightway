@@ -79,6 +79,8 @@ it("saves a four-step Job Vacancy with grouped fields, multi-select options and 
   expect(screen.getByRole("heading", { name: "Job Details" })).toBeTruthy();
   expect(screen.getByText(/Step 1 of 4/)).toBeTruthy();
   expect(screen.getByLabelText("Opportunity cover photo")).toBeTruthy();
+  expect(screen.getByLabelText("Live listing preview").querySelector(".bw-op-creation-preview-card")).toBeTruthy();
+  expect(screen.getByText("LIVE PREVIEW")).toBeTruthy();
   await user.type(screen.getByLabelText("Job Title"), "Data internship");
   await user.type(screen.getByLabelText("Description", { exact: true }), "Learn research and data quality skills with our team.");
   await user.click(screen.getByText("Choose job categories"));

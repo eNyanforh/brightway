@@ -1,3 +1,4 @@
+import { useState } from "react";
 import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityDateTimePicker from "./OpportunityDateTimePicker";
 import OpportunityDescriptionField from "./OpportunityDescriptionField";
@@ -19,8 +20,17 @@ export default function ChallengeComposer({
   locked, lockedForm, uploading, upload,
 }) {
   const hasCover = Boolean(draft.coverAssetId);
+  const [previewOpen, setPreviewOpen] = useState(false);
   return <div className="bw-op-challenge-composer">
-    <aside className="bw-op-challenge-cover-column" aria-label="Challenge cover">
+    <button type="button" className="bw-op-creation-preview-toggle"
+      aria-controls="bw-op-challenge-preview" aria-expanded={previewOpen}
+      onClick={() => setPreviewOpen(current => !current)}>
+      <NavigationIcon name="eye" size={17}/>{previewOpen ? "Hide preview & cover photo" : "Preview & cover photo"}
+    </button>
+    <aside id="bw-op-challenge-preview" aria-label="Live listing preview"
+      className={"bw-op-challenge-cover-column bw-op-creation-preview" + (previewOpen ? " is-mobile-open" : "")}>
+      <div className="bw-op-creation-preview-heading"><strong>LIVE PREVIEW</strong><span>Updates as you type</span></div>
+      <div className="bw-op-creation-preview-card">
       <div className="bw-op-challenge-cover-stage" aria-label="Challenge cover preview">
         {hasCover
           ? <img alt="Challenge cover photo preview"
@@ -30,6 +40,17 @@ export default function ChallengeComposer({
               <strong>Your Challenge cover</strong>
               <span>Upload your own image</span>
             </div>}
+      </div>
+      <div className="bw-op-creation-listing">
+        <span className="bw-op-creation-listing-type">CHALLENGE</span>
+        <h4>{draft.title?.trim() || "Your challenge title"}</h4>
+        <p>{draft.description?.trim()
+          ? draft.description.trim().slice(0, 170) + (draft.description.trim().length > 170 ? "…" : "")
+          : "Your description will appear here as you write."}</p>
+        <div className="bw-op-creation-preview-tags">
+          <span>{draft.deadline ? "Deadline: " + new Date(draft.deadline).toLocaleDateString("en-GB") : "Deadline not set"}</span>
+        </div>
+      </div>
       </div>
       <div className="bw-op-challenge-cover-tools">
         <label className="bw-op-wizard-upload">
@@ -45,7 +66,7 @@ export default function ChallengeComposer({
         {hasCover && <button type="button" className="bw-op-text-button"
           disabled={locked} onClick={() => field("coverAssetId", null)}>Remove image</button>}
       </div>
-      <p className="bw-op-challenge-cover-help">JPEG, PNG or WebP · Up to 5 MB. Your cover appears on Challenge cards across BrightWay.</p>
+      <p className="bw-op-challenge-cover-help">Recommended 16:9 landscape (1280 × 720 px or larger) · JPEG, PNG or WebP · Up to 5 MB.</p>
     </aside>
     <div className="bw-op-challenge-main">
       <h3 id="bw-op-step-heading" tabIndex={-1}>Create your Challenge</h3>

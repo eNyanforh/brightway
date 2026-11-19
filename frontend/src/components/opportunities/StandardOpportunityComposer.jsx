@@ -1,3 +1,4 @@
+import { useState } from "react";
 import "./dedicated-opportunity-fields.css";
 import DedicatedOpportunityFields from "./DedicatedOpportunityFields";
 import { OPPORTUNITY_TYPES, JOB_TYPES, JOB_COMPENSATION_TYPES, JOB_SALARY_PERIODS } from "../../../../shared/opportunities.mjs";
@@ -32,13 +33,22 @@ const copy = {
 export default function StandardOpportunityComposer({
   draft, field, questions, locked, uploading, upload, opportunity,
 }) {
+  const [previewOpen, setPreviewOpen] = useState(false);
   const type = OPPORTUNITY_TYPES[draft.type];
   const labels = copy[draft.type];
   if (!type || !labels) return null;
   const coverUrl = draft.coverAssetId ? api.challengeAssetUrl(draft.coverAssetId) : null;
 
   return <div className="bw-op-challenge-composer bw-op-standard-composer">
-    <aside className="bw-op-challenge-cover-column" aria-label={type.label + " cover"}>
+    <button type="button" className="bw-op-creation-preview-toggle"
+      aria-controls="bw-op-standard-preview" aria-expanded={previewOpen}
+      onClick={() => setPreviewOpen(current => !current)}>
+      <NavigationIcon name="eye" size={17}/>{previewOpen ? "Hide preview & cover photo" : "Preview & cover photo"}
+    </button>
+    <aside id="bw-op-standard-preview" aria-label="Live listing preview"
+      className={"bw-op-challenge-cover-column bw-op-creation-preview" + (previewOpen ? " is-mobile-open" : "")}>
+      <div className="bw-op-creation-preview-heading"><strong>LIVE PREVIEW</strong><span>Updates as you type</span></div>
+      <div className="bw-op-creation-preview-card">
       <div className="bw-op-challenge-cover-stage bw-op-standard-preview-stage"
         aria-label={type.label + " cover preview"}>
         {coverUrl ? <img src={coverUrl} alt={type.label + " cover photo preview"} /> :
@@ -47,9 +57,21 @@ export default function StandardOpportunityComposer({
               <NavigationIcon name={type.icon} size={30} />
             </span>
             <span className="bw-op-standard-poster-kind">{type.label}</span>
-            <strong>{draft.title.trim() || "Your " + type.label.toLowerCase() + " title"}</strong>
+            <strong>BRIGHTWAY</strong>
             <small>{labels.audience}</small>
           </div>}
+      </div>
+      <div className="bw-op-creation-listing">
+        <span className="bw-op-creation-listing-type">{type.label.toUpperCase()}</span>
+        <h4>{draft.title?.trim() || "Your " + type.label.toLowerCase() + " title"}</h4>
+        <p>{draft.description?.trim()
+          ? draft.description.trim().slice(0, 170) + (draft.description.trim().length > 170 ? "…" : "")
+          : "Your description will appear here as you write."}</p>
+        <div className="bw-op-creation-preview-tags">
+          <span>{draft.workMode.replaceAll("_", " ").toLowerCase()}</span>
+          {draft.location && <span>{draft.location}</span>}
+        </div>
+      </div>
       </div>
       <div className="bw-op-challenge-cover-tools">
         <label className="bw-op-wizard-upload">
@@ -66,7 +88,7 @@ export default function StandardOpportunityComposer({
           onClick={() => field("coverAssetId", null)}>Remove image</button>}
       </div>
       <p className="bw-op-challenge-cover-help">
-        Optional cover photo · JPEG, PNG or WebP · Up to 5 MB. Uploaded covers appear on your opportunity cards.
+        Optional 16:9 cover photo (1280 × 720 px or larger recommended) · JPEG, PNG or WebP · Up to 5 MB.
       </p>
     </aside>
     <div className="bw-op-challenge-main bw-op-standard-main">

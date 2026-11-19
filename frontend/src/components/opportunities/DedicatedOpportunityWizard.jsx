@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { OPPORTUNITY_TYPES, JOB_TYPES, JOB_COMPENSATION_TYPES, formatJobSalary } from "../../../../shared/opportunities.mjs";
 import { requiredDocumentLabels } from "../../../../shared/opportunity-documents.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
@@ -67,15 +68,36 @@ export default function DedicatedOpportunityWizard({ draft, field, step, questio
   const index = step - 1;
   const coverUrl = draft.coverAssetId ? api.challengeAssetUrl(draft.coverAssetId) : null;
   const details = draft.details || {};
+  const [previewOpen, setPreviewOpen] = useState(false);
   return <div className="bw-op-challenge-composer bw-op-standard-composer bw-op-dedicated-wizard">
-    <aside className="bw-op-challenge-cover-column" aria-label="Live listing preview">
-      <div className="bw-op-challenge-cover-stage bw-op-standard-preview-stage">
+    <button type="button" className="bw-op-creation-preview-toggle"
+      aria-controls="bw-op-dedicated-preview" aria-expanded={previewOpen}
+      onClick={() => setPreviewOpen(current => !current)}>
+      <NavigationIcon name="eye" size={17}/>{previewOpen ? "Hide preview" : (scholarship || step === 1 ? "Preview & cover photo" : "Preview listing")}
+    </button>
+    <aside id="bw-op-dedicated-preview" aria-label="Live listing preview"
+      className={"bw-op-challenge-cover-column bw-op-creation-preview" + (previewOpen ? " is-mobile-open" : "")}>
+      <div className="bw-op-creation-preview-heading"><strong>LIVE PREVIEW</strong><span>Updates as you type</span></div>
+      <div className="bw-op-creation-preview-card">
+        <div className="bw-op-challenge-cover-stage bw-op-standard-preview-stage">
         {coverUrl ? <img src={coverUrl} alt="Opportunity cover preview" /> : <div className="bw-op-standard-poster">
           <span className="bw-op-standard-poster-symbol"><NavigationIcon name={type.icon} size={30}/></span>
           <span className="bw-op-standard-poster-kind">{draft.type === "JOB" ? "Job Vacancy" : "Scholarship"}</span>
-          <strong>{draft.title || "Opportunity title"}</strong>
+          <strong>BRIGHTWAY</strong>
           <small>{scholarship ? display(details.fundingType) : JOB_TYPES[draft.jobDetails?.type] || "Employment"}</small>
         </div>}
+        </div>
+        <div className="bw-op-creation-listing">
+          <span className="bw-op-creation-listing-type">{scholarship ? "SCHOLARSHIP" : "JOB VACANCY"}</span>
+          <h4>{draft.title?.trim() || (scholarship ? "Your scholarship title" : "Your job title")}</h4>
+          <p>{draft.description?.trim()
+            ? draft.description.trim().slice(0, 170) + (draft.description.trim().length > 170 ? "…" : "")
+            : "Your description will appear here as you write."}</p>
+          <div className="bw-op-creation-preview-tags">
+            <span>{display(draft.workMode)}</span>
+            {draft.location && <span>{draft.location}</span>}
+          </div>
+        </div>
       </div>
       {(scholarship || step === 1) && <div className="bw-op-challenge-cover-tools">
         <label className="bw-op-wizard-upload">{uploading === "COVER" ? "Uploading…" : coverUrl ? "Change cover photo" : "Upload cover photo"}
@@ -84,7 +106,7 @@ export default function DedicatedOpportunityWizard({ draft, field, step, questio
         </label>
         {coverUrl && <button type="button" className="bw-op-text-button" onClick={() => field("coverAssetId", null)}>Remove photo</button>}
       </div>}
-      {(scholarship || step === 1) && <p className="bw-op-challenge-cover-help">Optional JPEG, PNG or WebP · 5 MB maximum.</p>}
+      {(scholarship || step === 1) && <p className="bw-op-challenge-cover-help">16:9 landscape recommended (1280 × 720 px or larger) · JPEG, PNG or WebP · 5 MB maximum.</p>}
       <div className="bw-op-dedicated-preview-facts">
         <strong>{scholarship ? "Funding" : "Compensation"}</strong>
         <p>{scholarship ? display(details.fundingType) : JOB_COMPENSATION_TYPES[draft.jobDetails?.compensationType] || "Not specified"}</p>
