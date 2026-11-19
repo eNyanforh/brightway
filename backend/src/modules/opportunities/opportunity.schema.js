@@ -10,6 +10,7 @@ const text = max => z.string().trim().max(max).refine(v => !/[\u0000-\u0008\u000
 const question = z.strictObject({
   id: identifier, label: text(300).min(3), type: z.enum(Object.keys(QUESTION_TYPES)), required: z.boolean(),
   options: z.array(text(150).min(1)).max(12).default([]),
+  wordLimit: z.number().int().min(10).max(1000).optional(),
 }).superRefine((q, ctx) => {
   const choice = ["SINGLE_CHOICE", "MULTIPLE_CHOICE"].includes(q.type);
   if (choice ? q.options.length < 2 || new Set(q.options).size !== q.options.length : q.options.length !== 0)
@@ -223,6 +224,9 @@ export function validateAnswers(questions, answers, attachments, complete, postR
       : q.type === "SINGLE_CHOICE" ? typeof value === "string" && q.options.includes(value)
       : typeof value === "string" && value.length <= (q.type === "SHORT_ANSWER" ? 500 : 5000);
     if (!valid) throw fail(400, `Check your answer to: ${q.label}`);
+    if (q.type === "LONG_ANSWER" && q.wordLimit && typeof value === "string" &&
+        value.trim().split(/\\s+/).filter(Boolean).length > q.wordLimit)
+      throw fail(400, `Answer for ${q.label} exceeds ${q.wordLimit} words.`);
   }
 }
 
