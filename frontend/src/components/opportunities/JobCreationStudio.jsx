@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { JOB_TYPES, JOB_COMPENSATION_TYPES, formatJobSalary } from "../../../../shared/opportunities.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import NavigationIcon from "../layout/NavigationIcon";
@@ -19,6 +19,10 @@ export default function JobCreationStudio({
   draft, field, step, onGoStep, questions, locked, uploading, upload,
 }) {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const previewTrigger = useRef(null);
+  const previewClose = useRef(null);
+  const closePreview = () => { setPreviewOpen(false); previewTrigger.current?.focus(); };
+  useEffect(() => { if (previewOpen) previewClose.current?.focus(); }, [previewOpen]);
   const data = draft.details || {};
   const job = draft.jobDetails || {};
   const cover = draft.coverAssetId ? api.challengeAssetUrl(draft.coverAssetId) : "";
@@ -54,7 +58,11 @@ export default function JobCreationStudio({
     </div>
   </section> : null;
 
-  return <div className="bw-job-studio">
+  return <div className="bw-job-studio" onKeyDown={event => {
+    if (event.key === "Escape" && previewOpen) {
+      event.preventDefault(); event.stopPropagation(); closePreview();
+    }
+  }}>
     <aside className="bw-job-studio-journey" aria-label="Job creation navigation">
       <div className="bw-job-studio-journey-label">
         <span className="bw-job-studio-overline">YOUR WORKFLOW</span>
@@ -94,7 +102,7 @@ export default function JobCreationStudio({
           : step === 2 ? "Set expectations clearly so the right candidates can find this role."
           : step === 3 ? "Decide what applicants need to submit and when applications close."
           : "Everything in one place. Check the listing and publish when you are ready."}</p>
-        <button type="button" className="bw-job-studio-preview-toggle" aria-expanded={previewOpen}
+        <button type="button" ref={previewTrigger} className="bw-job-studio-preview-toggle" aria-expanded={previewOpen}
           aria-controls="bw-job-studio-preview" onClick={() => setPreviewOpen(open => !open)}>
           <NavigationIcon name="eye" size={18}/>{previewOpen ? "Hide preview" : "Preview job listing"}
         </button>
@@ -108,12 +116,14 @@ export default function JobCreationStudio({
       </p>
     </main>
 
+    {previewOpen && <button type="button" className="bw-job-studio-preview-backdrop"
+      aria-label="Dismiss job preview" onClick={closePreview} />}
     <aside id="bw-job-studio-preview" className={"bw-job-studio-preview" + (previewOpen ? " is-mobile-open" : "")}
       aria-label="Live job listing preview">
       <div className="bw-job-studio-preview-heading">
         <div><span className="bw-job-studio-overline">LIVE PREVIEW</span><h4>Candidate view</h4></div>
-        <button type="button" className="bw-job-studio-preview-close" aria-label="Close job preview"
-          onClick={() => setPreviewOpen(false)}>×</button>
+        <button type="button" ref={previewClose} className="bw-job-studio-preview-close" aria-label="Close job preview"
+          onClick={closePreview}>×</button>
       </div>
       <div className="bw-job-studio-preview-card">
         <div className="bw-job-studio-preview-cover">
