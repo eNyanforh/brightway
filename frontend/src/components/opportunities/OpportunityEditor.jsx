@@ -18,6 +18,7 @@ import DedicatedOpportunityWizard from "./DedicatedOpportunityWizard";
 import JobCreationStudio from "./JobCreationStudio";
 import { isAutoDocumentQuestion, syncDocumentQuestions, requiredDocumentLabels } from "../../../../shared/opportunity-documents.mjs";
 import { opportunityPublicationIssues } from "../../../../shared/opportunity-readiness.mjs";
+import { scholarshipDeadlineToIso, formatDeadlineInZone } from "../../../../shared/opportunity-timezone.mjs";
 import { CHALLENGE_POST_TYPES, describeChallengePostType } from "../../../../shared/challenge-submissions.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./challenge-sidebar-card.css";
@@ -38,6 +39,7 @@ const blank = () => ({
   titleAssetId: null, coverAssetId: null, postRequirements: [], topics: [],
   deadline: "", questions: [],
 });
+const scholarshipZone = details => details?.deadlineTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 const toLocal = date => {
   const value = new Date(date);
   return Number.isFinite(value.getTime())
@@ -54,7 +56,9 @@ function initialDraft(opportunity) {
   return { ...initial,
     ...(opportunity.coverImage ? { coverImage: opportunity.coverImage } : {}),
     collaboratorIds: (opportunity.collaborators || []).map(item => item.organizationId),
-    deadline: toLocal(opportunity.deadline),
+    deadline: opportunity.type === "SCHOLARSHIP" && opportunity.details?.deadlineTimezone
+      ? formatDeadlineInZone(opportunity.deadline, opportunity.details.deadlineTimezone)
+      : toLocal(opportunity.deadline),
   };
 }
 function PhotoField({ label, kind, assetId, disabled, busy, onFile, onRemove }) {
@@ -80,18 +84,30 @@ function PhotoField({ label, kind, assetId, disabled, busy, onFile, onRemove }) 
   </div>;
 }
 function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
+  const move = (index, offset) => {
+    const indexes = draft.questions.flatMap((q, i) => isAutoDocumentQuestion(q) ? [] : [i]);
+    const position = indexes.indexOf(index), target = indexes[position + offset];
+    if (target === undefined) return;
+    const next = [...draft.questions]; [next[index], next[target]] = [next[target], next[index]];
+    field("questions", next);
+  };
   return <section className="bw-op-form-builder">
     <h3>Application questions</h3>
     <p>{lockedForm
       ? "Questions are locked after the Challenge or opportunity has been published."
       : "Optional questions are answered and stored privately on BrightWay. No external application forms."}</p>
     {draft.questions.filter(isAutoDocumentQuestion).length > 0 && <p role="status">Application documents: {draft.questions.filter(isAutoDocumentQuestion).map(q => q.label.replace(/^(Required|Optional) document: /, "")).join(", ")}. These uploads are added automatically to the applicant form.</p>}
-    {draft.questions.map((q, i) => isAutoDocumentQuestion(q) ? null : <fieldset key={q.id} className="bw-op-builder-question" disabled={lockedForm || busy}>
-      <legend>Question {i + 1}</legend>
-      <label>Question text<input aria-label={`Question ${i + 1} text`} required minLength={3} maxLength={300}
+    {draft.questions.map((q, i) => {
+      if (isAutoDocumentQuestion(q)) return null;
+      const questionNumber = draft.type === "SCHOLARSHIP"
+        ? draft.questions.slice(0, i + 1).filter(item => !isAutoDocumentQuestion(item)).length
+        : i + 1;
+      return <fieldset key={q.id} className="bw-op-builder-question" disabled={lockedForm || busy}>
+      <legend>Question {questionNumber}</legend>
+      <label>Question text<input aria-label={`Question ${questionNumber} text`} required minLength={3} maxLength={300}
         value={q.label} onChange={e => changeQuestion(i, { label: e.target.value })} /></label>
       <div className="bw-op-field-row">
-        <label>Answer type<select aria-label={`Question ${i + 1} type`} value={q.type}
+        <label>Answer type<select aria-label={`Question ${questionNumber} type`} value={q.type}
           onChange={e => changeQuestion(i, { type: e.target.value, options: [] })}>
           {Object.entries(QUESTION_TYPES).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
         </select></label>
@@ -99,12 +115,25 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
           onChange={e => changeQuestion(i, { required: e.target.checked })} />Required</label>
       </div>
       {["SINGLE_CHOICE", "MULTIPLE_CHOICE"].includes(q.type) && <label>
-        Choices (one per line, 2–12)<textarea aria-label={`Question ${i + 1} choices`} rows={3} required
+        Choices (one per line, 2–12)<textarea aria-label={`Question ${questionNumber} choices`} rows={3} required
           value={q.options.join("\n")} onChange={e => changeQuestion(i, { options: e.target.value.split("\n") })} />
       </label>}
-      {!lockedForm && <button type="button" className="bw-op-text-button" onClick={() =>
-        field("questions", draft.questions.filter((_, index) => index !== i))}>Remove question {i + 1}</button>}
-    </fieldset>)}
+      {draft.type === "SCHOLARSHIP" && q.type === "LONG_ANSWER" && <label>Essay maximum words (optional)
+        <input type="number" min="10" max="1000" value={q.wordLimit ?? ""}
+          onChange={e => changeQuestion(i, { wordLimit: e.target.value ? Number(e.target.value) : undefined })}/>
+      </label>}
+      {!lockedForm && <div className="bw-scholarship-question-actions">
+        {draft.type === "SCHOLARSHIP" && <>
+          <button type="button" className="bw-op-text-button" disabled={busy || !draft.questions.slice(0, i).some(item => !isAutoDocumentQuestion(item))}
+            onClick={() => move(i, -1)}>Move up</button>
+          <button type="button" className="bw-op-text-button" disabled={busy || !draft.questions.slice(i + 1).some(item => !isAutoDocumentQuestion(item))}
+            onClick={() => move(i, 1)}>Move down</button>
+        </>}
+        <button type="button" className="bw-op-text-button" onClick={() =>
+          field("questions", draft.questions.filter((_, index) => index !== i))}>Remove question {questionNumber}</button>
+      </div>}
+    </fieldset>;
+    })}
     {!lockedForm && <button className="bw-op-secondary" type="button" disabled={busy || draft.questions.length >= 20}
       onClick={() => field("questions", [...draft.questions, {
         id: crypto.randomUUID(), label: "", type: "SHORT_ANSWER", required: true, options: [],
@@ -129,6 +158,8 @@ export default function OpportunityEditor({ organizationId, organization, opport
       organizationId: item.organizationId, organization: item.organization, state: item.state,
     })));
   const [step, setStep] = useState(0), [busy, setBusy] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(Boolean(opportunity));
+  const [autosaveStatus, setAutosaveStatus] = useState("loading");
   const [uploading, setUploading] = useState(""), [error, setError] = useState(null);
   const requestKey = useRef(crypto.randomUUID()), request = useRef(null), persisted = useRef(opportunity || null);
   const uploadController = useRef(null), lock = useRef(false), dialog = useRef(null);
@@ -145,7 +176,7 @@ export default function OpportunityEditor({ organizationId, organization, opport
     : draft.type === "JOB"
       ? ["Opportunity type", "Job Details", "Pay & Requirements", "Applications", "Review & Publish"]
       : draft.type === "SCHOLARSHIP"
-        ? ["Opportunity type", "Scholarship information", "Funding and benefits", "Study destination", "Eligibility", "Applications and selection", "Preview and save"]
+        ? ["Opportunity type", "Basic Information", "Award Details", "Eligibility Criteria", "Application Requirements", "Timeline", "Selection Process", "Review & Publish"]
         : ["Opportunity type", "Opportunity details", "Applications", "Review"];
   const last = steps.length - 1;
 
@@ -160,6 +191,35 @@ export default function OpportunityEditor({ organizationId, organization, opport
     try { window.sessionStorage.setItem(draftKey, JSON.stringify(draft)); }
     catch { /* An unavailable browser session store does not block editing. */ }
   }, [draft, opportunity, draftKey]);
+  useEffect(() => {
+    // Do not load an unrelated scholarship draft while creating another type.
+    if (opportunity || draft.type !== "SCHOLARSHIP") return;
+    const controller = new AbortController();
+    api.getScholarshipDraft(organizationId, controller.signal)
+      .then(result => {
+        if (controller.signal.aborted || result.draft?.type !== "SCHOLARSHIP") return;
+        setDraft(current => {
+          // Never overwrite an active editor or a more complete browser recovery.
+          if (current.type !== "SCHOLARSHIP" || current.title.trim() ||
+              current.description.trim() || current.location.trim()) return current;
+          return { ...blank(), ...result.draft };
+        });
+      })
+      .catch(() => { /* Offline browser recovery stays available. */ })
+      .finally(() => { if (!controller.signal.aborted) setDraftLoaded(true); });
+    return () => controller.abort();
+  }, [opportunity, organizationId, draft.type]);
+  useEffect(() => {
+    if (opportunity || !draftLoaded || draft.type !== "SCHOLARSHIP" || persisted.current) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setAutosaveStatus("saving");
+      api.saveScholarshipDraft(organizationId, draft, controller.signal)
+        .then(() => { if (!controller.signal.aborted) setAutosaveStatus("saved"); })
+        .catch(() => { if (!controller.signal.aborted) setAutosaveStatus("offline"); });
+    }, 1500);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [draft, draftLoaded, opportunity, organizationId]);
   function field(key, value) {
     setDraft(old => {
       if (key === "details" && ["JOB", "SCHOLARSHIP"].includes(old.type)) {
@@ -171,23 +231,43 @@ export default function OpportunityEditor({ organizationId, organization, opport
       return { ...old, [key]: value };
     });
   }
+  async function saveIncompleteDraft() {
+    if (busy || uploading || draft.type !== "SCHOLARSHIP") return;
+    setAutosaveStatus("saving");
+    try {
+      await api.saveScholarshipDraft(organizationId, draft);
+      setAutosaveStatus("saved");
+    } catch {
+      setAutosaveStatus("offline");
+    }
+  }
   function changeQuestion(index, changes) {
     setDraft(old => ({ ...old, questions: old.questions.map((question, i) =>
       i === index ? { ...question, ...changes } : question) }));
   }
   function close() {
-    if (!busy && !uploading && window.confirm("Close this editor and discard unsaved changes?")) {
-      try { window.sessionStorage.removeItem(draftKey); } catch { /* Ignore disabled storage. */ }
+    const scholarshipDraft = !opportunity && draft.type === "SCHOLARSHIP";
+    const message = scholarshipDraft
+      ? "Close the editor? Your draft will remain available for recovery. Recent changes may still be saving."
+      : "Close this editor and discard unsaved changes?";
+    if (!busy && !uploading && window.confirm(message)) {
+      if (!scholarshipDraft) {
+        try { window.sessionStorage.removeItem(draftKey); } catch { /* Ignore disabled storage. */ }
+      }
       onClose();
     }
   }
   function changeType(type) {
     if (lockedForm) return;
+    if (type === "SCHOLARSHIP" && draft.type !== "SCHOLARSHIP") {
+      setDraftLoaded(false);
+      setAutosaveStatus("loading");
+    }
     setDraft(old => ({
       ...old, type,
       ...(old.type !== type ? {
         details: type === "JOB" ? { requireCv: false, cvStatus: "none", vacancies: 1 } : type === "SCHOLARSHIP" ?
-          { requireTranscript: true, requireStatement: true } : {},
+          { requireTranscript: true, requireStatement: true, deadlineTimezone: scholarshipZone() } : {},
         jobDetails: null,
         questions: ["JOB", "SCHOLARSHIP"].includes(type)
           ? syncDocumentQuestions(type, type === "JOB" ? { requireCv: false } :
@@ -254,26 +334,51 @@ export default function OpportunityEditor({ organizationId, organization, opport
       } else {
         if (step === 1) {
           if (draft.title.trim().length < 3 || draft.description.trim().length < 30)
-            return "Enter a title and a description of at least 30 characters.";
-          if (!has(d.category)) return "Select the opportunity category.";
+            return "Enter a scholarship title and description of at least 30 characters.";
+          if (!has(d.category)) return "Select a scholarship category.";
           if (!list(d.academicLevels)) return "Select at least one academic level.";
         }
         if (step === 2) {
           if (!has(d.fundingType)) return "Choose the scholarship funding type.";
           if (d.fundingType === "FIXED_AMOUNT" && (!(d.value > 0) || !["USD", "LRD", "EUR", "GBP"].includes(d.currency)))
             return "Enter a positive scholarship amount and select its currency.";
+          if (d.awardsAvailable != null && (!Number.isInteger(d.awardsAvailable) || d.awardsAvailable < 1))
+            return "Number of awards must be a positive whole number.";
         }
-        if (step === 3 && draft.location.trim().length < 2)
-          return "Enter the study destination or Worldwide.";
-        if (step === 4 && !list(d.eligibleCountries))
-          return "Enter eligible countries or Worldwide.";
+        if (step === 3) {
+          if (draft.location.trim().length < 2) return "Enter the study destination or Worldwide.";
+          if (!list(d.eligibleCountries)) return "Enter eligible countries or Worldwide.";
+          if (d.minAge != null && d.maxAge != null && d.minAge > d.maxAge)
+            return "Minimum eligible age must not exceed maximum age.";
+        }
+        if (step === 4) {
+          if (draft.questions.some(q => ["SINGLE_CHOICE", "MULTIPLE_CHOICE"].includes(q.type) &&
+            (q.options.length < 2 || q.options.length > 12 || q.options.some(option => !option.trim()))))
+            return "Choice questions need 2–12 non-empty options.";
+          if (draft.questions.some(q => !q.label.trim() || q.label.trim().length < 3))
+            return "Enter a meaningful label for each application question.";
+        }
         if (step === 5) {
-          if (!draft.deadline || new Date(draft.deadline).getTime() <= Date.now())
+          let deadlineTime;
+          try { deadlineTime = new Date(scholarshipDeadlineToIso(draft.deadline, scholarshipZone(d))).getTime(); }
+          catch { return "Choose a valid date and time in the selected timezone."; }
+          if (!draft.deadline || deadlineTime <= Date.now())
             return "Choose a future application deadline.";
+          if (d.openingDate && new Date(scholarshipDeadlineToIso(d.openingDate + "T00:00", scholarshipZone(d))).getTime() > deadlineTime)
+            return "Application opening date must be before the deadline.";
+        }
+        if (step === 6) {
           if (!list(d.selectionCriteria)) return "Add at least one selection criterion.";
+          if (d.selectionMethod === "SCORING_RUBRIC" &&
+            (!(d.scoringRubric || []).length || d.scoringRubric.some(row => !row.label.trim()) ||
+              d.scoringRubric.reduce((sum, row) => sum + row.weight, 0) !== 100))
+            return "Scoring rubric criteria must have names and weights totaling 100%.";
         }
         if (step === last && !lockedForm) {
-          const issues = opportunityPublicationIssues(draft);
+          let convertedDeadline;
+          try { convertedDeadline = scholarshipDeadlineToIso(draft.deadline, scholarshipZone(d)); }
+          catch { return "Choose a valid deadline in the selected timezone."; }
+          const issues = opportunityPublicationIssues({ ...draft, deadline: convertedDeadline });
           if (issues.length) return issues[0];
         }
       }
@@ -316,9 +421,16 @@ export default function OpportunityEditor({ organizationId, organization, opport
             draft.jobDetails.salaryMin > draft.jobDetails.salaryMax)))) {
       setError(new Error("Choose a job type and compensation, and enter a valid salary range if disclosed.")); return;
     }
+    let normalizedDeadline;
+    try {
+      normalizedDeadline = draft.type === "SCHOLARSHIP"
+        ? scholarshipDeadlineToIso(draft.deadline, scholarshipZone(draft.details))
+        : new Date(draft.deadline).toISOString();
+    } catch {
+      setError(new Error("Choose a valid application deadline in the selected timezone.")); return;
+    }
     if (!draft.type || draft.title.trim().length < 3 || draft.description.trim().length < 30 ||
-        !draft.deadline || !Number.isFinite(new Date(draft.deadline).getTime()) ||
-        new Date(draft.deadline).getTime() <= Date.now()) {
+        !draft.deadline || new Date(normalizedDeadline).getTime() <= Date.now()) {
       setError(new Error("Check the required details and future deadline before saving.")); return;
     }
     const publishOnSave = dedicatedComposer && step === last && e.nativeEvent?.submitter?.value === "publish";
@@ -343,7 +455,7 @@ export default function OpportunityEditor({ organizationId, organization, opport
         backgroundAssetId: challenge ? draft.backgroundAssetId : null,
         titleAssetId: challenge ? draft.titleAssetId : null,
         coverAssetId: draft.coverAssetId,
-        deadline: new Date(draft.deadline).toISOString(),
+        deadline: normalizedDeadline,
       };
       const current = persisted.current;
       const saved = current
@@ -357,6 +469,10 @@ export default function OpportunityEditor({ organizationId, organization, opport
         : saved;
       if (!controller.signal.aborted) {
         try { window.sessionStorage.removeItem(draftKey); } catch { /* Ignore disabled storage. */ }
+        if (draft.type === "SCHOLARSHIP") {
+          try { await api.deleteScholarshipDraft(organizationId, controller.signal); }
+          catch { /* Saved listing remains authoritative even if draft cleanup fails. */ }
+        }
         onSaved(completed);
       }
     } catch (cause) { if (!controller.signal.aborted) setError(cause); }
@@ -369,7 +485,7 @@ export default function OpportunityEditor({ organizationId, organization, opport
   const locked = busy || Boolean(uploading) || error?.status === 409 ||
     [401, 403, 404].includes(error?.status);
 
-  return <div className={"bw-op-overlay bw-op-wizard-overlay bw-op-creation-overlay" + (jobStudio ? " bw-op-job-studio-overlay" : "") + (dedicatedComposer ? " bw-op-creation-dedicated" : "") + (singlePageComposer ? " bw-op-challenge-overlay" : "") + (standardComposer || dedicatedComposer ? " bw-op-standard-overlay" : "")} onKeyDown={e => {
+  return <div className={"bw-op-overlay bw-op-wizard-overlay bw-op-creation-overlay" + (draft.type === "SCHOLARSHIP" ? " bw-op-creation-scholarship" : "") + (jobStudio ? " bw-op-job-studio-overlay" : "") + (dedicatedComposer ? " bw-op-creation-dedicated" : "") + (singlePageComposer ? " bw-op-challenge-overlay" : "") + (standardComposer || dedicatedComposer ? " bw-op-standard-overlay" : "")} onKeyDown={e => {
     if (e.key === "Escape") { e.preventDefault(); close(); }
     if (e.key === "Tab" && dialog.current) {
       const nodes = [...dialog.current.querySelectorAll(
@@ -384,13 +500,18 @@ export default function OpportunityEditor({ organizationId, organization, opport
       aria-labelledby="op-editor-title" className="bw-op-editor bw-op-wizard">
       <header className="bw-op-wizard-header">
         <div><p className="bw-op-wizard-kicker">{opportunity ? "EDIT OPPORTUNITY" : "CREATE OPPORTUNITY"}</p>
-          <h2 id="op-editor-title">{jobStudio ? (opportunity ? "Edit job vacancy" : "Create a job vacancy") : singlePageComposer
+          <h2 id="op-editor-title">{draft.type === "SCHOLARSHIP" && dedicatedComposer ? (opportunity ? "Edit scholarship" : "Create a scholarship") : jobStudio ? (opportunity ? "Edit job vacancy" : "Create a job vacancy") : singlePageComposer
             ? (opportunity ? "Edit " : "Create a ") + OPPORTUNITY_TYPES[draft.type].label
             : opportunity ? "Edit your opportunity" : "Create an opportunity"}</h2>
           <p>{jobStudio ? "A clear listing attracts the right candidates" :
             singlePageComposer ? "Cover, details, deadline and applications" : dedicatedComposer ?
               "Step " + step + " of " + last + " · " + steps[step] : "Step " + (step + 1) + " of " + steps.length}</p>
-          {dedicatedComposer && !jobStudio && !opportunity && <p className="bw-op-wizard-help">Progress is kept in this browser tab until you save it to BrightWay.</p>}
+          {dedicatedComposer && !jobStudio && !opportunity && <p className="bw-op-wizard-help" role="status">
+            {draft.type === "SCHOLARSHIP" ? autosaveStatus === "saved" ? "Draft automatically saved to BrightWay"
+              : autosaveStatus === "saving" ? "Saving scholarship draft…"
+              : autosaveStatus === "offline" ? "Offline: changes remain in this browser tab"
+              : "Loading your scholarship draft…" : "Changes remain in this browser tab until saved."}
+          </p>}
         </div>
         <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
       </header>
@@ -557,7 +678,9 @@ export default function OpportunityEditor({ organizationId, organization, opport
             onClick={() => singlePageComposer && opportunity ? close() : step ? (setError(null), setStep(current => current - 1)) : close()}>
             {singlePageComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
           </button>
-          <span className="bw-op-wizard-footer-hint">{jobStudio ? (opportunity ? "Editing an existing listing" : "Changes stored in this browser tab") : opportunity ? "Editing saved listing" : "Saved as draft until you publish"}</span>
+          <span className="bw-op-wizard-footer-hint">{jobStudio ? (opportunity ? "Editing an existing listing" : "Changes stored in this browser tab") : opportunity ? "Editing saved listing" : draft.type === "SCHOLARSHIP" ? autosaveStatus === "saved" ? "Draft autosaved to BrightWay" : autosaveStatus === "offline" ? "Offline · saved in browser" : "Scholarship draft autosave enabled" : "Changes stored in this browser tab until saved"}</span>
+          {draft.type === "SCHOLARSHIP" && dedicatedComposer && step < last && <button className="bw-op-secondary"
+            type="button" disabled={locked} onClick={saveIncompleteDraft}>Save draft</button>}
           {dedicatedComposer && step === last ? <>
             <button className="bw-op-secondary" type="submit" name="intent" value="draft" disabled={locked}>
               {busy ? "Saving…" : opportunity ? "Save changes" : "Save draft"}

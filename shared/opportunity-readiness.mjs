@@ -33,6 +33,20 @@ export function opportunityPublicationIssues(opportunity, currentTime = Date.now
     if (d.openingDate && opportunity.deadline &&
         new Date(d.openingDate + "T00:00:00Z") > new Date(opportunity.deadline))
       issues.push("Application opening date must be before the deadline.");
+    if (d.awardsAvailable != null)
+      need(Number.isInteger(d.awardsAvailable) && d.awardsAvailable > 0, "Number of awards must be a positive whole number.");
+    if (d.applicationLimit != null)
+      need(Number.isInteger(d.applicationLimit) && d.applicationLimit > 0, "Maximum applicants must be a positive whole number.");
+    if (d.reviewStartDate && d.reviewEndDate && d.reviewStartDate > d.reviewEndDate)
+      issues.push("The review period end must not precede its start.");
+    if (d.reviewEndDate && d.announcementDate && d.announcementDate < d.reviewEndDate)
+      issues.push("Announcement date must not precede the end of review.");
+    if (d.selectionMethod === "SCORING_RUBRIC") {
+      const rows = Array.isArray(d.scoringRubric) ? d.scoringRubric : [];
+      need(rows.length > 0 && rows.every(row => row.label?.trim() && Number.isInteger(row.weight) && row.weight >= 0) &&
+        rows.reduce((total, row) => total + row.weight, 0) === 100,
+        "Scoring rubric requires named criteria whose weights total 100%.");
+    }
   }
   const requirements = requiredDocumentLabels(type, d);
   need(requirements.length <= 12, "Limit required application documents to 12.");

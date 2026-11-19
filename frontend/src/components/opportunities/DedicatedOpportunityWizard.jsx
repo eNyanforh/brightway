@@ -1,34 +1,23 @@
 import { useState } from "react";
 import { OPPORTUNITY_TYPES, JOB_TYPES, JOB_COMPENSATION_TYPES, formatJobSalary } from "../../../../shared/opportunities.mjs";
 import { requiredDocumentLabels } from "../../../../shared/opportunity-documents.mjs";
+import { opportunityPublicationIssues } from "../../../../shared/opportunity-readiness.mjs";
+import { scholarshipDeadlineToIso } from "../../../../shared/opportunity-timezone.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityDateTimePicker from "./OpportunityDateTimePicker";
 import OpportunityDescriptionField from "./OpportunityDescriptionField";
-import DedicatedOpportunityFields from "./DedicatedOpportunityFields";
+import ScholarshipCreationFields from "./ScholarshipCreationFields";
 import JobVacancySteps from "./JobVacancySteps";
 
 const descriptions = {
   JOB: ["Job Details", "Pay & Requirements", "Applications", "Review & Publish"],
-  SCHOLARSHIP: ["Scholarship information", "Funding and benefits", "Study destination", "Eligibility", "Applications and selection", "Preview and save"],
+  SCHOLARSHIP: ["Basic Information", "Award Details", "Eligibility Criteria", "Application Requirements", "Timeline", "Selection Process", "Review & Publish"],
 };
 const display = name => name ? name.replaceAll("_", " ").replace(/\b\w/g, l => l.toUpperCase()) : "Not specified";
 const currency = (value, code) => code && value != null
   ? new Intl.NumberFormat("en-US", { style: "currency", currency: code, maximumFractionDigits: 2 }).format(value) : null;
 
-function LocationFields({ draft, field, scholarship }) {
-  return <section className="bw-op-challenge-section">
-    <h4>{scholarship ? "Study mode and destination" : "Work location"}</h4>
-    <div className="bw-op-field-row">
-      <label>{scholarship ? "Study mode" : "Work mode"} <select value={draft.workMode} onChange={e => field("workMode", e.target.value)}>
-        <option value="IN_PERSON">In person</option><option value="REMOTE">Remote / Online</option><option value="HYBRID">Hybrid</option>
-      </select></label>
-      <label>{scholarship ? "Study destination" : "Work location"} <input required minLength={2} maxLength={180}
-        value={draft.location} placeholder={scholarship ? "University, country or Worldwide" : "Monrovia, Liberia or Remote"}
-        onChange={e => field("location", e.target.value)} /></label>
-    </div>
-  </section>;
-}
 function Review({ draft }) {
   const d = draft.details || {};
   const scholarship = draft.type === "SCHOLARSHIP";
@@ -46,14 +35,24 @@ function Review({ draft }) {
     ["Responsibilities", (d.responsibilities || []).join(" · ")],
     ["Required qualifications", (d.requiredQualifications || []).join(" · ")],
   ];
+  let reviewDeadline = draft.deadline;
+  if (scholarship && draft.deadline) {
+    try { reviewDeadline = scholarshipDeadlineToIso(draft.deadline, d.deadlineTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"); }
+    catch { /* An invalid deadline is shown as a validation issue below. */ }
+  }
+  const issues = scholarship ? opportunityPublicationIssues({ ...draft, deadline: reviewDeadline }) : [];
   return <section className="bw-op-challenge-section" aria-label="Review opportunity">
-    <h4>Preview before saving</h4>
-    <p>Review the listing and document requirements. You may save a draft or publish directly to BrightWay.</p>
+    <h4>Review before publishing</h4>
+    <p>Review the public listing and application requirements. Incomplete items must be corrected before publishing.</p>
+    {scholarship && <div className="bw-scholarship-checklist" role="status">
+      <strong>{issues.length ? issues.length + " publication checks need attention" : "All publication checks passed"}</strong>
+      {issues.length > 0 && <ul>{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
+    </div>}
     <div className="bw-op-wizard-review">
       <strong>{draft.title}</strong><p>{draft.description}</p>
       <dl><div><dt>Location</dt><dd>{draft.location}</dd></div>
         <div><dt>Mode</dt><dd>{display(draft.workMode)}</dd></div>
-        <div><dt>Deadline</dt><dd>{draft.deadline ? new Date(draft.deadline).toLocaleString("en-GB") : "Not set"}</dd></div>
+        <div><dt>Deadline</dt><dd>{draft.deadline ? (scholarship ? draft.deadline.replace("T", " ") + " (" + (d.deadlineTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC") + ")" : new Date(draft.deadline).toLocaleString("en-GB")) : "Not set"}</dd></div>
         {fields.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value || "Not specified"}</dd></div>)}
         <div><dt>Required documents</dt><dd>{requiredDocumentLabels(draft.type, d).join(", ") || "None"}</dd></div>
         <div><dt>Additional application questions</dt><dd>{draft.questions.filter(q => !q.label.startsWith("Required document: ")).length}</dd></div>
@@ -90,9 +89,9 @@ export default function DedicatedOpportunityWizard({ draft, field, step, questio
         <div className="bw-op-creation-listing">
           <span className="bw-op-creation-listing-type">{scholarship ? "SCHOLARSHIP" : "JOB VACANCY"}</span>
           <h4>{draft.title?.trim() || (scholarship ? "Your scholarship title" : "Your job title")}</h4>
-          <p>{draft.description?.trim()
+          <p>{(scholarship && details.shortSummary?.trim()) || (draft.description?.trim()
             ? draft.description.trim().slice(0, 170) + (draft.description.trim().length > 170 ? "…" : "")
-            : "Your description will appear here as you write."}</p>
+            : "Your description will appear here as you write.")}</p>
           <div className="bw-op-creation-preview-tags">
             <span>{display(draft.workMode)}</span>
             {draft.location && <span>{draft.location}</span>}
@@ -129,26 +128,39 @@ export default function DedicatedOpportunityWizard({ draft, field, step, questio
               placeholder="Undergraduate research scholarship" onChange={e => field("title", e.target.value)}/>
           </label>
           <section className="bw-op-challenge-section">
-            <h4>Description</h4>
-            <OpportunityDescriptionField value={draft.description} placeholder="Explain the scholarship, purpose and selection process."
+            <h4>Full description</h4>
+            <OpportunityDescriptionField value={draft.description} placeholder="Explain the scholarship, its purpose, benefits and who should apply."
               onChange={v => field("description", v)}/>
           </section>
-          <DedicatedOpportunityFields type="SCHOLARSHIP" details={details} onChange={v => field("details", v)} section={1} locked={Boolean(opportunity?.publishedAt)}/>
+          <ScholarshipCreationFields step={1} details={details} onChange={v => field("details", v)} locked={Boolean(opportunity?.publishedAt)}/>
         </>}
-        {step === 2 && <DedicatedOpportunityFields type="SCHOLARSHIP" details={details} onChange={v => field("details", v)} section={2}/>}
+        {step === 2 && <ScholarshipCreationFields step={2} details={details} onChange={v => field("details", v)} locked={Boolean(opportunity?.publishedAt)}/>}
         {step === 3 && <>
-          <LocationFields draft={draft} field={field} scholarship/>
-          <DedicatedOpportunityFields type="SCHOLARSHIP" details={details} onChange={v => field("details", v)} section={3}/>
-        </>}
-        {step === 4 && <DedicatedOpportunityFields type="SCHOLARSHIP" details={details} onChange={v => field("details", v)} section={4} locked={Boolean(opportunity?.publishedAt)}/>}
-        {step === 5 && <>
-          <DedicatedOpportunityFields type="SCHOLARSHIP" details={details} onChange={v => field("details", v)} section={5} locked={Boolean(opportunity?.publishedAt)}/>
           <section className="bw-op-challenge-section">
-            <h4>Application deadline</h4><OpportunityDateTimePicker value={draft.deadline} onChange={v => field("deadline", v)}/>
-            {questions}
+            <h4>Study mode and destination</h4>
+            <div className="bw-op-field-row">
+              <label>Study mode<select value={draft.workMode} onChange={e => field("workMode", e.target.value)}>
+                <option value="IN_PERSON">In person</option><option value="REMOTE">Remote / Online</option><option value="HYBRID">Hybrid</option>
+              </select></label>
+              <label>Study destination<input required minLength={2} maxLength={180}
+                value={draft.location} placeholder="University, country or Worldwide" onChange={e => field("location", e.target.value)}/></label>
+            </div>
+          </section>
+          <ScholarshipCreationFields step={3} details={details} onChange={v => field("details", v)} locked={Boolean(opportunity?.publishedAt)}/>
+        </>}
+        {step === 4 && <>
+          <ScholarshipCreationFields step={4} details={details} onChange={v => field("details", v)} locked={Boolean(opportunity?.publishedAt)}/>
+          {questions}
+        </>}
+        {step === 5 && <>
+          <ScholarshipCreationFields step={5} details={details} onChange={v => field("details", v)}/>
+          <section className="bw-op-challenge-section">
+            <h4>Application deadline</h4>
+            <OpportunityDateTimePicker label="Application deadline (selected timezone)" value={draft.deadline} onChange={v => field("deadline", v)}/>
           </section>
         </>}
-        {step === 6 && <Review draft={draft}/>}
+        {step === 6 && <ScholarshipCreationFields step={6} details={details} onChange={v => field("details", v)}/>}
+        {step === 7 && <Review draft={draft}/>}
       </> : <JobVacancySteps draft={draft} field={field} step={step} questions={questions} locked={Boolean(opportunity?.publishedAt)}/>}
       <p className="bw-op-challenge-native"><NavigationIcon name="security" size={18}/>
         All applicant documents and screening answers are handled privately within BrightWay.</p>

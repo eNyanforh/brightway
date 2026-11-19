@@ -10,6 +10,7 @@ const text = max => z.string().trim().max(max).refine(v => !/[\u0000-\u0008\u000
 const question = z.strictObject({
   id: identifier, label: text(300).min(3), type: z.enum(Object.keys(QUESTION_TYPES)), required: z.boolean(),
   options: z.array(text(150).min(1)).max(12).default([]),
+  wordLimit: z.number().int().min(10).max(1000).optional(),
 }).superRefine((q, ctx) => {
   const choice = ["SINGLE_CHOICE", "MULTIPLE_CHOICE"].includes(q.type);
   if (choice ? q.options.length < 2 || new Set(q.options).size !== q.options.length : q.options.length !== 0)
@@ -92,6 +93,16 @@ const jobDetailsExtended = z.strictObject({
 });
 const scholarshipDetailsExtended = z.strictObject({
   category: detailString, academicLevels: detailList, fieldsOfStudy: detailList,
+  shortSummary: text(160).optional(), targetDiscipline: detailString,
+  awardDuration: z.enum(["ONE_TIME", "SEMESTER", "RENEWABLE"]).optional(), renewalConditions: detailString,
+  eligibilityPriority: z.record(z.string(), z.enum(["REQUIRED", "PREFERRED"])).optional(),
+  targetGender: z.enum(["ALL", "WOMEN", "MEN", "OTHER"]).optional(),
+  reviewStartDate: detailDate, reviewEndDate: detailDate, interviewDate: detailDate, applicationLimit: detailNumber,
+  deadlineTimezone: z.string().max(64).refine(zone => { try { new Intl.DateTimeFormat("en-US", { timeZone: zone }); return true; } catch { return false; } }, "Select a valid timezone.").optional(),
+  selectionMethod: z.enum(["SINGLE_REVIEWER", "COMMITTEE", "SCORING_RUBRIC"]).optional(),
+  scoringRubric: z.array(z.strictObject({
+    id: identifier, label: text(120), weight: z.number().int().min(0).max(100),
+  })).max(10).optional(),
   awardsAvailable: detailNumber, fundingType: detailString, currency: z.enum(["", "USD", "LRD", "EUR", "GBP"]).optional(),
   value: detailNumber, fundingMonths: detailNumber, tuitionPercent: z.number().min(0).max(100).nullable().optional(),
   livingAllowance: z.boolean().optional(), accommodation: z.boolean().optional(), travelSupport: z.boolean().optional(),
@@ -110,10 +121,24 @@ const scholarshipDetailsExtended = z.strictObject({
 }).superRefine((data, ctx) => {
   if (data.minAge != null && data.maxAge != null && data.minAge > data.maxAge)
     ctx.addIssue({ code: "custom", message: "Minimum eligible age must not exceed maximum age." });
+  if (data.awardsAvailable != null && (!Number.isInteger(data.awardsAvailable) || data.awardsAvailable < 1))
+    ctx.addIssue({ code: "custom", message: "Number of scholarships must be a positive whole number." });
+  if (data.applicationLimit != null && (!Number.isInteger(data.applicationLimit) || data.applicationLimit < 1))
+    ctx.addIssue({ code: "custom", message: "Maximum applicants must be a positive whole number." });
   if (data.fundingType && !["FULLY_FUNDED", "PARTIALLY_FUNDED", "FIXED_AMOUNT", "TUITION_WAIVER", "STIPEND", "OTHER"].includes(data.fundingType))
     ctx.addIssue({ code: "custom", message: "Choose a valid scholarship funding type." });
 });
 const opportunityDetails = z.union([jobDetailsExtended, scholarshipDetailsExtended]).default({});
+
+export const scholarshipEditorDraftInput = z.strictObject({
+  draft: z.object({
+    type: z.literal("SCHOLARSHIP"),
+    title: z.string().max(160), description: z.string().max(12000),
+    location: z.string().max(180), details: z.record(z.string(), z.unknown()),
+    questions: z.array(z.unknown()).max(20),
+  }).passthrough().refine(value => JSON.stringify(value).length <= 65536,
+    "Scholarship draft is too large."),
+});
 
 export const opportunityInput = z.strictObject({
   type: z.enum(Object.keys(OPPORTUNITY_TYPES)), title: text(160).min(3), description: text(12000).min(30),
@@ -210,6 +235,9 @@ export function validateAnswers(questions, answers, attachments, complete, postR
       : q.type === "SINGLE_CHOICE" ? typeof value === "string" && q.options.includes(value)
       : typeof value === "string" && value.length <= (q.type === "SHORT_ANSWER" ? 500 : 5000);
     if (!valid) throw fail(400, `Check your answer to: ${q.label}`);
+    if (q.type === "LONG_ANSWER" && q.wordLimit && typeof value === "string" &&
+        value.trim().split(/\s+/).filter(Boolean).length > q.wordLimit)
+      throw fail(400, `Answer for ${q.label} exceeds ${q.wordLimit} words.`);
   }
 }
 

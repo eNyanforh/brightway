@@ -110,7 +110,7 @@ function FeaturedOpportunityCard({ opportunity, organization, profile, detail, p
             <strong title={prizeText}>{prizeText}</strong>
           </div>
         </> : <>
-          {opportunity.description && <p className="bw-job-description">{opportunity.description}</p>}
+          {opportunity.description && <p className="bw-job-description">{opportunity.type === "SCHOLARSHIP" && opportunity.details?.shortSummary ? opportunity.details.shortSummary : opportunity.description}</p>}
           <JobDetailsSummary details={opportunity.jobDetails} />
           <div className="bw-job-facts">
             {opportunity.location && <span><NavigationIcon name="pin" size={14} />{opportunity.location}</span>}
@@ -190,7 +190,7 @@ export default function ExploreOpportunityCard({ opportunity, onSavedChange }) {
           </header>
           <div className="bw-timeline-opportunity-body">
             <h3><Link to={detail}>{opportunity.title}</Link></h3>
-            <p className="bw-timeline-opportunity-description">{opportunity.description}</p>
+            <p className="bw-timeline-opportunity-description">{opportunity.type === "SCHOLARSHIP" && opportunity.details?.shortSummary ? opportunity.details.shortSummary : opportunity.description}</p>
             {opportunity.type === "SCHOLARSHIP" && <div className="bw-op-scholarship-summary">
               {scholarshipSummary(opportunity.details) && <strong>{scholarshipSummary(opportunity.details)}</strong>}
               {Array.isArray(opportunity.details?.academicLevels) && opportunity.details.academicLevels.length > 0 &&

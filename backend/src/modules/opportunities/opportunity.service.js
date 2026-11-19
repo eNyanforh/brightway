@@ -475,6 +475,34 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         return { saved };
       });
     },
+    async getScholarshipDraft(actor, organizationId) {
+      return organizationWork(actor, organizationId, MANAGE, async (db, orgId) => {
+        const row = await db.scholarshipEditorDraft.findUnique({
+          where: { organizationId_authorId: { organizationId: orgId, authorId: actor.accountId } },
+          select: { payload: true, updatedAt: true },
+        });
+        return { draft: row?.payload ?? null, updatedAt: row?.updatedAt ?? null };
+      });
+    },
+    async saveScholarshipDraft(actor, organizationId, body) {
+      const { draft } = input.parse(input.scholarshipEditorDraftInput, body);
+      return organizationWork(actor, organizationId, MANAGE, async (db, orgId) => {
+        const key = { organizationId: orgId, authorId: actor.accountId };
+        const row = await db.scholarshipEditorDraft.upsert({
+          where: { organizationId_authorId: key },
+          create: { ...key, payload: draft },
+          update: { payload: draft },
+          select: { updatedAt: true },
+        });
+        return { updatedAt: row.updatedAt };
+      });
+    },
+    async deleteScholarshipDraft(actor, organizationId) {
+      return organizationWork(actor, organizationId, MANAGE, async (db, orgId) => {
+        await db.scholarshipEditorDraft.deleteMany({ where: { organizationId: orgId, authorId: actor.accountId } });
+        return { deleted: true };
+      });
+    },
     async list(actor, organizationId, query) {
       const q = input.parse(input.listInput, query);
       return organizationWork(actor, organizationId, MANAGE, (db, orgId) => page(db, "opportunity", { organizationId: orgId }, q.cursor, managedOpportunitySelect));
@@ -509,6 +537,13 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
             !isDeepStrictEqual(requiredDocumentLabels(row.type, row.details || {}),
               requiredDocumentLabels(data.type, data.details || {}))))
           throw fail(409, "The type, post requirements, and application questions are locked after first publication.");
+        if (row.publishedAt && row.type === "SCHOLARSHIP") {
+          const critical = ["category", "academicLevels", "fundingType", "currency", "value", "awardsAvailable",
+            "eligibleCountries", "minAge", "maxAge", "education", "academicPerformance",
+            "financialNeedRequired", "eligibilityCriteria", "eligibilityPriority", "targetGender"];
+          if (critical.some(key => !isDeepStrictEqual(row.details?.[key] ?? null, data.details?.[key] ?? null)))
+            throw fail(409, "Published scholarship awards and eligibility are locked. Create a new scholarship if these terms must change.");
+        }
         if (Date.parse(data.deadline) <= +now()) throw fail(400, "Choose a future application deadline.");
         const { collaboratorIds, ...persisted } = data;
         persisted.jobDetails = data.jobDetails ?? Prisma.DbNull;
@@ -527,6 +562,8 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         if (row.version !== data.expectedVersion) throw conflict();
         if (!input.opportunityTransitions[row.status].includes(data.status)) throw fail(409, "This opportunity cannot move to that status.");
         if (data.status === "PUBLISHED" && row.deadline <= now()) throw fail(409, "Set a future deadline before publishing.");
+        if (data.status === "PUBLISHED" && row.type === "SCHOLARSHIP" && !row.organization?.verifiedAt)
+          throw fail(403, "Your organization must be verified before publishing a scholarship.");
         if (data.status === "PUBLISHED" && (!row.publishedAt || Object.keys(row.details || {}).length > 0)) {
           const issues = opportunityPublicationIssues(row, +now());
           if (issues.length) throw fail(400, issues[0]);
@@ -550,13 +587,13 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         input.validateAnswers(row.questions, data.answers, previous?.files || [], data.action === "SUBMIT",
           row.type === "CHALLENGE" ? row.postRequirements : []);
         const submit = data.action === "SUBMIT";
-        if (submit && row.type === "JOB" && row.details?.applicationLimit != null) {
+        if (submit && ["JOB", "SCHOLARSHIP"].includes(row.type) && row.details?.applicationLimit != null) {
           const activeApplications = await db.opportunityApplication.count({
             where: { opportunityId: oppId, submittedAt: { not: null },
               status: { not: "WITHDRAWN" } },
           });
           if (activeApplications >= row.details.applicationLimit)
-            throw fail(409, "This Job Vacancy has reached its application limit.");
+            throw fail(409, "This opportunity has reached its application limit.");
         }
         if (submit && !data.shareProfile) throw fail(400, "Confirm sharing your application and professional profile with this organization.");
         if (submit && row.type === "CHALLENGE")

@@ -29,6 +29,9 @@ export const opportunitiesApi = {
   upload: (id, params, file, signal) => request(app(id) + "/files" + query(params), { method: "POST", file, signal }),
   filesUrl: (applicationId, fileId, organizationId) => base + (organizationId ? org(organizationId) + "/applications/" + encodeURIComponent(applicationId) : app(applicationId)) + "/files/" + encodeURIComponent(fileId),
   list: (id, cursor, signal) => list(org(id) + "/opportunities" + query({ cursor }), signal),
+  getScholarshipDraft: (id, signal) => request(org(id) + "/scholarship-editor-draft", { signal }),
+  saveScholarshipDraft: (id, draft, signal) => request(org(id) + "/scholarship-editor-draft", { method: "PUT", body: { draft }, signal }),
+  deleteScholarshipDraft: (id, signal) => request(org(id) + "/scholarship-editor-draft", { method: "DELETE", signal }),
   create: (id, body, signal) => request(org(id) + "/opportunities", { method: "POST", body, signal }),
   uploadChallengeAsset: (id, kind, file, signal) =>
     request(org(id) + "/challenge-assets" + query({ kind }), { method: "POST", file, signal }),

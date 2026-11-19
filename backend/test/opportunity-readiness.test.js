@@ -70,3 +70,31 @@ test("optional application document questions stay optional and are not counted 
   assert.deepEqual(requiredDocumentLabels("JOB", base.details), []);
   assert.deepEqual(opportunityPublicationIssues({ ...base, questions }), []);
 });
+
+test("scholarship scoring rubrics must total 100% and have named criteria", () => {
+  const scholarship = { ...job(), type: "SCHOLARSHIP", jobDetails: null, details: {
+    category: "RESEARCH", academicLevels: ["MASTERS"], fundingType: "FULLY_FUNDED",
+    eligibleCountries: ["Liberia"], selectionCriteria: ["Academic achievement"],
+    selectionMethod: "SCORING_RUBRIC",
+    scoringRubric: [{ id: "11111111-1111-4111-8111-111111111111", label: "Academic merit", weight: 40 },
+      { id: "22222222-2222-4222-8222-222222222222", label: "Financial need", weight: 30 }],
+  } };
+  assert.ok(opportunityPublicationIssues(scholarship).some(issue => /100%/.test(issue)));
+  scholarship.details.scoringRubric[1].weight = 60;
+  assert.deepEqual(opportunityPublicationIssues(scholarship), []);
+});
+test("scholarship award count, application cap and review dates have publication checks", () => {
+  const scholarship = { ...job(), type: "SCHOLARSHIP", jobDetails: null, details: {
+    category: "RESEARCH", academicLevels: ["MASTERS"], fundingType: "FULLY_FUNDED",
+    eligibleCountries: ["Liberia"], selectionCriteria: ["Academic merit"],
+    awardsAvailable: 0, applicationLimit: 0,
+    reviewStartDate: "2099-11-20", reviewEndDate: "2099-11-19",
+  } };
+  const issues = opportunityPublicationIssues(scholarship);
+  assert.ok(issues.some(issue => /awards/i.test(issue)));
+  assert.ok(issues.some(issue => /applicants/i.test(issue)));
+  assert.ok(issues.some(issue => /review period/i.test(issue)));
+  scholarship.details = { ...scholarship.details,
+    awardsAvailable: 10, applicationLimit: 100, reviewEndDate: "2099-11-21" };
+  assert.deepEqual(opportunityPublicationIssues(scholarship), []);
+});
