@@ -112,7 +112,7 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
   </section>;
 }
 
-export default function OpportunityEditor({ organizationId, opportunity, onSaved, onClose }) {
+export default function OpportunityEditor({ organizationId, organization, opportunity, onSaved, onClose }) {
   const { account } = useAuth();
   const draftKey = "brightway:opportunity-draft:" + account.id + ":" + organizationId;
   const [draft, setDraft] = useState(() => {
