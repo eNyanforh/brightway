@@ -18,6 +18,7 @@ import DedicatedOpportunityWizard from "./DedicatedOpportunityWizard";
 import JobCreationStudio from "./JobCreationStudio";
 import { isAutoDocumentQuestion, syncDocumentQuestions, requiredDocumentLabels } from "../../../../shared/opportunity-documents.mjs";
 import { opportunityPublicationIssues } from "../../../../shared/opportunity-readiness.mjs";
+import { scholarshipDeadlineToIso, formatDeadlineInZone } from "../../../../shared/opportunity-timezone.mjs";
 import { CHALLENGE_POST_TYPES, describeChallengePostType } from "../../../../shared/challenge-submissions.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import "./challenge-sidebar-card.css";
@@ -38,6 +39,7 @@ const blank = () => ({
   titleAssetId: null, coverAssetId: null, postRequirements: [], topics: [],
   deadline: "", questions: [],
 });
+const scholarshipZone = details => details?.deadlineTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 const toLocal = date => {
   const value = new Date(date);
   return Number.isFinite(value.getTime())
@@ -54,7 +56,9 @@ function initialDraft(opportunity) {
   return { ...initial,
     ...(opportunity.coverImage ? { coverImage: opportunity.coverImage } : {}),
     collaboratorIds: (opportunity.collaborators || []).map(item => item.organizationId),
-    deadline: toLocal(opportunity.deadline),
+    deadline: opportunity.type === "SCHOLARSHIP" && opportunity.details?.deadlineTimezone
+      ? formatDeadlineInZone(opportunity.deadline, opportunity.details.deadlineTimezone)
+      : toLocal(opportunity.deadline),
   };
 }
 function PhotoField({ label, kind, assetId, disabled, busy, onFile, onRemove }) {
@@ -247,7 +251,7 @@ export default function OpportunityEditor({ organizationId, organization, opport
       ...old, type,
       ...(old.type !== type ? {
         details: type === "JOB" ? { requireCv: false, cvStatus: "none", vacancies: 1 } : type === "SCHOLARSHIP" ?
-          { requireTranscript: true, requireStatement: true } : {},
+          { requireTranscript: true, requireStatement: true, deadlineTimezone: scholarshipZone() } : {},
         jobDetails: null,
         questions: ["JOB", "SCHOLARSHIP"].includes(type)
           ? syncDocumentQuestions(type, type === "JOB" ? { requireCv: false } :
@@ -339,9 +343,12 @@ export default function OpportunityEditor({ organizationId, organization, opport
             return "Enter a meaningful label for each application question.";
         }
         if (step === 5) {
-          if (!draft.deadline || new Date(draft.deadline).getTime() <= Date.now())
+          let deadlineTime;
+          try { deadlineTime = new Date(scholarshipDeadlineToIso(draft.deadline, scholarshipZone(d))).getTime(); }
+          catch { return "Choose a valid date and time in the selected timezone."; }
+          if (!draft.deadline || deadlineTime <= Date.now())
             return "Choose a future application deadline.";
-          if (d.openingDate && new Date(d.openingDate + "T00:00:00") > new Date(draft.deadline))
+          if (d.openingDate && new Date(scholarshipDeadlineToIso(d.openingDate + "T00:00", scholarshipZone(d))).getTime() > deadlineTime)
             return "Application opening date must be before the deadline.";
         }
         if (step === 6) {
@@ -352,7 +359,10 @@ export default function OpportunityEditor({ organizationId, organization, opport
             return "Scoring rubric criteria must have names and weights totaling 100%.";
         }
         if (step === last && !lockedForm) {
-          const issues = opportunityPublicationIssues(draft);
+          let convertedDeadline;
+          try { convertedDeadline = scholarshipDeadlineToIso(draft.deadline, scholarshipZone(d)); }
+          catch { return "Choose a valid deadline in the selected timezone."; }
+          const issues = opportunityPublicationIssues({ ...draft, deadline: convertedDeadline });
           if (issues.length) return issues[0];
         }
       }
@@ -395,9 +405,16 @@ export default function OpportunityEditor({ organizationId, organization, opport
             draft.jobDetails.salaryMin > draft.jobDetails.salaryMax)))) {
       setError(new Error("Choose a job type and compensation, and enter a valid salary range if disclosed.")); return;
     }
+    let normalizedDeadline;
+    try {
+      normalizedDeadline = draft.type === "SCHOLARSHIP"
+        ? scholarshipDeadlineToIso(draft.deadline, scholarshipZone(draft.details))
+        : new Date(draft.deadline).toISOString();
+    } catch {
+      setError(new Error("Choose a valid application deadline in the selected timezone.")); return;
+    }
     if (!draft.type || draft.title.trim().length < 3 || draft.description.trim().length < 30 ||
-        !draft.deadline || !Number.isFinite(new Date(draft.deadline).getTime()) ||
-        new Date(draft.deadline).getTime() <= Date.now()) {
+        !draft.deadline || new Date(normalizedDeadline).getTime() <= Date.now()) {
       setError(new Error("Check the required details and future deadline before saving.")); return;
     }
     const publishOnSave = dedicatedComposer && step === last && e.nativeEvent?.submitter?.value === "publish";
@@ -422,7 +439,7 @@ export default function OpportunityEditor({ organizationId, organization, opport
         backgroundAssetId: challenge ? draft.backgroundAssetId : null,
         titleAssetId: challenge ? draft.titleAssetId : null,
         coverAssetId: draft.coverAssetId,
-        deadline: new Date(draft.deadline).toISOString(),
+        deadline: normalizedDeadline,
       };
       const current = persisted.current;
       const saved = current
