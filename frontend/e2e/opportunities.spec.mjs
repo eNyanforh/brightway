@@ -394,7 +394,7 @@ for (const [type, label] of [["EVENT", "Event"]]) {
   });
 }
 
-test("Scholarship publishing uses six structured steps and a native application form", async ({ page, isMobile }) => {
+test("Scholarship publishing uses seven guided steps and native application questions", async ({ page }) => {
   const state = await fixture(page);
   await page.goto(base + "/opportunities");
   await page.getByRole("button", { name: "+ Create opportunity" }).click();
@@ -402,38 +402,50 @@ test("Scholarship publishing uses six structured steps and a native application 
   await editor.getByRole("radio", { name: /Scholarship/ }).click();
   await editor.getByRole("button", { name: "Continue" }).click();
   await expect(editor.getByRole("navigation", { name: "Creation progress" })).toBeVisible();
+  await expect(editor.getByRole("heading", { name: "Basic Information" })).toBeVisible();
   await editor.getByLabel("Scholarship title").fill("Scholarship for young researchers");
   await editor.getByLabel("Description", { exact: true }).fill("Support young researchers with development, learning, and meaningful career opportunities.");
+  await editor.getByLabel("Short summary").fill("Funding the next generation of researchers.");
   await editor.getByLabel("Scholarship category").selectOption("RESEARCH");
-  await editor.getByLabel("Masters").check();
-  const cover = editor.locator(".bw-op-standard-preview-stage");
+  await editor.getByRole("group", { name: "Academic levels" }).getByRole("checkbox", { name: "Masters" }).check();
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCXUAAAAASUVORK5CYII=", "base64");
   await editor.getByLabel("Opportunity cover photo").setInputFiles({ name: "cover.png", mimeType: "image/png", buffer: png });
   await expect.poll(() => state.assets.length).toBe(1);
   await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByRole("heading", { name: "Award Details" })).toBeVisible();
   await editor.getByLabel("Funding type").selectOption("FULLY_FUNDED");
+  await editor.getByLabel("Number of scholarships").fill("5");
   await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByRole("heading", { name: "Eligibility Criteria" })).toBeVisible();
   await editor.getByLabel("Study mode").selectOption("HYBRID");
   await editor.getByLabel("Study destination").fill("Monrovia, Liberia");
-  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Eligible countries").fill("Liberia");
   await editor.getByRole("button", { name: "Continue" }).click();
-  await editor.getByLabel("Selection criteria").fill("Academic merit");
+  await expect(editor.getByRole("heading", { name: "Application Requirements" })).toBeVisible();
+  await expect(editor.getByText("Application documents:", { exact: false })).toBeVisible();
+  await editor.getByRole("button", { name: "+ Add question" }).click();
+  await editor.getByLabel("Question 3 text").fill("Why are you applying for this scholarship?");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByRole("heading", { name: "Timeline" })).toBeVisible();
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
   await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByRole("heading", { name: "Selection Process" })).toBeVisible();
+  await editor.getByLabel("Selection criteria").fill("Academic achievement");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByRole("heading", { name: "Review & Publish" })).toBeVisible();
   await editor.getByRole("button", { name: "Save draft" }).click();
   await expect(editor).toHaveCount(0);
   const saved = state.drafts[0];
   expect(saved.type).toBe("SCHOLARSHIP");
-  expect(saved.details.fundingType).toBe("FULLY_FUNDED");
+  expect(saved.details.shortSummary).toBe("Funding the next generation of researchers.");
+  expect(saved.details.awardsAvailable).toBe(5);
   expect(saved.details.eligibleCountries).toEqual(["Liberia"]);
   expect(saved.questions.map(q => q.label)).toContain("Required document: Academic transcript");
   expect(saved.coverAssetId).toBe(state.assets[0].id);
   await noOverflow(page); expect(state.errors).toEqual([]);
 });
 
-
-test("organization publishers can directly publish a scholarship with native required documents", async ({ page }) => {
+test("organization publishers can publish scholarship awards with required documents", async ({ page }) => {
   const state = await fixture(page);
   await page.goto(base + "/opportunities");
   await page.getByRole("button", { name: "+ Create opportunity" }).click();
@@ -450,14 +462,15 @@ test("organization publishers can directly publish a scholarship with native req
   await editor.getByLabel("Scholarship value").fill("1000");
   await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Study destination").fill("Monrovia, Liberia");
-  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Eligible countries").fill("Liberia");
   await editor.getByRole("button", { name: "Continue" }).click();
-  await editor.getByLabel("Selection criteria").fill("Academic achievement");
+  await expect(editor.getByText("Academic transcript required")).toBeVisible();
+  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
   await editor.getByRole("button", { name: "Continue" }).click();
-  await expect(editor.getByText("Academic transcript")).toBeVisible();
-  await expect(editor.getByText("Personal statement")).toBeVisible();
+  await editor.getByLabel("Selection criteria").fill("Academic achievement");
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await expect(editor.getByText("Academic transcript", { exact: false })).toBeVisible();
   await editor.getByRole("button", { name: "Publish Scholarship" }).click();
   await expect(editor).toHaveCount(0);
   expect(state.drafts).toHaveLength(1);
