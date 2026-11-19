@@ -28,6 +28,7 @@ import {
 
 import "./app-shell.css";
 import "../pages/superadmin.css";
+import "../styles/core-design.css";
 
 export default function AppLayout() {
   const { account } = useAuth();
@@ -148,7 +149,7 @@ function AccountLayout() {
   }, [dirty, profileDraft?.busy]);
 
   return (
-    <div className={`bw-app-shell${organizationMode ? " bw-org-shell" : managementMode ? " bw-management-shell" : campusMode ? " bw-campus-shell" : ""}`}>
+    <div className={`bw-app-shell bw-core-design${organizationMode ? " bw-org-shell" : managementMode ? " bw-management-shell" : campusMode ? " bw-campus-shell" : ""}`}>
       <MessagingRealtime />
       <AppHeader
         hasWork={hasWork}

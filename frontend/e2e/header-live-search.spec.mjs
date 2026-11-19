@@ -36,16 +36,25 @@ async function stub(page) {
   return { calls, errors };
 }
 
-test("header search provides live matches and an accessible all-results link on desktop and mobile", async ({ page }) => {
+test("desktop live suggestions and mobile search entry reach the same results", async ({ page, isMobile }) => {
   const { calls, errors } = await stub(page);
   await page.goto("/explore");
-  const field = page.getByRole("searchbox", { name: "Search BrightWay content and people" });
-  await field.fill("maya");
-  await expect(page.getByRole("region", { name: "Search suggestions" }).getByRole("link", { name: /Maya Cole/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Search all for maya/ })).toHaveAttribute("href", "/search?q=maya");
+  if (isMobile) {
+    // The core design uses a mobile header icon; the text field appears on the search page.
+    await expect(page.getByRole("link", { name: "Search BrightWay" })).toBeVisible();
+    await page.getByRole("link", { name: "Search BrightWay" }).click();
+    await expect(page).toHaveURL(/\/search$/);
+    await page.getByRole("searchbox", { name: "Search BrightWay content and people" }).fill("maya");
+    await expect(page).toHaveURL(/\/search\?q=maya$/);
+  } else {
+    const field = page.getByRole("searchbox", { name: "Search BrightWay content and people" });
+    await field.fill("maya");
+    await expect(page.getByRole("region", { name: "Search suggestions" }).getByRole("link", { name: /Maya Cole/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Search all for maya/ })).toHaveAttribute("href", "/search?q=maya");
+    await page.getByRole("link", { name: /Search all for maya/ }).click();
+    await expect(page).toHaveURL(/\/search\?q=maya$/);
+  }
   expect(calls.some(c => c.path === "/api/v1/search")).toBe(true);
-  await page.getByRole("link", { name: /Search all for maya/ }).click();
-  await expect(page).toHaveURL(/\/search\?q=maya$/);
   await expect(page.locator(".bw-directory-search-form")).toHaveCount(0);
   const rail = page.getByRole("complementary", { name: "Search discovery sidebar" });
   await expect(rail).toBeVisible();
