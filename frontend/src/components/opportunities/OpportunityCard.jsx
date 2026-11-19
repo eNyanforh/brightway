@@ -26,7 +26,7 @@ export default function OpportunityCard({ opportunity: o }) {
         {Array.isArray(o.details?.academicLevels) && o.details.academicLevels.length > 0 &&
           <span>{o.details.academicLevels.map(scholarshipLevelLabel).join(", ")}</span>}
       </div>}
-      <p className="bw-op-preview">{o.description}</p>
+      <p className="bw-op-preview">{o.type === "SCHOLARSHIP" && o.details?.shortSummary ? o.details.shortSummary : o.description}</p>
       <div className="bw-op-card-bottom"><span>Closes {new Date(o.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span><Link to={`/opportunities/${o.id}`}>{type.action}<NavigationIcon name="chevron-right" size={14} /></Link></div>
     </div>
   </article>;
