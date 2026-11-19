@@ -29,6 +29,12 @@ test("the real application keeps entry points reachable and limits notification 
     assert.equal((await post("/management/auth/login", { Origin: "https://foreign.invalid" })).status, 403);
     assert.equal((await fetch(`${base}/api/v1/organizations/not-an-id`)).status, 404);
     assert.equal((await fetch(`${base}/api/v1/unknown`)).status, 404);
+    for (const path of [
+      "/organization-workspace/00000000-0000-4000-8000-000000000001/campus",
+      "/organization-workspace/00000000-0000-4000-8000-000000000001/campus/grade-school/setup",
+      "/organization-workspace/00000000-0000-4000-8000-000000000001/campus/tvet/setup",
+      "/my-campus", "/my-tvet",
+    ]) assert.equal((await fetch(`${base}/api/v1${path}`)).status, 404, path);
     for (const path of ["/api/v1/profile/me", "/api/v1/profile/me/completion"]) {
       const unauthenticated = await fetch(`${base}${path}`);
       assert.equal(unauthenticated.status, 401);
