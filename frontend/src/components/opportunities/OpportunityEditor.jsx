@@ -80,6 +80,13 @@ function PhotoField({ label, kind, assetId, disabled, busy, onFile, onRemove }) 
   </div>;
 }
 function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
+  const move = (index, offset) => {
+    const indexes = draft.questions.flatMap((q, i) => isAutoDocumentQuestion(q) ? [] : [i]);
+    const position = indexes.indexOf(index), target = indexes[position + offset];
+    if (target === undefined) return;
+    const next = [...draft.questions]; [next[index], next[target]] = [next[target], next[index]];
+    field("questions", next);
+  };
   return <section className="bw-op-form-builder">
     <h3>Application questions</h3>
     <p>{lockedForm
@@ -102,8 +109,20 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
         Choices (one per line, 2–12)<textarea aria-label={`Question ${i + 1} choices`} rows={3} required
           value={q.options.join("\n")} onChange={e => changeQuestion(i, { options: e.target.value.split("\n") })} />
       </label>}
-      {!lockedForm && <button type="button" className="bw-op-text-button" onClick={() =>
-        field("questions", draft.questions.filter((_, index) => index !== i))}>Remove question {i + 1}</button>}
+      {draft.type === "SCHOLARSHIP" && q.type === "LONG_ANSWER" && <label>Essay maximum words (optional)
+        <input type="number" min="10" max="1000" value={q.wordLimit ?? ""}
+          onChange={e => changeQuestion(i, { wordLimit: e.target.value ? Number(e.target.value) : undefined })}/>
+      </label>}
+      {!lockedForm && <div className="bw-scholarship-question-actions">
+        {draft.type === "SCHOLARSHIP" && <>
+          <button type="button" className="bw-op-text-button" disabled={busy || !draft.questions.slice(0, i).some(item => !isAutoDocumentQuestion(item))}
+            onClick={() => move(i, -1)}>Move up</button>
+          <button type="button" className="bw-op-text-button" disabled={busy || !draft.questions.slice(i + 1).some(item => !isAutoDocumentQuestion(item))}
+            onClick={() => move(i, 1)}>Move down</button>
+        </>}
+        <button type="button" className="bw-op-text-button" onClick={() =>
+          field("questions", draft.questions.filter((_, index) => index !== i))}>Remove question {i + 1}</button>
+      </div>}
     </fieldset>)}
     {!lockedForm && <button className="bw-op-secondary" type="button" disabled={busy || draft.questions.length >= 20}
       onClick={() => field("questions", [...draft.questions, {
