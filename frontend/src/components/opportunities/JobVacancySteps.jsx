@@ -1,6 +1,5 @@
 import { useState } from "react";
 import "./dedicated-opportunity-fields.css";
-import { countries } from "../learning/countries";
 import { JOB_TYPES, JOB_COMPENSATION_TYPES, JOB_SALARY_PERIODS, formatJobSalary } from "../../../../shared/opportunities.mjs";
 import OpportunityDescriptionField from "./OpportunityDescriptionField";
 import OpportunityDateTimePicker from "./OpportunityDateTimePicker";
