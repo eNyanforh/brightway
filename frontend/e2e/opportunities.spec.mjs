@@ -478,20 +478,25 @@ test("organization publishers create and publish a form, and reviewers send an a
   await editor.getByRole("radio", { name: /Job/ }).click();
   await editor.getByRole("button", { name: "Continue" }).click();
   await expect(editor.getByRole("heading", { name: "Job Details", exact: true })).toBeVisible();
-  await expect(editor.getByRole("navigation", { name: "Creation progress" })).toBeVisible();
-  const stacked = await revealPreview(editor);
-  const [coverBox, formBox] = await Promise.all([
-    editor.locator(".bw-op-standard-preview-stage").boundingBox(),
-    editor.locator(".bw-op-standard-main").boundingBox(),
-  ]);
+  await expect(editor.locator(".bw-job-studio")).toBeVisible();
+  await expect(editor.getByText("Step 1 of 4")).toBeVisible();
+  const jobPreviewToggle = editor.locator(".bw-job-studio-preview-toggle");
+  const previewWasCollapsed = await jobPreviewToggle.isVisible();
+  if (previewWasCollapsed) {
+    await jobPreviewToggle.click();
+    await expect(jobPreviewToggle).toHaveAttribute("aria-expanded", "true");
+  }
+  const coverBox = await editor.locator(".bw-job-studio-preview-cover").boundingBox();
   expect(coverBox.width / coverBox.height).toBeCloseTo(16 / 9, 1);
-  if (stacked) {
-    expect(formBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height - 1);
-    await editor.locator(".bw-op-creation-preview-toggle").click();
-  } else expect(formBox.x).toBeGreaterThanOrEqual(coverBox.x + coverBox.width - 1);
+  if (previewWasCollapsed) {
+    await editor.getByRole("button", { name: "Close job preview" }).click();
+    await expect(jobPreviewToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(jobPreviewToggle).toBeFocused();
+  }
   await expect(editor.getByLabel("Opportunity cover photo")).toBeAttached();
   await editor.getByLabel("Job Title").fill("Data internship");
-  await expect(editor.locator(".bw-op-creation-listing h4")).toHaveText("Data internship");
+  await expect(editor.locator(".bw-job-studio-preview-content h5")).toHaveText("Data internship");
+  await expect(editor.locator(".bw-job-studio-preview-org")).toHaveText(organization.name);
   await editor.getByLabel("Description", { exact: true }).fill("Build skills in field research, data quality, and community engagement.");
   await editor.getByText("Choose job categories").click();
   await editor.getByLabel("Research").check();

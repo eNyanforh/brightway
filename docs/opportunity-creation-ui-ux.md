@@ -1,5 +1,8 @@
 # BrightWay Opportunities — creation UI/UX specification
 
+> **Job Vacancy UI/UX superseded:** The Job creation design in this document is retired. Use [Job Vacancy Creation Studio](./job-creation-studio-design.md) as the canonical Job UI/UX reference. This document remains a reference for other opportunity types.
+
+
 **Implementation reference:** November 2026.
 **Scope:** Job Vacancy, Scholarship, Challenge and Event creation. Existing approved business fields, application rules, and API contracts must remain intact.
 

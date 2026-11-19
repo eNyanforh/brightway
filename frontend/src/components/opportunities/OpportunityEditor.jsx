@@ -15,6 +15,7 @@ import ChallengePostTypes from "./ChallengePostTypes";
 import ChallengeComposer from "./ChallengeComposer";
 import StandardOpportunityComposer from "./StandardOpportunityComposer";
 import DedicatedOpportunityWizard from "./DedicatedOpportunityWizard";
+import JobCreationStudio from "./JobCreationStudio";
 import { isAutoDocumentQuestion, syncDocumentQuestions, requiredDocumentLabels } from "../../../../shared/opportunity-documents.mjs";
 import { opportunityPublicationIssues } from "../../../../shared/opportunity-readiness.mjs";
 import { CHALLENGE_POST_TYPES, describeChallengePostType } from "../../../../shared/challenge-submissions.mjs";
@@ -111,7 +112,7 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
   </section>;
 }
 
-export default function OpportunityEditor({ organizationId, opportunity, onSaved, onClose }) {
+export default function OpportunityEditor({ organizationId, organization, opportunity, onSaved, onClose }) {
   const { account } = useAuth();
   const draftKey = "brightway:opportunity-draft:" + account.id + ":" + organizationId;
   const [draft, setDraft] = useState(() => {
@@ -135,6 +136,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const challenge = draft.type === "CHALLENGE";
   const dedicated = ["JOB", "SCHOLARSHIP"].includes(draft.type);
   const dedicatedComposer = step > 0 && dedicated;
+  const jobStudio = step > 0 && draft.type === "JOB";
   const singlePageComposer = step > 0 && (challenge || draft.type === "EVENT");
   const challengeComposer = challenge && singlePageComposer;
   const standardComposer = singlePageComposer && !challenge;
@@ -367,7 +369,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const locked = busy || Boolean(uploading) || error?.status === 409 ||
     [401, 403, 404].includes(error?.status);
 
-  return <div className={"bw-op-overlay bw-op-wizard-overlay bw-op-creation-overlay" + (dedicatedComposer ? " bw-op-creation-dedicated" : "") + (singlePageComposer ? " bw-op-challenge-overlay" : "") + (standardComposer || dedicatedComposer ? " bw-op-standard-overlay" : "")} onKeyDown={e => {
+  return <div className={"bw-op-overlay bw-op-wizard-overlay bw-op-creation-overlay" + (jobStudio ? " bw-op-job-studio-overlay" : "") + (dedicatedComposer ? " bw-op-creation-dedicated" : "") + (singlePageComposer ? " bw-op-challenge-overlay" : "") + (standardComposer || dedicatedComposer ? " bw-op-standard-overlay" : "")} onKeyDown={e => {
     if (e.key === "Escape") { e.preventDefault(); close(); }
     if (e.key === "Tab" && dialog.current) {
       const nodes = [...dialog.current.querySelectorAll(
@@ -382,15 +384,17 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
       aria-labelledby="op-editor-title" className="bw-op-editor bw-op-wizard">
       <header className="bw-op-wizard-header">
         <div><p className="bw-op-wizard-kicker">{opportunity ? "EDIT OPPORTUNITY" : "CREATE OPPORTUNITY"}</p>
-          <h2 id="op-editor-title">{singlePageComposer
+          <h2 id="op-editor-title">{jobStudio ? (opportunity ? "Edit job vacancy" : "Create a job vacancy") : singlePageComposer
             ? (opportunity ? "Edit " : "Create a ") + OPPORTUNITY_TYPES[draft.type].label
             : opportunity ? "Edit your opportunity" : "Create an opportunity"}</h2>
-          <p>{singlePageComposer ? "Cover, details, deadline and applications" : dedicatedComposer ? "Step " + step + " of " + last + " · " + steps[step] : "Step " + (step + 1) + " of " + steps.length}</p>
-          {dedicatedComposer && !opportunity && <p className="bw-op-wizard-help">Progress is kept in this browser tab until you save it to BrightWay.</p>}
+          <p>{jobStudio ? "A clear listing attracts the right candidates" :
+            singlePageComposer ? "Cover, details, deadline and applications" : dedicatedComposer ?
+              "Step " + step + " of " + last + " · " + steps[step] : "Step " + (step + 1) + " of " + steps.length}</p>
+          {dedicatedComposer && !jobStudio && !opportunity && <p className="bw-op-wizard-help">Progress is kept in this browser tab until you save it to BrightWay.</p>}
         </div>
         <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
       </header>
-      {!singlePageComposer && <nav className="bw-op-wizard-progress" aria-label="Creation progress">
+      {!singlePageComposer && !jobStudio && <nav className="bw-op-wizard-progress" aria-label="Creation progress">
         {steps.map((label, index) => <button type="button" key={label}
           className={index === step ? "is-current" : index < step ? "is-complete" : ""}
           disabled={index > step}
@@ -403,10 +407,16 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
       <form onSubmit={submit}>
         {error && <div className="bw-op-wizard-error" role="alert">{error.message}</div>}
         <fieldset className={"bw-op-editor-fields bw-op-wizard-fields" + (singlePageComposer ? " is-challenge-composer" : "")} disabled={locked}>
-          {dedicatedComposer ? <DedicatedOpportunityWizard draft={draft} field={field} step={step}
+          {jobStudio ? <JobCreationStudio draft={draft} field={field} step={step}
+            organizationName={organization?.name || opportunity?.organization?.name || "Your organization"}
             opportunity={opportunity} locked={locked} uploading={uploading} upload={upload}
+            onGoStep={next => { setError(null); setStep(next); }}
             questions={<QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
               lockedForm={lockedForm} busy={busy} />} /> :
+            dedicatedComposer ? <DedicatedOpportunityWizard draft={draft} field={field} step={step}
+              opportunity={opportunity} locked={locked} uploading={uploading} upload={upload}
+              questions={<QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
+                lockedForm={lockedForm} busy={busy} />} /> :
             challengeComposer ? <ChallengeComposer draft={draft} field={field}
             organizationId={organizationId} collaborators={collaborators}
             setCollaborators={setCollaborators} locked={locked} lockedForm={lockedForm}
@@ -547,7 +557,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
             onClick={() => singlePageComposer && opportunity ? close() : step ? (setError(null), setStep(current => current - 1)) : close()}>
             {singlePageComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
           </button>
-          <span className="bw-op-wizard-footer-hint">{opportunity ? "Editing saved listing" : "Saved as draft until you publish"}</span>
+          <span className="bw-op-wizard-footer-hint">{jobStudio ? (opportunity ? "Editing an existing listing" : "Changes stored in this browser tab") : opportunity ? "Editing saved listing" : "Saved as draft until you publish"}</span>
           {dedicatedComposer && step === last ? <>
             <button className="bw-op-secondary" type="submit" name="intent" value="draft" disabled={locked}>
               {busy ? "Saving…" : opportunity ? "Save changes" : "Save draft"}
