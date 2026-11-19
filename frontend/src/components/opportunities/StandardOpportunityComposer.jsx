@@ -57,7 +57,7 @@ export default function StandardOpportunityComposer({
               <NavigationIcon name={type.icon} size={30} />
             </span>
             <span className="bw-op-standard-poster-kind">{type.label}</span>
-            <strong>{draft.title.trim() || "Your " + type.label.toLowerCase() + " title"}</strong>
+            <strong>BRIGHTWAY</strong>
             <small>{labels.audience}</small>
           </div>}
       </div>
