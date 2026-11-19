@@ -2,6 +2,7 @@ import { useState } from "react";
 import { OPPORTUNITY_TYPES, JOB_TYPES, JOB_COMPENSATION_TYPES, formatJobSalary } from "../../../../shared/opportunities.mjs";
 import { requiredDocumentLabels } from "../../../../shared/opportunity-documents.mjs";
 import { opportunityPublicationIssues } from "../../../../shared/opportunity-readiness.mjs";
+import { scholarshipDeadlineToIso } from "../../../../shared/opportunity-timezone.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityDateTimePicker from "./OpportunityDateTimePicker";
@@ -34,7 +35,12 @@ function Review({ draft }) {
     ["Responsibilities", (d.responsibilities || []).join(" · ")],
     ["Required qualifications", (d.requiredQualifications || []).join(" · ")],
   ];
-  const issues = scholarship ? opportunityPublicationIssues(draft) : [];
+  let reviewDeadline = draft.deadline;
+  if (scholarship && draft.deadline) {
+    try { reviewDeadline = scholarshipDeadlineToIso(draft.deadline, d.deadlineTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"); }
+    catch { /* An invalid deadline is shown as a validation issue below. */ }
+  }
+  const issues = scholarship ? opportunityPublicationIssues({ ...draft, deadline: reviewDeadline }) : [];
   return <section className="bw-op-challenge-section" aria-label="Review opportunity">
     <h4>Review before publishing</h4>
     <p>Review the public listing and application requirements. Incomplete items must be corrected before publishing.</p>
@@ -46,7 +52,7 @@ function Review({ draft }) {
       <strong>{draft.title}</strong><p>{draft.description}</p>
       <dl><div><dt>Location</dt><dd>{draft.location}</dd></div>
         <div><dt>Mode</dt><dd>{display(draft.workMode)}</dd></div>
-        <div><dt>Deadline</dt><dd>{draft.deadline ? new Date(draft.deadline).toLocaleString("en-GB") : "Not set"}</dd></div>
+        <div><dt>Deadline</dt><dd>{draft.deadline ? (scholarship ? draft.deadline.replace("T", " ") + " (" + (d.deadlineTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC") + ")" : new Date(draft.deadline).toLocaleString("en-GB")) : "Not set"}</dd></div>
         {fields.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value || "Not specified"}</dd></div>)}
         <div><dt>Required documents</dt><dd>{requiredDocumentLabels(draft.type, d).join(", ") || "None"}</dd></div>
         <div><dt>Additional application questions</dt><dd>{draft.questions.filter(q => !q.label.startsWith("Required document: ")).length}</dd></div>
@@ -150,7 +156,7 @@ export default function DedicatedOpportunityWizard({ draft, field, step, questio
           <ScholarshipCreationFields step={5} details={details} onChange={v => field("details", v)}/>
           <section className="bw-op-challenge-section">
             <h4>Application deadline</h4>
-            <OpportunityDateTimePicker value={draft.deadline} onChange={v => field("deadline", v)}/>
+            <OpportunityDateTimePicker label="Application deadline (selected timezone)" value={draft.deadline} onChange={v => field("deadline", v)}/>
           </section>
         </>}
         {step === 6 && <ScholarshipCreationFields step={6} details={details} onChange={v => field("details", v)}/>}
