@@ -488,7 +488,11 @@ test("organization publishers create and publish a form, and reviewers send an a
   }
   const coverBox = await editor.locator(".bw-job-studio-preview-cover").boundingBox();
   expect(coverBox.width / coverBox.height).toBeCloseTo(16 / 9, 1);
-  if (previewWasCollapsed) await editor.getByRole("button", { name: "Close job preview" }).click();
+  if (previewWasCollapsed) {
+    await editor.getByRole("button", { name: "Close job preview" }).click();
+    await expect(jobPreviewToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(jobPreviewToggle).toBeFocused();
+  }
   await expect(editor.getByLabel("Opportunity cover photo")).toBeAttached();
   await editor.getByLabel("Job Title").fill("Data internship");
   await expect(editor.locator(".bw-job-studio-preview-content h5")).toHaveText("Data internship");
