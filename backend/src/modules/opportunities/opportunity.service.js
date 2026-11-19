@@ -475,6 +475,34 @@ export function createOpportunityService({ prisma, storage, imageStorage = null,
         return { saved };
       });
     },
+    async getScholarshipDraft(actor, organizationId) {
+      return organizationWork(actor, organizationId, MANAGE, async (db, orgId) => {
+        const row = await db.scholarshipEditorDraft.findUnique({
+          where: { organizationId_authorId: { organizationId: orgId, authorId: actor.accountId } },
+          select: { payload: true, updatedAt: true },
+        });
+        return { draft: row?.payload ?? null, updatedAt: row?.updatedAt ?? null };
+      });
+    },
+    async saveScholarshipDraft(actor, organizationId, body) {
+      const { draft } = input.parse(input.scholarshipEditorDraftInput, body);
+      return organizationWork(actor, organizationId, MANAGE, async (db, orgId) => {
+        const key = { organizationId: orgId, authorId: actor.accountId };
+        const row = await db.scholarshipEditorDraft.upsert({
+          where: { organizationId_authorId: key },
+          create: { ...key, payload: draft },
+          update: { payload: draft },
+          select: { updatedAt: true },
+        });
+        return { updatedAt: row.updatedAt };
+      });
+    },
+    async deleteScholarshipDraft(actor, organizationId) {
+      return organizationWork(actor, organizationId, MANAGE, async (db, orgId) => {
+        await db.scholarshipEditorDraft.deleteMany({ where: { organizationId: orgId, authorId: actor.accountId } });
+        return { deleted: true };
+      });
+    },
     async list(actor, organizationId, query) {
       const q = input.parse(input.listInput, query);
       return organizationWork(actor, organizationId, MANAGE, (db, orgId) => page(db, "opportunity", { organizationId: orgId }, q.cursor, managedOpportunitySelect));
