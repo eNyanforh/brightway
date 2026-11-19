@@ -21,7 +21,7 @@ function Lines({ label, value, onChange, placeholder, required = false }) {
     onChange={e => onChange(fromLines(e.target.value))} placeholder={placeholder || "One item per line"} /></label>;
 }
 function Multi({ title, options, selected, onChange, search, setSearch }) {
-  return <fieldset className="bw-op-detail-options bw-op-compact-picker"><legend>{title}</legend>
+  return <div role="group" aria-label={title} className="bw-op-detail-options bw-op-compact-picker"><h4>{title}</h4>
     <div className="bw-op-job-selected">{selected.length ? selected.map(value => {
       const text = options.find(([key]) => key === value)?.[1] || value;
       return <span className="bw-job-studio-token" key={value}>{text}
@@ -35,7 +35,7 @@ function Multi({ title, options, selected, onChange, search, setSearch }) {
         <label key={key} className="bw-op-checkbox"><input type="checkbox" checked={selected.includes(key)}
           onChange={e => onChange(e.target.checked ? [...selected, key] : selected.filter(v => v !== key))} />{label}</label>)}</div>
     </details>
-  </fieldset>;
+  </div>;
 }
 function Advanced({ children }) {
   return <details className="bw-op-job-advanced"><summary>Advanced options <span>Optional settings</span></summary><div className="bw-op-job-advanced-body">{children}</div></details>;
