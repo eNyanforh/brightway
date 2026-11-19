@@ -47,6 +47,9 @@ export function createOpportunityRoutes({ opportunities, sessions, clientUrl, no
   router.get("/applications/me/:applicationId/files/:fileId", read, download(false));
   const path = "/organization-workspace/:organizationId";
   router.get(path + "/opportunities", read, respond((r, a) => opportunities.list(a, r.params.organizationId, r.query)));
+  router.get(path + "/scholarship-editor-draft", read, respond((r, a) => opportunities.getScholarshipDraft(a, r.params.organizationId)));
+  router.put(path + "/scholarship-editor-draft", write, respond((r, a) => opportunities.saveScholarshipDraft(a, r.params.organizationId, r.body)));
+  router.delete(path + "/scholarship-editor-draft", write, respond((r, a) => opportunities.deleteScholarshipDraft(a, r.params.organizationId)));
   router.get(path + "/challenge-collaborator-search", read,
     respond((r, a) => opportunities.searchCollaborators(a, r.params.organizationId, r.query)));
   router.get(path + "/challenge-collaborations", read,
