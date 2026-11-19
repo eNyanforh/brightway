@@ -145,7 +145,7 @@ export default function OpportunityEditor({ organizationId, organization, opport
     : draft.type === "JOB"
       ? ["Opportunity type", "Job Details", "Pay & Requirements", "Applications", "Review & Publish"]
       : draft.type === "SCHOLARSHIP"
-        ? ["Opportunity type", "Scholarship information", "Funding and benefits", "Study destination", "Eligibility", "Applications and selection", "Preview and save"]
+        ? ["Opportunity type", "Basic Information", "Award Details", "Eligibility Criteria", "Application Requirements", "Timeline", "Selection Process", "Review & Publish"]
         : ["Opportunity type", "Opportunity details", "Applications", "Review"];
   const last = steps.length - 1;
 
@@ -176,8 +176,14 @@ export default function OpportunityEditor({ organizationId, organization, opport
       i === index ? { ...question, ...changes } : question) }));
   }
   function close() {
-    if (!busy && !uploading && window.confirm("Close this editor and discard unsaved changes?")) {
-      try { window.sessionStorage.removeItem(draftKey); } catch { /* Ignore disabled storage. */ }
+    const scholarshipDraft = !opportunity && draft.type === "SCHOLARSHIP";
+    const message = scholarshipDraft
+      ? "Close the editor? Your draft will remain in this browser tab, but is not yet saved to BrightWay."
+      : "Close this editor and discard unsaved changes?";
+    if (!busy && !uploading && window.confirm(message)) {
+      if (!scholarshipDraft) {
+        try { window.sessionStorage.removeItem(draftKey); } catch { /* Ignore disabled storage. */ }
+      }
       onClose();
     }
   }
@@ -254,23 +260,42 @@ export default function OpportunityEditor({ organizationId, organization, opport
       } else {
         if (step === 1) {
           if (draft.title.trim().length < 3 || draft.description.trim().length < 30)
-            return "Enter a title and a description of at least 30 characters.";
-          if (!has(d.category)) return "Select the opportunity category.";
+            return "Enter a scholarship title and description of at least 30 characters.";
+          if (!has(d.category)) return "Select a scholarship category.";
           if (!list(d.academicLevels)) return "Select at least one academic level.";
         }
         if (step === 2) {
           if (!has(d.fundingType)) return "Choose the scholarship funding type.";
           if (d.fundingType === "FIXED_AMOUNT" && (!(d.value > 0) || !["USD", "LRD", "EUR", "GBP"].includes(d.currency)))
             return "Enter a positive scholarship amount and select its currency.";
+          if (d.awardsAvailable != null && (!Number.isInteger(d.awardsAvailable) || d.awardsAvailable < 1))
+            return "Number of awards must be a positive whole number.";
         }
-        if (step === 3 && draft.location.trim().length < 2)
-          return "Enter the study destination or Worldwide.";
-        if (step === 4 && !list(d.eligibleCountries))
-          return "Enter eligible countries or Worldwide.";
+        if (step === 3) {
+          if (draft.location.trim().length < 2) return "Enter the study destination or Worldwide.";
+          if (!list(d.eligibleCountries)) return "Enter eligible countries or Worldwide.";
+          if (d.minAge != null && d.maxAge != null && d.minAge > d.maxAge)
+            return "Minimum eligible age must not exceed maximum age.";
+        }
+        if (step === 4) {
+          if (draft.questions.some(q => ["SINGLE_CHOICE", "MULTIPLE_CHOICE"].includes(q.type) &&
+            (q.options.length < 2 || q.options.length > 12 || q.options.some(option => !option.trim()))))
+            return "Choice questions need 2–12 non-empty options.";
+          if (draft.questions.some(q => !q.label.trim() || q.label.trim().length < 3))
+            return "Enter a meaningful label for each application question.";
+        }
         if (step === 5) {
           if (!draft.deadline || new Date(draft.deadline).getTime() <= Date.now())
             return "Choose a future application deadline.";
+          if (d.openingDate && new Date(d.openingDate + "T00:00:00") > new Date(draft.deadline))
+            return "Application opening date must be before the deadline.";
+        }
+        if (step === 6) {
           if (!list(d.selectionCriteria)) return "Add at least one selection criterion.";
+          if (d.selectionMethod === "SCORING_RUBRIC" &&
+            (!(d.scoringRubric || []).length || d.scoringRubric.some(row => !row.label.trim()) ||
+              d.scoringRubric.reduce((sum, row) => sum + row.weight, 0) !== 100))
+            return "Scoring rubric criteria must have names and weights totaling 100%.";
         }
         if (step === last && !lockedForm) {
           const issues = opportunityPublicationIssues(draft);
@@ -369,7 +394,7 @@ export default function OpportunityEditor({ organizationId, organization, opport
   const locked = busy || Boolean(uploading) || error?.status === 409 ||
     [401, 403, 404].includes(error?.status);
 
-  return <div className={"bw-op-overlay bw-op-wizard-overlay bw-op-creation-overlay" + (jobStudio ? " bw-op-job-studio-overlay" : "") + (dedicatedComposer ? " bw-op-creation-dedicated" : "") + (singlePageComposer ? " bw-op-challenge-overlay" : "") + (standardComposer || dedicatedComposer ? " bw-op-standard-overlay" : "")} onKeyDown={e => {
+  return <div className={"bw-op-overlay bw-op-wizard-overlay bw-op-creation-overlay" + (draft.type === "SCHOLARSHIP" ? " bw-op-creation-scholarship" : "") + (jobStudio ? " bw-op-job-studio-overlay" : "") + (dedicatedComposer ? " bw-op-creation-dedicated" : "") + (singlePageComposer ? " bw-op-challenge-overlay" : "") + (standardComposer || dedicatedComposer ? " bw-op-standard-overlay" : "")} onKeyDown={e => {
     if (e.key === "Escape") { e.preventDefault(); close(); }
     if (e.key === "Tab" && dialog.current) {
       const nodes = [...dialog.current.querySelectorAll(
@@ -384,13 +409,13 @@ export default function OpportunityEditor({ organizationId, organization, opport
       aria-labelledby="op-editor-title" className="bw-op-editor bw-op-wizard">
       <header className="bw-op-wizard-header">
         <div><p className="bw-op-wizard-kicker">{opportunity ? "EDIT OPPORTUNITY" : "CREATE OPPORTUNITY"}</p>
-          <h2 id="op-editor-title">{jobStudio ? (opportunity ? "Edit job vacancy" : "Create a job vacancy") : singlePageComposer
+          <h2 id="op-editor-title">{draft.type === "SCHOLARSHIP" && dedicatedComposer ? (opportunity ? "Edit scholarship" : "Create a scholarship") : jobStudio ? (opportunity ? "Edit job vacancy" : "Create a job vacancy") : singlePageComposer
             ? (opportunity ? "Edit " : "Create a ") + OPPORTUNITY_TYPES[draft.type].label
             : opportunity ? "Edit your opportunity" : "Create an opportunity"}</h2>
           <p>{jobStudio ? "A clear listing attracts the right candidates" :
             singlePageComposer ? "Cover, details, deadline and applications" : dedicatedComposer ?
               "Step " + step + " of " + last + " · " + steps[step] : "Step " + (step + 1) + " of " + steps.length}</p>
-          {dedicatedComposer && !jobStudio && !opportunity && <p className="bw-op-wizard-help">Progress is kept in this browser tab until you save it to BrightWay.</p>}
+          {dedicatedComposer && !jobStudio && !opportunity && <p className="bw-op-wizard-help">Changes are automatically kept in this browser tab. Select Save draft to store them in BrightWay.</p>}
         </div>
         <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
       </header>
@@ -557,7 +582,7 @@ export default function OpportunityEditor({ organizationId, organization, opport
             onClick={() => singlePageComposer && opportunity ? close() : step ? (setError(null), setStep(current => current - 1)) : close()}>
             {singlePageComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
           </button>
-          <span className="bw-op-wizard-footer-hint">{jobStudio ? (opportunity ? "Editing an existing listing" : "Changes stored in this browser tab") : opportunity ? "Editing saved listing" : "Saved as draft until you publish"}</span>
+          <span className="bw-op-wizard-footer-hint">{jobStudio ? (opportunity ? "Editing an existing listing" : "Changes stored in this browser tab") : opportunity ? "Editing saved listing" : "Changes auto-saved in this tab · Save draft to store on BrightWay"}</span>
           {dedicatedComposer && step === last ? <>
             <button className="bw-op-secondary" type="submit" name="intent" value="draft" disabled={locked}>
               {busy ? "Saving…" : opportunity ? "Save changes" : "Save draft"}
