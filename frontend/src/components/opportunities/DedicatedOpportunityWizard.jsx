@@ -5,46 +5,16 @@ import NavigationIcon from "../layout/NavigationIcon";
 import OpportunityDateTimePicker from "./OpportunityDateTimePicker";
 import OpportunityDescriptionField from "./OpportunityDescriptionField";
 import DedicatedOpportunityFields from "./DedicatedOpportunityFields";
+import JobVacancySteps from "./JobVacancySteps";
 
 const descriptions = {
-  JOB: ["Job information", "Location and salary", "Qualifications", "Application settings", "Recruitment and selection", "Preview and save"],
+  JOB: ["Job Details", "Pay & Requirements", "Applications", "Review & Publish"],
   SCHOLARSHIP: ["Scholarship information", "Funding and benefits", "Study destination", "Eligibility", "Applications and selection", "Preview and save"],
 };
 const display = name => name ? name.replaceAll("_", " ").replace(/\b\w/g, l => l.toUpperCase()) : "Not specified";
 const currency = (value, code) => code && value != null
   ? new Intl.NumberFormat("en-US", { style: "currency", currency: code, maximumFractionDigits: 2 }).format(value) : null;
 
-function EmploymentFields({ draft, field, jobTypeOnly = false }) {
-  const details = draft.jobDetails || {};
-  const update = changes => field("jobDetails", { ...details, ...changes });
-  const salary = ["PAID", "STIPEND"].includes(details.compensationType);
-  return <section className="bw-op-challenge-section" aria-label="Employment and compensation">
-    <h4>Employment and compensation</h4>
-    <div className="bw-op-field-row">
-      <label>Job type <select value={details.type || ""} required onChange={e => update({ type: e.target.value })}>
-        <option value="">Select job type</option>{Object.entries(JOB_TYPES).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
-      </select></label>
-      {!jobTypeOnly && <label>Compensation <select value={details.compensationType || ""} required onChange={e => update({
-        compensationType: e.target.value, salaryMin: null, salaryMax: null, salaryCurrency: null, salaryPeriod: null,
-      })}><option value="">Select compensation</option>
-        {Object.entries(JOB_COMPENSATION_TYPES).map(([key, value]) => <option key={key} value={key}>{value}</option>)}
-      </select></label>}
-    </div>
-    {!jobTypeOnly && salary && <><p>Salary disclosure is optional. If disclosed, provide both amounts, a currency and a period.</p>
-      <div className="bw-op-field-row">
-        <label>Minimum salary <input type="number" min="0" step="0.01" value={details.salaryMin ?? ""} onChange={e => update({ salaryMin: e.target.value === "" ? null : Number(e.target.value) })} /></label>
-        <label>Maximum salary <input type="number" min="0" step="0.01" value={details.salaryMax ?? ""} onChange={e => update({ salaryMax: e.target.value === "" ? null : Number(e.target.value) })} /></label>
-      </div><div className="bw-op-field-row">
-        <label>Currency <select value={details.salaryCurrency || ""} onChange={e => update({ salaryCurrency: e.target.value || null })}>
-          <option value="">Select currency</option>{["USD", "LRD", "EUR", "GBP"].map(c => <option key={c} value={c}>{c}</option>)}
-        </select></label>
-        <label>Pay period <select value={details.salaryPeriod || ""} onChange={e => update({ salaryPeriod: e.target.value || null })}>
-          <option value="">Select period</option>{Object.entries(JOB_SALARY_PERIODS).map(([key, value]) => <option key={key} value={key}>Per {value}</option>)}
-        </select></label>
-      </div>
-    </>}
-  </section>;
-}
 function LocationFields({ draft, field, scholarship }) {
   return <section className="bw-op-challenge-section">
     <h4>{scholarship ? "Study mode and destination" : "Work location"}</h4>
@@ -107,14 +77,14 @@ export default function DedicatedOpportunityWizard({ draft, field, step, questio
           <small>{scholarship ? display(details.fundingType) : JOB_TYPES[draft.jobDetails?.type] || "Employment"}</small>
         </div>}
       </div>
-      <div className="bw-op-challenge-cover-tools">
+      {(scholarship || step === 1) && <div className="bw-op-challenge-cover-tools">
         <label className="bw-op-wizard-upload">{uploading === "COVER" ? "Uploading…" : coverUrl ? "Change cover photo" : "Upload cover photo"}
           <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Opportunity cover photo"
             disabled={locked || Boolean(uploading)} onChange={e => { const file = e.target.files?.[0]; e.target.value = ""; if (file) upload("COVER", file); }}/>
         </label>
         {coverUrl && <button type="button" className="bw-op-text-button" onClick={() => field("coverAssetId", null)}>Remove photo</button>}
-      </div>
-      <p className="bw-op-challenge-cover-help">Optional JPEG, PNG or WebP · 5 MB maximum.</p>
+      </div>}
+      {(scholarship || step === 1) && <p className="bw-op-challenge-cover-help">Optional JPEG, PNG or WebP · 5 MB maximum.</p>}
       <div className="bw-op-dedicated-preview-facts">
         <strong>{scholarship ? "Funding" : "Compensation"}</strong>
         <p>{scholarship ? display(details.fundingType) : JOB_COMPENSATION_TYPES[draft.jobDetails?.compensationType] || "Not specified"}</p>
@@ -130,44 +100,34 @@ export default function DedicatedOpportunityWizard({ draft, field, step, questio
         <span className="bw-op-challenge-audience"><NavigationIcon name="globe" size={15}/> Discoverable on BrightWay</span>
       </div>
       <h3 id="bw-op-step-heading" tabIndex={-1}>{descriptions[draft.type][index]}</h3>
-      {step === 1 && <>
-        <label className="bw-op-challenge-title-field">{scholarship ? "Scholarship title" : "Job title"}
-          <input required autoFocus minLength={3} maxLength={160} value={draft.title}
-            placeholder={scholarship ? "Undergraduate research scholarship" : "Junior software engineer"}
-            onChange={e => field("title", e.target.value)} />
-        </label>
-        <section className="bw-op-challenge-section">
-          <h4>Description</h4>
-          <OpportunityDescriptionField value={draft.description}
-            placeholder={scholarship ? "Explain the scholarship, purpose and selection process." : "Describe the role, team and impact."}
-            onChange={v => field("description", v)} />
-        </section>
-        {!scholarship && <EmploymentFields draft={draft} field={field} jobTypeOnly />}
-        <DedicatedOpportunityFields type={draft.type} details={details} onChange={v => field("details", v)} section={1} locked={Boolean(opportunity?.publishedAt)}/>
-      </>}
-      {step === 2 && <>
-        {!scholarship && <><LocationFields draft={draft} field={field} /><EmploymentFields draft={draft} field={field} /></>}
-        <DedicatedOpportunityFields type={draft.type} details={details} onChange={v => field("details", v)} section={2} />
-      </>}
-      {step === 3 && <>
-        {scholarship && <LocationFields draft={draft} field={field} scholarship />}
-        <DedicatedOpportunityFields type={draft.type} details={details} onChange={v => field("details", v)} section={3} />
-      </>}
-      {step === 4 && <>
-        <DedicatedOpportunityFields type={draft.type} details={details} onChange={v => field("details", v)} section={4} locked={Boolean(opportunity?.publishedAt)} />
-        {!scholarship && <section className="bw-op-challenge-section">
-          <h4>Application deadline</h4><OpportunityDateTimePicker value={draft.deadline} onChange={v => field("deadline", v)}/>
-          {questions}
-        </section>}
-      </>}
-      {step === 5 && <>
-        <DedicatedOpportunityFields type={draft.type} details={details} onChange={v => field("details", v)} section={5} locked={Boolean(opportunity?.publishedAt)}/>
-        {scholarship && <section className="bw-op-challenge-section">
-          <h4>Application deadline</h4><OpportunityDateTimePicker value={draft.deadline} onChange={v => field("deadline", v)}/>
-          {questions}
-        </section>}
-      </>}
-      {step === 6 && <Review draft={draft}/>}
+      {scholarship ? <>
+        {step === 1 && <>
+          <label className="bw-op-challenge-title-field">Scholarship title
+            <input required autoFocus minLength={3} maxLength={160} value={draft.title}
+              placeholder="Undergraduate research scholarship" onChange={e => field("title", e.target.value)}/>
+          </label>
+          <section className="bw-op-challenge-section">
+            <h4>Description</h4>
+            <OpportunityDescriptionField value={draft.description} placeholder="Explain the scholarship, purpose and selection process."
+              onChange={v => field("description", v)}/>
+          </section>
+          <DedicatedOpportunityFields type="SCHOLARSHIP" details={details} onChange={v => field("details", v)} section={1} locked={Boolean(opportunity?.publishedAt)}/>
+        </>}
+        {step === 2 && <DedicatedOpportunityFields type="SCHOLARSHIP" details={details} onChange={v => field("details", v)} section={2}/>}
+        {step === 3 && <>
+          <LocationFields draft={draft} field={field} scholarship/>
+          <DedicatedOpportunityFields type="SCHOLARSHIP" details={details} onChange={v => field("details", v)} section={3}/>
+        </>}
+        {step === 4 && <DedicatedOpportunityFields type="SCHOLARSHIP" details={details} onChange={v => field("details", v)} section={4} locked={Boolean(opportunity?.publishedAt)}/>}
+        {step === 5 && <>
+          <DedicatedOpportunityFields type="SCHOLARSHIP" details={details} onChange={v => field("details", v)} section={5} locked={Boolean(opportunity?.publishedAt)}/>
+          <section className="bw-op-challenge-section">
+            <h4>Application deadline</h4><OpportunityDateTimePicker value={draft.deadline} onChange={v => field("deadline", v)}/>
+            {questions}
+          </section>
+        </>}
+        {step === 6 && <Review draft={draft}/>}
+      </> : <JobVacancySteps draft={draft} field={field} step={step} questions={questions} locked={Boolean(opportunity?.publishedAt)}/>}
       <p className="bw-op-challenge-native"><NavigationIcon name="security" size={18}/>
         All applicant documents and screening answers are handled privately within BrightWay.</p>
     </div>
