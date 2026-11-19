@@ -225,7 +225,7 @@ export function validateAnswers(questions, answers, attachments, complete, postR
       : typeof value === "string" && value.length <= (q.type === "SHORT_ANSWER" ? 500 : 5000);
     if (!valid) throw fail(400, `Check your answer to: ${q.label}`);
     if (q.type === "LONG_ANSWER" && q.wordLimit && typeof value === "string" &&
-        value.trim().split(/\\s+/).filter(Boolean).length > q.wordLimit)
+        value.trim().split(/\s+/).filter(Boolean).length > q.wordLimit)
       throw fail(400, `Answer for ${q.label} exceeds ${q.wordLimit} words.`);
   }
 }
