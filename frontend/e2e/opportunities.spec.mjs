@@ -496,6 +496,7 @@ test("organization publishers create and publish a form, and reviewers send an a
   await expect(editor.getByLabel("Opportunity cover photo")).toBeAttached();
   await editor.getByLabel("Job Title").fill("Data internship");
   await expect(editor.locator(".bw-job-studio-preview-content h5")).toHaveText("Data internship");
+  await expect(editor.locator(".bw-job-studio-preview-org")).toHaveText(organization.name);
   await editor.getByLabel("Description", { exact: true }).fill("Build skills in field research, data quality, and community engagement.");
   await editor.getByText("Choose job categories").click();
   await editor.getByLabel("Research").check();
