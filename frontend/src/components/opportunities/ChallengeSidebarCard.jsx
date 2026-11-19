@@ -40,7 +40,7 @@ export default function ChallengeSidebarCard({ opportunity }) {
   const formatted = Number.isNaN(deadline.getTime()) ? "Unavailable" :
     deadline.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
-  const description = typeof opportunity.description === "string" ? opportunity.description.trim() : "";
+  const description = typeof (opportunity.type === "SCHOLARSHIP" && opportunity.details?.shortSummary ? opportunity.details.shortSummary : opportunity.description) === "string" ? (opportunity.type === "SCHOLARSHIP" && opportunity.details?.shortSummary ? opportunity.details.shortSummary : opportunity.description).trim() : "";
   const mode = opportunity.workMode === "REMOTE" ? "Remote" : opportunity.workMode === "HYBRID" ? "Hybrid" : "In person";
   return <article className={"bw-rail-challenge-card" + (isChallenge ? "" : " bw-rail-opportunity-card bw-rail-opportunity-" + opportunity.type.toLowerCase())}
     aria-label={type.label + ": " + opportunity.title}>
