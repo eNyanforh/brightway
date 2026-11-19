@@ -50,7 +50,8 @@ export default function JobVacancySteps({ draft, field, step, questions, locked 
     set("jobTypes", next);
     pay({ type: next[0] || "" });
   };
-  const updateLevels = next => field("details", { ...data, experienceLevels: next, experienceLevel: next[0] || "" });
+  const updateLevels = next => field("details", { ...data, experienceLevels: next, experienceLevel: next[0] || "",
+    ...(next.includes("NO_EXPERIENCE") ? { experienceMonths: 0 } : {}) });
   const amountShown = ["PAID", "STIPEND"].includes(job.compensationType);
   const amountMode = data.amountMode === "FIXED" ? "FIXED" : "RANGE";
   const noExperience = experience.includes("NO_EXPERIENCE");
