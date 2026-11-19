@@ -4,11 +4,8 @@ import { organizationWorkspace } from "../../shared/organization-workspace.mjs";
 import { dashboardFixture } from "../src/test/fixtures/organization-dashboard.js";
 
 const orgId = "33333333-3333-4333-8333-333333333333";
-const campusId = "55555555-5555-4555-8555-555555555555";
 const organization = { id: orgId, name: "BrightWay Community School", type: "SCHOOL", offersTraining: true };
 const account = { id: "owner", username: "synthetic_owner", person: { firstName: "Synthetic", lastName: "Owner" } };
-const studentCampus = { id: "registration", campusId, schoolName: "Current Campus", status: "ACTIVE",
-  studentStatus: "ACTIVE", available: true, year: "2026", period: "Semester 1", section: "Grade 10 / A" };
 const permissions = ["organization.members.manage"];
 const context = { accountId: account.id, organization, permissions,
   membership: { role: "PRIMARY_ADMIN", version: 1 }, staffVersion: 1, permissionCatalog: [],
@@ -22,7 +19,6 @@ async function fixture(page) {
     if (!url.pathname.startsWith("/api/")) return route.continue();
     const path = url.pathname;
     const reply = data => route.fulfill({ json: { success: true, data } });
-    if (path === "/api/v1/my-campus") return reply({ items: [studentCampus] });
     if (path === "/api/v1/my-workspace") return reply({ tab: "approved", search: "", items: [organization],
       counts: { approved: 1, pending: 0, invitations: 0, history: 0 }, nextCursor: null });
     const background = backgroundMessaging(route);
@@ -59,10 +55,8 @@ async function expectOverlappingActiveLeft(page, label, isMobile) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 }
 
-test("overlapping facepile keeps the active campus and organization on the left", async ({ page, isMobile }) => {
+test("overlapping facepile keeps the active organization on the left", async ({ page, isMobile }) => {
   await fixture(page);
-  await page.goto(`/learning?view=campus&campus=${campusId}`);
-  await expectOverlappingActiveLeft(page, "Open Current Campus school campus", isMobile);
   await page.goto(`/organization-workspace/${orgId}`);
   await expectOverlappingActiveLeft(page, "Open BrightWay Community School organization workspace", isMobile);
 });

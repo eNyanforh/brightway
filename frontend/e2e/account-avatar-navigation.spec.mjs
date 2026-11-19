@@ -3,7 +3,6 @@ import { backgroundMessaging } from "./support/background-messaging.mjs";
 
 const origin = "http://127.0.0.1:4187";
 const organizationId = "11111111-1111-4111-8111-111111111111";
-const campusId = "22222222-2222-4222-8222-222222222222";
 const account = {
   id: "member",
   username: "synthetic",
@@ -20,7 +19,7 @@ async function fixture(page) {
     const reply = data => route.fulfill({ json: { success: true, data } });
     // The shared background stub intentionally provides empty context lists.
     // This journey supplies authorized memberships and enrollments instead.
-    const background = ["/api/v1/my-workspace", "/api/v1/my-campus"].includes(url.pathname)
+    const background = url.pathname === "/api/v1/my-workspace"
       ? null : backgroundMessaging(route);
     if (background) return background;
     switch (url.pathname) {
@@ -29,11 +28,6 @@ async function fixture(page) {
       case "/api/v1/profile/me": return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
       case "/api/v1/my-workspace":
         return reply({ items: [{ id: organizationId, name: "Community Lab" }] });
-      case "/api/v1/my-campus":
-        return reply({ items: [{
-          id: "registration", campusId, schoolName: "Learning Academy",
-          status: "ACTIVE", studentStatus: "ACTIVE", available: true,
-        }] });
       case "/api/v1/explore/posts":
       case "/api/v1/opportunities":
       case "/api/v1/learning/discover": return reply({ items: [], nextCursor: null });
@@ -43,19 +37,16 @@ async function fixture(page) {
   return errors;
 }
 
-test("overlapping avatar shortcuts directly switch personal, school, and organization on desktop and mobile", async ({ page }) => {
+test("overlapping avatar shortcuts switch personal and organization accounts", async ({ page }) => {
   await fixture(page);
   await page.goto("/explore");
   const shortcuts = page.getByRole("navigation", { name: "Account shortcuts" });
   const personal = shortcuts.getByRole("link", { name: "Open personal account" });
   const organization = shortcuts.getByRole("link", { name: "Open Community Lab organization workspace" });
-  const school = shortcuts.getByRole("link", { name: "Open Learning Academy school campus" });
   await expect(organization).toBeVisible();
-  await expect(school).toBeVisible();
   await expect(personal).toHaveAttribute("aria-current", "true");
   await expect(personal).toHaveAttribute("href", "/explore");
   await expect(organization).toHaveAttribute("href", `/organization-workspace/${organizationId}`);
-  await expect(school).toHaveAttribute("href", `/learning?view=campus&campus=${campusId}`);
   const first = await personal.boundingBox();
   const second = await organization.boundingBox();
   expect(first).toBeTruthy();
@@ -67,6 +58,4 @@ test("overlapping avatar shortcuts directly switch personal, school, and organiz
   await expect(shortcuts.getByRole("link", { name: "Open Community Lab organization workspace" })).toHaveAttribute("aria-current", "true");
   await shortcuts.getByRole("link", { name: "Open personal account" }).click();
   await expect(page).toHaveURL(/\/explore$/);
-  await school.click();
-  await expect(page).toHaveURL(new RegExp(`/learning\\?view=campus&campus=${campusId}$`));
 });

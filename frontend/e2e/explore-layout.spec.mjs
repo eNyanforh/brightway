@@ -390,7 +390,7 @@ test("Explore shows the compact three-action launcher instead of an always-open 
 
   await billboard.getByRole("button", { name: "Next slide" }).click();
   await expect(billboard.getByRole("heading", { name: "Celebrate the winners" })).toBeVisible();
-  await billboard.getByRole("button", { name: "Virtual Campus spotlight" }).click();
+  await billboard.getByRole("button", { name: "Learning spotlight" }).click();
   await expect(billboard.getByRole("link", { name: "Explore learning" })).toHaveAttribute("href", "/learning");
 
   await achievement.click();

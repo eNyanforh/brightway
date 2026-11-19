@@ -14,8 +14,8 @@ const statusSlides = [
     icon: "awards",
   },
   {
-    id: "campus", label: "Virtual Campus spotlight", title: "Recognize student achievement",
-    description: "This spotlight will feature top-performing Virtual Campus students.",
+    id: "learning", label: "Learning spotlight", title: "Grow through learning",
+    description: "Discover institutions, programs, and open admissions on BrightWay.",
     href: "/learning", action: "Explore learning", icon: "learning",
   },
 ];
