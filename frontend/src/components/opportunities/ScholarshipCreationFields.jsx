@@ -13,7 +13,7 @@ export default function ScholarshipCreationFields({ step, details = {}, onChange
   const set = (key, value) => { if (!locked) onChange({ ...details, [key]: value }); };
   const text = (label, key, props = {}) => <label>{label}<input type="text" maxLength={props.maxLength || 300} value={details[key] ?? ""} placeholder={props.placeholder || ""}
     onChange={e => set(key, e.target.value)} /></label>;
-  const number = (label, key, min = 0, max) => <label>{label}<input type="number" min={min} max={max} step="1"
+  const number = (label, key, min = 0, max) => <label>{label}<input type="number" min={min} max={max} step={["value", "livingAllowanceAmount"].includes(key) ? "0.01" : "1"}
     value={details[key] ?? ""} onChange={e => set(key, e.target.value === "" ? null : Number(e.target.value))}/></label>;
   const date = (label, key) => <label>{label}<input type="date" value={details[key] || ""}
     onChange={e => set(key, e.target.value || "")}/></label>;
@@ -124,6 +124,14 @@ export default function ScholarshipCreationFields({ step, details = {}, onChange
       <div className="bw-op-field-row">{date("Review ends", "reviewEndDate")}
         {date("Interview date (optional)", "interviewDate")}</div>
       {date("Expected announcement date", "announcementDate")}
+      <label>Application deadline timezone
+        <select value={details.deadlineTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"}
+          onChange={e => set("deadlineTimezone", e.target.value)}>
+          {[...new Set([details.deadlineTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", "UTC", ...(Intl.supportedValuesOf?.("timeZone") || [])])].map(zone =>
+            <option value={zone} key={zone}>{zone}</option>)}
+        </select>
+      </label>
+      <p className="bw-scholarship-hint">The selected timezone controls the exact closing instant, including daylight saving time.</p>
       {number("Maximum applications (optional)", "applicationLimit", 1)}
     </Section>
   </>;
