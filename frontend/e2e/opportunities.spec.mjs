@@ -10,7 +10,7 @@ const permissions = ["organization.opportunities.manage", "organization.applicat
 const base = "/organization-workspace/" + oid;
 const initialOpportunity = { id, organization, organizationId: oid, type: "JOB", title: "Community research assistant", description: "Join a research team and help improve education outcomes across communities.", location: "Monrovia, Liberia", workMode: "IN_PERSON", deadline: "2099-12-01T12:00:00Z", status: "PUBLISHED", publishedAt: "2026-11-11T12:00:00Z", version: 2, questions: [{ id: qid, type: "YES_NO", label: "Can you join our team?", required: true, options: [] }], createdAt: "2026-11-11T12:00:00Z" };
 async function fixture(page) {
-  const state = { opportunity: structuredClone(initialOpportunity), application: null, drafts: [], assets: [], errors: [], calls: [] };
+  const state = { opportunity: structuredClone(initialOpportunity), application: null, drafts: [], scholarshipEditorDraft: null, assets: [], errors: [], calls: [] };
   page.on("pageerror", e => state.errors.push(e.message));
   await page.route("**/*", async route => {
     // Background channels are independent of this journey; SSE behavior has its own HTTP test.
@@ -49,6 +49,17 @@ async function fixture(page) {
       return reply({ items: [collaborator] });
     if (path === "/api/v1" + base + "/challenge-collaborations")
       return reply({ items: [] });
+    if (path === "/api/v1" + base + "/scholarship-editor-draft") {
+      if (request.method() === "GET") return reply({ draft: state.scholarshipEditorDraft, updatedAt: null });
+      if (request.method() === "PUT") {
+        state.scholarshipEditorDraft = request.postDataJSON().draft;
+        return reply({ updatedAt: "2026-11-19T21:00:00Z" });
+      }
+      if (request.method() === "DELETE") {
+        state.scholarshipEditorDraft = null;
+        return reply({ deleted: true });
+      }
+    }
     if (path === "/api/v1" + base + "/opportunities") {
       if (request.method() === "POST") { const body = request.postDataJSON(); const row = { ...body, id: "66666666-6666-4666-8666-666666666666", organization, version: 1, status: "DRAFT" }; state.drafts.push(row); return reply(row, 201); }
       return reply({ items: state.drafts, nextCursor: null });
