@@ -22,7 +22,13 @@ function Lines({ label, value, onChange, placeholder, required = false }) {
 }
 function Multi({ title, options, selected, onChange, search, setSearch }) {
   return <fieldset className="bw-op-detail-options bw-op-compact-picker"><legend>{title}</legend>
-    <div className="bw-op-job-selected">{selected.length ? selected.map(v => options.find(([key]) => key === v)?.[1] || v).join(", ") : "Select one or more"}</div>
+    <div className="bw-op-job-selected">{selected.length ? selected.map(value => {
+      const text = options.find(([key]) => key === value)?.[1] || value;
+      return <span className="bw-job-studio-token" key={value}>{text}
+        <button type="button" aria-label={"Remove " + text + " from " + title.toLowerCase()}
+          onClick={() => onChange(selected.filter(item => item !== value))}>×</button>
+      </span>;
+    }) : <span>No selections yet</span>}</div>
     <details><summary>Choose {title.toLowerCase()}</summary>
       <input type="search" aria-label={"Search " + title.toLowerCase()} value={search} onChange={e => setSearch(e.target.value)} placeholder="Search options" />
       <div className="bw-op-detail-choices">{options.filter(([,label]) => label.toLowerCase().includes(search.toLowerCase())).map(([key,label]) =>
@@ -35,7 +41,7 @@ function Advanced({ children }) {
   return <details className="bw-op-job-advanced"><summary>Advanced options <span>Optional settings</span></summary><div className="bw-op-job-advanced-body">{children}</div></details>;
 }
 
-export default function JobVacancySteps({ draft, field, step, questions, locked }) {
+export default function JobVacancySteps({ draft, field, step, questions, locked, coverEditor = null }) {
   const [categorySearch, setCategorySearch] = useState("");
   const [typeSearch, setTypeSearch] = useState("");
   const data = draft.details || {};
@@ -70,6 +76,7 @@ export default function JobVacancySteps({ draft, field, step, questions, locked 
     <Multi title="Job Types" options={Object.entries(JOB_TYPES)} selected={types}
       onChange={updateTypes} search={typeSearch} setSearch={setTypeSearch}/>
     <JobLocationPicker draft={draft} field={field} details={data} onDetails={v => field("details", v)} />
+    {coverEditor}
     <Advanced>
       <Group title="Vacancy details">
         <div className="bw-op-field-row">
@@ -77,7 +84,6 @@ export default function JobVacancySteps({ draft, field, step, questions, locked 
             onChange={e => set("vacancies", e.target.value === "" ? null : Number(e.target.value))}/></label>
           <label>Expected start date<input type="date" value={data.startDate || ""} onChange={e => set("startDate", e.target.value || undefined)}/></label>
         </div>
-        <p className="bw-op-job-hint">The cover photo upload is available beside the live preview in Job Details.</p>
       </Group>
     </Advanced>
   </>;
