@@ -405,6 +405,27 @@ for (const [type, label] of [["EVENT", "Event"]]) {
   });
 }
 
+test("incomplete scholarship drafts autosave privately and recover after reopening", async ({ page }) => {
+  const state = await fixture(page);
+  await page.goto(base + "/opportunities");
+  await page.getByRole("button", { name: "+ Create opportunity" }).click();
+  const editor = page.getByRole("dialog");
+  await editor.getByRole("radio", { name: /Scholarship/ }).click();
+  await editor.getByRole("button", { name: "Continue" }).click();
+  await editor.getByLabel("Scholarship title").fill("Draft for regional scholars");
+  await expect.poll(() => state.scholarshipEditorDraft?.title).toBe("Draft for regional scholars");
+  page.once("dialog", dialog => dialog.accept());
+  await editor.getByRole("button", { name: "Close editor" }).click();
+  await expect(editor).toHaveCount(0);
+  await page.evaluate(() => sessionStorage.clear());
+  await page.getByRole("button", { name: "+ Create opportunity" }).click();
+  const reopened = page.getByRole("dialog");
+  await expect(reopened.getByRole("radio", { name: /Scholarship/ })).toHaveAttribute("aria-checked", "true");
+  await reopened.getByRole("button", { name: "Continue" }).click();
+  await expect(reopened.getByLabel("Scholarship title")).toHaveValue("Draft for regional scholars");
+  expect(state.errors).toEqual([]);
+});
+
 test("Scholarship publishing uses seven guided steps and native application questions", async ({ page }) => {
   const state = await fixture(page);
   await page.goto(base + "/opportunities");
