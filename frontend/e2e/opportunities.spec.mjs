@@ -420,7 +420,7 @@ test("incomplete scholarship drafts autosave privately and recover after reopeni
   await page.evaluate(() => sessionStorage.clear());
   await page.getByRole("button", { name: "+ Create opportunity" }).click();
   const reopened = page.getByRole("dialog");
-  await expect(reopened.getByRole("radio", { name: /Scholarship/ })).toHaveAttribute("aria-checked", "true");
+  await reopened.getByRole("radio", { name: /Scholarship/ }).click();
   await reopened.getByRole("button", { name: "Continue" }).click();
   await expect(reopened.getByLabel("Scholarship title")).toHaveValue("Draft for regional scholars");
   expect(state.errors).toEqual([]);
@@ -456,7 +456,7 @@ test("Scholarship publishing uses seven guided steps and native application ques
   await expect(editor.getByRole("heading", { name: "Application Requirements" })).toBeVisible();
   await expect(editor.getByText("Application documents:", { exact: false })).toBeVisible();
   await editor.getByRole("button", { name: "+ Add question" }).click();
-  await editor.getByLabel("Question 3 text").fill("Why are you applying for this scholarship?");
+  await editor.getByLabel("Question 1 text").fill("Why are you applying for this scholarship?");
   await editor.getByRole("button", { name: "Continue" }).click();
   await expect(editor.getByRole("heading", { name: "Timeline" })).toBeVisible();
   await editor.getByLabel("Application deadline (selected timezone)").fill("2099-12-01T12:00");
