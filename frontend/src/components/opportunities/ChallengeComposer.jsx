@@ -25,7 +25,7 @@ export default function ChallengeComposer({
     <button type="button" className="bw-op-creation-preview-toggle"
       aria-controls="bw-op-challenge-preview" aria-expanded={previewOpen}
       onClick={() => setPreviewOpen(current => !current)}>
-      <NavigationIcon name="eye" size={17}/>{previewOpen ? "Hide listing preview" : "Preview listing"}
+      <NavigationIcon name="eye" size={17}/>{previewOpen ? "Hide preview & cover photo" : "Preview & cover photo"}
     </button>
     <aside id="bw-op-challenge-preview" aria-label="Live listing preview"
       className={"bw-op-challenge-cover-column bw-op-creation-preview" + (previewOpen ? " is-mobile-open" : "")}>
