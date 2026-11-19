@@ -148,6 +148,8 @@ export default function OpportunityEditor({ organizationId, organization, opport
       organizationId: item.organizationId, organization: item.organization, state: item.state,
     })));
   const [step, setStep] = useState(0), [busy, setBusy] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(Boolean(opportunity));
+  const [autosaveStatus, setAutosaveStatus] = useState("loading");
   const [uploading, setUploading] = useState(""), [error, setError] = useState(null);
   const requestKey = useRef(crypto.randomUUID()), request = useRef(null), persisted = useRef(opportunity || null);
   const uploadController = useRef(null), lock = useRef(false), dialog = useRef(null);
@@ -179,6 +181,29 @@ export default function OpportunityEditor({ organizationId, organization, opport
     try { window.sessionStorage.setItem(draftKey, JSON.stringify(draft)); }
     catch { /* An unavailable browser session store does not block editing. */ }
   }, [draft, opportunity, draftKey]);
+  useEffect(() => {
+    if (opportunity) return;
+    const controller = new AbortController();
+    api.getScholarshipDraft(organizationId, controller.signal)
+      .then(result => {
+        if (controller.signal.aborted || result.draft?.type !== "SCHOLARSHIP") return;
+        setDraft(current => current.type ? current : { ...blank(), ...result.draft });
+      })
+      .catch(() => { /* Offline browser recovery stays available. */ })
+      .finally(() => { if (!controller.signal.aborted) setDraftLoaded(true); });
+    return () => controller.abort();
+  }, [opportunity, organizationId]);
+  useEffect(() => {
+    if (opportunity || !draftLoaded || draft.type !== "SCHOLARSHIP" || persisted.current) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setAutosaveStatus("saving");
+      api.saveScholarshipDraft(organizationId, draft, controller.signal)
+        .then(() => { if (!controller.signal.aborted) setAutosaveStatus("saved"); })
+        .catch(() => { if (!controller.signal.aborted) setAutosaveStatus("offline"); });
+    }, 1500);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [draft, draftLoaded, opportunity, organizationId]);
   function field(key, value) {
     setDraft(old => {
       if (key === "details" && ["JOB", "SCHOLARSHIP"].includes(old.type)) {
@@ -197,7 +222,7 @@ export default function OpportunityEditor({ organizationId, organization, opport
   function close() {
     const scholarshipDraft = !opportunity && draft.type === "SCHOLARSHIP";
     const message = scholarshipDraft
-      ? "Close the editor? Your draft will remain in this browser tab, but is not yet saved to BrightWay."
+      ? "Close the editor? Your draft will remain available for recovery. Recent changes may still be saving."
       : "Close this editor and discard unsaved changes?";
     if (!busy && !uploading && window.confirm(message)) {
       if (!scholarshipDraft) {
@@ -401,6 +426,10 @@ export default function OpportunityEditor({ organizationId, organization, opport
         : saved;
       if (!controller.signal.aborted) {
         try { window.sessionStorage.removeItem(draftKey); } catch { /* Ignore disabled storage. */ }
+        if (draft.type === "SCHOLARSHIP") {
+          try { await api.deleteScholarshipDraft(organizationId, controller.signal); }
+          catch { /* Saved listing remains authoritative even if draft cleanup fails. */ }
+        }
         onSaved(completed);
       }
     } catch (cause) { if (!controller.signal.aborted) setError(cause); }
@@ -434,7 +463,12 @@ export default function OpportunityEditor({ organizationId, organization, opport
           <p>{jobStudio ? "A clear listing attracts the right candidates" :
             singlePageComposer ? "Cover, details, deadline and applications" : dedicatedComposer ?
               "Step " + step + " of " + last + " · " + steps[step] : "Step " + (step + 1) + " of " + steps.length}</p>
-          {dedicatedComposer && !jobStudio && !opportunity && <p className="bw-op-wizard-help">Changes are automatically kept in this browser tab. Select Save draft to store them in BrightWay.</p>}
+          {dedicatedComposer && !jobStudio && !opportunity && <p className="bw-op-wizard-help" role="status">
+            {draft.type === "SCHOLARSHIP" ? autosaveStatus === "saved" ? "Draft automatically saved to BrightWay"
+              : autosaveStatus === "saving" ? "Saving scholarship draft…"
+              : autosaveStatus === "offline" ? "Offline: changes remain in this browser tab"
+              : "Loading your scholarship draft…" : "Changes remain in this browser tab until saved."}
+          </p>}
         </div>
         <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
       </header>
@@ -601,7 +635,7 @@ export default function OpportunityEditor({ organizationId, organization, opport
             onClick={() => singlePageComposer && opportunity ? close() : step ? (setError(null), setStep(current => current - 1)) : close()}>
             {singlePageComposer ? opportunity ? "Cancel" : "Back to types" : step ? "Back" : "Cancel"}
           </button>
-          <span className="bw-op-wizard-footer-hint">{jobStudio ? (opportunity ? "Editing an existing listing" : "Changes stored in this browser tab") : opportunity ? "Editing saved listing" : "Changes auto-saved in this tab · Save draft to store on BrightWay"}</span>
+          <span className="bw-op-wizard-footer-hint">{jobStudio ? (opportunity ? "Editing an existing listing" : "Changes stored in this browser tab") : opportunity ? "Editing saved listing" : draft.type === "SCHOLARSHIP" ? autosaveStatus === "saved" ? "Draft autosaved to BrightWay" : autosaveStatus === "offline" ? "Offline · saved in browser" : "Scholarship draft autosave enabled" : "Changes stored in this browser tab until saved"}</span>
           {dedicatedComposer && step === last ? <>
             <button className="bw-op-secondary" type="submit" name="intent" value="draft" disabled={locked}>
               {busy ? "Saving…" : opportunity ? "Save changes" : "Save draft"}
