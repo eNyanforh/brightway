@@ -129,6 +129,16 @@ const scholarshipDetailsExtended = z.strictObject({
 });
 const opportunityDetails = z.union([jobDetailsExtended, scholarshipDetailsExtended]).default({});
 
+export const scholarshipEditorDraftInput = z.strictObject({
+  draft: z.object({
+    type: z.literal("SCHOLARSHIP"),
+    title: z.string().max(160), description: z.string().max(12000),
+    location: z.string().max(180), details: z.record(z.string(), z.unknown()),
+    questions: z.array(z.unknown()).max(20),
+  }).passthrough().refine(value => JSON.stringify(value).length <= 65536,
+    "Scholarship draft is too large."),
+});
+
 export const opportunityInput = z.strictObject({
   type: z.enum(Object.keys(OPPORTUNITY_TYPES)), title: text(160).min(3), description: text(12000).min(30),
   location: text(180).min(2), workMode: z.enum(["IN_PERSON", "REMOTE", "HYBRID"]),
