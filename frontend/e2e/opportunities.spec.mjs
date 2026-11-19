@@ -458,7 +458,7 @@ test("Scholarship publishing uses seven guided steps and native application ques
   await editor.getByRole("button", { name: "+ Add question" }).click();
   await editor.getByLabel("Question 1 text").fill("Why are you applying for this scholarship?");
   await editor.getByRole("button", { name: "Continue" }).click();
-  await expect(editor.getByRole("heading", { name: "Timeline" })).toBeVisible();
+  await expect(editor.getByRole("heading", { name: "Timeline", exact: true })).toBeVisible();
   await editor.getByLabel("Application deadline (selected timezone)").fill("2099-12-01T12:00");
   await editor.getByRole("button", { name: "Continue" }).click();
   await expect(editor.getByRole("heading", { name: "Selection Process" })).toBeVisible();
