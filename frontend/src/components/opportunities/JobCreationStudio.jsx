@@ -16,7 +16,7 @@ const pretty = value => String(value || "").replaceAll("_", " ").toLowerCase().r
 const first = items => Array.isArray(items) && items.length > 0 ? items[0] : "";
 
 export default function JobCreationStudio({
-  draft, field, step, onGoStep, questions, locked, uploading, upload,
+  draft, field, step, onGoStep, questions, locked, uploading, upload, organizationName,
 }) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const previewTrigger = useRef(null);
