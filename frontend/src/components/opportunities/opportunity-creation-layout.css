@@ -105,3 +105,33 @@
 .bw-op-creation-overlay .bw-op-creation-listing{padding:16px}
 }
 @media(prefers-reduced-motion:reduce){.bw-op-creation-overlay *{scroll-behavior:auto;transition:none}}
+
+/* Scholarship creation studio: step navigation, form, and applicant-facing live preview. */
+.bw-op-creation-scholarship .bw-scholarship-hint{margin:0;color:#667085;font-size:12px;line-height:1.5}
+.bw-op-creation-scholarship .bw-scholarship-count{float:right;color:#667085;font-size:11px;font-weight:500}
+.bw-op-creation-scholarship .bw-scholarship-priority{max-width:280px}
+.bw-op-creation-scholarship .bw-scholarship-section .bw-op-detail-options{margin:2px 0}
+.bw-op-creation-scholarship .bw-scholarship-section .bw-op-detail-options legend{margin-bottom:5px;font-size:13px}
+.bw-op-creation-scholarship .bw-scholarship-rubric-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(90px,.7fr) auto;gap:10px;align-items:end}
+.bw-op-creation-scholarship .bw-scholarship-rubric-row label{display:grid;gap:7px;min-width:0;font-size:13px;font-weight:600}
+.bw-op-creation-scholarship .bw-scholarship-rubric-row button{min-height:46px}
+.bw-op-creation-scholarship .bw-scholarship-question-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.bw-op-creation-scholarship .bw-scholarship-question-actions button{min-height:44px}
+.bw-op-creation-scholarship .bw-scholarship-checklist{padding:13px 15px;border-radius:10px;border:1px solid #d0d5dd;background:#f9fafb;font-size:13px}
+.bw-op-creation-scholarship .bw-scholarship-checklist ul{margin:8px 0 0;padding-left:20px}
+.bw-op-creation-scholarship .bw-scholarship-checklist li{margin:3px 0}
+.bw-op-question-word-count{color:#667085;font-size:12px;margin-top:5px}
+@media(min-width:1120px){
+  .bw-op-creation-scholarship .bw-op-wizard{display:grid;grid-template-columns:200px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .bw-op-creation-scholarship .bw-op-wizard-header{grid-column:1/-1}
+  .bw-op-creation-scholarship .bw-op-wizard-progress{grid-column:1;grid-row:2;min-height:0;flex-direction:column;overflow-y:auto;overflow-x:hidden;align-items:stretch;padding:16px 10px;border-right:1px solid #e5e9ef;border-bottom:none}
+  .bw-op-creation-scholarship .bw-op-wizard-progress>button{flex:0 0 auto;width:100%;font-size:12px}
+  .bw-op-creation-scholarship .bw-op-wizard form{grid-column:2;grid-row:2}
+  .bw-op-creation-scholarship .bw-op-wizard-fields .bw-op-dedicated-wizard{grid-template-columns:minmax(0,1.23fr) minmax(285px,.87fr);gap:clamp(20px,2.2vw,36px)}
+  .bw-op-creation-scholarship .bw-op-dedicated-wizard .bw-op-challenge-main{grid-column:1;grid-row:1}
+  .bw-op-creation-scholarship .bw-op-dedicated-wizard .bw-op-challenge-cover-column{grid-column:2;grid-row:1;top:8px}
+}
+@media(max-width:720px){
+  .bw-op-creation-scholarship .bw-scholarship-rubric-row{grid-template-columns:minmax(0,1fr) 100px}
+  .bw-op-creation-scholarship .bw-scholarship-rubric-row button{grid-column:1/-1;justify-self:start}
+}
