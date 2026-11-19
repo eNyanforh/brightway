@@ -1,4 +1,4 @@
-import { OPPORTUNITY_TYPES, JOB_TYPES, JOB_COMPENSATION_TYPES, JOB_SALARY_PERIODS, formatJobSalary } from "../../../../shared/opportunities.mjs";
+import { OPPORTUNITY_TYPES, JOB_TYPES, JOB_COMPENSATION_TYPES, formatJobSalary } from "../../../../shared/opportunities.mjs";
 import { requiredDocumentLabels } from "../../../../shared/opportunity-documents.mjs";
 import { opportunitiesApi as api } from "../../api/opportunities";
 import NavigationIcon from "../layout/NavigationIcon";
