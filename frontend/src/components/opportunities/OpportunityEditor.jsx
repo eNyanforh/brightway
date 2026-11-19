@@ -22,6 +22,7 @@ import { opportunitiesApi as api } from "../../api/opportunities";
 import "./challenge-sidebar-card.css";
 import "./opportunity-editor-wizard.css";
 import "./challenge-composer.css";
+import "./opportunity-creation-layout.css";
 
 const choices = [
   ["JOB", "Job", "Recruit talent for a position."],
@@ -366,7 +367,7 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
   const locked = busy || Boolean(uploading) || error?.status === 409 ||
     [401, 403, 404].includes(error?.status);
 
-  return <div className={"bw-op-overlay bw-op-wizard-overlay" + (singlePageComposer ? " bw-op-challenge-overlay" : "") + (standardComposer || dedicatedComposer ? " bw-op-standard-overlay" : "")} onKeyDown={e => {
+  return <div className={"bw-op-overlay bw-op-wizard-overlay bw-op-creation-overlay" + (dedicatedComposer ? " bw-op-creation-dedicated" : "") + (singlePageComposer ? " bw-op-challenge-overlay" : "") + (standardComposer || dedicatedComposer ? " bw-op-standard-overlay" : "")} onKeyDown={e => {
     if (e.key === "Escape") { e.preventDefault(); close(); }
     if (e.key === "Tab" && dialog.current) {
       const nodes = [...dialog.current.querySelectorAll(
@@ -390,8 +391,14 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
         <button aria-label="Close editor" type="button" disabled={busy || Boolean(uploading)} onClick={close}>×</button>
       </header>
       {!singlePageComposer && <nav className="bw-op-wizard-progress" aria-label="Creation progress">
-        {steps.map((label, index) => <span key={label} className={index === step ? "is-current" : index < step ? "is-complete" : ""}
-          aria-current={index === step ? "step" : undefined}><span>{index + 1}</span>{label}</span>)}
+        {steps.map((label, index) => <button type="button" key={label}
+          className={index === step ? "is-current" : index < step ? "is-complete" : ""}
+          disabled={index > step}
+          aria-current={index === step ? "step" : undefined}
+          onClick={() => { if (index < step) { setError(null); setStep(index); } }}>
+          <span aria-hidden="true">{index < step ? "✓" : index + 1}</span>
+          <span className="bw-op-progress-label">{label}</span>
+        </button>)}
       </nav>}
       <form onSubmit={submit}>
         {error && <div className="bw-op-wizard-error" role="alert">{error.message}</div>}
