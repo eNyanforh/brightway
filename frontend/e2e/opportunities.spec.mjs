@@ -459,7 +459,7 @@ test("Scholarship publishing uses seven guided steps and native application ques
   await editor.getByLabel("Question 3 text").fill("Why are you applying for this scholarship?");
   await editor.getByRole("button", { name: "Continue" }).click();
   await expect(editor.getByRole("heading", { name: "Timeline" })).toBeVisible();
-  await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
+  await editor.getByLabel("Application deadline (selected timezone)").fill("2099-12-01T12:00");
   await editor.getByRole("button", { name: "Continue" }).click();
   await expect(editor.getByRole("heading", { name: "Selection Process" })).toBeVisible();
   await editor.getByLabel("Selection criteria").fill("Academic achievement");
@@ -498,7 +498,7 @@ test("organization publishers can publish scholarship awards with required docum
   await editor.getByRole("button", { name: "Continue" }).click();
   await expect(editor.getByText("Academic transcript required")).toBeVisible();
   await editor.getByRole("button", { name: "Continue" }).click();
-  await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
+  await editor.getByLabel("Application deadline (selected timezone)").fill("2099-12-01T12:00");
   await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Selection criteria").fill("Academic achievement");
   await editor.getByRole("button", { name: "Continue" }).click();
