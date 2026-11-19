@@ -65,6 +65,7 @@ model Account {
   admissionApplications AdmissionApplication[]
   admissionEvents AdmissionApplicationEvent[]
   opportunityListings Opportunity[]
+  scholarshipEditorDrafts ScholarshipEditorDraft[]
   opportunityAssets OpportunityAsset[]
   opportunityApplications OpportunityApplication[]
   savedOpportunities OpportunitySave[]
@@ -956,6 +957,7 @@ model Organization {
   programs Program[]
   admissionCycles AdmissionCycle[]
   opportunities Opportunity[]
+  scholarshipEditorDrafts ScholarshipEditorDraft[]
   opportunityAssets OpportunityAsset[]
   challengeCollaborations OpportunityCollaborator[]
   posts OrganizationPost[]
@@ -1680,6 +1682,19 @@ enum OpportunityApplicationStatus {
   NOT_SELECTED
   WITHDRAWN
 }
+model ScholarshipEditorDraft {
+  id String @id @default(uuid())
+  organizationId String
+  authorId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author Account @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  payload Json
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  @@unique([organizationId, authorId])
+  @@index([authorId, updatedAt])
+}
+
 model Opportunity {
   id String @id @default(uuid())
   organizationId String
