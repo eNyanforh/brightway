@@ -345,7 +345,7 @@ test("organization Challenge composer uses cover-left layout and preserves nativ
 });
 
 for (const [type, label] of [["EVENT", "Event"]]) {
-  test(label + " uses the same responsive composer, uploads a cover, and saves type-specific fields", async ({ page, isMobile }) => {
+  test(label + " uses the same responsive composer, uploads a cover, and saves type-specific fields", async ({ page }) => {
     const state = await fixture(page);
     await page.goto(base + "/opportunities");
     await page.getByRole("button", { name: "+ Create opportunity" }).click();
@@ -469,7 +469,7 @@ test("organization publishers can directly publish a scholarship with native req
   await noOverflow(page);
 });
 
-test("organization publishers create and publish a form, and reviewers send an applicant decision", async ({ page, isMobile }, testInfo) => {
+test("organization publishers create and publish a form, and reviewers send an applicant decision", async ({ page }, testInfo) => {
   const state = await fixture(page);
   state.application = { id: aid, opportunity: state.opportunity, status: "SUBMITTED", version: 1, answers: { [qid]: false }, files: [], events: [], submittedAt: "2026-11-11T12:00:00Z", profileSnapshot: { name: "Synthetic Applicant", headline: "Data analyst", location: {}, skills: ["Data"], interests: ["Education"], credentials: [] }, opportunitySnapshot: { title: state.opportunity.title, organization: organization.name, questions: state.opportunity.questions } };
   await page.goto(base + "/opportunities");
