@@ -13,10 +13,11 @@ export function opportunityPublicationIssues(opportunity, currentTime = Date.now
   if (type === "JOB") {
     need(Boolean(jobDetails?.type), "Choose a job type.");
     need(Boolean(jobDetails?.compensationType), "Choose a compensation type.");
-    need(populated(d.category), "Select a job category.");
-    need(populated(d.experienceLevel), "Select an experience level.");
+    need(populated(d.category) || list(d.categories), "Select at least one job category.");
+    need(populated(d.experienceLevel) || list(d.experienceLevels), "Select at least one experience level.");
+    if (Array.isArray(d.experienceLevels) && d.experienceLevels.includes("NO_EXPERIENCE") && d.experienceMonths > 0)
+      issues.push("No experience required cannot have a positive minimum experience.");
     need(list(d.responsibilities), "Enter at least one job responsibility.");
-    need(list(d.requiredQualifications), "Enter at least one required qualification.");
     if (d.applicationLimit != null)
       need(Number.isInteger(d.applicationLimit) && d.applicationLimit >= 1, "Application limit must be a positive whole number.");
   } else {
