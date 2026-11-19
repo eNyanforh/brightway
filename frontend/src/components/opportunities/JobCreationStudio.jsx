@@ -160,3 +160,4 @@ export default function JobCreationStudio({
       <p className="bw-job-studio-preview-footnote">Illustrative listing preview. It updates as you type; nothing is public until you publish.</p>
     </aside>
   </div>;
+}
