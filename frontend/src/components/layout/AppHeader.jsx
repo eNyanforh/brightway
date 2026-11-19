@@ -10,7 +10,6 @@ import "./app-header.css";
 export default function AppHeader({
   actingOrganization,
   workspaceLabel,
-  campusHome,
   hasWork,
   photoId,
   unsaved,
@@ -22,7 +21,7 @@ export default function AppHeader({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const personalSearch = !workspaceLabel && !actingOrganization && !campusHome;
+  const personalSearch = !workspaceLabel && !actingOrganization;
   const onSearchPage = location.pathname === "/search";
   const currentQuery = onSearchPage ? new URLSearchParams(location.search).get("q") || "" : "";
   const routeKey = location.pathname + location.search;
@@ -113,8 +112,8 @@ export default function AppHeader({
       <div className="bw-design-header-inner">
         <Link
           className="bw-design-brand"
-          to={campusHome || (workspaceLabel ? "/superadmin" : "/explore")}
-          aria-label={campusHome ? "BrightWay, go to Virtual Campus" : workspaceLabel ? "BrightWay, go to Management" : "BrightWay, go to Explore"}
+          to={workspaceLabel ? "/superadmin" : "/explore"}
+          aria-label={workspaceLabel ? "BrightWay, go to Management" : "BrightWay, go to Explore"}
         >
           <BrightWayLogo className="bw-design-brand-logo" width={42} height={42} />
           <span className="bw-design-brand-wordmark">BRIGHTWAY</span>

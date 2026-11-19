@@ -6,11 +6,9 @@ export default function OrganizationNavigation({ acting, mobile = false, id, ope
   const ready = acting?.workspace?.available || [];
   const planned = (acting?.workspace?.planned || []).filter(item => !ready.some(tool => tool.key === item.key));
   const plannedIcons = { posts: "post", opportunities: "opportunities", applications: "applications", programs: "learning", admissions: "admissions" };
-  const campusSetup = acting?.workspace?.campusSetup;
   const items = ready.filter(item => !item.external);
-  if (mobile) return <nav className="bw-mobile-navigation bw-org-mobile-navigation" style={{ gridTemplateColumns: `repeat(${items.length + (campusSetup ? 2 : 1)}, minmax(70px, 1fr))`, overflowX: "auto" }} aria-label="Mobile organization navigation">
+  if (mobile) return <nav className="bw-mobile-navigation bw-org-mobile-navigation" style={{ gridTemplateColumns: `repeat(${items.length + 1}, minmax(70px, 1fr))`, overflowX: "auto" }} aria-label="Mobile organization navigation">
     {items.map(item => <NavLink key={item.key} end={item.key === "dashboard"} to={item.to} onClick={onNavigate}>{({ isActive }) => <><span className="bw-mobile-navigation-icon"><NavigationIcon name={item.icon} active={isActive} /></span><span className="bw-mobile-navigation-label">{item.shortLabel || item.label}</span></>}</NavLink>)}
-    {campusSetup && <Link to={campusSetup.to} onClick={onNavigate}><span className="bw-mobile-navigation-icon"><NavigationIcon name="learning" /></span><span className="bw-mobile-navigation-label">Virtual Campus</span></Link>}
     <Link to="/work" onClick={onNavigate}><span className="bw-mobile-navigation-icon"><NavigationIcon name="network" /></span><span className="bw-mobile-navigation-label">Workspaces</span></Link>
   </nav>;
   return <aside id={id} className={`bw-design-sidebar bw-org-sidebar${open ? " bw-design-sidebar-open" : ""}`} aria-label="Organization navigation">
@@ -20,7 +18,6 @@ export default function OrganizationNavigation({ acting, mobile = false, id, ope
       {ready.map(item => item.external ? <a key={item.key} href={item.to} target="_blank" rel="noopener noreferrer" onClick={onNavigate}><NavigationIcon name={item.icon} /><span>{item.label}</span></a> : <NavLink key={item.key} end={item.key === "dashboard"} to={item.to} onClick={onNavigate} className={({ isActive }) => isActive ? "bw-design-sidebar-active" : ""}>{({ isActive }) => <><NavigationIcon name={item.icon} active={isActive} /><span>{item.label}</span></>}</NavLink>)}
     </nav>
     {planned.length > 0 && <nav className="bw-design-sidebar-nav bw-org-planned-nav" aria-label="Planned organization tools"><p className="bw-org-planned-heading">Coming soon</p>{planned.map(item => <button key={item.key} type="button" disabled aria-label={`${item.label} — Coming soon`} title={`${item.description || item.label} Coming soon.`}><NavigationIcon name={plannedIcons[item.key] || "work"} /><span className="bw-org-planned-label">{item.label}</span><small>Coming soon</small></button>)}</nav>}
-    {campusSetup && <><div className="bw-design-sidebar-divider" /><section className="bw-design-sidebar-organization bw-org-campus-promo" aria-labelledby="campus-promo-heading"><span className="bw-design-sidebar-eyebrow">SEPARATE CAMPUS WORKSPACE</span><h3 id="campus-promo-heading">Virtual Campus</h3><p>Set up and manage learning independently from this organization workspace.</p><NavLink className="bw-design-create-org" to={campusSetup.to} onClick={onNavigate}><span className="bw-design-create-org-icon"><NavigationIcon name="learning" /></span><span>{campusSetup.label}</span></NavLink><small>Opens your dedicated Virtual Campus workspace</small></section></>}
     <div className="bw-design-sidebar-divider" />
     <nav className="bw-design-sidebar-nav" aria-label="Account contexts"><Link to="/work" onClick={onNavigate}><NavigationIcon name="network" /><span>My Workspace</span></Link><Link to="/explore" onClick={onNavigate}><NavigationIcon name="explore" /><span>Return to Personal</span></Link></nav>
   </aside>;
