@@ -98,6 +98,7 @@ const scholarshipDetailsExtended = z.strictObject({
   eligibilityPriority: z.record(z.string(), z.enum(["REQUIRED", "PREFERRED"])).optional(),
   targetGender: z.enum(["ALL", "WOMEN", "MEN", "OTHER"]).optional(),
   reviewStartDate: detailDate, reviewEndDate: detailDate, interviewDate: detailDate, applicationLimit: detailNumber,
+  deadlineTimezone: z.string().max(64).refine(zone => { try { new Intl.DateTimeFormat("en-US", { timeZone: zone }); return true; } catch { return false; } }, "Select a valid timezone.").optional(),
   selectionMethod: z.enum(["SINGLE_REVIEWER", "COMMITTEE", "SCORING_RUBRIC"]).optional(),
   scoringRubric: z.array(z.strictObject({
     id: identifier, label: text(120), weight: z.number().int().min(0).max(100),
