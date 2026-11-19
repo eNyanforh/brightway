@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { requireOrganizationProfile } from "../organizations/organization-profile.schema.js";
-import { announcementInput, announcementQuery, assessEligibility, campusError as fail, campusId, campusParse, settingsInput, setupInput, transitionInput, withdrawalInput } from "./campus.schema.js";
+import { announcementInput, announcementQuery, assessEligibility, configuredEngines, enginesEligible, campusError as fail, campusId, campusParse, settingsInput, setupInput, transitionInput, withdrawalInput } from "./campus.schema.js";
 
 const MANAGE = "organization.campus.manage";
 const ANNOUNCE = "organization.campus.announcements.manage";
@@ -38,7 +38,7 @@ export function createCampusService({ prisma, now = () => new Date() }) {
     const product = await db.productAvailability.findUnique({ where: { product_countryCode: { product: "VIRTUAL_CAMPUS", countryCode: "LR" } } });
     const eligibility = assessEligibility(organization, product);
     const isPrimary = membership.role === "PRIMARY_ADMIN";
-    const active = organization.campus?.status === "ACTIVE" && eligibility.eligible && eligibility.supportedEngines.includes(organization.campus.engine);
+    const active = organization.campus?.status === "ACTIVE" && eligibility.eligible && enginesEligible(organization.campus, eligibility);
     const grants = isPrimary && active ? [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH]
       : active ? (membership.permissions || []).filter(key => [MANAGE, ANNOUNCE, ACADEMICS, BILLING, TEACH].includes(key)) : [];
     if (primary && !isPrimary) throw fail(403, "Only the primary organization administrator can change Campus activation.");
@@ -54,13 +54,13 @@ export function createCampusService({ prisma, now = () => new Date() }) {
   const summary = ctx => ({
     organizationId: ctx.organization.id, eligible: ctx.eligibility.eligible, eligibility: ctx.eligibility,
     campus: ctx.organization.campus ? {
-      engine: ctx.organization.campus.engine,
+      engine: ctx.organization.campus.engine, enabledEngines: configuredEngines(ctx.organization.campus),
       status: !ctx.active && ctx.organization.campus.status === "ACTIVE" ? "BLOCKED" : ctx.organization.campus.status,
       storedStatus: ctx.organization.campus.status,
       version: ctx.organization.campus.version, displayName: ctx.organization.campus.displayName,
       contactEmail: ctx.organization.campus.contactEmail, activatedAt: ctx.organization.campus.activatedAt,
     } : null,
-    permissions: ctx.grants, canSetup: ctx.isPrimary && ctx.eligibility.eligible,
+    permissions: ctx.grants, canSetup: ctx.isPrimary && ctx.eligibility.eligible && (!ctx.organization.campus || ctx.organization.campus.status === "SETUP"),
     canManage: ctx.isPrimary || ctx.grants.includes(MANAGE),
     canAnnounce: ctx.active && (ctx.isPrimary || ctx.grants.includes(ANNOUNCE) || ctx.grants.includes(MANAGE)),
   });
@@ -77,14 +77,14 @@ export function createCampusService({ prisma, now = () => new Date() }) {
       const next = action === "PAUSE" ? "PAUSED" : "ACTIVE";
       if (campus.version !== expectedVersion || campus.status !== current) throw conflict();
       if (next === "ACTIVE" && !ctx.eligibility.eligible) throw fail(403, "A verified Liberian operation and available product are required to activate Campus.");
-      if (action === "ACTIVATE" && (!campus.displayName || !ctx.eligibility.supportedEngines.includes(campus.engine))) throw fail(409, "Finish an eligible Campus configuration first.");
+      if (next === "ACTIVE" && (!campus.displayName || !enginesEligible(campus, ctx.eligibility))) throw fail(409, "Finish an eligible Campus configuration first.");
       const updated = await db.virtualCampus.updateMany({
         where: { organizationId, version: expectedVersion, status: current },
         data: { status: next, version: { increment: 1 }, ...(action === "ACTIVATE" ? { activatedAt: now() } : {}) },
       });
       if (updated.count !== 1) throw conflict();
-      await audit(db, ctx, action, { engine: campus.engine, from: current, to: next, version: expectedVersion + 1 });
-      return { organizationId, status: next, version: expectedVersion + 1 };
+      await audit(db, ctx, action, { engine: campus.engine, enabledEngines: configuredEngines(campus), from: current, to: next, version: expectedVersion + 1 });
+      return { organizationId, status: next, version: expectedVersion + 1, enabledEngines: configuredEngines(campus) };
     });
   }
   async function announcementAccess(db, actor, organizationId, { write = false, lock = false } = {}) {
@@ -106,19 +106,19 @@ export function createCampusService({ prisma, now = () => new Date() }) {
       const data = campusParse(setupInput, input);
       return transaction(async db => {
         const ctx = await access(db, actor, organizationId, { write: true, primary: true, lock: true });
-        if (!ctx.eligibility.eligible || !ctx.eligibility.supportedEngines.includes(data.engine)) throw fail(403, "This organization is not eligible for the selected Campus engine.");
+        if (!ctx.eligibility.eligible || !enginesEligible(data, ctx.eligibility)) throw fail(403, "This organization is not eligible for the selected Campus engine.");
         const previous = ctx.organization.campus;
-        if (previous?.status !== undefined && previous.status !== "SETUP") throw fail(409, "An activated Campus engine cannot be replaced.");
+        if (previous?.status !== undefined && previous.status !== "SETUP") throw fail(409, "An activated Campus engine configuration cannot be replaced.");
         if ((previous?.version ?? 0) !== data.expectedVersion) throw conflict();
         if (previous) {
           if ((await db.virtualCampus.updateMany({ where: { organizationId, version: data.expectedVersion, status: "SETUP" }, data: {
-            engine: data.engine, displayName: data.displayName, contactEmail: data.contactEmail, version: { increment: 1 },
+            engine: data.engine, enabledEngines: data.enabledEngines, displayName: data.displayName, contactEmail: data.contactEmail, version: { increment: 1 },
           } })).count !== 1) throw conflict();
         } else {
-          await db.virtualCampus.create({ data: { organizationId, engine: data.engine, displayName: data.displayName, contactEmail: data.contactEmail } });
+          await db.virtualCampus.create({ data: { organizationId, engine: data.engine, enabledEngines: data.enabledEngines, displayName: data.displayName, contactEmail: data.contactEmail } });
         }
-        await audit(db, ctx, previous ? "SETUP_UPDATED" : "SETUP_CREATED", { engine: data.engine, version: data.expectedVersion + 1 });
-        return { organizationId, status: "SETUP", version: data.expectedVersion + 1, engine: data.engine };
+        await audit(db, ctx, previous ? "SETUP_UPDATED" : "SETUP_CREATED", { engine: data.engine, enabledEngines: data.enabledEngines, version: data.expectedVersion + 1 });
+        return { organizationId, status: "SETUP", version: data.expectedVersion + 1, engine: data.engine, enabledEngines: data.enabledEngines };
       });
     },
     async activate(actor, organizationId, body) { return changeStatus(actor, organizationId, body, "ACTIVATE"); },

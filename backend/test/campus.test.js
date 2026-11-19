@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { allowedEngines, assessEligibility, announcementInput, setupInput, settingsInput, transitionInput } from "../src/modules/campus/campus.schema.js";
+import { allowedEngines, assessEligibility, enginesEligible, announcementInput, setupInput, settingsInput, transitionInput } from "../src/modules/campus/campus.schema.js";
 import { createCampusRoutes } from "../src/modules/campus/campus.routes.js";
 
 const verified = { type: "SCHOOL", offersTraining: true, status: "ACTIVE",
@@ -17,7 +17,27 @@ test("Virtual Campus eligibility requires approved org, enabled product and veri
   assert.equal(assessEligibility(verified, { enabled: false }).eligible, false);
   assert.equal(assessEligibility({ ...verified, status: "SUSPENDED" }, { enabled: true }).eligible, false);
   assert.equal(assessEligibility({ ...verified, type: "COMPANY", offersTraining: false }, { enabled: true }).eligible, false);
-  assert.deepEqual(allowedEngines({ type: "COMPANY", offersTraining: true }), ["TVET"]);
+  assert.deepEqual(allowedEngines({ type: "COMPANY", offersTraining: true }), ["GRADE_SCHOOL", "TVET"]);
+  assert.deepEqual(allowedEngines({ type: "SCHOOL", offersTraining: false }), ["GRADE_SCHOOL", "TVET"]);
+  for (const type of ["COMPANY", "NGO", "GOVERNMENT"]) {
+    assert.equal(assessEligibility({ ...verified, type, offersTraining: true }, { enabled: true }).eligible, true);
+  }
+  assert.equal(assessEligibility({ ...verified, verifiedAt: null }, { enabled: true }).eligible, false);
+  assert.equal(assessEligibility({ ...verified, request: { status: "PENDING" } }, { enabled: true }).eligible, false);
+});
+test("Campus setup accepts either or both distinct engines and normalizes their order", () => {
+  const config = { expectedVersion: 0, displayName: "Education provider", contactEmail: null };
+  for (const enabledEngines of [["GRADE_SCHOOL"], ["TVET"], ["GRADE_SCHOOL", "TVET"]]) {
+    assert.deepEqual(setupInput.parse({ ...config, enabledEngines }).enabledEngines, enabledEngines);
+  }
+  assert.deepEqual(setupInput.parse({ ...config, enabledEngines: ["TVET", "GRADE_SCHOOL"] }).enabledEngines, ["GRADE_SCHOOL", "TVET"]);
+  assert.deepEqual(setupInput.parse({ ...config, engine: "TVET" }).enabledEngines, ["TVET"]);
+  for (const enabledEngines of [[], ["TVET", "TVET"], ["UNIVERSITY"], ["GRADE_SCHOOL", "TVET", "TVET"], null]) {
+    assert.equal(setupInput.safeParse({ ...config, enabledEngines }).success, false);
+  }
+  assert.equal(setupInput.safeParse({ ...config, engine: "TVET", enabledEngines: ["GRADE_SCHOOL"] }).success, false);
+  assert.equal(enginesEligible({ enabledEngines: [] }, { supportedEngines: ["GRADE_SCHOOL", "TVET"] }), false);
+  assert.equal(enginesEligible({ enabledEngines: ["GRADE_SCHOOL", "TVET"] }, { supportedEngines: ["TVET"] }), false);
 });
 test("Campus schema forbids academic enrolment, billing and unknown client fields", () => {
   const config = { engine: "GRADE_SCHOOL", expectedVersion: 0, displayName: "BrightWay School", contactEmail: null };

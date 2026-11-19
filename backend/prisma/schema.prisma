@@ -2087,6 +2087,10 @@ model VirtualCampus {
   organizationId String @id
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   engine CampusEngine
+  // Legacy engine is retained for dormant consumers; enabledEngines is the
+  // authoritative Campus configuration. Academic routes remain unmounted until
+  // their independent engine authorization is updated.
+  enabledEngines CampusEngine[]
   status CampusStatus @default(SETUP)
   displayName String @db.VarChar(160)
   contactEmail String? @db.VarChar(254)
