@@ -83,7 +83,7 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
     <p>{lockedForm
       ? "Questions are locked after the Challenge or opportunity has been published."
       : "Optional questions are answered and stored privately on BrightWay. No external application forms."}</p>
-    {draft.questions.filter(isAutoDocumentQuestion).length > 0 && <p role="status">Required documents: {draft.questions.filter(isAutoDocumentQuestion).map(q => q.label.replace("Required document: ", "")).join(", ")}. These uploads are added automatically to the applicant form.</p>}
+    {draft.questions.filter(isAutoDocumentQuestion).length > 0 && <p role="status">Application documents: {draft.questions.filter(isAutoDocumentQuestion).map(q => q.label.replace(/^(Required|Optional) document: /, "")).join(", ")}. These uploads are added automatically to the applicant form.</p>}
     {draft.questions.map((q, i) => isAutoDocumentQuestion(q) ? null : <fieldset key={q.id} className="bw-op-builder-question" disabled={lockedForm || busy}>
       <legend>Question {i + 1}</legend>
       <label>Question text<input aria-label={`Question ${i + 1} text`} required minLength={3} maxLength={300}
@@ -183,11 +183,11 @@ export default function OpportunityEditor({ organizationId, opportunity, onSaved
     setDraft(old => ({
       ...old, type,
       ...(old.type !== type ? {
-        details: type === "JOB" ? { requireCv: true, cvStatus: "required", vacancies: 1 } : type === "SCHOLARSHIP" ?
+        details: type === "JOB" ? { requireCv: false, cvStatus: "none", vacancies: 1 } : type === "SCHOLARSHIP" ?
           { requireTranscript: true, requireStatement: true } : {},
         jobDetails: null,
         questions: ["JOB", "SCHOLARSHIP"].includes(type)
-          ? syncDocumentQuestions(type, type === "JOB" ? { requireCv: true } :
+          ? syncDocumentQuestions(type, type === "JOB" ? { requireCv: false } :
               { requireTranscript: true, requireStatement: true },
               old.questions.filter(q => !isAutoDocumentQuestion(q)), () => crypto.randomUUID())
           : old.questions.filter(q => !isAutoDocumentQuestion(q)),
