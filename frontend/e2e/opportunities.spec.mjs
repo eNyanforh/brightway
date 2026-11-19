@@ -463,7 +463,7 @@ test("organization publishers create and publish a form, and reviewers send an a
   const editor = page.getByRole("dialog");
   await editor.getByRole("radio", { name: /Job/ }).click();
   await editor.getByRole("button", { name: "Continue" }).click();
-  await expect(editor.getByRole("heading", { name: "Job information", exact: true })).toBeVisible();
+  await expect(editor.getByRole("heading", { name: "Job Details", exact: true })).toBeVisible();
   await expect(editor.getByRole("navigation", { name: "Creation progress" })).toBeVisible();
   const [coverBox, formBox] = await Promise.all([
     editor.locator(".bw-op-standard-preview-stage").boundingBox(),
@@ -471,23 +471,29 @@ test("organization publishers create and publish a form, and reviewers send an a
   ]);
   if (isMobile) expect(formBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height - 1);
   else expect(formBox.x).toBeGreaterThanOrEqual(coverBox.x + coverBox.width - 1);
-  await editor.getByLabel("Job title").fill("Data internship");
+  await expect(editor.getByLabel("Opportunity cover photo")).toBeAttached();
+  await editor.getByLabel("Job Title").fill("Data internship");
   await expect(editor.locator(".bw-op-standard-poster strong")).toHaveText("Data internship");
   await editor.getByLabel("Description", { exact: true }).fill("Build skills in field research, data quality, and community engagement.");
-  await editor.getByLabel("Job category").selectOption("Research");
-  await editor.getByLabel("Experience level").selectOption("ENTRY");
-  await editor.getByLabel("Job type").selectOption("INTERNSHIP");
+  await editor.getByText("Choose job categories").click();
+  await editor.getByLabel("Research").check();
+  await editor.getByText("Choose job types").click();
+  await editor.getByLabel("Internship").check();
+  await editor.getByLabel("Country").fill("Liberia");
+  await editor.getByLabel("City / Town").fill("Monrovia");
   await editor.getByRole("button", { name: "Continue" }).click();
-  await editor.getByLabel("Work location").fill("Monrovia");
-  await editor.getByRole("combobox", { name: /Compensation/i }).selectOption("PAID");
-  await editor.getByRole("button", { name: "Continue" }).click();
-  await editor.getByLabel("Job responsibilities").fill("Conduct research");
-  await editor.getByLabel("Required qualifications").fill("High school");
+  await expect(editor.getByRole("heading", { name: "Pay & Requirements" })).toBeVisible();
+  await expect(editor.getByLabel("Opportunity cover photo")).toHaveCount(0);
+  await editor.getByLabel("Compensation Type").selectOption("PAID");
+  await editor.getByLabel("Entry").check();
+  await editor.getByLabel("Minimum Education Qualification").selectOption("HIGH_SCHOOL");
+  await editor.getByLabel("Responsibilities").fill("Conduct research");
   await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByLabel("Deadline (your local time)").fill("2099-12-01T12:00");
+  await editor.getByLabel("CV / résumé").selectOption("required");
+  await editor.getByText(/Advanced options/).click();
   await editor.getByRole("button", { name: "+ Add question" }).click();
   await editor.getByLabel("Question 2 text").fill("Why would you like to join?");
-  await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByRole("button", { name: "Continue" }).click();
   await editor.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(editor).toHaveCount(0);
