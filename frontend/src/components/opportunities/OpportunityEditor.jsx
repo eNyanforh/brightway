@@ -99,7 +99,9 @@ function QuestionBuilder({ draft, field, changeQuestion, lockedForm, busy }) {
     {draft.questions.filter(isAutoDocumentQuestion).length > 0 && <p role="status">Application documents: {draft.questions.filter(isAutoDocumentQuestion).map(q => q.label.replace(/^(Required|Optional) document: /, "")).join(", ")}. These uploads are added automatically to the applicant form.</p>}
     {draft.questions.map((q, i) => {
       if (isAutoDocumentQuestion(q)) return null;
-      const questionNumber = draft.questions.slice(0, i + 1).filter(item => !isAutoDocumentQuestion(item)).length;
+      const questionNumber = draft.type === "SCHOLARSHIP"
+        ? draft.questions.slice(0, i + 1).filter(item => !isAutoDocumentQuestion(item)).length
+        : i + 1;
       return <fieldset key={q.id} className="bw-op-builder-question" disabled={lockedForm || busy}>
       <legend>Question {questionNumber}</legend>
       <label>Question text<input aria-label={`Question ${questionNumber} text`} required minLength={3} maxLength={300}
