@@ -64,6 +64,13 @@ async function fixture(page) {
   return state;
 }
 async function noOverflow(page) { expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true); }
+async function revealPreview(editor) {
+  const toggle = editor.locator(".bw-op-creation-preview-toggle");
+  if (!(await toggle.isVisible())) return false;
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  return true;
+}
 test("Opportunities page intro is unboxed and aligned to the page edges", async ({ page }) => {
   await fixture(page);
   await page.goto("/opportunities");
@@ -257,11 +264,14 @@ test("organization Challenge composer uses cover-left layout and preserves nativ
   const titleField = editor.getByLabel("Challenge Title");
   const composer = editor.locator(".bw-op-challenge-composer");
   await expect(composer).toBeVisible();
+  const stacked = await revealPreview(editor);
   const [coverBox, formBox] = await Promise.all([
     coverStage.boundingBox(), editor.locator(".bw-op-challenge-main").boundingBox(),
   ]);
-  if (isMobile) {
+  expect(coverBox.width / coverBox.height).toBeCloseTo(16 / 9, 1);
+  if (stacked) {
     expect(formBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height - 1);
+    await editor.locator(".bw-op-creation-preview-toggle").click();
   } else {
     expect(formBox.x).toBeGreaterThanOrEqual(coverBox.x + coverBox.width - 1);
     expect(coverBox.width).toBeGreaterThan(240);
@@ -345,13 +355,17 @@ for (const [type, label] of [["EVENT", "Event"]]) {
     await expect(editor.getByRole("heading", { name: "Create your " + label })).toBeVisible();
     await expect(editor.getByRole("navigation", { name: "Creation progress" })).toHaveCount(0);
     const coverStage = editor.locator(".bw-op-standard-preview-stage");
+    const stacked = await revealPreview(editor);
     const [coverBox, formBox] = await Promise.all([
       coverStage.boundingBox(), editor.locator(".bw-op-standard-main").boundingBox(),
     ]);
-    if (isMobile) expect(formBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height - 1);
-    else expect(formBox.x).toBeGreaterThanOrEqual(coverBox.x + coverBox.width - 1);
+    expect(coverBox.width / coverBox.height).toBeCloseTo(16 / 9, 1);
+    if (stacked) {
+      expect(formBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height - 1);
+      await editor.locator(".bw-op-creation-preview-toggle").click();
+    } else expect(formBox.x).toBeGreaterThanOrEqual(coverBox.x + coverBox.width - 1);
     await editor.getByLabel("Title", { exact: true }).fill(label + " for young researchers");
-    await expect(editor.locator(".bw-op-standard-poster strong"))
+    await expect(editor.locator(".bw-op-creation-listing h4"))
       .toHaveText(label + " for young researchers");
     await editor.getByLabel("Description", { exact: true })
       .fill("Support young researchers with development, learning, and meaningful career opportunities.");
@@ -465,15 +479,19 @@ test("organization publishers create and publish a form, and reviewers send an a
   await editor.getByRole("button", { name: "Continue" }).click();
   await expect(editor.getByRole("heading", { name: "Job Details", exact: true })).toBeVisible();
   await expect(editor.getByRole("navigation", { name: "Creation progress" })).toBeVisible();
+  const stacked = await revealPreview(editor);
   const [coverBox, formBox] = await Promise.all([
     editor.locator(".bw-op-standard-preview-stage").boundingBox(),
     editor.locator(".bw-op-standard-main").boundingBox(),
   ]);
-  if (isMobile) expect(formBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height - 1);
-  else expect(formBox.x).toBeGreaterThanOrEqual(coverBox.x + coverBox.width - 1);
+  expect(coverBox.width / coverBox.height).toBeCloseTo(16 / 9, 1);
+  if (stacked) {
+    expect(formBox.y).toBeGreaterThanOrEqual(coverBox.y + coverBox.height - 1);
+    await editor.locator(".bw-op-creation-preview-toggle").click();
+  } else expect(formBox.x).toBeGreaterThanOrEqual(coverBox.x + coverBox.width - 1);
   await expect(editor.getByLabel("Opportunity cover photo")).toBeAttached();
   await editor.getByLabel("Job Title").fill("Data internship");
-  await expect(editor.locator(".bw-op-standard-poster strong")).toHaveText("Data internship");
+  await expect(editor.locator(".bw-op-creation-listing h4")).toHaveText("Data internship");
   await editor.getByLabel("Description", { exact: true }).fill("Build skills in field research, data quality, and community engagement.");
   await editor.getByText("Choose job categories").click();
   await editor.getByLabel("Research").check();
