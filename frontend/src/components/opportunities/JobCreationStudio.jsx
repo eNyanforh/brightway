@@ -21,8 +21,35 @@ export default function JobCreationStudio({
   const [previewOpen, setPreviewOpen] = useState(false);
   const previewTrigger = useRef(null);
   const previewClose = useRef(null);
+  const previewPanel = useRef(null);
   const closePreview = () => { setPreviewOpen(false); previewTrigger.current?.focus(); };
-  useEffect(() => { if (previewOpen) previewClose.current?.focus(); }, [previewOpen]);
+  useEffect(() => {
+    if (!previewOpen) return;
+    const panel = previewPanel.current;
+    previewClose.current?.focus();
+    // The preview is a modal drawer below 1280px. Keep keyboard focus inside it.
+    const onKeyDown = event => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closePreview();
+      }
+      if (event.key !== "Tab" || !panel) return;
+      const focusable = [...panel.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), [tabindex]:not([tabindex="-1"])')];
+      if (!focusable.length) return;
+      const firstElement = focusable[0];
+      const lastElement = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === firstElement || !panel.contains(document.activeElement))) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [previewOpen]);
   const data = draft.details || {};
   const job = draft.jobDetails || {};
   const cover = draft.coverAssetId ? api.challengeAssetUrl(draft.coverAssetId) : "";
@@ -58,11 +85,7 @@ export default function JobCreationStudio({
     </div>
   </section> : null;
 
-  return <div className="bw-job-studio" onKeyDown={event => {
-    if (event.key === "Escape" && previewOpen) {
-      event.preventDefault(); event.stopPropagation(); closePreview();
-    }
-  }}>
+  return <div className="bw-job-studio">
     <aside className="bw-job-studio-journey" aria-label="Job creation navigation">
       <div className="bw-job-studio-journey-label">
         <span className="bw-job-studio-overline">YOUR WORKFLOW</span>
@@ -94,7 +117,7 @@ export default function JobCreationStudio({
           <span className="bw-job-studio-overline">JOB VACANCY</span>
           <span className="bw-job-studio-step-count">Step {step} of 4</span>
         </div>
-        <div className="bw-job-studio-progress-track" aria-label={step + " of 4 steps"}>
+        <div className="bw-job-studio-progress-track" role="progressbar" aria-label="Job creation progress" aria-valuemin={0} aria-valuemax={4} aria-valuenow={progress} aria-valuetext={"Step " + progress + " of 4"}>
           <div style={{ width: progress * 25 + "%" }}/>
         </div>
         <h3 id="bw-op-step-heading" tabIndex={-1}>{journey[step - 1]?.name || "Job Details"}</h3>
@@ -118,7 +141,8 @@ export default function JobCreationStudio({
 
     {previewOpen && <button type="button" className="bw-job-studio-preview-backdrop"
       aria-label="Dismiss job preview" onClick={closePreview} />}
-    <aside id="bw-job-studio-preview" className={"bw-job-studio-preview" + (previewOpen ? " is-mobile-open" : "")}
+    <aside id="bw-job-studio-preview" ref={previewPanel} className={"bw-job-studio-preview" + (previewOpen ? " is-mobile-open" : "")}
+      role={previewOpen ? "dialog" : "complementary"} aria-modal={previewOpen ? "true" : undefined}
       aria-label="Live job listing preview">
       <div className="bw-job-studio-preview-heading">
         <div><span className="bw-job-studio-overline">LIVE PREVIEW</span><h4>Candidate view</h4></div>
