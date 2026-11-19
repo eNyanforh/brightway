@@ -135,8 +135,16 @@ it("saves a four-step Job Vacancy with grouped fields, multi-select options and 
   expect(body.questions.some(q => q.label === "Describe relevant experience")).toBe(true);
   expect(body).not.toHaveProperty("applicationUrl");
 });
-it("creates a scholarship with funding, eligibility and required document uploads", async () => {
-  const saved = vi.fn(), fetch = vi.fn((_url, opts) => reply({ ...opp, ...JSON.parse(opts.body), status: "DRAFT" }));
+it("creates a seven-step scholarship with funding, eligibility and required document uploads", async () => {
+  const saved = vi.fn();
+  const fetch = vi.fn((url, opts) => {
+    if (String(url).endsWith("/scholarship-editor-draft")) {
+      if (!opts?.method || opts.method === "GET") return reply({ draft: null, updatedAt: null });
+      return reply({ updatedAt: "2026-11-19T21:00:00Z", deleted: true });
+    }
+    const body = opts?.body ? JSON.parse(opts.body) : {};
+    return reply({ ...opp, ...body, id, version: 2, status: body.status || "DRAFT" });
+  });
   vi.stubGlobal("fetch", fetch);
   const user = mount(<OpportunityEditor organizationId={org.id} onSaved={saved} onClose={() => {}} />, "/test");
   await user.click(screen.getByRole("radio", { name: /Scholarship/ }));
@@ -149,19 +157,24 @@ it("creates a scholarship with funding, eligibility and required document upload
   await user.selectOptions(screen.getByLabelText("Funding type"), "FULLY_FUNDED");
   await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.type(screen.getByLabelText("Study destination"), "Liberia");
-  await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.type(screen.getByLabelText("Eligible countries"), "Liberia");
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  await user.type(screen.getByLabelText("Selection criteria"), "Academic merit");
-  await user.type(screen.getByLabelText("Deadline (your local time)"), "2099-12-01T12:00");
+  expect(screen.getByRole("heading", { name: "Application Requirements" })).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Application deadline (selected timezone)"), "2099-12-01T12:00");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.type(screen.getByLabelText("Selection criteria"), "Academic merit");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("heading", { name: "Review & Publish" })).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Publish Scholarship" }));
   await waitFor(() => expect(saved).toHaveBeenCalled());
-  const body = JSON.parse(fetch.mock.calls[0][1].body);
+  const writes = fetch.mock.calls.filter(([, options]) => options?.method === "POST");
+  expect(writes).toHaveLength(1);
+  const body = JSON.parse(writes[0][1].body);
   expect(body.type).toBe("SCHOLARSHIP");
-  expect(fetch.mock.calls).toHaveLength(2);
-  expect(fetch.mock.calls[1][0]).toContain("/status");
-  expect(JSON.parse(fetch.mock.calls[1][1].body)).toMatchObject({ status: "PUBLISHED" });
+  const publishes = fetch.mock.calls.filter(([url, options]) => String(url).includes("/status") && options?.method === "PUT");
+  expect(publishes).toHaveLength(1);
+  expect(JSON.parse(publishes[0][1].body)).toMatchObject({ status: "PUBLISHED" });
   expect(body.details).toMatchObject({ category: "RESEARCH", fundingType: "FULLY_FUNDED", academicLevels: ["MASTERS"], eligibleCountries: ["Liberia"] });
   expect(body.questions.some(q => q.label === "Required document: Academic transcript" && q.required)).toBe(true);
   expect(body.questions.some(q => q.label === "Required document: Personal statement" && q.required)).toBe(true);
