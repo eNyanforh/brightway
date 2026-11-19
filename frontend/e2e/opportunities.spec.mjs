@@ -480,7 +480,7 @@ test("organization publishers create and publish a form, and reviewers send an a
   await expect(editor.getByRole("heading", { name: "Job Details", exact: true })).toBeVisible();
   await expect(editor.locator(".bw-job-studio")).toBeVisible();
   await expect(editor.getByText("Step 1 of 4")).toBeVisible();
-  const jobPreviewToggle = editor.getByRole("button", { name: "Preview job listing" });
+  const jobPreviewToggle = editor.locator(".bw-job-studio-preview-toggle");
   const previewWasCollapsed = await jobPreviewToggle.isVisible();
   if (previewWasCollapsed) {
     await jobPreviewToggle.click();
