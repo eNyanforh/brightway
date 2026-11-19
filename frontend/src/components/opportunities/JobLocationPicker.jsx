@@ -93,8 +93,11 @@ export default function JobLocationPicker({draft,field,details,onDetails}) {
   };
   const selected=values=>values.join(", ");
   const mapSelected=place=>{
-    onDetails({...details,...Object.fromEntries(Object.entries(place).filter(([key])=>key!=="location"))});
-    field("location",place.location);
+    const {country,region,city}=place;
+    // Opportunity details are public: never persist exact map coordinates
+    // or unexpectedly disclose a precise street address.
+    onDetails({...details,country:country||details.country||"",region:region||details.region||"",city:city||details.city||""});
+    field("location",[city,region,country].filter(Boolean).join(", ") || "Location selected on map");
   };
   return <section className="bw-op-challenge-section bw-op-job-group">
     <h4>Work Arrangement & Location</h4>
@@ -128,10 +131,10 @@ export default function JobLocationPicker({draft,field,details,onDetails}) {
         <label>County / State<input value={details.region || ""} onChange={e=>edit("region",e.target.value)} placeholder="Montserrado"/></label>
       </div>
       <label>City / Town<input value={details.city || ""} onChange={e=>edit("city",e.target.value)} placeholder="Monrovia"/></label>
-      <label>Work Address (optional)<input value={details.address || ""} onChange={e=>edit("address",e.target.value)} placeholder="Street, building or nearby landmark"/></label>
+      <label>Public Work Address (optional)<input value={details.address || ""} onChange={e=>edit("address",e.target.value)} placeholder="Street, building or nearby landmark"/></label>
     </>}
     <label>Location shown on job listing<input required minLength={2} maxLength={180} value={draft.location}
       onChange={e=>field("location",e.target.value)} placeholder={remote?"Eligible countries or Worldwide":"Monrovia, Liberia"} /></label>
-    <p className="bw-op-job-hint">Only this public location label is displayed; any exact map pin is kept for the employer's location settings.</p>
+    <p className="bw-op-job-hint">The location label and any entered work address may be public. Precise map coordinates are not saved.</p>
   </section>;
 }
