@@ -408,6 +408,7 @@ export default function OpportunityEditor({ organizationId, organization, opport
         {error && <div className="bw-op-wizard-error" role="alert">{error.message}</div>}
         <fieldset className={"bw-op-editor-fields bw-op-wizard-fields" + (singlePageComposer ? " is-challenge-composer" : "")} disabled={locked}>
           {jobStudio ? <JobCreationStudio draft={draft} field={field} step={step}
+            organizationName={organization?.name || opportunity?.organization?.name || "Your organization"}
             opportunity={opportunity} locked={locked} uploading={uploading} upload={upload}
             onGoStep={next => { setError(null); setStep(next); }}
             questions={<QuestionBuilder draft={draft} field={field} changeQuestion={changeQuestion}
