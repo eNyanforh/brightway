@@ -101,7 +101,7 @@ export default function JobLocationPicker({draft,field,details,onDetails}) {
   };
   return <section className="bw-op-challenge-section bw-op-job-group">
     <h4>Work Arrangement & Location</h4>
-    <label>Work Arrangement<select value={draft.workMode} onChange={e=>field("workMode",e.target.value)}>
+    <label>Work Arrangement<select value={draft.workMode} onChange={e=>{\n      const mode=e.target.value; field("workMode",mode);\n      if(mode==="REMOTE"){onDetails({...details,locationScope:"WORLDWIDE"});field("location","Worldwide");}\n      else field("location",[details.city,details.region,details.country].filter(Boolean).join(", "));\n    }}>
       <option value="IN_PERSON">On-site</option><option value="REMOTE">Remote</option><option value="HYBRID">Hybrid</option>
     </select></label>
     {remote ? <>
