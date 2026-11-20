@@ -1,7 +1,8 @@
+import { campusMemberPermissions } from "../campus/campus-permissions.js";
 import { chargeEnrolment } from "../billing/billing-core.js";
 import { randomUUID } from "node:crypto";
 import { createCampusService } from "../campus/campus.service.js";
-import { assessEligibility } from "../campus/campus.schema.js";
+import { assessEligibility, configuredEngines } from "../campus/campus.schema.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { notify } from "../notifications/platform-notification.js";
 import * as s from "./tvet.schema.js";
@@ -17,8 +18,8 @@ export function createTvetService({prisma,now=()=>new Date()}) {
  const campus=createCampusService({prisma,now});
  async function tx(fn){try{return await prisma.$transaction(fn,{timeout:20000});}catch(e){if(["P2002","P2034"].includes(e.code))throw conflict();throw e;}}
  async function staff(db,actor,campusId,write,managerOnly=false){
-  const ctx=await campus.authorize(db,actor,s.identifier(campusId),{write,lock:write,requireActive:true});
-  if(ctx.organization.campus.engine!=="TVET")throw s.fail(409,"These operations require a TVET Campus.");
+  const ctx=await campus.authorize(db,actor,s.identifier(campusId),{write,lock:write,requireActive:true,scope:"TVET"});
+  if(!configuredEngines(ctx.organization.campus).includes("TVET"))throw s.fail(409,"These operations require a TVET Campus.");
   ctx.manager=ctx.grants.includes(MANAGE);if(!ctx.manager&&(managerOnly||!ctx.grants.includes(TEACH)))throw s.fail(403,"Academic management or assigned instructor permission is required.");return ctx;
  }
  async function work(actor,campusId,write,managerOnly,fn){return tx(async db=>{const ctx=await staff(db,actor,campusId,write,managerOnly),result=await fn(db,ctx);await staff(db,actor,campusId,false,managerOnly);return result;});}
@@ -34,9 +35,9 @@ export function createTvetService({prisma,now=()=>new Date()}) {
  async function eligible(db,campusId){
   const c=await db.virtualCampus.findUnique({where:{organizationId:campusId},include:{organization:{include:{locations:true,request:{select:{status:true}}}}}}),p=await db.productAvailability.findUnique({where:{product_countryCode:{product:"VIRTUAL_CAMPUS",countryCode:"LR"}}});
   const eligibility=c?assessEligibility(c.organization,p):null;
-  if(c?.engine!=="TVET"||c.status!=="ACTIVE"||!eligibility.eligible||!eligibility.supportedEngines.includes("TVET"))throw s.fail(403,"Your training Campus is currently unavailable. Contact the institution.");return c;
+  if(!configuredEngines(c).includes("TVET")||c.configurationStatus!=="READY"||c.status!=="ACTIVE"||!eligibility.eligible||!eligibility.supportedEngines.includes("TVET"))throw s.fail(403,"Your training Campus is currently unavailable. Contact the institution.");return c;
  }
- async function instructorId(db,campusId,username){const a=await db.account.findUnique({where:{username},select:{id:true,status:true}}),m=a&&await db.organizationMembership.findFirst({where:{organizationId:campusId,accountId:a.id,enabled:true}});if(a?.status!=="ACTIVE"||!m||(m.role!=="PRIMARY_ADMIN"&&!m.permissions.includes(TEACH)))throw s.fail(400,"The instructor must be active institution staff with assigned teaching permission.");return a.id;}
+ async function instructorId(db,campusId,username){const a=await db.account.findUnique({where:{username},select:{id:true,status:true}}),m=a&&await db.organizationMembership.findFirst({where:{organizationId:campusId,accountId:a.id,enabled:true}});if(a?.status!=="ACTIVE"||!m||!(await campusMemberPermissions(db,await db.virtualCampus.findUnique({where:{organizationId:campusId}}),m,"TVET")).includes(TEACH))throw s.fail(400,"The instructor must be active institution staff with assigned teaching permission.");return a.id;}
  async function assignmentAccess(db,ctx,actor,campusId,id){const a=await get(db,"tvetAssignment",campusId,id,assignmentInclude);if(!ctx.manager&&a.instructorId!==actor.accountId)throw s.fail(403,"You can manage only your assigned training groups and modules.");return a;}
  const activeWhere=a=>({campusId:a.campusId,intakeId:a.intakeId,...(a.sectionId?{sectionId:a.sectionId}:{}),status:"ACTIVE",learner:{status:"ACTIVE",account:{status:"ACTIVE"}}});
  const roster=(db,a)=>db.tvetEnrolment.findMany({where:activeWhere(a),include:enrolmentInclude,orderBy:{id:"asc"},take:501});
@@ -89,7 +90,7 @@ export function createTvetService({prisma,now=()=>new Date()}) {
    const i=await get(db,"tvetIntake",campusId,id,intakeInclude);if(i.version!==data.expectedVersion||i.startedAt)throw conflict();
    const modules=await db.tvetModule.findMany({where:{campusId,programId:i.programId}}),assignments=await db.tvetAssignment.findMany({where:{campusId,intakeId:id},include:{assessments:true}});
    if(!i.sections.length)throw s.fail(409,"Create at least one section before starting the intake.");
-   for(const a of assignments){if(!a.sectionId&&i.sections.reduce((n,v)=>n+v.capacity,0)>500)throw s.fail(409,"Use section assignments for intakes with more than 500 places.");const m=a.instructorId&&await db.organizationMembership.findFirst({where:{organizationId:campusId,accountId:a.instructorId,enabled:true,account:{status:"ACTIVE"}}});if(!m||(m.role!=="PRIMARY_ADMIN"&&!m.permissions.includes(TEACH)))throw s.fail(409,"Every assigned instructor must retain active teaching permission.");}
+   for(const a of assignments){if(!a.sectionId&&i.sections.reduce((n,v)=>n+v.capacity,0)>500)throw s.fail(409,"Use section assignments for intakes with more than 500 places.");const m=a.instructorId&&await db.organizationMembership.findFirst({where:{organizationId:campusId,accountId:a.instructorId,enabled:true,account:{status:"ACTIVE"}}});if(!m||!(await campusMemberPermissions(db,await db.virtualCampus.findUnique({where:{organizationId:campusId}}),m,"TVET")).includes(TEACH))throw s.fail(409,"Every assigned instructor must retain active teaching permission.");}
    for(const section of i.sections){const required=assignments.filter(a=>!a.sectionId||a.sectionId===section.id).flatMap(a=>a.assessments.filter(v=>v.required).map(v=>({...v,assignment:a})));if(!required.length||modules.filter(m=>m.required).some(m=>!required.some(a=>a.assignment.moduleId===m.id)))throw s.fail(409,"Configure required assessments for every section and every required module before starting.");}
    const row=await db.tvetIntake.update({where:{id},data:{startedAt:now(),version:{increment:1},requirements:json({modules,assessments:assignments.flatMap(a=>a.assessments.filter(v=>v.required).map(v=>v.id)),programName:i.program.name,feeMinor:i.program.feeMinor,currency:i.program.currency})}});await audit(db,actor,campusId,"INTAKE_STARTED",{intakeId:id,requirements:row.requirements});return row;
   });},

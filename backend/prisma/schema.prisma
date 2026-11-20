@@ -1289,6 +1289,7 @@ model OrganizationOperatingLocation {
   @@index([organizationId])
 }
 model OrganizationMembership {
+  campusGrants CampusPermissionGrant[]
   id String @id @default(uuid())
   organizationId String
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -1301,6 +1302,7 @@ model OrganizationMembership {
   enabled Boolean @default(true)
   createdAt DateTime @default(now())
   @@unique([organizationId, accountId])
+  @@unique([organizationId, id])
   @@index([accountId, enabled])
 }
 
@@ -1853,6 +1855,7 @@ enum AdmissionApplicationStatus {
   WITHDRAWN
 }
 model Program {
+  @@unique([organizationId, id])
   tvetPrograms TvetProgram[]
   id String @id @default(uuid())
   organizationId String
@@ -1884,7 +1887,7 @@ model AdmissionCycle {
   organizationId String
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   programId String
-  program Program @relation(fields: [programId], references: [id], onDelete: Restrict)
+  program Program @relation(fields: [organizationId, programId], references: [organizationId, id], onDelete: Restrict)
   authorId String
   author Account @relation(fields: [authorId], references: [id], onDelete: Restrict)
   requestKey String
@@ -2092,6 +2095,9 @@ model ProductAvailability {
 }
 
 model VirtualCampus {
+  configurationStatus CampusConfigurationStatus @default(NOT_CONFIGURED)
+  engineConfigurations CampusEngineConfiguration[]
+  permissionGrants CampusPermissionGrant[]
   billingAccount BillingAccount?
   tvetPrograms TvetProgram[]
   tvetLearners TvetLearner[]
@@ -2102,6 +2108,10 @@ model VirtualCampus {
   organizationId String @id
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   engine CampusEngine
+  // Legacy engine is retained for dormant consumers; enabledEngines is the
+  // authoritative Campus configuration. Academic routes remain unmounted until
+  // their independent engine authorization is updated.
+  enabledEngines CampusEngine[]
   status CampusStatus @default(SETUP)
   displayName String @db.VarChar(160)
   contactEmail String? @db.VarChar(254)
@@ -2139,8 +2149,55 @@ model VirtualCampusAudit {
   actor Account @relation(fields: [actorId], references: [id], onDelete: Restrict)
   action String @db.VarChar(40)
   data Json
+  campusVersion Int?
   createdAt DateTime @default(now())
+  @@unique([campusId, campusVersion])
   @@index([campusId, createdAt, id])
+}
+
+enum CampusConfigurationStatus {
+  NOT_CONFIGURED
+  CONFIGURING
+  READY
+  REVIEW_REQUIRED
+}
+
+enum CampusPermissionScope {
+  CAMPUS
+  GRADE_SCHOOL
+  TVET
+}
+
+model CampusEngineConfiguration {
+  campusId String
+  campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
+  engine CampusEngine
+  status CampusConfigurationStatus @default(NOT_CONFIGURED)
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  schoolSubjects GradeSchoolSubject[]
+  schoolClasses GradeSchoolClass[]
+  schoolYears GradeSchoolYear[]
+  schoolStudents GradeSchoolStudent[]
+  tvetPrograms TvetProgram[]
+  tvetLearners TvetLearner[]
+  @@id([campusId, engine])
+}
+
+// Permission extensions reference the existing membership, never a second account.
+model CampusPermissionGrant {
+  campusId String
+  campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
+  membershipId String
+  membership OrganizationMembership @relation(fields: [campusId, membershipId], references: [organizationId, id], onDelete: Restrict)
+  scope CampusPermissionScope
+  permission String @db.VarChar(80)
+  enabled Boolean @default(true)
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@id([campusId, membershipId, scope, permission])
 }
 
 // Grade School records are period-scoped and retained when a learner returns.
@@ -2170,6 +2227,8 @@ enum SchoolSubjectMode {
   ELECTIVE
 }
 model GradeSchoolSubject {
+  engine CampusEngine @default(GRADE_SCHOOL)
+  engineConfiguration CampusEngineConfiguration @relation(fields: [campusId, engine], references: [campusId, engine], onDelete: Restrict)
   id String @id @default(uuid())
   campusId String
   campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
@@ -2181,6 +2240,8 @@ model GradeSchoolSubject {
   @@unique([campusId, name])
 }
 model GradeSchoolClass {
+  engine CampusEngine @default(GRADE_SCHOOL)
+  engineConfiguration CampusEngineConfiguration @relation(fields: [campusId, engine], references: [campusId, engine], onDelete: Restrict)
   id String @id @default(uuid())
   campusId String
   campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
@@ -2202,6 +2263,8 @@ model GradeSchoolSection {
   @@unique([campusId, classId, name])
 }
 model GradeSchoolYear {
+  engine CampusEngine @default(GRADE_SCHOOL)
+  engineConfiguration CampusEngineConfiguration @relation(fields: [campusId, engine], references: [campusId, engine], onDelete: Restrict)
   id String @id @default(uuid())
   campusId String
   campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
@@ -2251,6 +2314,8 @@ model GradeSchoolOffering {
   @@index([teacherId, campusId, periodId])
 }
 model GradeSchoolStudent {
+  engine CampusEngine @default(GRADE_SCHOOL)
+  engineConfiguration CampusEngineConfiguration @relation(fields: [campusId, engine], references: [campusId, engine], onDelete: Restrict)
   id String @id @default(uuid())
   campusId String
   campus VirtualCampus @relation(fields: [campusId], references: [organizationId], onDelete: Restrict)
@@ -2411,6 +2476,8 @@ enum TvetSupportStatus {
  REVOKED
 }
 model TvetProgram {
+  engine CampusEngine @default(TVET)
+  engineConfiguration CampusEngineConfiguration @relation(fields: [campusId, engine], references: [campusId, engine], onDelete: Restrict)
  id String @id @default(uuid())
  campusId String
  campus VirtualCampus @relation(fields:[campusId],references:[organizationId],onDelete:Restrict)
@@ -2418,7 +2485,7 @@ model TvetProgram {
  feeMinor Int @default(0)
  currency String @default("USD") @db.VarChar(3)
  discoverProgramId String?
- discoverProgram Program? @relation(fields:[discoverProgramId],references:[id],onDelete:Restrict)
+ discoverProgram Program? @relation(fields:[campusId,discoverProgramId],references:[organizationId,id],onDelete:Restrict)
  intakes TvetIntake[]
  modules TvetModule[]
  @@unique([campusId,id])
@@ -2488,6 +2555,8 @@ model TvetAssignment {
  @@index([instructorId,campusId,intakeId])
 }
 model TvetLearner {
+  engine CampusEngine @default(TVET)
+  engineConfiguration CampusEngineConfiguration @relation(fields: [campusId, engine], references: [campusId, engine], onDelete: Restrict)
  id String @id @default(uuid())
  campusId String
  campus VirtualCampus @relation(fields:[campusId],references:[organizationId],onDelete:Restrict)
