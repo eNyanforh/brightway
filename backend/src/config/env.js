@@ -17,6 +17,8 @@ const envSchema = z.object({
 
   CLIENT_URL: z.url(),
   DATABASE_URL: z.string().url(),
+  VIRTUAL_CAMPUS_PREVIEW_ENABLED: z.enum(["true", "false"]).default("false"),
+  VIRTUAL_CAMPUS_PREVIEW_ORGANIZATION_IDS: z.string().default(""),
 });
 
 const result = envSchema.safeParse(process.env);

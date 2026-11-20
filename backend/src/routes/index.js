@@ -1,4 +1,5 @@
 import { createMessagingService } from "../modules/messaging/messaging.service.js";
+import { createCampusPreviewRoutes } from "../modules/campus/campus-preview.routes.js";
 import { createMessagingRoutes } from "../modules/messaging/messaging.routes.js";
 import { createMessageStorage } from "../modules/messaging/messaging.storage.js";
 import { createLearningService } from "../modules/learning/learning.service.js";
@@ -81,6 +82,7 @@ const verification = createSignupEmailService({ prisma });
 router.use("/auth", createSignupEmailRoutes({ verification, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
 const mfa = createMfaService({ prisma });
 const sessions = createSessionService({ prisma, mfa });
+router.use(createCampusPreviewRoutes({ prisma, sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV, config: env }));
 router.use(createOpportunityRoutes({ opportunities: createOpportunityService({
   prisma, storage: createApplicationStorage(), imageStorage: createPostMediaStorage(),
 }), sessions, clientUrl: env.CLIENT_URL, nodeEnv: env.NODE_ENV }));
