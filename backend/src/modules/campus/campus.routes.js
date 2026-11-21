@@ -34,6 +34,9 @@ export function createCampusRoutes({ campus, sessions, clientUrl, nodeEnv, isEna
   router.get(path + "/permissions", read, handle((r, a) => campus.permissionGrants(a, r.params.organizationId)));
   router.put(path + "/permissions/:membershipId", write, handle((r, a) => campus.setPermission(a, r.params.organizationId, r.params.membershipId, r.body)));
   router.get(path + "/history", read, handle((r, a) => campus.history(a, r.params.organizationId, r.query)));
+  router.get(path + "/onboarding", read, handle((r, a) => campus.onboarding(a, r.params.organizationId)));
+  router.put(path + "/onboarding", write, handle((r, a) => campus.saveOnboarding(a, r.params.organizationId, r.body)));
+  router.post(path + "/onboarding/complete", write, handle((r, a) => campus.completeOnboarding(a, r.params.organizationId, r.body)));
   // Academic, learner, announcement and billing APIs are not part of Stage 1.
   if (lifecycleOnly) return router;
   router.get(path + "/announcements", read, handle((r, a) => campus.announcements(a, r.params.organizationId, r.query)));

@@ -1,3 +1,4 @@
+import CampusActivationEntry from "../components/organizations/CampusActivationEntry";
 import MessagesPage from "./MessagesPage";
 import OrganizationPrograms from "../components/learning/OrganizationPrograms";
 import OrganizationAdmissions from "../components/learning/OrganizationApplications";
@@ -125,6 +126,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
 
     {id && view && !sectionAllowed && <section className="bw-org-access-denied" aria-labelledby="workspace-access-title"><h2 id="workspace-access-title">This tool is not available to your role</h2><p>Your organization membership is active, but it does not include access to this organization tool.</p><Link className="bw-org-workspace-entry" to={`/organization-workspace/${id}`}>Return to your workspace</Link></section>}
     {id && view && sectionAllowed && section === "profile" && <OrganizationProfile key={`${id}:${generation}`} organization={view.organization} role={view.membership?.role} canEdit={view.membership?.role === "PRIMARY_ADMIN" || view.permissions.includes("organization.profile.manage")} />}
+    {id && view && section === "overview" && view.membership?.role === "PRIMARY_ADMIN" && <CampusActivationEntry id={id} />}
     {id && view && sectionAllowed && section === "overview" && <OrganizationOverview organization={view.organization} role={view.membership?.role} refreshVersion={`${generation}:${view.staffVersion}:${view.permissions.join(",")}`} />}
     {id && view && sectionAllowed && section === "messages" && <MessagesPage />}
     {id && view && sectionAllowed && section === "posts" && <PostsPanel key={actor + ":" + id} organization={view.organization} disabled={stale || Boolean(error)} />}

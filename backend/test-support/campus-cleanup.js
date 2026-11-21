@@ -5,6 +5,7 @@ export async function clearCampusFoundation(db, campusIds) {
   await db.$transaction(async tx => {
     await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica');
     const where = { campusId: { in: campusIds } };
+    await tx.campusOnboarding.deleteMany({ where: { organizationId: { in: campusIds } } });
     await tx.campusPermissionGrant.deleteMany({ where });
     await tx.campusEngineConfiguration.deleteMany({ where });
     await tx.virtualCampusAudit.deleteMany({ where });

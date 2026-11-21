@@ -62,6 +62,31 @@ test("Campus domain foundation: concurrency, permissions, configuration, integri
       const result = await campus.setPermission(owner.actor, school.id, member.id, { scope, permission, enabled, expectedVersion: version, expectedGrantVersion });
       version = result.version; return result;
     };
+    await t.test("four-step onboarding resumes, rejects stale writes and activates atomically without academic prerequisites", async () => {
+      const institution = await org(owner, "LR", false, "NGO");
+      const start = await campus.onboarding(owner.actor, institution.id);
+      assert.equal(start.draft.displayName, institution.name);
+      assert.equal(start.draft.version, 0);
+      await assert.rejects(campus.onboarding(worker.actor, institution.id), { status: 403 });
+      const identity = { requestKey: randomUUID(), expectedVersion: 0, step: 2, displayName: institution.name, enabledEngines: [] };
+      const saved = await campus.saveOnboarding(owner.actor, institution.id, identity);
+      assert.deepEqual(await campus.saveOnboarding(owner.actor, institution.id, identity), saved);
+      assert.equal((await campus.onboarding(owner.actor, institution.id)).draft.step, 2);
+      assert.equal(await db.virtualCampus.count({ where: { organizationId: institution.id } }), 0);
+      await assert.rejects(campus.saveOnboarding(owner.actor, institution.id, { ...identity, displayName: "Changed" }), { status: 409 });
+      const step3 = await campus.saveOnboarding(owner.actor, institution.id, { ...identity, requestKey: randomUUID(), expectedVersion: saved.version, step: 3 });
+      await assert.rejects(campus.saveOnboarding(owner.actor, institution.id, { ...identity, requestKey: randomUUID(), expectedVersion: step3.version, step: 4 }), { status: 400 });
+      const step4 = await campus.saveOnboarding(owner.actor, institution.id, { ...identity, requestKey: randomUUID(), expectedVersion: step3.version, step: 4, enabledEngines: ["GRADE_SCHOOL", "TVET"] });
+      const body = { expectedVersion: step4.version, confirmed: true, administratorMembershipId: start.administrator.membershipId };
+      await assert.rejects(campus.completeOnboarding(owner.actor, institution.id, { ...body, administratorMembershipId: member.id }), { status: 403 });
+      const result = await Promise.all([campus.completeOnboarding(owner.actor, institution.id, body), campus.completeOnboarding(owner.actor, institution.id, body)]);
+      assert.deepEqual(result[0], result[1]);
+      assert.equal(result[0].workspacePath, `/campus/${institution.id}`);
+      assert.equal(await db.virtualCampus.count({ where: { organizationId: institution.id } }), 1);
+      assert.equal(await db.virtualCampusAudit.count({ where: { campusId: institution.id, action: "ACTIVATE" } }), 1);
+      for (const model of ["gradeSchoolSubject", "gradeSchoolStudent", "tvetIntake", "billingCharge"]) assert.equal(await db[model].count({ where: { campusId: institution.id } }), 0);
+      assert.equal((await campus.onboarding(owner.actor, institution.id)).campus.status, "ACTIVE");
+    });
     await t.test("concurrent setup and activation produce one identity and one event per transition", async () => {
       const setup = { engine: "GRADE_SCHOOL", displayName: "Dual education provider", contactEmail: null, expectedVersion: 0 };
       const results = await Promise.allSettled([campus.setup(owner.actor, school.id, setup), campus.setup(owner.actor, school.id, setup)]);

@@ -43,7 +43,7 @@ test("mounted preview denies disabled and production requests before any session
   for (const config of [{ NODE_ENV: "test" }, { ...preview, NODE_ENV: "production" }]) {
     const base = await serve(t, createCampusPreviewRoutes({ prisma: forbidden, sessions: forbidden,
       clientUrl: "http://localhost:5173", nodeEnv: config.NODE_ENV, config }));
-    for (const [method, suffix] of [["GET", ""], ["PUT", "/setup"], ["POST", "/activate"], ["POST", "/pause"], ["POST", "/resume"], ["PATCH", "/settings"], ["GET", "/announcements"], ["POST", "/grade-school/subjects"], ["POST", "/engines"], ["PATCH", "/engines/TVET/configuration"], ["GET", "/permissions"], ["PUT", "/permissions/" + randomUUID()], ["GET", "/history"]]) {
+    for (const [method, suffix] of [["GET", ""], ["PUT", "/setup"], ["POST", "/activate"], ["POST", "/pause"], ["POST", "/resume"], ["PATCH", "/settings"], ["GET", "/announcements"], ["POST", "/grade-school/subjects"], ["POST", "/engines"], ["PATCH", "/engines/TVET/configuration"], ["GET", "/permissions"], ["PUT", "/permissions/" + randomUUID()], ["GET", "/history"], ["GET", "/onboarding"], ["PUT", "/onboarding"], ["POST", "/onboarding/complete"]]) {
       const response = await fetch(base + path + suffix, { method });
       assert.equal(response.status, 404);
       assert.equal(response.headers.get("cache-control"), "no-store");

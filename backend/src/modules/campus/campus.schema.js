@@ -62,3 +62,6 @@ export function assessEligibility(organization, product) {
 export const enableEngineInput = z.strictObject({ engine, expectedVersion: version.min(1) });
 export const engineConfigurationInput = z.strictObject({ expectedVersion: version.min(1), expectedEngineVersion: version.min(1), status: z.enum(["CONFIGURING", "READY"]) });
 export const permissionGrantInput = z.strictObject({ expectedVersion: version.min(1), expectedGrantVersion: version, scope: z.enum(["CAMPUS", "GRADE_SCHOOL", "TVET"]), permission: z.enum(Object.keys(CAMPUS_PERMISSIONS)), enabled: z.boolean() });
+
+export const onboardingInput = z.strictObject({ requestKey: z.uuid(), expectedVersion: version, step: z.int().min(1).max(4), displayName: z.string().trim().max(160).refine(v => !/[\u0000-\u001f\u007f]/.test(v)), enabledEngines: z.array(engine).max(2).refine(v => new Set(v).size === v.length) });
+export const onboardingCompleteInput = z.strictObject({ expectedVersion: version.min(1), administratorMembershipId: z.uuid(), confirmed: z.literal(true) });

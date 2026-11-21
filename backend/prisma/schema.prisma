@@ -952,6 +952,7 @@ model OrganizationRequestAudit {
   @@index([requestId, createdAt, id])
 }
 model Organization {
+  campusOnboarding CampusOnboarding?
   campus VirtualCampus?
   officialConversations MessagingConversation[]
   programs Program[]
@@ -2821,4 +2822,18 @@ model BillingAudit {
   data Json
   createdAt DateTime @default(now())
   @@index([campusId, createdAt, id])
+}
+
+model CampusOnboarding {
+ organizationId String @id
+ organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+ step Int @default(1)
+ displayName String @db.VarChar(160)
+ enabledEngines CampusEngine[] @default([])
+ version Int @default(1)
+ requestKey String
+ inputHash String
+ completedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
 }

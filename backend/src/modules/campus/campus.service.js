@@ -1,5 +1,5 @@
 import { campusMemberPermissions, scopePermissions } from "./campus-permissions.js";
-import { enableEngineInput, engineConfigurationInput, permissionGrantInput } from "./campus.schema.js";
+import { onboardingInput, onboardingCompleteInput, enableEngineInput, engineConfigurationInput, permissionGrantInput } from "./campus.schema.js";
 import { createHash, randomUUID } from "node:crypto";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { requireOrganizationProfile } from "../organizations/organization-profile.schema.js";
@@ -103,6 +103,67 @@ export function createCampusService({ prisma, now = () => new Date() }) {
   const projectAnnouncement = item => ({ id: item.id, title: item.title, body: item.body, authorId: item.authorId, audience: item.audience || "STAFF",
     version: item.version, createdAt: item.createdAt, withdrawnAt: item.withdrawnAt });
   return {
+    async onboarding(actor, organizationId) {
+      const ctx = await access(prisma, actor, organizationId, { primary: true });
+      const draft = await prisma.campusOnboarding.findUnique({ where: { organizationId } });
+      const member = await prisma.account.findUnique({ where: { id: actor.accountId }, select: { username: true } });
+      return { ...summary(ctx), organizationName: ctx.organization.name,
+        administrator: { membershipId: ctx.membership.id, username: member.username },
+        draft: draft || { step: 1, displayName: ctx.organization.campus?.displayName || ctx.organization.name, enabledEngines: configuredEngines(ctx.organization.campus), version: 0 } };
+    },
+    async saveOnboarding(actor, organizationId, input) {
+      const data = campusParse(onboardingInput, input);
+      const inputHash = hash(data);
+      return transaction(async db => {
+        const ctx = await access(db, actor, organizationId, { primary: true, write: true, lock: true });
+        if (!ctx.eligibility.eligible) throw fail(403, ctx.eligibility.reasons.join(" "));
+        if (ctx.organization.campus && ctx.organization.campus.status !== "SETUP") throw fail(409, "This Campus already exists. Open its workspace.");
+        const previous = await db.campusOnboarding.findUnique({ where: { organizationId } });
+        if (previous?.requestKey === data.requestKey) {
+          if (previous.inputHash !== inputHash) throw conflict();
+          return previous;
+        }
+        if ((previous?.version || 0) !== data.expectedVersion || data.step > (previous?.step || 1) + 1) throw conflict();
+        if (data.step >= 3 && !data.displayName) throw fail(400, "Enter a Campus display name.");
+        if (data.step === 4 && !data.enabledEngines.length) throw fail(400, "Select at least one academic engine.");
+        const values = { step: data.step, displayName: data.displayName, enabledEngines: data.enabledEngines, requestKey: data.requestKey, inputHash };
+        return previous ? db.campusOnboarding.update({ where: { organizationId }, data: { ...values, version: { increment: 1 } } })
+          : db.campusOnboarding.create({ data: { organizationId, ...values } });
+      });
+    },
+    async completeOnboarding(actor, organizationId, input) {
+      const data = campusParse(onboardingCompleteInput, input);
+      return transaction(async db => {
+        const ctx = await access(db, actor, organizationId, { primary: true, write: true, lock: true });
+        if (!ctx.eligibility.eligible) throw fail(403, ctx.eligibility.reasons.join(" "));
+        if (data.administratorMembershipId !== ctx.membership.id) throw fail(403, "Confirm the current primary administrator.");
+        const current = ctx.organization.campus;
+        const workspacePath = `/campus/${organizationId}`;
+        // Recover a lost successful response without replaying activation or audit.
+        if (ctx.active) return { workspacePath, version: current.version };
+        if (current && current.status !== "SETUP") throw fail(409, "This Campus is paused or unavailable. Restore access from its workspace.");
+        const draft = await db.campusOnboarding.findUnique({ where: { organizationId } });
+        if (!draft || draft.version !== data.expectedVersion || draft.step !== 4) throw conflict();
+        if (!draft.displayName || !draft.enabledEngines.length) throw fail(400, "Complete Campus identity and academic engine selection.");
+        const engines = ["GRADE_SCHOOL", "TVET"].filter(e => draft.enabledEngines.includes(e));
+        if (current && configuredEngines(current).some(e => !engines.includes(e))) throw fail(409, "Existing academic engines must be retained.");
+        let version = current?.version || 0;
+        if (!current) {
+          await db.virtualCampus.create({ data: { organizationId, engine: engines[0], enabledEngines: engines, displayName: draft.displayName, configurationStatus: "READY" } });
+          await db.campusEngineConfiguration.createMany({ data: engines.map(engine => ({ campusId: organizationId, engine })) });
+          await audit(db, ctx, "SETUP_CREATED", { version: ++version, enabledEngines: engines });
+        } else {
+          const added = engines.filter(e => !configuredEngines(current).includes(e));
+          await db.campusEngineConfiguration.createMany({ data: added.map(engine => ({ campusId: organizationId, engine })) });
+          await db.virtualCampus.update({ where: { organizationId }, data: { enabledEngines: engines, displayName: draft.displayName, configurationStatus: "READY", version: { increment: 1 } } });
+          await audit(db, ctx, added.length ? "ENGINE_ENABLED" : "SETUP_UPDATED", { version: ++version, enabledEngines: engines, added });
+        }
+        await db.virtualCampus.update({ where: { organizationId }, data: { status: "ACTIVE", activatedAt: now(), version: { increment: 1 } } });
+        await audit(db, ctx, "ACTIVATE", { version: ++version, enabledEngines: engines, administratorMembershipId: ctx.membership.id });
+        await db.campusOnboarding.update({ where: { organizationId }, data: { completedAt: now() } });
+        return { workspacePath, version };
+      });
+    },
     // Internal service boundary, never exposed as an HTTP response.
     authorize: access,
     async availability(actor, organizationId) {

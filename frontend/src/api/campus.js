@@ -18,6 +18,10 @@ async function request(pathname, method = "GET", body, signal) {
   return result.data;
 }
 export const campusApi = {
+  onboarding: (id, signal) => request(path(id) + "/onboarding", "GET", undefined, signal),
+  saveOnboarding: (id, body) => request(path(id) + "/onboarding", "PUT", body),
+  completeOnboarding: (id, body) => request(path(id) + "/onboarding/complete", "POST", body),
+  enableEngine: (id, body) => request(path(id) + "/engines", "POST", body),
   read: (id, signal) => request(path(id), "GET", undefined, signal),
   setup: (id, body) => request(path(id) + "/setup", "PUT", body),
   activate: (id, expectedVersion) => request(path(id) + "/activate", "POST", { expectedVersion }),
