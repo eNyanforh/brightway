@@ -1,6 +1,7 @@
+import { campusMemberPermissions } from "../campus/campus-permissions.js";
 import { chargeRegistration, registrationBilling, assertRegistrationBilling } from "../billing/billing-core.js";
 import { createCampusService } from "../campus/campus.service.js";
-import { assessEligibility } from "../campus/campus.schema.js";
+import { assessEligibility, configuredEngines } from "../campus/campus.schema.js";
 import { assertMfaSession } from "../auth/mfa.service.js";
 import { notify } from "../notifications/platform-notification.js";
 import * as s from "./grade-school.schema.js";
@@ -23,8 +24,8 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
     catch (e) { if (["P2002", "P2034"].includes(e.code)) throw conflict(); throw e; }
   }
   async function staff(db, actor, campusId, write, managerOnly = false) {
-    const ctx = await campus.authorize(db, actor, s.identifier(campusId), { write, lock: write, requireActive: true });
-    if (ctx.organization.campus.engine !== "GRADE_SCHOOL") throw s.fail(409, "These operations require a Grade School Campus.");
+    const ctx = await campus.authorize(db, actor, s.identifier(campusId), { write, lock: write, requireActive: true, scope: "GRADE_SCHOOL" });
+    if (!configuredEngines(ctx.organization.campus).includes("GRADE_SCHOOL")) throw s.fail(409, "These operations require a Grade School Campus.");
     ctx.manager = ctx.grants.includes(MANAGE);
     if (!ctx.manager && (managerOnly || !ctx.grants.includes(TEACH))) throw s.fail(403, "Academic management or assigned teaching permission is required.");
     return ctx;
@@ -62,7 +63,7 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
   async function eligible(db, campusId) {
     const row = await db.virtualCampus.findUnique({ where: { organizationId: campusId }, include: { organization: { include: { locations: true, request: { select: { status: true } } } } } });
     const product = await db.productAvailability.findUnique({ where: { product_countryCode: { product: "VIRTUAL_CAMPUS", countryCode: "LR" } } });
-    if (row?.engine !== "GRADE_SCHOOL" || row.status !== "ACTIVE" || !assessEligibility(row.organization, product).eligible) throw s.fail(403, "Your school Campus is currently unavailable. Contact the school administration.");
+    if (!configuredEngines(row).includes("GRADE_SCHOOL") || row.configurationStatus !== "READY" || row.status !== "ACTIVE" || !assessEligibility(row.organization, product).eligible) throw s.fail(403, "Your school Campus is currently unavailable. Contact the school administration.");
     return row;
   }
   async function live(db, actor, write = false) {
@@ -156,7 +157,7 @@ export function createGradeSchoolService({ prisma, now = () => new Date() }) {
         if (data.username) {
           const teacher = await db.account.findUnique({ where: { username: data.username }, select: { id: true, status: true } });
           const membership = teacher && await db.organizationMembership.findFirst({ where: { organizationId: campusId, accountId: teacher.id, enabled: true } });
-          if (teacher?.status !== "ACTIVE" || !membership || (membership.role !== "PRIMARY_ADMIN" && !membership.permissions.includes(TEACH))) throw s.fail(400, "The teacher must be active school staff with assigned teaching permission.");
+          if (teacher?.status !== "ACTIVE" || !membership || !(await campusMemberPermissions(db, await db.virtualCampus.findUnique({ where: { organizationId: campusId } }), membership, "GRADE_SCHOOL")).includes(TEACH)) throw s.fail(400, "The teacher must be active school staff with assigned teaching permission.");
           teacherId = teacher.id;
           for (const lesson of row.schedules) await scheduleConflict(db, row, lesson, teacherId, lesson.id);
         }

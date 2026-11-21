@@ -10,10 +10,17 @@ it("reuses one server-authorized context for setup and workspace entry before re
   const organization = { id, name: "Synthetic School", type: "SCHOOL", offersTraining: true };
   const context = { accountId: "owner", organization, membership: { role: "PRIMARY_ADMIN" }, permissions: [], permissionCatalog: [], staffVersion: 1, setup: { organization, required: false, canEdit: true, version: 5 } };
   const reply = data => new Response(JSON.stringify({ success: true, data }), { status: 200 });
-  const fetch = vi.fn(async url => url.includes("/dashboard") ? reply(dashboardFixture(id)) : reply(context)); vi.stubGlobal("fetch", fetch);
+  const fetch = vi.fn(async url => {
+    if (url === `/api/v1/organization-workspace/${id}`) return reply(context);
+    if (url.startsWith(`/api/v1/organization-workspace/${id}/dashboard?`)) return reply(dashboardFixture(id));
+    if (url === `/api/v1/organization-workspace/${id}/campus/onboarding`) return new Response(JSON.stringify({ success: false, message: "Virtual Campus is unavailable" }), { status: 404 });
+    throw new Error(`Unexpected API request: ${url}`);
+  }); vi.stubGlobal("fetch", fetch);
   render(<AuthContext.Provider value={{ account: { id: "owner" } }}><MemoryRouter initialEntries={[`/organization-workspace/${id}`]}><Routes><Route path="/organization-workspace/:id" element={<OrganizationSetupGate><OrganizationWorkspacePage /></OrganizationSetupGate>} /></Routes></MemoryRouter></AuthContext.Provider>);
   await screen.findByText("Enabled members");
   expect(fetch.mock.calls.filter(([url]) => url === `/api/v1/organization-workspace/${id}`)).toHaveLength(1);
   expect(fetch.mock.calls.some(([url]) => url.includes("/profile"))).toBe(false);
-  expect(fetch.mock.calls).toHaveLength(2);
+  expect(fetch.mock.calls.filter(([url]) => url.endsWith("/campus/onboarding"))).toHaveLength(1);
+  expect(screen.queryByRole("link", { name: "Activate Virtual Campus" })).toBeNull();
+  expect(fetch.mock.calls).toHaveLength(3);
 });
