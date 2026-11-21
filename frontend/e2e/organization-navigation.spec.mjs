@@ -21,6 +21,7 @@ test("organization tab navigation stays mounted during delayed access reads and 
     if (path === "/api/v1/profile/me") return reply({ profile: { version: 1, photo: null, location: {}, skills: [], interests: [] } });
     if (path === "/api/v1/work/access") return reply({ hasWork: true });
     if (path === `/api/v1${base}`) { if (hold) return new Promise(resolve => { release = async () => { await reply("Membership withdrawn", 403); resolve(); }; }); return reply(context); }
+    if (path === `/api/v1${base}/campus/onboarding`) return reply("Virtual Campus is unavailable", 404);
     if (path === `/api/v1${base}/dashboard`) return reply(dashboardFixture(id));
     if (path === `/api/v1${base}/staff`) return reply({ organizationId: id, staffVersion: 1, members: [], invitations: [] });
     if (path === `/api/v1${base}/credential-reviews`) return reply({ organization, workspace: context.workspace, reviews: [] });

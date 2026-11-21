@@ -5,6 +5,8 @@ test("four-step activation opens the independent Campus on desktop and mobile", 
   const errors = []; page.on("pageerror", e => errors.push(e.message));
   await page.route("**/api/**", route => {
     const path = new URL(route.request().url()).pathname;
+    // Vite source modules also contain /api/; only intercept HTTP API requests.
+    if (!path.startsWith("/api/")) return route.continue();
     const reply = data => route.fulfill({ json: { success: true, data } });
     if (path.endsWith("/auth/me")) return reply({ account: { id: "owner", username: "owner", person: { firstName: "Test", lastName: "Owner" } } });
     if (path.endsWith("/onboarding/complete")) { campus = { status: "ACTIVE", displayName: draft.displayName, enabledEngines: draft.enabledEngines, version: 2, engineConfigurations: [] }; return reply({ workspacePath: `/campus/${id}`, version: 2 }); }
