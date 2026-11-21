@@ -17,14 +17,14 @@ export function CampusFlow({ id, setup }) {
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
     const controller = new AbortController();
-    campusApi.onboarding(id, controller.signal).then(data => { if (!controller.signal.aborted) { setView(data); setDraft(data.draft); setError(""); } }).catch(e => { if (!controller.signal.aborted) setError(e.message); });
+    campusApi.onboarding(id, controller.signal).then(data => { if (!controller.signal.aborted) { setView(data); setDraft(data.draft); setError(""); } }).catch(e => { if (!controller.signal.aborted) { setError(e.message); if ([401, 403, 404].includes(e.status)) { setView(null); setDraft(null); setConfirmed(false); } } });
     return () => controller.abort();
   }, [id, revision]);
   useEffect(() => { heading.current?.focus(); }, [draft?.step]);
   async function action(work) {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(""); setSaved("");
-    try { await work(); } catch (e) { if (alive.current) setError(e.message); }
+    try { await work(); } catch (e) { if (alive.current) { setError(e.message); if ([401, 403, 404].includes(e.status)) { setView(null); setDraft(null); setConfirmed(false); retry.current = null; } } }
     finally { lock.current = false; if (alive.current) setBusy(false); }
   }
   function save(step, exit = false) {
@@ -33,7 +33,7 @@ export function CampusFlow({ id, setup }) {
       retry.current = body;
       const next = await campusApi.saveOnboarding(id, body);
       if (!alive.current) return;
-      retry.current = null; setDraft(next); setSaved("Progress saved.");
+      retry.current = null; setConfirmed(false); setDraft(next); setSaved("Progress saved.");
       if (exit) navigate(`/organization-workspace/${id}`);
     });
   }

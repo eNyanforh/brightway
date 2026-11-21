@@ -18,7 +18,9 @@ Tests cover persisted resume, save replay/conflicts, administrator mismatch, con
 
 - Backend regression: 452 passed, 55 environment/database suites skipped; database suites executed separately.
 - Isolated PostgreSQL 18.7: 92 passed, no failures/skips; 82 migrations applied, replay found none pending.
-- Focused frontend activation/entry/navigation: 12 passed across 3 files.
+- Focused frontend activation/entry/navigation: 14 passed across 3 files.
 - Prisma validation/generation, production build and backend syntax passed. Frontend lint: 0 errors, 9 existing warnings.
 - Full frontend run stalled before results and was stopped; full regression remains unverified locally.
 - Desktop/mobile Playwright tests are committed but could not execute locally: bundled Chromium was absent and download returned HTTP 403; system Chromium then failed at launch with socket Operation not permitted. The existing browser CI workflow discovers these tests. Browser visual acceptance and real-institution acceptance remain unverified.
+
+Follow-up hardening: authorization failures now remove stale setup controls; returning through earlier steps clears administrator confirmation. Added persistence tests for eligibility loss before completion and full rollback when activation auditing fails. No additional migration is required.

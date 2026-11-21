@@ -45,3 +45,23 @@ it("denies unavailable preview access without showing activation controls", asyn
   await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Virtual Campus is unavailable."));
   expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
 });
+
+it("withdraws setup controls when administrator access is revoked during a save", async () => {
+  const user = userEvent.setup(); mount();
+  await screen.findByRole("heading", { name: "Eligibility Verification" });
+  campusApi.saveOnboarding.mockRejectedValue(Object.assign(Error("Membership revoked"), { status: 403 }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await screen.findByRole("alert");
+  expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+  expect(screen.queryByRole("navigation", { name: "Setup progress" })).toBeNull();
+});
+it("requires fresh administrator confirmation after returning to engine selection", async () => {
+  campusApi.onboarding.mockResolvedValue({ ...initial(), draft: { step: 4, version: 3, displayName: "Saved Campus", enabledEngines: ["TVET"] } });
+  const user = userEvent.setup(); mount();
+  await user.click(await screen.findByRole("checkbox", { name: /confirm my responsibility/ }));
+  await user.click(screen.getByRole("button", { name: "Back" }));
+  await screen.findByRole("heading", { name: "Academic Engines" });
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect((await screen.findByRole("checkbox", { name: /confirm my responsibility/ })).checked).toBe(false);
+  expect(screen.getByRole("button", { name: "Activate and open Campus" }).disabled).toBe(true);
+});

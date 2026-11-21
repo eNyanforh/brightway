@@ -79,6 +79,14 @@ test("Campus domain foundation: concurrency, permissions, configuration, integri
       const step4 = await campus.saveOnboarding(owner.actor, institution.id, { ...identity, requestKey: randomUUID(), expectedVersion: step3.version, step: 4, enabledEngines: ["GRADE_SCHOOL", "TVET"] });
       const body = { expectedVersion: step4.version, confirmed: true, administratorMembershipId: start.administrator.membershipId };
       await assert.rejects(campus.completeOnboarding(owner.actor, institution.id, { ...body, administratorMembershipId: member.id }), { status: 403 });
+      await db.organizationOperatingLocation.updateMany({ where: { organizationId: institution.id }, data: { countryCode: "GH" } });
+      await assert.rejects(campus.completeOnboarding(owner.actor, institution.id, body), { status: 403 });
+      await db.organizationOperatingLocation.updateMany({ where: { organizationId: institution.id }, data: { countryCode: "LR" } });
+      const failing = createCampusService({ now, prisma: { $transaction: fn => db.$transaction(tx => fn(new Proxy(tx, { get(target, key) { return key === "virtualCampusAudit" ? { create() { throw Error("Activation audit unavailable"); } } : Reflect.get(target, key); } }))) } });
+      await assert.rejects(failing.completeOnboarding(owner.actor, institution.id, body), /Activation audit unavailable/);
+      assert.equal(await db.virtualCampus.count({ where: { organizationId: institution.id } }), 0);
+      assert.equal(await db.campusEngineConfiguration.count({ where: { campusId: institution.id } }), 0);
+      assert.equal((await db.campusOnboarding.findUnique({ where: { organizationId: institution.id } })).completedAt, null);
       const result = await Promise.all([campus.completeOnboarding(owner.actor, institution.id, body), campus.completeOnboarding(owner.actor, institution.id, body)]);
       assert.deepEqual(result[0], result[1]);
       assert.equal(result[0].workspacePath, `/campus/${institution.id}`);
