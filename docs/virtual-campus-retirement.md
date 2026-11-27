@@ -1,5 +1,7 @@
 # Virtual Campus temporarily retired — November 19, 2026
 
+Update: [Stage 1 controlled foundation](virtual-campus-stage-1.md) introduces an explicitly allowlisted non-production lifecycle API preview. Default and production behavior remains retired. Academic/learner/billing routes, UI and the scheduler remain disabled; see that document for the limited preview and additive migration.
+
 BrightWay's Virtual Campus, Grade School and TVET workspaces, student/guardian context switcher, setup flow, and Campus billing are **not active product features** during the current launch phase.
 
 - School and training organizations use the normal Organization workspace and retain their existing programs, admissions, opportunities, posts, and credential reviews.

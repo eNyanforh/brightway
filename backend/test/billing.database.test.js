@@ -1,3 +1,4 @@
+import { clearCampusFoundation } from "../test-support/campus-cleanup.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -94,9 +95,37 @@ test("Sprint 12 SQL: registration units, ledger, bulk receipts, adjustments, not
       await db.virtualCampus.update({ where: { organizationId: org.id }, data: { status: "PAUSED" } }); await assert.rejects(statement(), { status: 403 }); await assert.rejects(billing.statement(admin, org.id, {}, true), { status: 409 }); await db.virtualCampus.update({ where: { organizationId: org.id }, data: { status: "ACTIVE" } });
       await db.managementStaff.update({ where: { id: admin.staffId }, data: { version: { increment: 1 } } }); await assert.rejects(billing.queue(admin), { status: 403 });
     });
+    await t.test("one Campus operates both engines with independent setup, learner records and unchanged billing units", async () => {
+      const oldCharges = await db.billingCharge.findMany({ where: { campusId: org.id }, orderBy: { id: "asc" } });
+      const current = await db.virtualCampus.findUnique({ where: { organizationId: org.id } });
+      let v = (await campus.enableEngine(owner.actor, org.id, { engine: "TVET", expectedVersion: current.version })).version;
+      assert.deepEqual(await db.billingCharge.findMany({ where: { campusId: org.id }, orderBy: { id: "asc" } }), oldCharges);
+      const subject = await cfg("subjects", { name: "Mathematics", passingMark: 50 });
+      const offering = await cfg("offerings", { subjectId: subject.id, sectionId: section.id, periodId: period.id, mode: "COMPULSORY" });
+      await school.assign(owner.actor, org.id, offering.id, { expectedVersion: 1, username: owner.username });
+      v = (await campus.configureEngine(owner.actor, org.id, "GRADE_SCHOOL", { expectedVersion: v, expectedEngineVersion: 1, status: "READY" })).version;
+      const p = await tvet.configure(owner.actor, org.id, "programs", { name: "Computing", feeMinor: 25000, currency: "LRD" });
+      const intake = await tvet.configure(owner.actor, org.id, "intakes", { programId: p.id, name: "A", startsOn: "2030-02-01", endsOn: "2030-05-31" });
+      const sec = await tvet.configure(owner.actor, org.id, "sections", { intakeId: intake.id, name: "A", capacity: 10 });
+      await tvet.assign(owner.actor, org.id, { intakeId: intake.id, username: owner.username });
+      await campus.configureEngine(owner.actor, org.id, "TVET", { expectedVersion: v, expectedEngineVersion: 1, status: "READY" });
+      assert.ok((await campus.availability(owner.actor, org.id)).campus.engineConfigurations.every(c => c.status === "READY"));
+      const enrolment = await tvet.enrol(owner.actor, org.id, { username: student.username, intakeId: intake.id, sectionId: sec.id, source: "DIRECT" });
+      assert.notEqual(enrolment.learnerId, r1.studentId);
+      assert.equal((await db.tvetLearner.findUnique({ where: { id: enrolment.learnerId } })).accountId, student.id);
+      const st = await billing.statement(owner.actor, org.id);
+      assert.equal(st.charges.filter(c => c.engine === "TVET").length, 1);
+      assert.equal(st.charges.find(c => c.engine === "TVET").amountCents, 100);
+      assert.equal(st.charges.filter(c => c.engine === "GRADE_SCHOOL").length, oldCharges.length);
+      await assert.rejects(billing.reconcile(owner.actor, org.id), { status: 400 });
+      await billing.reconcile(owner.actor, org.id, { engine: "GRADE_SCHOOL" });
+      await billing.reconcile(owner.actor, org.id, { engine: "TVET" });
+      assert.equal(await db.billingCharge.count({ where: { campusId: org.id } }), oldCharges.length + 1);
+    });
   } finally {
+    await clearCampusFoundation(db, organizations);
     await clearBilling(db, organizations);
-    for (const model of ["tvetEnrolment", "tvetSection", "tvetModule", "tvetIntake", "tvetLearner", "tvetProgram", "gradeSchoolElective", "gradeSchoolRegistration", "gradeSchoolStudent", "gradeSchoolPeriod", "gradeSchoolSection", "gradeSchoolClass", "gradeSchoolYear", "virtualCampusAudit", "campusAnnouncement"]) await db[model].deleteMany({ where: { campusId: { in: organizations } } });
+    for (const model of ["tvetEnrolment", "tvetAssignment", "tvetSection", "tvetModule", "tvetIntake", "tvetLearner", "tvetProgram", "gradeSchoolElective", "gradeSchoolRegistration", "gradeSchoolOffering", "gradeSchoolSubject", "gradeSchoolStudent", "gradeSchoolPeriod", "gradeSchoolSection", "gradeSchoolClass", "gradeSchoolYear", "virtualCampusAudit", "campusAnnouncement"]) await db[model].deleteMany({ where: { campusId: { in: organizations } } });
     await db.virtualCampus.deleteMany({ where: { organizationId: { in: organizations } } }); await db.organizationMembership.deleteMany({ where: { organizationId: { in: organizations } } }); await db.organizationOperatingLocation.deleteMany({ where: { organizationId: { in: organizations } } }); await clearOrganizationProfiles(db, organizations); await db.organization.deleteMany({ where: { id: { in: organizations } } }); await db.organizationRequest.deleteMany({ where: { id: { in: requests } } });
     const ids = accounts.map(a => a.id); await db.platformNotification.deleteMany({ where: { recipientId: { in: ids } } }); await db.session.deleteMany({ where: { accountId: { in: ids } } }); await db.mfaFactor.deleteMany({ where: { accountId: { in: ids } } }); await db.account.deleteMany({ where: { id: { in: ids } } }); await db.person.deleteMany({ where: { id: { in: accounts.map(a => a.personId) } } }); await cleanupManagementFixtures(db, staffIds);
     if (oldProduct) await db.productAvailability.update({ where: productWhere, data: { enabled: oldProduct.enabled } }); else await db.productAvailability.deleteMany({ where: { product: "VIRTUAL_CAMPUS", countryCode: "LR" } }); await db.$disconnect();
