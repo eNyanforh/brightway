@@ -1,7 +1,11 @@
 import { clearCampusFoundation } from "../test-support/campus-cleanup.js";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
+import express from "express";
+import { createSessionService, tokenHash } from "../src/modules/auth/session.service.js";
+import { createCampusRoutes } from "../src/modules/campus/campus.routes.js";
+import { createCampusRollout } from "../src/modules/campus/campus-rollout.js";
 import { createCampusService } from "../src/modules/campus/campus.service.js";
 import { seedOrganizationProfile, clearOrganizationProfiles } from "../test-support/organization-profile-seed.js";
 
@@ -27,9 +31,10 @@ test("Campus domain foundation: concurrency, permissions, configuration, integri
     accounts.push(a.id); people.push(a.personId);
     await db.mfaFactor.create({ data: { accountId: a.id, enabled: true, encryptedSecret: "test-only",
       windowStart: now(), version: 1 } });
-    const session = await db.session.create({ data: { accountId: a.id, tokenHash: randomUUID(),
+    const token = randomBytes(32).toString("hex");
+    const session = await db.session.create({ data: { accountId: a.id, tokenHash: tokenHash(token),
       expiresAt: new Date("2031-01-01"), mfaVersion: 1, mfaVerifiedAt: now() } });
-    return { id: a.id, sessionId: session.id, actor: { accountId: a.id, sessionId: session.id } };
+    return { token, id: a.id, sessionId: session.id, actor: { accountId: a.id, sessionId: session.id } };
   }
   async function org(owner, country, secondary = false, type = "SCHOOL") {
     const name = "Synthetic Campus " + randomUUID().slice(0, 8);
@@ -62,6 +67,64 @@ test("Campus domain foundation: concurrency, permissions, configuration, integri
       const result = await campus.setPermission(owner.actor, school.id, member.id, { scope, permission, enabled, expectedVersion: version, expectedGrantVersion });
       version = result.version; return result;
     };
+    await t.test("HTTP onboarding uses real sessions and persistence through resume, retries and engine enablement", async () => {
+      const institution = await org(owner, "LR", false, "NGO");
+      const rollout = createCampusRollout({ NODE_ENV: "test", VIRTUAL_CAMPUS_PREVIEW_ENABLED: "true", VIRTUAL_CAMPUS_PREVIEW_ORGANIZATION_IDS: institution.id });
+      const app = express(); app.use(express.json());
+      app.use("/api/v1", createCampusRoutes({ campus, sessions: createSessionService({ prisma: db, now }),
+        clientUrl: "http://localhost:5173", nodeEnv: "test", isEnabledFor: rollout.allows, lifecycleOnly: true }));
+      app.use((error, req, res, next) => res.status(error.status || 500).json({ success: false, message: error.message }));
+      const server = app.listen(0, "127.0.0.1");
+      await new Promise(resolve => server.once("listening", resolve));
+      const base = `http://127.0.0.1:${server.address().port}/api/v1/organization-workspace/`;
+      const request = async (suffix = "/onboarding", { method = "GET", body, token = owner.token, origin = "http://localhost:5173", id = institution.id } = {}) => {
+        const response = await fetch(`${base}${id}/campus${suffix}`, { method,
+          headers: { ...(token ? { cookie: `brightway_session=${token}` } : {}), ...(origin ? { Origin: origin } : {}), "Content-Type": "application/json" },
+          body: body ? JSON.stringify(body) : undefined });
+        assert.equal(response.headers.get("cache-control"), "no-store");
+        return { status: response.status, ...(await response.json()) };
+      };
+      try {
+        assert.equal((await request("/onboarding", { token: null })).status, 401);
+        assert.equal((await request("/onboarding", { token: worker.token })).status, 403);
+        assert.equal((await request("/onboarding", { id: outside.id })).status, 404);
+        const initial = await request(); assert.equal(initial.status, 200);
+        const identity = { requestKey: randomUUID(), expectedVersion: 0, step: 2, displayName: "HTTP Training Campus", enabledEngines: [] };
+        for (const origin of [null, "https://untrusted.invalid"]) {
+          assert.equal((await request("/onboarding", { method: "PUT", origin, body: identity })).status, 403);
+        }
+        assert.equal(await db.campusOnboarding.count({ where: { organizationId: institution.id } }), 0);
+        const save = body => request("/onboarding", { method: "PUT", body });
+        const saved = await save(identity); assert.equal(saved.status, 200);
+        assert.deepEqual(await save(identity), saved);
+        assert.equal((await save({ ...identity, displayName: "Conflicting retry" })).status, 409);
+        const resumed = await request(); assert.equal(resumed.data.draft.step, 2);
+        assert.equal(resumed.data.draft.displayName, identity.displayName);
+        const engines = await save({ ...identity, requestKey: randomUUID(), expectedVersion: saved.data.version, step: 3 });
+        assert.equal(engines.status, 200);
+        const admin = await save({ ...identity, requestKey: randomUUID(), expectedVersion: engines.data.version, step: 4, enabledEngines: ["TVET"] });
+        assert.equal(admin.status, 200);
+        const body = { expectedVersion: admin.data.version, administratorMembershipId: initial.data.administrator.membershipId, confirmed: true };
+        const complete = () => request("/onboarding/complete", { method: "POST", body });
+        const results = await Promise.all([complete(), complete()]);
+        assert.equal(results[0].status, 200); assert.deepEqual(results[0], results[1]);
+        assert.equal(results[0].data.workspacePath, `/campus/${institution.id}`);
+        const active = await request(); assert.equal(active.data.campus.status, "ACTIVE");
+        const enable = await request("/engines", { method: "POST", body: { engine: "GRADE_SCHOOL", expectedVersion: active.data.campus.version } });
+        assert.equal(enable.status, 200);
+        assert.equal((await request()).data.campus.enabledEngines.length, 2);
+        assert.equal(await db.virtualCampus.count({ where: { organizationId: institution.id } }), 1);
+        assert.equal(await db.virtualCampusAudit.count({ where: { campusId: institution.id, action: "ACTIVATE" } }), 1);
+        assert.equal(await db.virtualCampusAudit.count({ where: { campusId: institution.id, action: "ENGINE_ENABLED" } }), 1);
+        // Revocation must be evaluated from the persisted session on the next request.
+        await db.session.update({ where: { id: owner.sessionId }, data: { expiresAt: new Date("2029-01-01") } });
+        assert.equal((await request()).status, 401);
+      } finally {
+        await db.session.update({ where: { id: owner.sessionId }, data: { expiresAt: new Date("2031-01-01") } });
+        server.closeAllConnections();
+        await new Promise(resolve => server.close(resolve));
+      }
+    });
     await t.test("four-step onboarding resumes, rejects stale writes and activates atomically without academic prerequisites", async () => {
       const institution = await org(owner, "LR", false, "NGO");
       const start = await campus.onboarding(owner.actor, institution.id);
