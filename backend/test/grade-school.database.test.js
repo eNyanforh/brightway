@@ -1,3 +1,4 @@
+import { clearCampusFoundation } from "../test-support/campus-cleanup.js";
 import { clearBilling } from "../test-support/billing-cleanup.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -145,7 +146,6 @@ test("Sprint 10 SQL: academic isolation, registrations, assigned teachers, guard
         assert.equal((await db.gradeSchoolAttendance.findUnique({ where: { id: rollback.id } })).version, 1);
         assert.equal(await db.gradeSchoolAttendanceRecord.count({ where: { attendanceId: rollback.id } }), 0);
       } finally {
-    await clearBilling(db, organizations);
         await db.$executeRawUnsafe('DROP TRIGGER school_test_audit_failure ON "VirtualCampusAudit"');
         await db.$executeRawUnsafe('DROP FUNCTION school_test_audit_failure()');
       }
@@ -186,6 +186,8 @@ test("Sprint 10 SQL: academic isolation, registrations, assigned teachers, guard
       await assert.rejects(school.learnerReport(student.actor, r1.id), { status: 403 });
     });
   } finally {
+    await clearCampusFoundation(db, organizations);
+    await clearBilling(db, organizations);
     for (const model of ["gradeSchoolScore", "gradeSchoolAttendanceRecord", "gradeSchoolAssessment", "gradeSchoolAttendance", "gradeSchoolSchedule", "gradeSchoolElective", "gradeSchoolGuardian", "gradeSchoolRegistration", "gradeSchoolOffering", "gradeSchoolStudent", "gradeSchoolPeriod", "gradeSchoolSection", "gradeSchoolSubject", "gradeSchoolClass", "gradeSchoolYear", "virtualCampusAudit", "campusAnnouncement"]) await db[model].deleteMany({ where: { campusId: { in: organizations } } });
     await db.virtualCampus.deleteMany({ where: { organizationId: { in: organizations } } });
     await db.admissionApplication.deleteMany({ where: { applicantId: { in: accounts } } });

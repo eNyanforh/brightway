@@ -1,3 +1,4 @@
+import { clearCampusFoundation } from "../test-support/campus-cleanup.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -65,6 +66,7 @@ test("Sprint 9 real-PostgreSQL activation, permission revocation, isolation, not
     const setup = await campus.setup(owner.actor, school.id, { engine: "GRADE_SCHOOL",
       displayName: "Synthetic Grade School", contactEmail: null, expectedVersion: 0 });
     assert.equal(setup.status, "SETUP");
+    assert.deepEqual(setup.enabledEngines, ["GRADE_SCHOOL"]);
     await assert.rejects(campus.assertBilling(owner.actor, school.id), { status: 403 });
     await assert.rejects(campus.activate(worker.actor, school.id, { expectedVersion: 1 }), { status: 403 });
     await assert.rejects(campus.activate(owner.actor, school.id, { expectedVersion: 2 }), { status: 409 });
@@ -106,10 +108,50 @@ test("Sprint 9 real-PostgreSQL activation, permission revocation, isolation, not
     assert.equal((await campus.availability(owner.actor, school.id)).campus.status, "ACTIVE");
     await assert.rejects(campus.setup(owner.actor, school.id, { engine: "TVET",
       displayName: "Cannot change engine", contactEmail: null, expectedVersion: 4 }), { status: 409 });
-    assert.equal((await campus.setup(abroad.actor, globalOrg.id, { engine: "TVET",
-      displayName: "Liberia branch", contactEmail: null, expectedVersion: 0 })).engine, "TVET");
+    // Non-school education providers may select BOTH engines in ONE Campus.
+    const both = { enabledEngines: ["TVET", "GRADE_SCHOOL"], displayName: "Liberia training and education branch", contactEmail: null, expectedVersion: 0 };
+    const attempts = await Promise.allSettled([
+      campus.setup(abroad.actor, globalOrg.id, both), campus.setup(abroad.actor, globalOrg.id, both),
+    ]);
+    assert.equal(attempts.filter(result => result.status === "fulfilled").length, 1);
+    assert.equal(attempts.find(result => result.status === "rejected").reason.status, 409);
+    assert.equal(await db.virtualCampus.count({ where: { organizationId: globalOrg.id } }), 1);
+    const dualSetup = await campus.availability(abroad.actor, globalOrg.id);
+    assert.deepEqual(dualSetup.campus.enabledEngines, ["GRADE_SCHOOL", "TVET"]);
+    assert.deepEqual(dualSetup.permissions, []);
+    const beforeActivation = await db.virtualCampus.findUnique({ where: { organizationId: globalOrg.id } });
+    await assert.rejects(campus.activate(worker.actor, globalOrg.id, { expectedVersion: 1 }), { status: 403 });
+    await db.mfaFactor.update({ where: { accountId: abroad.id }, data: { enabled: false } });
+    await assert.rejects(campus.activate(abroad.actor, globalOrg.id, { expectedVersion: 1 }), { status: 403 });
+    await db.mfaFactor.update({ where: { accountId: abroad.id }, data: { enabled: true } });
+    assert.deepEqual((await campus.activate(abroad.actor, globalOrg.id, { expectedVersion: 1 })).enabledEngines, ["GRADE_SCHOOL", "TVET"]);
+    assert.equal((await campus.availability(abroad.actor, globalOrg.id)).canSetup, false);
+    await assert.rejects(campus.setup(abroad.actor, globalOrg.id, { ...both, enabledEngines: ["TVET"], expectedVersion: 2 }), { status: 409 });
+    await campus.pause(abroad.actor, globalOrg.id, { expectedVersion: 2 });
+    await assert.rejects(campus.setup(abroad.actor, globalOrg.id, { ...both, expectedVersion: 3 }), { status: 409 });
+    await campus.resume(abroad.actor, globalOrg.id, { expectedVersion: 3 });
+    const afterResume = await db.virtualCampus.findUnique({ where: { organizationId: globalOrg.id } });
+    assert.equal(afterResume.organizationId, beforeActivation.organizationId);
+    assert.equal(afterResume.createdAt.toISOString(), beforeActivation.createdAt.toISOString());
+    assert.deepEqual(afterResume.enabledEngines, beforeActivation.enabledEngines);
+    assert.equal(afterResume.version, 4);
+    for (const enabledEngines of [[], ["TVET", "TVET"], ["TVET"]]) {
+      await assert.rejects(db.virtualCampus.update({ where: { organizationId: globalOrg.id }, data: { enabledEngines } }));
+    }
+    assert.equal(await db.billingCharge.count({ where: { campusId: { in: organizations } } }), 0);
+    assert.equal(await db.gradeSchoolRegistration.count({ where: { campusId: globalOrg.id } }), 0);
+    assert.equal(await db.tvetEnrolment.count({ where: { campusId: globalOrg.id } }), 0);
+    const setupAudit = await db.virtualCampusAudit.findMany({ where: { campusId: globalOrg.id, action: "SETUP_CREATED" } });
+    assert.equal(setupAudit.length, 1);
+    assert.deepEqual(setupAudit[0].data.enabledEngines, ["GRADE_SCHOOL", "TVET"]);
+    await db.organization.update({ where: { id: globalOrg.id }, data: { offersTraining: false } });
+    assert.equal((await campus.availability(abroad.actor, globalOrg.id)).campus.status, "BLOCKED");
+    await assert.rejects(campus.assertAcademic(abroad.actor, globalOrg.id), { status: 403 });
+    await db.organization.update({ where: { id: globalOrg.id }, data: { offersTraining: true } });
+    assert.equal((await campus.availability(abroad.actor, globalOrg.id)).campus.status, "ACTIVE");
     assert.equal(await db.virtualCampus.count({ where: { organizationId: outside.id } }), 0);
   } finally {
+    await clearCampusFoundation(db, organizations);
     if (oldProduct) await db.productAvailability.update({ where: productWhere, data: { enabled: oldProduct.enabled } });
     else await db.productAvailability.deleteMany({ where: { product: "VIRTUAL_CAMPUS", countryCode: "LR" } });
     await db.platformNotification.deleteMany({ where: { recipientId: { in: accounts } } });

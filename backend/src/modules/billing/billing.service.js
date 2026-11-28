@@ -1,6 +1,6 @@
 import { createCampusService } from "../campus/campus.service.js";
 import { assertManagementSession, managementPermission, lockReviewActors, conflictAccounts } from "../management/management-authority.js";
-import { assessEligibility } from "../campus/campus.schema.js";
+import { assessEligibility, configuredEngines, enginesEligible } from "../campus/campus.schema.js";
 import { notify } from "../notifications/platform-notification.js";
 import { billingAudit, chargeInclude, digest, ensureAccount, chargeRegistration, chargeEnrolment } from "./billing-core.js";
 import * as s from "./billing.schema.js";
@@ -20,7 +20,7 @@ export function createBillingService({ prisma, now = () => new Date() }) {
     if (c?.status !== "ACTIVE" || !safelyEligible(c, p)) throw s.fail(409, "Billing requires an active eligible Virtual Campus.");
     return c;
   }
-  const safelyEligible = (c, p) => { const e = assessEligibility(c.organization, p); return e.eligible && e.supportedEngines.includes(c.engine); };
+  const safelyEligible = (c, p) => { const e = assessEligibility(c.organization, p); return e.eligible && enginesEligible(c, e) && c.configurationStatus === "READY"; };
   async function org(db, actor, campusId, write = false) {
     return campus.authorize(db, actor, id(campusId), { requireActive: true, capability: BILLING, write, lock: write });
   }
@@ -72,7 +72,7 @@ export function createBillingService({ prisma, now = () => new Date() }) {
       const data = s.parse(s.semesterInput, input);
       return tx(async db => {
         const ctx = await org(db, actor, campusId, true);
-        if (ctx.organization.campus.engine !== "GRADE_SCHOOL") throw s.fail(409, "Billing semesters apply to Grade Schools only.");
+        if (!configuredEngines(ctx.organization.campus).includes("GRADE_SCHOOL")) throw s.fail(409, "Billing semesters apply to Grade Schools only.");
         await ensureAccount(db, campusId);
         const periods = await db.gradeSchoolPeriod.findMany({ where: { campusId, id: { in: data.periodIds } } });
         if (periods.length !== data.periodIds.length || periods.some(p => p.billingSemesterId || p.kind !== "TERM" || p.startsOn < data.startsOn || p.endsOn > data.endsOn) || new Set(periods.map(p => p.yearId)).size !== 1) throw s.fail(409, "Choose unassigned terms from one academic year within this billing semester. Semester periods map automatically on registration.");
@@ -86,13 +86,16 @@ export function createBillingService({ prisma, now = () => new Date() }) {
     },
     // Explicit, bounded adoption of registrations created before Sprint 12; no migration backfill.
     async reconcile(actor, campusId, input = {}) {
-      const q = s.parse(s.page, input);
+      const q = s.parse(s.reconciliationInput, input);
       return tx(async db => {
         const ctx = await org(db, actor, campusId, true); await ensureAccount(db, campusId);
+        const engines = configuredEngines(ctx.organization.campus);
+        if ((!q.engine && engines.length > 1) || (q.engine && !engines.includes(q.engine))) throw s.fail(400, "Select an enabled academic engine for reconciliation.");
+        const engine = q.engine || engines[0];
         let rows;
-        const model = ctx.organization.campus.engine === "GRADE_SCHOOL" ? "gradeSchoolRegistration" : "tvetEnrolment";
+        const model = engine === "GRADE_SCHOOL" ? "gradeSchoolRegistration" : "tvetEnrolment";
         if (q.cursor && !await db[model].findFirst({ where: { campusId, id: q.cursor } })) throw s.fail(404, "Reconciliation page is unavailable.");
-        if (ctx.organization.campus.engine === "GRADE_SCHOOL") {
+        if (engine === "GRADE_SCHOOL") {
           // Terms in the same semester share a charge, so sourceId alone is insufficient.
           rows = await db.gradeSchoolRegistration.findMany({ where: { campusId, billingCharge: null, OR: [{ period: { kind: "SEMESTER" } }, { period: { billingSemesterId: { not: null } } }] }, include: { period: true }, orderBy: { id: "asc" }, take: 100, ...(q.cursor ? { cursor: { id: q.cursor }, skip: 1 } : {}) });
           for (const r of rows) await chargeRegistration(db, r, actor);
@@ -185,7 +188,7 @@ export function createBillingService({ prisma, now = () => new Date() }) {
         WHERE c."engine" = 'GRADE_SCHOOL' AND c."noticeAt" IS NULL AND c."dueAt" <= ${new Date(+now() + 7 * s.DAY)}
         AND c."amountCents" + COALESCE((SELECT SUM(a."amountCents") FROM "BillingAdjustment" a WHERE a."chargeId"=c."id"),0)
           - COALESCE((SELECT SUM(a."amountCents") FROM "CampusPaymentAllocation" a JOIN "CampusPayment" p ON p."id"=a."paymentId" WHERE a."chargeId"=c."id" AND p."status"='CONFIRMED'),0) > 0
-        AND EXISTS (SELECT 1 FROM "VirtualCampus" v JOIN "Organization" o ON o."id"=v."organizationId" JOIN "OrganizationRequest" r ON r."id"=o."requestId" WHERE v."organizationId"=c."campusId" AND v."status"='ACTIVE' AND v."engine"='GRADE_SCHOOL' AND o."status"='ACTIVE' AND o."verifiedAt" IS NOT NULL AND o."type"='SCHOOL' AND r."status"='APPROVED')
+        AND EXISTS (SELECT 1 FROM "VirtualCampus" v JOIN "Organization" o ON o."id"=v."organizationId" JOIN "OrganizationRequest" r ON r."id"=o."requestId" WHERE v."organizationId"=c."campusId" AND v."status"='ACTIVE' AND 'GRADE_SCHOOL'=ANY(v."enabledEngines") AND v."configurationStatus"='READY' AND o."status"='ACTIVE' AND o."verifiedAt" IS NOT NULL AND (o."type"='SCHOOL' OR o."offersTraining") AND r."status"='APPROVED')
         AND EXISTS (SELECT 1 FROM "OrganizationOperatingLocation" l WHERE l."organizationId"=c."campusId" AND l."countryCode"='LR' AND l."verifiedAt" IS NOT NULL)
         AND EXISTS (SELECT 1 FROM "ProductAvailability" p WHERE p."product"='VIRTUAL_CAMPUS' AND p."countryCode"='LR' AND p."enabled"=true)
         ORDER BY c."dueAt", c."id" LIMIT 200`;

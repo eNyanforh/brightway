@@ -2,7 +2,7 @@ import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
 import { createRequireAuth, createSessionCookieConfig, requireTrustedOrigin } from "../auth/session.http.js";
 import { requireManagement } from "../management/management-auth.http.js";
-export function createBillingRoutes({ billing, sessions, authentication, clientUrl, nodeEnv }) {
+export function createBillingRoutes({ billing, sessions, authentication, clientUrl, nodeEnv, institutionalOnly = false }) {
   const router = Router(), path = "/organization-workspace/:campusId/campus/billing", managed = "/management/billing";
   const auth = createRequireAuth({ sessions, cookieName: createSessionCookieConfig(nodeEnv).name }), origin = requireTrustedOrigin(clientUrl);
   const noStore = (_req, res, next) => { res.set({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" }); next(); };
@@ -15,6 +15,7 @@ export function createBillingRoutes({ billing, sessions, authentication, clientU
   router.post(path + "/semesters", noStore, auth, origin, limits, noQuery, wrap((r, a) => billing.createSemester(a, r.params.campusId, r.body)));
   router.post(path + "/reconcile", noStore, auth, origin, limits, wrap((r, a) => billing.reconcile(a, r.params.campusId, r.body)));
   router.post(path + "/payments", noStore, auth, origin, limits, noQuery, wrap((r, a) => billing.submitPayment(a, r.params.campusId, r.body)));
+  if (institutionalOnly) return router;
   router.use(managed, noStore, requireManagement(authentication, nodeEnv), limits);
   router.get(managed, wrap((r, a) => billing.queue(a, r.query)));
   router.get(managed + "/accounts", wrap((r, a) => billing.accounts(a, r.query)));

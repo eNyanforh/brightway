@@ -17,3 +17,5 @@ export const accessState = (charge, timestamp) => {
   const balanceCents = outstanding(charge), restricted = balanceCents > 0 && charge.engine === "GRADE_SCHOOL" && !!charge.noticeAt && !!charge.enforceAt && +timestamp >= +charge.enforceAt;
   return { chargeId: charge.id, balanceCents, dueAt: charge.dueAt, noticeAt: charge.noticeAt, enforceAt: charge.enforceAt, restricted };
 };
+
+export const reconciliationInput = page.extend({ engine: z.enum(["GRADE_SCHOOL", "TVET"]).optional() });
