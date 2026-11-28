@@ -18,6 +18,11 @@ async function request(pathname, method = "GET", body, signal) {
   return result.data;
 }
 export const campusApi = {
+  workspace: (id, section, signal) => request(path(id) + "/workspace/" + encodeURIComponent(section), "GET", undefined, signal),
+  members: (id, signal, cursor) => request(path(id) + "/permission-members" + (cursor ? "?cursor=" + encodeURIComponent(cursor) : ""), "GET", undefined, signal),
+  grants: (id, signal) => request(path(id) + "/permissions", "GET", undefined, signal),
+  grant: (id, member, body) => request(path(id) + "/permissions/" + encodeURIComponent(member), "PUT", body),
+  history: (id, signal) => request(path(id) + "/history", "GET", undefined, signal),
   onboarding: (id, signal) => request(path(id) + "/onboarding", "GET", undefined, signal),
   saveOnboarding: (id, body) => request(path(id) + "/onboarding", "PUT", body),
   completeOnboarding: (id, body) => request(path(id) + "/onboarding/complete", "POST", body),

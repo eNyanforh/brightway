@@ -51,11 +51,11 @@ test("mounted preview denies disabled and production requests before any session
   }
 });
 
-test("enabled preview does not mount academic, learner, guardian, announcement or billing APIs", async t => {
+test("enabled preview keeps management billing and non-allowlisted organizations unavailable", async t => {
   const forbidden = new Proxy({}, { get() { assert.fail("Dormant routes must not access sessions or database"); } });
   const base = await serve(t, createCampusPreviewRoutes({ prisma: forbidden, sessions: forbidden,
     clientUrl: "http://localhost:5173", nodeEnv: "test", config: preview }));
-  for (const url of [path + "/announcements", path + "/grade-school/setup", path + "/tvet/setup", path + "/billing", "/my-campus", "/my-tvet", "/management/billing", `/organization-workspace/${other}/campus`]) {
+  for (const url of ["/my-tvet", "/management/billing", `/organization-workspace/${other}/campus`]) {
     assert.equal((await fetch(base + url)).status, 404, url);
   }
 });
@@ -83,3 +83,10 @@ test("preview allowlist never replaces authentication, trusted Origin or service
   assert.equal((await fetch(base + path + "/setup", { method: "PUT", headers: { cookie, Origin: "http://localhost:5173" } })).status, 403);
   assert.equal(calls, 2);
 });
+
+ test("enabled academic and learner preview routes still require authentication", async t => {
+  const sessions = { authenticate: async () => { throw Object.assign(Error("Sign in"), { status: 401 }); } };
+  const base = await serve(t, createCampusPreviewRoutes({ prisma: {}, sessions, clientUrl: "http://localhost:5173", nodeEnv: "test", config: preview }));
+  for (const suffix of ["/workspace/overview", "/grade-school", "/tvet", "/billing", "/announcements", "/permission-members"]) assert.equal((await fetch(base + path + suffix)).status, 401);
+  for (const suffix of ["/my-campus", "/my-campus/guardians", "/my-campus/registrations/" + randomUUID()]) assert.equal((await fetch(base + suffix)).status, 401);
+ });

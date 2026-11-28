@@ -18,12 +18,12 @@ import { useAuth } from "../auth/useAuth";
 import { staffApi as api } from "../api/organization-staff";
 import "./organizations.css";
 const MANAGE = "organization.members.manage";
-export default function OrganizationWorkspacePage({ section = "overview" }) {
+export default function OrganizationWorkspacePage({ section = "overview", embedded = false }) {
   const { account } = useAuth(), { id } = useParams();
   if (!id) return <Navigate to="/work" replace />;
-  return <Workspace key={`${account?.id}:${id || "personal"}:${section}`} actor={account?.id} usernameLabel={account?.username} id={id} section={section} />;
+  return <Workspace key={`${account?.id}:${id || "personal"}:${section}`} actor={account?.id} usernameLabel={account?.username} id={id} section={section} embedded={embedded} />;
 }
-function Workspace({ actor, usernameLabel, id, section }) {
+function Workspace({ actor, usernameLabel, id, section, embedded }) {
   const bootstrap = useOrganizationBootstrap();
   const initialAccess = useRef(bootstrap);
   const outlet = useOutletContext(), setActing = outlet?.setActingOrganization;
@@ -117,7 +117,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
     ((view.organization.offersTraining || view.organization.type === "SCHOOL") && section === "programs" && view.permissions.includes("organization.programs.manage")) ||
     ((view.organization.offersTraining || view.organization.type === "SCHOOL") && section === "admissions" && view.permissions.includes("organization.admissions.review"));
   return <section className={`bw-org-page${section === "profile" ? " bw-org-profile-page" : section === "overview" ? " bw-org-dashboard-page" : section === "staff" ? " bw-org-staff-page" : ""}`} aria-label={section === "profile" ? "Organization profile" : undefined}>
-    {(section === "overview" || section === "staff") && <header className="bw-dashboard-page-heading"><nav className="bw-dashboard-breadcrumb" aria-label="Workspace breadcrumb"><Link to="/work">My Workspace</Link><span aria-hidden="true">/</span><span>{section === "staff" ? "Staff" : "Organization workspace"}</span></nav><div className="bw-dashboard-heading-row"><div className="bw-dashboard-heading-identity"><span className="bw-dashboard-heading-icon"><WorkspaceIcon name="building" size={24} /></span><div><h1>{view?.organization.name || "Organization workspace"}</h1><p>Your organization workspace</p></div></div><div className="bw-dashboard-heading-actions"><Link className="bw-dashboard-personal-link" to="/explore">Personal account</Link><button className="bw-dashboard-refresh" type="button" disabled={busy} onClick={reload} aria-label="Reload account workspace" aria-busy={busy}><WorkspaceIcon name="refresh" size={16} /><span>{busy ? "Refreshing…" : "Refresh"}</span></button></div></div></header>}
+    {!embedded && (section === "overview" || section === "staff") && <header className="bw-dashboard-page-heading"><nav className="bw-dashboard-breadcrumb" aria-label="Workspace breadcrumb"><Link to="/work">My Workspace</Link><span aria-hidden="true">/</span><span>{section === "staff" ? "Staff" : "Organization workspace"}</span></nav><div className="bw-dashboard-heading-row"><div className="bw-dashboard-heading-identity"><span className="bw-dashboard-heading-icon"><WorkspaceIcon name="building" size={24} /></span><div><h1>{view?.organization.name || "Organization workspace"}</h1><p>Your organization workspace</p></div></div><div className="bw-dashboard-heading-actions"><Link className="bw-dashboard-personal-link" to="/explore">Personal account</Link><button className="bw-dashboard-refresh" type="button" disabled={busy} onClick={reload} aria-label="Reload account workspace" aria-busy={busy}><WorkspaceIcon name="refresh" size={16} /><span>{busy ? "Refreshing…" : "Refresh"}</span></button></div></div></header>}
     {section !== "profile" && section !== "overview" && section !== "staff" && section !== "opportunities" && <><h1>{id && view ? view.organization.name : "Organization workspace"}</h1><p><Link to="/explore">Personal account</Link>{id && <> · <Link to="/work">Back to My Workspace</Link></>} · <Link to="/security">Account security</Link></p></>}
     {error && !(section === "staff" && view && sectionAllowed) && <p role="alert">{error.message}</p>}{notice && <p role="status">{notice}</p>}{stale && <p>{section === "opportunities" ? "Organization access may have changed. Reload workspace access before managing listings." : "Changes have been kept. Reload to discard unsaved staffing changes and get current access."}</p>}
     {section !== "profile" && section !== "overview" && section !== "staff" && section !== "opportunities" && <button type="button" disabled={busy} onClick={reload}>Reload account workspace</button>}
@@ -126,7 +126,7 @@ function Workspace({ actor, usernameLabel, id, section }) {
 
     {id && view && !sectionAllowed && <section className="bw-org-access-denied" aria-labelledby="workspace-access-title"><h2 id="workspace-access-title">This tool is not available to your role</h2><p>Your organization membership is active, but it does not include access to this organization tool.</p><Link className="bw-org-workspace-entry" to={`/organization-workspace/${id}`}>Return to your workspace</Link></section>}
     {id && view && sectionAllowed && section === "profile" && <OrganizationProfile key={`${id}:${generation}`} organization={view.organization} role={view.membership?.role} canEdit={view.membership?.role === "PRIMARY_ADMIN" || view.permissions.includes("organization.profile.manage")} />}
-    {id && view && section === "overview" && view.membership?.role === "PRIMARY_ADMIN" && <CampusActivationEntry id={id} />}
+    {id && view && section === "overview" && <CampusActivationEntry id={id} />}
     {id && view && sectionAllowed && section === "overview" && <OrganizationOverview organization={view.organization} role={view.membership?.role} refreshVersion={`${generation}:${view.staffVersion}:${view.permissions.join(",")}`} />}
     {id && view && sectionAllowed && section === "messages" && <MessagesPage />}
     {id && view && sectionAllowed && section === "posts" && <PostsPanel key={actor + ":" + id} organization={view.organization} disabled={stale || Boolean(error)} />}

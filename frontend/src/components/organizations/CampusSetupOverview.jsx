@@ -45,7 +45,7 @@ export default function CampusSetupOverview({ organization, section = "all", onC
       displayName: snapshot.campus?.displayName || organization.name,
       contactEmail: snapshot.campus?.contactEmail || "",
     });
-    const canRead = (section === "all" || section === "announcements") && snapshot.campus?.status === "ACTIVE" && (snapshot.permissions.length > 0 || snapshot.canAnnounce);
+    const canRead = (section === "all" || section === "announcements") && snapshot.campus?.status === "ACTIVE" && (snapshot.permissions.length > 0 || Object.values(snapshot.enginePermissions || {}).some(p => p.length) || snapshot.canAnnounce);
     if (canRead) {
       const feed = await campusApi.announcements(id, signal);
       if (signal?.aborted) return;
@@ -128,7 +128,7 @@ export default function CampusSetupOverview({ organization, section = "all", onC
   const canConfigure = data.canSetup && (!campus || campus.storedStatus === "SETUP");
   const canEditSettings = campus && data.canManage && (data.eligible || data.canSetup);
   const active = state === "ACTIVE";
-  const canRead = active && (data.permissions.length > 0 || data.canAnnounce);
+  const canRead = active && (data.permissions.length > 0 || Object.values(data.enginePermissions || {}).some(p => p.length) || data.canAnnounce);
   const mayPublish = active && data.canAnnounce;
   return <section className="bw-campus-root" aria-labelledby="campus-heading">
     {wizardOpen && data.canSetup && data.eligible && <CampusSetupWizard organization={organization} snapshot={data}

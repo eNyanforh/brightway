@@ -23,6 +23,8 @@ export function createCampusRoutes({ campus, sessions, clientUrl, nodeEnv, isEna
     try { res.status(status).json({ success: true, data: await fn(req, actor(req)) }); }
     catch (error) { next(error.status ? error : campusError(503, "Virtual Campus is temporarily unavailable.")); }
   };
+  router.get(path + "/workspace/:section", read, handle((r, a) => campus.workspace(a, r.params.organizationId, r.params.section)));
+  router.get(path + "/permission-members", read, handle((r, a) => campus.permissionMembers(a, r.params.organizationId, r.query)));
   router.get(path, read, handle((r, a) => campus.availability(a, r.params.organizationId)));
   router.put(path + "/setup", write, handle((r, a) => campus.setup(a, r.params.organizationId, r.body)));
   router.post(path + "/activate", write, handle((r, a) => campus.activate(a, r.params.organizationId, r.body)));

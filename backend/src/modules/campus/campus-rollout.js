@@ -8,5 +8,5 @@ export function createCampusRollout(config = {}) {
     && config.VIRTUAL_CAMPUS_PREVIEW_ENABLED === "true"
     && ids.length > 0 && ids.every(id => z.uuid().safeParse(id).success);
   const organizations = new Set(enabled ? ids : []);
-  return Object.freeze({ allows: organizationId => organizations.has(organizationId) });
+  return Object.freeze({ enabled, allows: organizationId => organizations.has(organizationId) });
 }

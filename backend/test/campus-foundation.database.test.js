@@ -220,6 +220,18 @@ test("Campus domain foundation: concurrency, permissions, configuration, integri
       await assert.rejects(campus.history(other.actor, school.id), { status: 403 });
       await assert.rejects(campus.permissionGrants(worker.actor, school.id), { status: 403 });
     });
+    await t.test("workspace areas use current engine grants and deny copied financial and foreign links", async () => {
+      const admin = await campus.workspace(owner.actor, school.id);
+      assert.equal(admin.areas.length, 8);
+      assert.equal(admin.campus.enabledEngines.length, 2);
+      await assert.rejects(campus.workspace(other.actor, school.id), { status: 403 });
+      await assert.rejects(campus.workspace(worker.actor, school.id, "billing"), { status: 403 });
+      const own = await campus.workspace(worker.actor, school.id);
+      assert.equal(own.areas.some(a => a.key === "billing"), false);
+      assert.equal(own.areas.some(a => a.key === "tvet"), false);
+      assert.deepEqual(own.counts, {});
+      await assert.rejects(campus.permissionMembers(worker.actor, school.id), { status: 403 });
+    });
     await t.test("database guards reject cross-tenant grants, record moves, unsafe deletion and audit mutation", async () => {
       await campus.setup(other.actor, outside.id, { engine: "TVET", displayName: "Other Campus", contactEmail: null, expectedVersion: 0 });
       await assert.rejects(db.campusPermissionGrant.create({ data: { campusId: school.id, membershipId: outsiderMember.id, scope: "TVET", permission: TEACH } }), { code: "P2003" });

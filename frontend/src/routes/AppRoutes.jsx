@@ -17,6 +17,7 @@ const OrganizationSetupGate = lazy(() => import("../components/organizations/Org
 const OrganizationWorkspacePage = lazy(() => import("../pages/OrganizationWorkspacePage"));
 function WorkspaceRoute({ section }) { return <Suspense fallback={<p role="status">Loading organization workspace…</p>}><OrganizationSetupGate><OrganizationWorkspacePage section={section} /></OrganizationSetupGate></Suspense>; }
 function LegacyCampusRedirect() { const { id } = useParams(); return <Navigate to={`/campus/${encodeURIComponent(id)}`} replace />; }
+const CampusManagementPage = lazy(() => import("../pages/CampusManagementPage"));
 const CampusActivationPage = lazy(() => import("../pages/CampusActivationPage"));
 const WorkPage = lazy(() => import("../pages/WorkPage"));
 const ManagementPage = lazy(() => import("../pages/ManagementPage"));
@@ -112,7 +113,8 @@ export default function AppRoutes() {
 
       <Route element={<AuthGate />}>
         <Route path="/campus/:id/setup" element={<Suspense fallback={<p role="status">Loading Campus…</p>}><CampusActivationPage setup /></Suspense>} />
-        <Route path="/campus/:id" element={<Suspense fallback={<p role="status">Loading Campus…</p>}><CampusActivationPage /></Suspense>} />
+        <Route path="/campus/:id" element={<Suspense fallback={<p role="status">Loading Campus…</p>}><CampusManagementPage /></Suspense>} />
+        <Route path="/campus/:id/:section" element={<Suspense fallback={<p role="status">Loading Campus…</p>}><CampusManagementPage /></Suspense>} />
         <Route element={<AppLayout />}>
           <Route path="/organization-workspace" element={<Navigate to="/work" replace />} />
           <Route path="/organization-workspace/:organizationId/credentials" element={<Suspense fallback={<p role="status">Loading organization workspace…</p>}><OrganizationSetupGate><CredentialReviewsPage /></OrganizationSetupGate></Suspense>} />

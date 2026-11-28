@@ -1,3 +1,4 @@
+import { campusAreas } from "../../../../shared/campus-workspace.mjs";
 import { campusMemberPermissions, scopePermissions } from "./campus-permissions.js";
 import { onboardingInput, onboardingCompleteInput, enableEngineInput, engineConfigurationInput, permissionGrantInput } from "./campus.schema.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -166,6 +167,32 @@ export function createCampusService({ prisma, now = () => new Date() }) {
     },
     // Internal service boundary, never exposed as an HTTP response.
     authorize: access,
+    async workspace(actor, organizationId, section = "overview") {
+      return transaction(async db => {
+        const ctx = await access(db, actor, organizationId, { requireActive: true });
+        const enginePermissions = {};
+        for (const engine of configuredEngines(ctx.organization.campus)) enginePermissions[engine] = await campusMemberPermissions(db, ctx.organization.campus, ctx.membership, engine);
+        const organizationPermissions = ctx.isPrimary ? ["organization.members.manage", "organization.admissions.review"] : ctx.membership.permissions || [];
+        const areas = campusAreas({ permissions: ctx.grants, enginePermissions, organizationPermissions });
+        if (!areas.some(area => area.key === section)) throw fail(403, "This Campus area is not authorized for your account.");
+        const counts = {};
+        if (section === "overview") for (const [engine, model] of [["GRADE_SCHOOL", "gradeSchoolStudent"], ["TVET", "tvetLearner"]]) {
+          if (enginePermissions[engine]?.includes(ACADEMICS)) counts[engine] = await db[model].count({ where: { campusId: organizationId } });
+        }
+        await access(db, actor, organizationId, { requireActive: true });
+        return { ...summary(ctx), accountId: actor.accountId, organization: { id: organizationId, name: ctx.organization.name, type: ctx.organization.type, offersTraining: ctx.organization.offersTraining },
+          enginePermissions, organizationPermissions, areas, counts, canGrant: ctx.isPrimary, membershipId: ctx.membership.id };
+      });
+    },
+    async permissionMembers(actor, organizationId, query = {}) {
+      const ctx = await access(prisma, actor, organizationId, { requireActive: true, capability: MANAGE });
+      if (query.cursor) campusId(query.cursor);
+      if (query.cursor && !await prisma.organizationMembership.findFirst({ where: { id: query.cursor, organizationId } })) throw fail(404, "Staff page is unavailable.");
+      const rows = await prisma.organizationMembership.findMany({ where: { organizationId, enabled: true }, orderBy: { id: "asc" }, take: 51,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}), select: { id: true, role: true, account: { select: { username: true, person: { select: { firstName: true, lastName: true } } } } } });
+      await access(prisma, actor, organizationId, { requireActive: true, capability: MANAGE });
+      return { items: rows.slice(0, 50), nextCursor: rows.length > 50 ? rows[49].id : null, version: ctx.organization.campus.version };
+    },
     async availability(actor, organizationId) {
       const ctx = await access(prisma, actor, organizationId);
       const enginePermissions = {};
